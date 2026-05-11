@@ -1,0 +1,85 @@
+import { createClient } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
+import { headers } from "next/headers";
+import { asUserRole, roleFromJwtClaims } from "../auth/role-from-claims";
+import type { SessionContext, UserRole } from "../domain/types";
+import { createSupabaseRouteClient } from "../supabase/server";
+import { db } from "./db";
+import { trustHeaderAuth } from "./trust-header-auth";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
+async function sessionContextFromUser(user: User): Promise<SessionContext> {
+  const h = await headers();
+  const { data: profile } = await db.from("profiles").select("role").eq("id", user.id).maybeSingle();
+
+  const roleFromJwt = asUserRole(profile?.role) ?? roleFromJwtClaims(user);
+
+  let driverId = h.get("x-driver-id") ?? undefined;
+  if (roleFromJwt === "motorista" && !driverId) {
+    const { data: driverRow } = await db.from("drivers").select("id").eq("profile_id", user.id).maybeSingle();
+    driverId = driverRow?.id ?? undefined;
+  }
+
+  return {
+    userId: user.id,
+    role: roleFromJwt,
+    clientId: h.get("x-client-id") ?? undefined,
+    driverId
+  };
+}
+
+async function trySessionFromCookies(): Promise<SessionContext | null> {
+  if (!supabaseUrl || !anonKey) return null;
+  try {
+    const cookieClient = await createSupabaseRouteClient();
+    const {
+      data: { user },
+      error
+    } = await cookieClient.auth.getUser();
+    if (error || !user) return null;
+    return sessionContextFromUser(user);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve sessao: JWT `Authorization: Bearer` + `profiles`, depois cookies Supabase,
+ * depois cabecalhos `x-role` / `x-user-id` quando `trustHeaderAuth()`.
+ * Em `production` sem trust e sem JWT/cookies validos, retorna `guest`.
+ */
+export async function getSessionContext(): Promise<SessionContext> {
+  const h = await headers();
+  const authHeader = h.get("authorization");
+  const bearer = authHeader?.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : null;
+  const allowHeaders = trustHeaderAuth();
+
+  if (bearer && supabaseUrl && anonKey) {
+    const authClient = createClient(supabaseUrl, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+
+    const { data, error } = await authClient.auth.getUser(bearer);
+    if (!error && data.user) {
+      return sessionContextFromUser(data.user);
+    }
+  }
+
+  const fromCookies = await trySessionFromCookies();
+  if (fromCookies) {
+    return fromCookies;
+  }
+
+  if (!allowHeaders) {
+    return { userId: "anonymous", role: "guest" };
+  }
+
+  return {
+    userId: h.get("x-user-id") ?? "system-user",
+    role: (h.get("x-role") ?? "admin") as UserRole,
+    clientId: h.get("x-client-id") ?? undefined,
+    driverId: h.get("x-driver-id") ?? undefined
+  };
+}

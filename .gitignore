@@ -1,0 +1,18 @@
+# dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# env (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# logs / OS
+npm-debug.log*
+.DS_Store
+
+# upstream clone scratch (if used)
+_upstream-prime-executive-fleet/
