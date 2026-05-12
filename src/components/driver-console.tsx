@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import type { TripOperationalStatus } from "@/lib/domain/types";
+import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 
 const nextStatuses = ["accepted", "on_the_way", "arrived", "in_progress", "completed"];
 
@@ -43,18 +45,18 @@ export function DriverConsole() {
       "motorista"
     );
     const body = await response.json();
-    setMessage(response.ok && body.success ? "Localizacao enviada." : (body.error?.message ?? "Falha ao enviar localizacao."));
+    setMessage(response.ok && body.success ? "Localização enviada." : (body.error?.message ?? "Falha ao enviar localização."));
   }
 
   return (
     <section className="card">
-      <h2>Operacao do motorista</h2>
+      <h2>Operação do motorista</h2>
       <form onSubmit={onUpdateStatus} className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-        <input value={tripId} onChange={(event) => setTripId(event.target.value)} placeholder="Trip ID" required />
+        <input value={tripId} onChange={(event) => setTripId(event.target.value)} placeholder="ID da corrida" required />
         <select value={status} onChange={(event) => setStatus(event.target.value)}>
           {nextStatuses.map((item) => (
             <option value={item} key={item}>
-              {item}
+              {STATUS_CORRIDA_PT[item as TripOperationalStatus]}
             </option>
           ))}
         </select>
@@ -63,7 +65,7 @@ export function DriverConsole() {
       <form onSubmit={onLocation} className="grid" style={{ marginTop: 12, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
         <input value={lat} onChange={(event) => setLat(event.target.value)} placeholder="Latitude" />
         <input value={lng} onChange={(event) => setLng(event.target.value)} placeholder="Longitude" />
-        <button type="submit">Enviar localizacao</button>
+        <button type="submit">Enviar localização</button>
       </form>
       {message ? <p>{message}</p> : null}
     </section>

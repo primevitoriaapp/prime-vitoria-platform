@@ -33,20 +33,20 @@ export function FinanceConsole() {
     );
     const body = await response.json();
     if (!response.ok || !body.success) {
-      setMessage(body.error?.message ?? "Falha no financeiro.");
+      setMessage(body.error?.message ?? "Falha ao processar o financeiro.");
       return;
     }
-    setMessage(`Financeiro gerado. Margem: ${body.data.net_margin}`);
+    setMessage(`Financeiro gerado. Margem: ${body.data.net_margin}.`);
   }
 
   return (
     <section className="card">
-      <h2>Geracao financeira por corrida</h2>
+      <h2>Geração financeira por corrida</h2>
       <form className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }} onSubmit={onGenerate}>
-        <input value={tripId} onChange={(event) => setTripId(event.target.value)} placeholder="Trip ID" required />
+        <input value={tripId} onChange={(event) => setTripId(event.target.value)} placeholder="ID da corrida" required />
         <input value={amountClient} onChange={(event) => setAmountClient(event.target.value)} placeholder="Valor cliente" type="number" />
         <input value={amountDriver} onChange={(event) => setAmountDriver(event.target.value)} placeholder="Valor motorista" type="number" />
-        <input value={tolls} onChange={(event) => setTolls(event.target.value)} placeholder="Pedagio" type="number" />
+        <input value={tolls} onChange={(event) => setTolls(event.target.value)} placeholder="Pedágio" type="number" />
         <input value={parking} onChange={(event) => setParking(event.target.value)} placeholder="Estacionamento" type="number" />
         <input value={extras} onChange={(event) => setExtras(event.target.value)} placeholder="Extras" type="number" />
         <input value={discount} onChange={(event) => setDiscount(event.target.value)} placeholder="Desconto" type="number" />

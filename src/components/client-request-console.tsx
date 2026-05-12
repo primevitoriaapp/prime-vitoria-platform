@@ -32,16 +32,16 @@ export function ClientRequestConsole() {
     );
 
     const body = await response.json();
-    setMessage(response.ok && body.success ? "Solicitacao registrada." : (body.error?.message ?? "Falha ao solicitar corrida."));
+    setMessage(response.ok && body.success ? "Solicitação registrada." : (body.error?.message ?? "Falha ao solicitar corrida."));
   }
 
   return (
     <section className="card">
-      <h2>Nova solicitacao corporativa</h2>
+      <h2>Nova solicitação corporativa</h2>
       <form onSubmit={onSubmit} className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-        <input value={clientId} onChange={(event) => setClientId(event.target.value)} placeholder="Client ID" required />
-        <input value={costCenterId} onChange={(event) => setCostCenterId(event.target.value)} placeholder="Cost center ID" />
-        <input value={serviceType} onChange={(event) => setServiceType(event.target.value)} placeholder="Tipo de servico" />
+        <input value={clientId} onChange={(event) => setClientId(event.target.value)} placeholder="ID do cliente" required />
+        <input value={costCenterId} onChange={(event) => setCostCenterId(event.target.value)} placeholder="ID do centro de custo" />
+        <input value={serviceType} onChange={(event) => setServiceType(event.target.value)} placeholder="Tipo de serviço" />
         <input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} required />
         <input value={origin} onChange={(event) => setOrigin(event.target.value)} placeholder="Origem" required />
         <input value={destination} onChange={(event) => setDestination(event.target.value)} placeholder="Destino" required />

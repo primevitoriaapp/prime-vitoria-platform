@@ -5,7 +5,7 @@ export default function ClientPage() {
     <main>
       <h1>Painel do Cliente</h1>
       <div className="card">
-        Solicitar corrida com centro de custo, matricula, setor, unidade e acompanhamento por status.
+        Solicitar corrida com centro de custo, matrícula, setor, unidade e acompanhamento por status.
       </div>
       <ClientRequestConsole />
     </main>

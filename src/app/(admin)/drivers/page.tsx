@@ -18,12 +18,12 @@ export default async function DriversPage() {
         title="Novo motorista"
         endpoint="/api/drivers"
         fields={[
-          { key: "profile_id", label: "Profile ID", required: true },
+          { key: "profile_id", label: "ID do perfil", required: true },
           { key: "cpf", label: "CPF", required: true },
           { key: "cnh_number", label: "CNH" },
           { key: "cnh_category", label: "Categoria CNH" },
           { key: "pix_key", label: "Chave PIX" },
-          { key: "address", label: "Endereco" }
+          { key: "address", label: "Endereço" }
         ]}
       />
       <section className="card">
@@ -31,7 +31,7 @@ export default async function DriversPage() {
         <ul>
           {drivers.map((driver) => (
             <li key={driver.id}>
-              CPF {driver.cpf} - CNH {driver.cnh_number ?? "nao informado"}
+              CPF {driver.cpf} — CNH {driver.cnh_number ?? "não informada"}
             </li>
           ))}
         </ul>

@@ -1,4 +1,5 @@
 import { TripOperationalStatus } from "@/lib/domain/types";
+import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 
 const colorMap: Record<TripOperationalStatus, string> = {
   requested: "#64748b",
@@ -18,7 +19,7 @@ const colorMap: Record<TripOperationalStatus, string> = {
 export function StatusBadge({ status }: { status: TripOperationalStatus }) {
   return (
     <span className="badge" style={{ background: colorMap[status], color: "white" }}>
-      {status}
+      {STATUS_CORRIDA_PT[status]}
     </span>
   );
 }

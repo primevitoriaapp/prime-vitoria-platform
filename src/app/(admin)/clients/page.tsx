@@ -21,7 +21,7 @@ export default async function ClientsPage() {
           { key: "type", label: "Tipo (PF/PJ)", required: true },
           { key: "name", label: "Nome", required: true },
           { key: "document", label: "Documento" },
-          { key: "email", label: "Email", type: "email" },
+          { key: "email", label: "E-mail", type: "email" },
           { key: "phone", label: "Telefone" }
         ]}
       />

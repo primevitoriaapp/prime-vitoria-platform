@@ -79,7 +79,7 @@ export function EntityCrudPanel({ title, endpoint, fields }: EntityCrudPanelProp
           </label>
         ))}
         <button type="submit" disabled={loading} style={{ padding: "10px 12px", borderRadius: 8 }}>
-          {loading ? "Salvando..." : "Salvar"}
+          {loading ? "Salvando…" : "Salvar"}
         </button>
       </form>
       {feedback ? <p>{feedback}</p> : null}

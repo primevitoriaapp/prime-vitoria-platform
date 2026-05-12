@@ -14,7 +14,7 @@ export default async function DashboardPage() {
 
   return (
     <main>
-      <h1>Dashboard Operacional</h1>
+      <h1>Painel operacional</h1>
       <div className="grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
         <KpiCard label="Corridas" value={data.totalTrips} />
         <KpiCard label="Finalizadas" value={data.completedTrips} />

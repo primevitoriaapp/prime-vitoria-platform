@@ -30,7 +30,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
-    return { error: "Supabase nao configurado (URL/anon key)." };
+    return { error: "Supabase não configurado (URL/chave anônima)." };
   }
 
   const cookieStore = await cookies();
@@ -49,7 +49,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.user) {
-    return { error: error?.message ?? "Email ou senha invalidos." };
+    return { error: error?.message ?? "E-mail ou senha inválidos." };
   }
 
   const { data: profile } = await db.from("profiles").select("role").eq("id", data.user.id).maybeSingle();

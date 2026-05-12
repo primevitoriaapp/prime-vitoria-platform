@@ -47,18 +47,18 @@ export function DispatchConsole() {
     <section className="card">
       <h2>Console de despacho</h2>
       <form onSubmit={onDispatchDirected} className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-        <input value={tripId} onChange={(event) => setTripId(event.target.value)} placeholder="Trip ID" />
-        <input value={driverId} onChange={(event) => setDriverId(event.target.value)} placeholder="Driver ID direcionado" />
+        <input value={tripId} onChange={(event) => setTripId(event.target.value)} placeholder="ID da corrida" />
+        <input value={driverId} onChange={(event) => setDriverId(event.target.value)} placeholder="ID do motorista (despacho direcionado)" />
         <button type="submit">Despachar direcionado</button>
       </form>
       <form onSubmit={onCreateOffer} className="grid" style={{ marginTop: 12 }}>
         <textarea
           value={candidateIds}
           onChange={(event) => setCandidateIds(event.target.value)}
-          placeholder="IDs de motoristas parceiros separados por virgula"
+          placeholder="IDs de motoristas parceiros, separados por vírgula"
           rows={4}
         />
-        <button type="submit">Criar oferta automatica</button>
+        <button type="submit">Criar oferta automática</button>
       </form>
       {message ? <p>{message}</p> : null}
     </section>

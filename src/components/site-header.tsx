@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { logoutAction } from "@/app/login/actions";
+import { papelUsuarioPt } from "@/lib/i18n/pt-br";
 
 type SessionPayload = {
   userId: string;
@@ -48,7 +49,7 @@ export function SiteHeader() {
         Prime Vitória
       </Link>
       <nav style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14 }}>
-        <Link href="/dashboard">Admin</Link>
+        <Link href="/dashboard">Painel</Link>
         <Link href="/driver">Motorista</Link>
         <Link href="/client">Cliente</Link>
         {session === undefined ? (
@@ -56,7 +57,7 @@ export function SiteHeader() {
         ) : session ? (
           <form action={logoutAction}>
             <button type="submit" style={{ fontSize: 14, cursor: "pointer" }}>
-              Sair ({session.role})
+              Sair ({papelUsuarioPt(session.role)})
             </button>
           </form>
         ) : (
