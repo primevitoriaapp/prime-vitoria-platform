@@ -3,9 +3,11 @@ import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { calculateNetMargin } from "@/lib/finance/margin";
 import { getSessionContext } from "@/lib/server/session";
+import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { isPostgresUniqueViolation } from "@/lib/server/postgres-errors";
+import { insertAuditEvent } from "@/lib/server/audit-log";
 
 const schema = z.object({
   amount_client: z.number().nonnegative(),
@@ -25,12 +27,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = schema.parse(await request.json());
 
     const netMargin = calculateNetMargin(body);
+    const tenantId = assertTenantScope(session);
 
-    const { data: trip } = await db.from("trips").select("id, client_id, driver_id").eq("id", id).single();
+    const { data: trip } = await db
+      .from("trips")
+      .select("id, client_id, driver_id, tenant_id")
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .single();
     if (!trip) return fail("TRIP_NOT_FOUND", "Trip not found", 404);
 
     const denied = denyUnlessTripReadable(
-      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null })
+      tripGetAccess(session, {
+        client_id: trip.client_id,
+        driver_id: trip.driver_id ?? null,
+        tenant_id: trip.tenant_id
+      })
     );
     if (denied) return denied;
 
@@ -94,6 +106,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         return fail("DRIVER_PAYABLE_SAVE_FAILED", dpError.message, 500);
       }
     }
+
+    await insertAuditEvent({
+      tenantId,
+      actorUserId: session.userId,
+      action: "finance.trip_generate",
+      entityType: "trip",
+      entityId: id,
+      metadata: { net_margin: netMargin, amount_client: body.amount_client, amount_driver: body.amount_driver },
+      request
+    });
 
     return ok({ trip_id: id, net_margin: netMargin });
   } catch (error) {

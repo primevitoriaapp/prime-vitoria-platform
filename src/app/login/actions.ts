@@ -1,5 +1,6 @@
 "use server";
 
+import type { Route } from "next";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -39,7 +40,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value, options }) =>
           cookieStore.set(name, value, options as CookieOptions | undefined)
         );
@@ -56,9 +57,9 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   const role = asUserRole(profile?.role) ?? roleFromJwtClaims(data.user);
 
   if (isSafeInternalPath(nextRaw)) {
-    redirect(nextRaw);
+    redirect(nextRaw as Route);
   }
-  redirect(postLoginPathForRole(role));
+  redirect(postLoginPathForRole(role) as Route);
 }
 
 export async function logoutAction(): Promise<void> {
@@ -74,7 +75,7 @@ export async function logoutAction(): Promise<void> {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value, options }) =>
           cookieStore.set(name, value, options as CookieOptions | undefined)
         );

@@ -14,5 +14,8 @@ out/
 npm-debug.log*
 .DS_Store
 
+# TypeScript
+*.tsbuildinfo
+
 # upstream clone scratch (if used)
 _upstream-prime-executive-fleet/

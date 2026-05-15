@@ -12,13 +12,15 @@ import type { Provider, ReceivableDTO } from "./types";
 export async function enrichReceivableFromErpMappings(
   db: SupabaseClient,
   provider: Provider,
-  dto: ReceivableDTO
+  dto: ReceivableDTO,
+  tenantId: string
 ): Promise<ReceivableDTO> {
   let next: ReceivableDTO = { ...dto };
 
   const { data: clientMap } = await db
     .from("erp_entity_mappings")
     .select("external_id")
+    .eq("tenant_id", tenantId)
     .eq("provider", provider)
     .eq("entity_type", "client")
     .eq("internal_id", dto.clientInternalId)
@@ -39,6 +41,7 @@ export async function enrichReceivableFromErpMappings(
     const { data: itemMap } = await db
       .from("erp_entity_mappings")
       .select("external_id")
+      .eq("tenant_id", tenantId)
       .eq("provider", "conta_azul")
       .eq("entity_type", "conta_azul_item")
       .eq("internal_id", dto.clientInternalId)

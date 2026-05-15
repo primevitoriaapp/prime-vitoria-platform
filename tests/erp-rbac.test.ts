@@ -86,3 +86,15 @@ test("motorista uses trip.read.assigned", () => {
 test("financeiro can read trips for consoles", () => {
   assert.equal(can(session("financeiro"), "trip.read"), true);
 });
+
+test("operador can list profiles for tenant user management", () => {
+  assert.equal(can(session("operador"), "profiles.read"), true);
+});
+
+test("financeiro cannot list profiles", () => {
+  assert.equal(can(session("financeiro"), "profiles.read"), false);
+});
+
+test("admin can list profiles via wildcard", () => {
+  assert.equal(can(session("admin"), "profiles.read"), true);
+});

@@ -3,6 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import { asUserRole, roleFromJwtClaims } from "../auth/role-from-claims";
 import type { SessionContext, UserRole } from "../domain/types";
+import { DEFAULT_TENANT_ID } from "../tenant/default-tenant";
 import { createSupabaseRouteClient } from "../supabase/server";
 import { db } from "./db";
 import { trustHeaderAuth } from "./trust-header-auth";
@@ -10,9 +11,15 @@ import { trustHeaderAuth } from "./trust-header-auth";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
+function parseTenantHeader(h: Headers): string | undefined {
+  const v = h.get("x-tenant-id");
+  if (!v || !/^[0-9a-f-]{36}$/i.test(v)) return undefined;
+  return v;
+}
+
 async function sessionContextFromUser(user: User): Promise<SessionContext> {
   const h = await headers();
-  const { data: profile } = await db.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  const { data: profile } = await db.from("profiles").select("role, tenant_id, client_id").eq("id", user.id).maybeSingle();
 
   const roleFromJwt = asUserRole(profile?.role) ?? roleFromJwtClaims(user);
 
@@ -25,7 +32,8 @@ async function sessionContextFromUser(user: User): Promise<SessionContext> {
   return {
     userId: user.id,
     role: roleFromJwt,
-    clientId: h.get("x-client-id") ?? undefined,
+    tenantId: (profile?.tenant_id as string | undefined) ?? DEFAULT_TENANT_ID,
+    clientId: h.get("x-client-id") ?? (profile?.client_id as string | undefined) ?? undefined,
     driverId
   };
 }
@@ -79,6 +87,7 @@ export async function getSessionContext(): Promise<SessionContext> {
   return {
     userId: h.get("x-user-id") ?? "system-user",
     role: (h.get("x-role") ?? "admin") as UserRole,
+    tenantId: parseTenantHeader(h) ?? DEFAULT_TENANT_ID,
     clientId: h.get("x-client-id") ?? undefined,
     driverId: h.get("x-driver-id") ?? undefined
   };

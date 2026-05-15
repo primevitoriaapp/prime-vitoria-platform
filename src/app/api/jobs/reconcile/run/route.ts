@@ -3,7 +3,7 @@ import { runReconciliation } from "@/lib/jobs/processors";
 import { getSessionContext } from "@/lib/server/session";
 import { assertCapability } from "@/lib/security/rbac";
 import { runIntegrationGuards } from "@/lib/security/integration-guard";
-import { isMachineBearerAuthorized } from "@/lib/security/machine-bearer-auth.ts";
+import { isMachineBearerAuthorized } from "@/lib/security/machine-bearer-auth";
 
 export async function POST(request: Request) {
   try {

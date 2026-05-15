@@ -5,6 +5,7 @@ import { Provider, resolveAdapter } from "@/lib/integrations/adapters";
 import { erpIntegrationMode } from "@/lib/integrations/erp-mode";
 import { enrichReceivableFromErpMappings } from "@/lib/integrations/map-receivable-for-erp";
 import { getSessionContext } from "@/lib/server/session";
+import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { runIntegrationGuards } from "@/lib/security/integration-guard";
 
@@ -12,14 +13,16 @@ const schema = z.object({
   receivable_id: z.string().uuid()
 });
 
-export async function POST(request: Request, { params }: { params: Promise<{ provider: Provider }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ provider: string }> }) {
   try {
     runIntegrationGuards(request, "sync-receivable-post");
     const session = await getSessionContext();
     assertCapability(session, "erp.mapping.write");
+    const tenantId = assertTenantScope(session);
 
     const body = schema.parse(await request.json());
-    const { provider } = await params;
+    const { provider: raw } = await params;
+    const provider = raw as Provider;
 
     const adapter = resolveAdapter(provider);
     const mode = erpIntegrationMode(provider);
@@ -32,6 +35,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
 
     if (!receivable) return fail("RECEIVABLE_NOT_FOUND", "Receivable not found", 404);
 
+    const { data: tripRow } = await db.from("trips").select("tenant_id").eq("id", receivable.trip_id).maybeSingle();
+    if (!tripRow || tripRow.tenant_id !== tenantId) {
+      return fail("RECEIVABLE_NOT_FOUND", "Receivable not found", 404);
+    }
+
     const baseDto = {
       internalId: receivable.id,
       tripId: receivable.trip_id,
@@ -41,21 +49,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
       description: `Corrida ${receivable.trip_id}`,
       externalReference: receivable.trip_id
     };
-    const dto = await enrichReceivableFromErpMappings(db, provider, baseDto);
+    const dto = await enrichReceivableFromErpMappings(db, provider, baseDto, tenantId);
 
     const result = await adapter.createReceivable(dto);
 
     const syncStatus =
       result.externalStatus === "mock" || result.externalId.includes("_mock_") ? "mock" : "success";
 
-    const { error } = await db.from("erp_entity_mappings").upsert({
-      provider,
-      entity_type: "receivable",
-      internal_id: receivable.id,
-      external_id: result.externalId,
-      sync_status: mode === "live" ? syncStatus : "mock",
-      last_sync_at: new Date().toISOString()
-    });
+    const { error } = await db.from("erp_entity_mappings").upsert(
+      {
+        tenant_id: tenantId,
+        provider,
+        entity_type: "receivable",
+        internal_id: receivable.id,
+        external_id: result.externalId,
+        sync_status: mode === "live" ? syncStatus : "mock",
+        last_sync_at: new Date().toISOString()
+      },
+      { onConflict: "tenant_id,provider,entity_type,internal_id" }
+    );
 
     if (error) return fail("ERP_SYNC_SAVE_FAILED", error.message, 500);
 

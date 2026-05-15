@@ -64,6 +64,16 @@ export async function processErpSyncJobs(limit = 20) {
           continue;
         }
 
+        const { data: tripRow } = await db.from("trips").select("tenant_id").eq("id", receivable.trip_id).maybeSingle();
+        const tenantId = tripRow?.tenant_id;
+        if (!tenantId) {
+          await db
+            .from("erp_sync_jobs")
+            .update({ status: "error", last_error: "Trip tenant not found for receivable", response_snapshot: null })
+            .eq("id", job.id);
+          continue;
+        }
+
         const baseDto = {
           internalId: receivable.id,
           tripId: receivable.trip_id,
@@ -73,21 +83,28 @@ export async function processErpSyncJobs(limit = 20) {
           description: `Corrida ${receivable.trip_id}`,
           externalReference: receivable.trip_id
         };
-        const dto = await enrichReceivableFromErpMappings(db, provider, baseDto);
+        const dto = await enrichReceivableFromErpMappings(db, provider, baseDto, tenantId);
 
         const result = await adapter.createReceivable(dto);
 
         const syncStatus =
           result.externalStatus === "mock" || result.externalId.includes("_mock_") ? "mock" : "success";
 
-        await db.from("erp_entity_mappings").upsert({
-          provider,
-          entity_type: "receivable",
-          internal_id: receivable.id,
-          external_id: result.externalId,
-          sync_status: syncStatus,
-          last_sync_at: new Date().toISOString()
-        });
+        const { error: mapErr } = await db.from("erp_entity_mappings").upsert(
+          {
+            tenant_id: tenantId,
+            provider,
+            entity_type: "receivable",
+            internal_id: receivable.id,
+            external_id: result.externalId,
+            sync_status: syncStatus,
+            last_sync_at: new Date().toISOString()
+          },
+          { onConflict: "tenant_id,provider,entity_type,internal_id" }
+        );
+        if (mapErr) {
+          throw new Error(mapErr.message);
+        }
       }
 
       await db

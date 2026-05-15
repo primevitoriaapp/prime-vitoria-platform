@@ -3,11 +3,16 @@ import assert from "node:assert/strict";
 import { denyUnlessTripReadable, tripGetAccess } from "../src/lib/trips/trip-detail-access.ts";
 import type { SessionContext } from "../src/lib/domain/types.ts";
 
+/** Alinhado a `src/lib/tenant/default-tenant.ts` (evita importar módulo sem extensão no runner Node). */
+const DEFAULT_TENANT_ID = "a0000000-0000-0000-0000-000000000001";
+
+const OTHER_TENANT_ID = "b0000000-0000-0000-0000-000000000002";
+
 function session(role: SessionContext["role"], extra: Partial<SessionContext> = {}): SessionContext {
-  return { userId: "u1", role, ...extra };
+  return { userId: "u1", role, tenantId: DEFAULT_TENANT_ID, ...extra };
 }
 
-const trip = { client_id: "c1", driver_id: "d1" as string | null };
+const trip = { client_id: "c1", driver_id: "d1" as string | null, tenant_id: DEFAULT_TENANT_ID };
 
 test("operador with trip.read sees any trip", () => {
   assert.equal(tripGetAccess(session("operador"), trip), "allow");
@@ -46,5 +51,19 @@ test("denyUnlessTripReadable null only for allow", () => {
 });
 
 test("operador can open dispatch on any trip (trip.read)", () => {
-  assert.equal(tripGetAccess(session("operador"), { client_id: "other", driver_id: null }), "allow");
+  assert.equal(tripGetAccess(session("operador"), { client_id: "other", driver_id: null, tenant_id: DEFAULT_TENANT_ID }), "allow");
+});
+
+test("operador from other tenant does not see trip", () => {
+  assert.equal(
+    tripGetAccess(session("operador", { tenantId: OTHER_TENANT_ID }), trip),
+    "not_found"
+  );
+});
+
+test("cliente same client id but other tenant is isolated", () => {
+  assert.equal(
+    tripGetAccess(session("cliente", { clientId: "c1", tenantId: OTHER_TENANT_ID }), trip),
+    "not_found"
+  );
 });

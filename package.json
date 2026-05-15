@@ -7,7 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "env:ensure-dispatch-scan-secret": "node scripts/ensure-dispatch-direct-scan-secret.mjs",
+    "predev": "node scripts/ensure-dispatch-direct-scan-secret.mjs",
+    "db:start": "npx supabase start",
+    "db:stop": "npx supabase stop",
+    "db:reset": "npx supabase db reset",
+    "db:push": "npx supabase db push",
+    "db:migrate": "npx supabase migration up",
+    "db:apply-migration": "bash scripts/apply-migration.sh",
+    "seed:staging": "node scripts/seed-staging-operational.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -23,8 +32,11 @@
     "@types/node": "^22.15.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
+    "autoprefixer": "^10.4.20",
     "eslint": "^9.26.0",
     "eslint-config-next": "^15.3.2",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3"
   }
 }

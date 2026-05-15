@@ -3,10 +3,12 @@ import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { canTransition } from "@/lib/domain/status";
 import { getSessionContext } from "@/lib/server/session";
+import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { hasDispatchConflict } from "@/lib/dispatch/conflicts";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
+import { insertAuditEvent } from "@/lib/server/audit-log";
 
 const bodySchema = z.object({
   driver_id: z.string().uuid(),
@@ -19,12 +21,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     assertCapability(session, "dispatch");
     const { id } = await params;
     const body = bodySchema.parse(await request.json());
+    const tenantId = assertTenantScope(session);
 
-    const { data: trip } = await db.from("trips").select("*").eq("id", id).single();
+    const { data: trip } = await db.from("trips").select("*").eq("id", id).eq("tenant_id", tenantId).single();
     if (!trip) return fail("TRIP_NOT_FOUND", "Trip not found", 404);
 
     const denied = denyUnlessTripReadable(
-      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null })
+      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null, tenant_id: trip.tenant_id })
     );
     if (denied) return denied;
 
@@ -35,6 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { data: schedule } = await db
       .from("trips")
       .select("id, scheduled_at, operational_status")
+      .eq("tenant_id", tenantId)
       .eq("driver_id", body.driver_id)
       .limit(100);
 
@@ -56,6 +60,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         operational_status: "dispatched"
       })
       .eq("id", id)
+      .eq("tenant_id", tenantId)
       .select("*")
       .single();
 
@@ -66,6 +71,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       recipientType: "driver",
       recipientId: body.driver_id,
       tripId: id
+    });
+
+    await insertAuditEvent({
+      tenantId,
+      actorUserId: session.userId,
+      action: "trip.dispatch_directed",
+      entityType: "trip",
+      entityId: id,
+      metadata: { driver_id: body.driver_id, vehicle_id: body.vehicle_id ?? null },
+      request
     });
 
     return ok(data);

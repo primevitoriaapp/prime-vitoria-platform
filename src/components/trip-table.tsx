@@ -1,4 +1,7 @@
+import Link from "next/link";
+import type { Route } from "next";
 import { StatusBadge } from "@/components/status-badge";
+import { TripTrackingLinkButton } from "@/components/trip-tracking-link-button";
 import type { DispatchMode } from "@/lib/domain/types";
 import { MODO_DESPACHO_PT } from "@/lib/i18n/pt-br";
 
@@ -15,7 +18,14 @@ function labelModoDespacho(mode: string): string {
   return mode in MODO_DESPACHO_PT ? MODO_DESPACHO_PT[mode as DispatchMode] : mode;
 }
 
-export function TripTable({ trips }: { trips: TripRow[] }) {
+type TripTableProps = {
+  trips: TripRow[];
+  /** Se definido, mostra coluna com ligação para notas operacionais (ex.: agenda). */
+  operatorNotesHref?: (tripId: string) => string;
+};
+
+export function TripTable({ trips, operatorNotesHref }: TripTableProps) {
+  const showNotes = typeof operatorNotesHref === "function";
   return (
     <div className="card" style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -26,6 +36,8 @@ export function TripTable({ trips }: { trips: TripRow[] }) {
             <th align="left">Destino</th>
             <th align="left">Despacho</th>
             <th align="left">Status</th>
+            <th align="left">Rastreio</th>
+            {showNotes ? <th align="left">Equipa</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -35,7 +47,22 @@ export function TripTable({ trips }: { trips: TripRow[] }) {
               <td>{trip.origin_text}</td>
               <td>{trip.destination_text}</td>
               <td>{labelModoDespacho(trip.dispatch_mode)}</td>
-              <td><StatusBadge status={trip.operational_status} /></td>
+              <td>
+                <StatusBadge status={trip.operational_status} />
+              </td>
+              <td>
+                <TripTrackingLinkButton tripId={trip.id} />
+              </td>
+              {showNotes ? (
+                <td>
+                  <Link
+                    href={operatorNotesHref(trip.id) as Route}
+                    className="text-sm font-medium text-amber-700 hover:underline"
+                  >
+                    Notas
+                  </Link>
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

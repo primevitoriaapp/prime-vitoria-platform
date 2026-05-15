@@ -1,0 +1,16 @@
+{
+  "name": "Prime Vitória — Motorista",
+  "short_name": "PV Motorista",
+  "description": "Operação e status de corridas para motoristas.",
+  "start_url": "/driver",
+  "scope": "/driver",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "lang": "pt-BR",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/icon", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/apple-icon", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}

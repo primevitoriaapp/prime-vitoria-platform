@@ -35,7 +35,6 @@ export function DriverConsole() {
       {
         method: "POST",
         body: JSON.stringify({
-          driver_id: "00000000-0000-0000-0000-000000000001",
           trip_id: tripId || undefined,
           lat: Number(lat),
           lng: Number(lng),

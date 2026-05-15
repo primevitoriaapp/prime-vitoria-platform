@@ -8,6 +8,7 @@ import { papelUsuarioPt } from "@/lib/i18n/pt-br";
 type SessionPayload = {
   userId: string;
   role: string;
+  tenantId?: string | null;
 };
 
 export function SiteHeader() {
@@ -20,7 +21,11 @@ export function SiteHeader() {
       .then((body) => {
         if (cancelled) return;
         if (body?.success && body?.data?.role && body.data.role !== "guest") {
-          setSession({ userId: body.data.userId, role: body.data.role });
+          setSession({
+            userId: body.data.userId,
+            role: body.data.role,
+            tenantId: body.data.tenantId ?? null
+          });
         } else {
           setSession(null);
         }
@@ -50,12 +55,20 @@ export function SiteHeader() {
       </Link>
       <nav style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14 }}>
         <Link href="/dashboard">Painel</Link>
+        <Link href="/agenda">Agenda</Link>
+        <Link href="/users">Utilizadores</Link>
+        <Link href="/audit">Auditoria</Link>
         <Link href="/driver">Motorista</Link>
         <Link href="/client">Cliente</Link>
         {session === undefined ? (
           <span style={{ color: "#94a3b8" }}>…</span>
         ) : session ? (
-          <form action={logoutAction}>
+          <form action={logoutAction} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {session.tenantId ? (
+              <span style={{ fontSize: 12, color: "#64748b" }} title="Organização (tenant)">
+                Org: {session.tenantId.slice(0, 8)}…
+              </span>
+            ) : null}
             <button type="submit" style={{ fontSize: 14, cursor: "pointer" }}>
               Sair ({papelUsuarioPt(session.role)})
             </button>

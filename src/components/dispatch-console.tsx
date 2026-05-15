@@ -12,6 +12,7 @@ export function DispatchConsole() {
     const response = await fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(payload)
     });
     const body = await response.json();

@@ -2,7 +2,9 @@ import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
+import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
+import { insertAuditEvent } from "@/lib/server/audit-log";
 import { isPostgresUniqueViolation } from "@/lib/server/postgres-errors";
 
 const schema = z.object({
@@ -20,9 +22,19 @@ export async function POST(request: Request) {
   try {
     const session = await getSessionContext();
     assertCapability(session, "trip.write");
-
+    const tenantId = assertTenantScope(session);
     const body = schema.parse(await request.json());
-    const { data, error } = await db.from("drivers").insert(body).select("*").single();
+
+    const { data: prof, error: pe } = await db
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", body.profile_id)
+      .maybeSingle();
+    if (pe || !prof || prof.tenant_id !== tenantId) {
+      return fail("FORBIDDEN", "Perfil invalido ou de outra organizacao", 403);
+    }
+
+    const { data, error } = await db.from("drivers").insert({ ...body, tenant_id: tenantId }).select("*").single();
 
     if (error) {
       if (isPostgresUniqueViolation(error)) {
@@ -30,6 +42,15 @@ export async function POST(request: Request) {
       }
       return fail("DRIVER_CREATE_FAILED", error.message, 500);
     }
+    await insertAuditEvent({
+      tenantId,
+      actorUserId: session.userId,
+      action: "driver.create",
+      entityType: "driver",
+      entityId: data.id,
+      metadata: { profile_id: body.profile_id },
+      request
+    });
     return ok(data, 201);
   } catch (error) {
     return mapApiError(error);
@@ -40,7 +61,8 @@ export async function GET() {
   try {
     const session = await getSessionContext();
     assertCapability(session, "driver.read");
-    const { data, error } = await db.from("drivers").select("*").eq("active", true).limit(200);
+    const tenantId = assertTenantScope(session);
+    const { data, error } = await db.from("drivers").select("*").eq("active", true).eq("tenant_id", tenantId).limit(200);
     if (error) return fail("DRIVER_LIST_FAILED", error.message, 500);
     return ok(data ?? []);
   } catch (error) {

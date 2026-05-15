@@ -24,7 +24,7 @@ export async function getSessionFromSupabaseCookies(request: NextRequest): Promi
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet, cacheHeaders?: Record<string, string>) {
+      setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[], cacheHeaders?: Record<string, string>) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>

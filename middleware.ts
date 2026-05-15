@@ -8,6 +8,8 @@ const protectedPrefixes: Array<{ prefix: string; allowedRoles: string[] }> = [
   { prefix: "/dashboard", allowedRoles: ["admin", "operador"] },
   { prefix: "/agenda", allowedRoles: ["admin", "operador"] },
   { prefix: "/dispatch", allowedRoles: ["admin", "operador"] },
+  { prefix: "/users", allowedRoles: ["admin", "operador"] },
+  { prefix: "/audit", allowedRoles: ["admin", "operador", "financeiro"] },
   { prefix: "/finance", allowedRoles: ["admin", "financeiro"] },
   { prefix: "/driver", allowedRoles: ["motorista", "admin"] },
   { prefix: "/client", allowedRoles: ["cliente", "admin"] }
@@ -60,5 +62,16 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/agenda/:path*", "/dispatch/:path*", "/finance/:path*", "/driver/:path*", "/client/:path*"]
+  matcher: [
+    "/dashboard/:path*",
+    "/agenda/:path*",
+    "/dispatch/:path*",
+    "/users",
+    "/users/:path*",
+    "/audit",
+    "/audit/:path*",
+    "/finance/:path*",
+    "/driver/:path*",
+    "/client/:path*"
+  ]
 };

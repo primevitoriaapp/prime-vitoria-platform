@@ -7,6 +7,7 @@ export async function GET() {
     return ok({
       userId: session.userId,
       role: session.role,
+      tenantId: session.tenantId ?? null,
       clientId: session.clientId ?? null,
       driverId: session.driverId ?? null
     });

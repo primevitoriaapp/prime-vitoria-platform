@@ -1,0 +1,2 @@
+-- Dados de seed opcionais (vazio por omissão). Use `supabase db reset` após migrar.
+-- Para utilizadores + corridas de teste em Supabase alojado, ver `npm run seed:staging` e docs/STAGING_E2E.md.

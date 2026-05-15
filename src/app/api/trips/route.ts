@@ -3,6 +3,8 @@ import { db } from "@/lib/server/db";
 import { fail, ok } from "@/lib/server/http";
 import { assertCapability, can } from "@/lib/security/rbac";
 import { getSessionContext } from "@/lib/server/session";
+import { assertTenantScope } from "@/lib/server/tenant-scope";
+import { insertAuditEvent } from "@/lib/server/audit-log";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 
 const listSchema = z.object({
@@ -10,7 +12,9 @@ const listSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   status: z.string().optional(),
   driverId: z.string().uuid().optional(),
-  clientId: z.string().uuid().optional()
+  clientId: z.string().uuid().optional(),
+  scheduledFrom: z.string().optional(),
+  scheduledTo: z.string().optional()
 });
 
 const createTripSchema = z.object({
@@ -43,6 +47,7 @@ export async function POST(request: Request) {
     assertCapability(session, session.role === "cliente" ? "trip.request" : "trip.write");
 
     const body = createTripSchema.parse(await request.json());
+    const tenantId = assertTenantScope(session);
 
     if (session.role === "cliente") {
       if (!session.clientId) {
@@ -53,15 +58,42 @@ export async function POST(request: Request) {
       }
     }
 
+    const { data: clientRow, error: clientErr } = await db
+      .from("clients")
+      .select("id, tenant_id")
+      .eq("id", body.client_id)
+      .single();
+    if (clientErr || !clientRow) {
+      return fail("CLIENT_NOT_FOUND", "Cliente nao encontrado", 404);
+    }
+    if (clientRow.tenant_id !== tenantId) {
+      return fail("FORBIDDEN", "Cliente nao pertence a esta organizacao", 403);
+    }
+
     const { data, error } = await db
       .from("trips")
-      .insert({ ...body, created_by: session.userId, operational_status: "requested" })
+      .insert({
+        ...body,
+        tenant_id: tenantId,
+        created_by: session.userId,
+        operational_status: "requested"
+      })
       .select("*")
       .single();
 
     if (error) {
       return fail("TRIP_CREATE_FAILED", error.message, 500);
     }
+
+    await insertAuditEvent({
+      tenantId,
+      actorUserId: session.userId,
+      action: "trip.create",
+      entityType: "trip",
+      entityId: data.id,
+      metadata: { client_id: body.client_id, operational_status: data.operational_status },
+      request
+    });
 
     return ok(data, 201);
   } catch (error) {
@@ -76,12 +108,34 @@ export async function GET(request: Request) {
 
     const from = (query.page - 1) * query.pageSize;
     const to = from + query.pageSize - 1;
+    const tenantId = assertTenantScope(session);
 
-    let req = db
-      .from("trips")
-      .select("*", { count: "exact" })
-      .order("scheduled_at", { ascending: true })
-      .range(from, to);
+    let scheduledFromIso: string | null = null;
+    let scheduledToIso: string | null = null;
+    if (query.scheduledFrom?.trim()) {
+      const t = new Date(query.scheduledFrom.trim());
+      if (Number.isNaN(t.getTime())) {
+        return fail("INVALID_QUERY", "scheduledFrom must be a valid ISO datetime", 400);
+      }
+      scheduledFromIso = t.toISOString();
+    }
+    if (query.scheduledTo?.trim()) {
+      const t = new Date(query.scheduledTo.trim());
+      if (Number.isNaN(t.getTime())) {
+        return fail("INVALID_QUERY", "scheduledTo must be a valid ISO datetime", 400);
+      }
+      scheduledToIso = t.toISOString();
+    }
+    if (scheduledFromIso && scheduledToIso && scheduledFromIso > scheduledToIso) {
+      return fail("INVALID_QUERY", "scheduledFrom must be before or equal to scheduledTo", 400);
+    }
+
+    let req = db.from("trips").select("*", { count: "exact" }).eq("tenant_id", tenantId);
+
+    if (scheduledFromIso) req = req.gte("scheduled_at", scheduledFromIso);
+    if (scheduledToIso) req = req.lte("scheduled_at", scheduledToIso);
+
+    req = req.order("scheduled_at", { ascending: true }).range(from, to);
 
     if (can(session, "trip.read")) {
       assertCapability(session, "trip.read");

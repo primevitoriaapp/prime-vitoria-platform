@@ -3,6 +3,7 @@ import { db } from "@/lib/server/db";
 import { fail, ok } from "@/lib/server/http";
 import type { Provider } from "@/lib/integrations/types";
 import { getSessionContext } from "@/lib/server/session";
+import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { runIntegrationGuards } from "@/lib/security/integration-guard";
 
@@ -44,12 +45,18 @@ export async function GET(request: Request) {
     runIntegrationGuards(request, "mappings-get");
     const session = await getSessionContext();
     assertCapability(session, "erp.mapping.read");
+    const tenantId = assertTenantScope(session);
 
     const q = listSchema.parse(Object.fromEntries(new URL(request.url).searchParams.entries()));
     const from = (q.page - 1) * q.pageSize;
     const to = from + q.pageSize - 1;
 
-    let query = db.from("erp_entity_mappings").select("*", { count: "exact" }).order("last_sync_at", { ascending: false }).range(from, to);
+    let query = db
+      .from("erp_entity_mappings")
+      .select("*", { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .order("last_sync_at", { ascending: false })
+      .range(from, to);
 
     if (q.provider) query = query.eq("provider", q.provider);
     if (q.entity_type) query = query.eq("entity_type", q.entity_type);
@@ -79,6 +86,7 @@ export async function POST(request: Request) {
     runIntegrationGuards(request, "mappings-post");
     const session = await getSessionContext();
     assertCapability(session, "erp.mapping.write");
+    const tenantId = assertTenantScope(session);
 
     const body = postSchema.parse(await request.json());
 
@@ -90,6 +98,7 @@ export async function POST(request: Request) {
       .from("erp_entity_mappings")
       .upsert(
         {
+          tenant_id: tenantId,
           provider: body.provider as Provider,
           entity_type: body.entity_type,
           internal_id: body.internal_id,
@@ -97,7 +106,7 @@ export async function POST(request: Request) {
           sync_status: "mapped",
           last_sync_at: new Date().toISOString()
         },
-        { onConflict: "provider,entity_type,internal_id" }
+        { onConflict: "tenant_id,provider,entity_type,internal_id" }
       )
       .select("*")
       .single();

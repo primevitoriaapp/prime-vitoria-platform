@@ -18,7 +18,8 @@ const ROLE_CAPABILITIES: Record<UserRole, string[]> = {
     "erp.jobs.enqueue",
     "erp.jobs.process",
     "jobs.notifications.process",
-    "jobs.reconcile.run"
+    "jobs.reconcile.run",
+    "profiles.read"
   ],
   financeiro: [
     "finance.read",

@@ -21,12 +21,15 @@ export type TripFinancialStatus = "pending" | "partially_paid" | "paid" | "cance
 export interface SessionContext {
   userId: string;
   role: UserRole;
+  /** Organizacao (SaaS). Ausente em `guest`; fallback em API via tenant padrao. */
+  tenantId?: string;
   clientId?: string;
   driverId?: string;
 }
 
 export interface Trip {
   id: string;
+  tenant_id: string;
   client_id: string;
   driver_id?: string;
   vehicle_id?: string;
@@ -34,4 +37,10 @@ export interface Trip {
   dispatch_mode: DispatchMode;
   operational_status: TripOperationalStatus;
   financial_status: TripFinancialStatus;
+  /** Campos adicionais retornados pela API em listagens/detalhe */
+  service_type?: string;
+  origin_text?: string;
+  destination_text?: string;
+  passenger_name?: string | null;
+  cost_center_id?: string | null;
 }

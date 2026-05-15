@@ -1,8 +1,16 @@
 import type { SessionContext } from "../domain/types";
 import { can } from "../security/rbac.ts";
 
+/** Igual a `src/lib/tenant/default-tenant.ts` (evita import sem extensão no `node --test`). */
+const DEFAULT_TENANT_ID = "a0000000-0000-0000-0000-000000000001";
+
 function accessDeniedResponse(code: string, message: string, status: number) {
   return Response.json({ success: false, error: { code, message } }, { status });
+}
+
+function sessionTenantId(session: SessionContext): string {
+  if (session.role === "guest") return DEFAULT_TENANT_ID;
+  return session.tenantId ?? DEFAULT_TENANT_ID;
 }
 
 export type TripGetAccess =
@@ -14,8 +22,12 @@ export type TripGetAccess =
 
 export function tripGetAccess(
   session: SessionContext,
-  trip: { client_id: string; driver_id: string | null }
+  trip: { client_id: string; driver_id: string | null; tenant_id?: string }
 ): TripGetAccess {
+  if (trip.tenant_id && trip.tenant_id !== sessionTenantId(session)) {
+    return "not_found";
+  }
+
   if (can(session, "trip.read")) return "allow";
 
   if (can(session, "trip.read.own")) {
