@@ -2,7 +2,7 @@ import Link from "next/link";
 import { z } from "zod";
 import { AgendaDateRangeForm } from "@/components/agenda-date-range-form";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
-import { TripAgendaOperationalStack } from "@/components/trip-agenda-operational-stack";
+import { TripAgendaFocusPanel } from "@/components/trip-agenda-focus-panel";
 import { TripTable } from "@/components/trip-table";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
@@ -49,6 +49,11 @@ export default async function AgendaPage({
   const focusRaw = sp.trip?.trim() || "";
   const focusTripId = z.string().uuid().safeParse(focusRaw).success ? focusRaw : "";
   const showClaimBar = session.role === "admin" || session.role === "operador";
+  const showFinanceWrite = session.role === "admin" || session.role === "financeiro";
+  const showErpEnqueue = session.role === "operador";
+  const financeDevRole =
+    session.role === "financeiro" ? "financeiro" : session.role === "operador" ? "operador" : "admin";
+  const focusTrip = focusTripId ? trips.find((t: { id: string }) => t.id === focusTripId) : null;
 
   return (
     <main>
@@ -72,7 +77,7 @@ export default async function AgendaPage({
       {focusTripId ? (
         <div className="mt-8 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-slate-900">Notas da viagem selecionada</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Detalhe da viagem selecionada</h2>
             <Link
               href={`/agenda?scheduledFrom=${encodeURIComponent(scheduledFrom)}&scheduledTo=${encodeURIComponent(scheduledTo)}`}
               className="text-sm font-medium text-amber-700 hover:underline"
@@ -80,7 +85,14 @@ export default async function AgendaPage({
               Fechar painel
             </Link>
           </div>
-          <TripAgendaOperationalStack tripId={focusTripId} showClaimBar={showClaimBar} />
+          <TripAgendaFocusPanel
+            tripId={focusTripId}
+            operationalStatus={focusTrip?.operational_status ?? "requested"}
+            showClaimBar={showClaimBar}
+            showFinanceWrite={showFinanceWrite}
+            showErpEnqueue={showErpEnqueue}
+            financeDevRole={financeDevRole}
+          />
         </div>
       ) : focusRaw ? (
         <p className="mt-6 text-sm text-red-700">Identificador de viagem inválido na URL.</p>

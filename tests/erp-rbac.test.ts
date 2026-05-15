@@ -29,6 +29,10 @@ test("admin wildcard includes ERP jobs", () => {
   assert.equal(can(session("admin"), "erp.jobs.enqueue"), true);
 });
 
+test("operador can enqueue ERP jobs", () => {
+  assert.equal(can(session("operador"), "erp.jobs.enqueue"), true);
+});
+
 test("operador can process ERP job queue", () => {
   assert.equal(can(session("operador"), "erp.jobs.process"), true);
 });

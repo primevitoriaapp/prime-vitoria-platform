@@ -1,23 +1,36 @@
+import { DriverPayablesPanel } from "@/components/driver-payables-panel";
 import { FinanceConsole } from "@/components/finance-console";
+import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
+import { ReceivablesPanel } from "@/components/receivables-panel";
+import { ReconciliationIssuesPanel } from "@/components/reconciliation-issues-panel";
+import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
+import { getSessionContext } from "@/lib/server/session";
 
-export default function FinancePage() {
+export default async function FinancePage() {
+  const session = await getSessionContext();
+  const realtimeTenantId =
+    session.role === "guest" || session.userId === "anonymous" ? null : (session.tenantId ?? DEFAULT_TENANT_ID);
+
   return (
     <main>
+      <OperationalRealtimeBridge tenantId={realtimeTenantId} />
       <h1>Financeiro</h1>
       <div className="card">Contas a receber, contas a pagar, margem operacional e fechamento mensal.</div>
       <FinanceConsole />
-      <section className="card">
-        <h2>Jobs financeiros e ERP</h2>
-        <ul>
-          <li>GET /api/integrations/mappings</li>
-          <li>POST /api/integrations/mappings (x-role: admin ou operador)</li>
-          <li>POST /api/jobs/erp/process (JWT operador/admin ou Bearer ERP_JOB_PROCESS_SECRET)</li>
-          <li>POST /api/jobs/notifications/process (operador/admin ou Bearer NOTIFICATION_JOB_PROCESS_SECRET)</li>
-          <li>POST /api/jobs/reconcile/run (financeiro/operador/admin ou Bearer RECONCILE_JOB_PROCESS_SECRET)</li>
-          <li>POST /api/integrations/conta_azul/sync/receivable</li>
-          <li>POST /api/integrations/omie/sync/receivable</li>
-        </ul>
-      </section>
+      <ReceivablesPanel
+        tenantId={realtimeTenantId}
+        devFallbackRole={session.role === "operador" ? "operador" : "financeiro"}
+      />
+      {session.role === "admin" || session.role === "financeiro" ? (
+        <DriverPayablesPanel
+          tenantId={realtimeTenantId}
+          devFallbackRole={session.role === "financeiro" ? "financeiro" : "admin"}
+        />
+      ) : null}
+      <ReconciliationIssuesPanel
+        tenantId={realtimeTenantId}
+        devFallbackRole={session.role === "operador" ? "operador" : "financeiro"}
+      />
     </main>
   );
 }

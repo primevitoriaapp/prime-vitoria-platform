@@ -20,6 +20,15 @@ export type TimelineEntry =
       at: string;
       author_profile_id: string;
       body: string;
+    }
+  | {
+      kind: "status";
+      id: string;
+      at: string;
+      from_status: string | null;
+      to_status: string;
+      changed_by: string | null;
+      source: string | null;
     };
 
 /** Histórico operacional: auditoria da viagem + notas internas, ordenado por tempo (mais recente primeiro). */
@@ -70,10 +79,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           .limit(150)
       : Promise.resolve({ data: [] as const, error: null });
 
-    const [{ data: audits, error: aErr }, { data: notes, error: nErr }] = await Promise.all([auditQuery, notesQuery]);
+    const statusQuery = db
+      .from("trip_status_history")
+      .select("id, from_status, to_status, changed_by, source, changed_at")
+      .eq("trip_id", tripId)
+      .order("changed_at", { ascending: false })
+      .limit(150);
+
+    const [{ data: audits, error: aErr }, { data: notes, error: nErr }, { data: statuses, error: sErr }] =
+      await Promise.all([auditQuery, notesQuery, statusQuery]);
 
     if (aErr) return fail("TIMELINE_AUDIT_FAILED", aErr.message, 500);
     if (nErr) return fail("TIMELINE_NOTES_FAILED", nErr.message, 500);
+    if (sErr) return fail("TIMELINE_STATUS_FAILED", sErr.message, 500);
 
     const auditEntries: TimelineEntry[] = (audits ?? []).map((row) => ({
       kind: "audit" as const,
@@ -92,7 +110,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       body: row.body as string
     }));
 
-    const merged = [...auditEntries, ...noteEntries].sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
+    const statusEntries: TimelineEntry[] = (statuses ?? []).map((row) => ({
+      kind: "status" as const,
+      id: `s-${row.id}`,
+      at: row.changed_at as string,
+      from_status: (row.from_status as string | null) ?? null,
+      to_status: row.to_status as string,
+      changed_by: (row.changed_by as string | null) ?? null,
+      source: (row.source as string | null) ?? null
+    }));
+
+    const merged = [...auditEntries, ...noteEntries, ...statusEntries].sort((x, y) =>
+      x.at < y.at ? 1 : x.at > y.at ? -1 : 0
+    );
 
     return ok({ trip_id: tripId, items: merged });
   } catch (error) {

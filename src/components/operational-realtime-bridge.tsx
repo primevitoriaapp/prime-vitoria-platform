@@ -58,6 +58,25 @@ export function OperationalRealtimeBridge({ tenantId }: Props) {
         .on("postgres_changes", { event: "*", schema: "public", table: "trip_operational_claims", filter }, scheduleRefresh)
         .subscribe();
 
+      const offersChannel = supabase
+        .channel(`ops-dispatch-offers-${tenantId}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "dispatch_offers", filter }, scheduleRefresh)
+        .subscribe();
+
+      const notificationJobsChannel = supabase
+        .channel(`ops-notification-jobs-${tenantId}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "notification_jobs", filter }, scheduleRefresh)
+        .subscribe();
+
+      const reconciliationChannel = supabase
+        .channel(`ops-erp-reconciliation-${tenantId}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "erp_reconciliation_issues", filter },
+          scheduleRefresh
+        )
+        .subscribe();
+
       return () => {
         active = false;
         if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -65,6 +84,9 @@ export function OperationalRealtimeBridge({ tenantId }: Props) {
         void supabase.removeChannel(locChannel);
         void supabase.removeChannel(notesChannel);
         void supabase.removeChannel(claimsChannel);
+        void supabase.removeChannel(offersChannel);
+        void supabase.removeChannel(notificationJobsChannel);
+        void supabase.removeChannel(reconciliationChannel);
       };
     } catch {
       return () => {

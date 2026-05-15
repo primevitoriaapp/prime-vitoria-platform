@@ -1,17 +1,20 @@
 import { db } from "../server/db";
 
 export type EnqueueNotificationOptions = {
+  /** Organizacao (obrigatorio em multiempresa). */
+  tenantId: string;
   /** Mesmo valor em varios jobs para permitir rollback em lote (ex.: oferta a varios motoristas). */
   correlation_id?: string;
 };
 
 export async function enqueueNotificationJob(
   payload: Record<string, unknown>,
-  options?: EnqueueNotificationOptions
+  options: EnqueueNotificationOptions
 ) {
-  const correlation_id = options?.correlation_id ?? crypto.randomUUID();
+  const correlation_id = options.correlation_id ?? crypto.randomUUID();
 
   const { error } = await db.from("notification_jobs").insert({
+    tenant_id: options.tenantId,
     type: "notification.send",
     payload,
     status: "queued",

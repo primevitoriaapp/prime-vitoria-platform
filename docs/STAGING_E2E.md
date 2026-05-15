@@ -39,7 +39,7 @@ O workflow dispara em **push** para `staging` e corre `amondnet/vercel-action` (
 
 ### 2.3 CI (testes em cada alteração)
 
-O ficheiro `.github/workflows/ci.yml` corre `npm test` e `npm run build` em cada push/PR para `main` e `staging` (com variáveis Supabase placeholder só para o build passar no GitHub).
+O ficheiro `.github/workflows/ci.yml` corre `npm test`, `npm run build`, sobe `npm start` em background e `npm run test:e2e-smoke` contra `http://localhost:3000` (health + tracking publico), em cada push/PR para `main` e `staging`.
 
 ## 3. Supabase de staging
 
@@ -64,28 +64,29 @@ export STAGING_SEED_PASSWORD="<palavra-passe forte, min 12 chars>"
 npm run seed:staging
 ```
 
-Opcional: para **redefinir** a palavra-passe dos quatro utilizadores para o valor atual de `STAGING_SEED_PASSWORD`:
+Opcional: para **redefinir** a palavra-passe dos cinco utilizadores para o valor atual de `STAGING_SEED_PASSWORD`:
 
 ```bash
 export STAGING_SEED_RESET_PASSWORD=true
 npm run seed:staging
 ```
 
-Isto cria (ou reutiliza) **quatro** utilizadores Auth + `profiles`:
+Isto cria (ou reutiliza) **cinco** utilizadores Auth + `profiles`:
 
-| Papel     | Email                      |
-|----------|----------------------------|
-| admin    | staging-admin@example.com  |
-| operador | staging-operador@example.com |
-| motorista| staging-motorista@example.com |
-| cliente  | staging-cliente@example.com |
+| Papel      | Email                         |
+|-----------|-------------------------------|
+| admin     | staging-admin@example.com     |
+| operador  | staging-operador@example.com  |
+| financeiro| staging-financeiro@example.com|
+| motorista | staging-motorista@example.com |
+| cliente   | staging-cliente@example.com   |
 
 Todos usam a mesma `STAGING_SEED_PASSWORD`. O cliente fica ligado ao cliente corporativo seed; o motorista tem linha em `drivers`.
 
 Corrida exemplo:
 
 - `requested` — para fluxo de aprovação / despacho.
-- `approved` — para agenda, timeline, claims.
+- `approved` — para agenda, timeline, claims; inclui `trip_financials` + `accounts_receivable` seed para testes financeiros/ERP.
 
 **Não commits** a `STAGING_SEED_PASSWORD` nem a service role key.
 
@@ -94,11 +95,14 @@ Corrida exemplo:
 - **Login** — cada papel com o email acima.
 - **Criação de corrida** — operador/admin (API ou UI quando existir).
 - **Despacho** — direcionado vs oferta; exclusividade automática (settings).
-- **Agenda** — intervalo de datas, tabela, link **Notas**.
+- **Agenda** — intervalo de datas, tabela, link **Notas**; com sessão financeiro/admin na viagem `approved`, painel **Financeiro e ERP** (gerar financeiro, enfileirar Omie/Conta Azul).
 - **Timeline** — histórico operacional na viagem selecionada.
 - **Realtime** — duas sessões: alterar estado de viagem e ver refresh na agenda/despacho.
 - **Painel motorista** — `/driver` com sessão motorista.
-- **Tracking básico** — token público numa viagem despachada (quando aplicável).
+- **Tracking básico** — `POST /api/trips/:id/tracking-token` → abrir `/r/<token>`; confirmar refresh em ~15 s ao mudar estado ou GPS (`GET /api/public/track/<token>`). Ver `docs/TRACKING.md`.
+- **Reconciliacao ERP** — `POST /api/jobs/reconcile/run` (sessao financeiro) e `GET /api/integrations/reconciliation-issues?status=open`.
+- **Push motorista** — login motorista em `/driver`, activar notificações (ou colar token FCM); enfileirar oferta/despacho; `POST /api/jobs/notifications/process` com `FCM_SERVER_KEY`; confirmar job `success`.
+- **Fila notificações** — `GET /api/jobs/notifications?status=queued` como operador.
 - **Permissões** — cliente não vê dados de outro cliente; financeiro vs operador nas APIs.
 - **Claims operacionais** — assumir / libertar na agenda (admin/operador).
 
@@ -116,3 +120,19 @@ Atualiza **Supabase Auth URLs** com o hostname do túnel.
 ## 7. Health check
 
 `GET /api/health` — resposta JSON `{ "ok": true }` para smoke tests de uptime (monitorização / CI).
+
+## 8. Smoke autenticado (API)
+
+Com seed e deployment activos:
+
+```bash
+export BASE_URL=https://seu-preview.vercel.app
+export NEXT_PUBLIC_SUPABASE_URL=...
+export NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+export STAGING_E2E_ROLE=operador
+# ou: STAGING_E2E_ROLE=financeiro | admin
+export STAGING_E2E_PASSWORD=<mesma do seed>
+npm run test:e2e-staging
+```
+
+Valida sessão, viagens, fila de notificações, reconciliação (quando aplicável), títulos a receber e resumo `GET /api/finance/trips/:id` (financeiro/admin), auditoria e timeline.

@@ -1,4 +1,5 @@
 import { DriverConsole } from "@/components/driver-console";
+import { DriverPushRegister } from "@/components/driver-push-register";
 
 export default function DriverPage() {
   return (
@@ -12,6 +13,7 @@ export default function DriverPage() {
           <li>Google Maps: https://www.google.com/maps/dir/?api=1&destination=LAT,LNG</li>
         </ul>
       </div>
+      <DriverPushRegister />
       <DriverConsole />
     </main>
   );

@@ -22,3 +22,15 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: npm start &
+      - name: Wait for server and run HTTP smoke
+        run: |
+          for i in $(seq 1 45); do
+            if curl -sf http://127.0.0.1:3000/api/health >/dev/null; then
+              npm run test:e2e-smoke
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become ready in time"
+          exit 1

@@ -5,6 +5,7 @@
 O sistema registra titulos internos em `accounts_receivable` e sincroniza com o ERP via:
 
 - `POST /api/integrations/:provider/sync/receivable` (sincrono)
+- `GET /api/integrations/jobs` (fila por tenant, paginacao; mesma capability que enqueue)
 - `POST /api/integrations/jobs` + `POST /api/jobs/erp/process` (fila)
 - `POST /api/integrations/mappings` (cadastro interno -> ID no ERP)
 
@@ -45,15 +46,24 @@ Exemplo `POST /api/integrations/mappings`:
 
 | Metodo | Rota | Roles |
 |--------|------|--------|
+| GET | `/api/integrations/reconciliation-issues` | admin, operador, financeiro (`erp.mapping.read`) — divergencias ERP do tenant |
+| PATCH | `/api/integrations/reconciliation-issues/:id` | `finance.write` ou `erp.mapping.write` — `{ "status": "resolved" }` |
+| GET | `/api/finance/receivables` | financeiro (`finance.read`) — titulos do tenant via viagem |
+| GET | `/api/finance/trips/:id` | admin, financeiro (`finance.read`) — resumo financeiro da corrida + mapeamentos ERP do titulo |
 | GET | `/api/integrations/mappings` | admin, operador, financeiro |
 | POST | `/api/integrations/mappings` | admin, operador |
-| POST | `/api/integrations/jobs` | admin, operador, financeiro (`erp.jobs.enqueue`) |
+| GET | `/api/integrations/jobs` | admin, operador, financeiro (`erp.jobs.enqueue`) — lista `erp_sync_jobs` do `tenant_id` da sessao |
+| POST | `/api/integrations/jobs` | admin, operador, financeiro (`erp.jobs.enqueue`) — grava `tenant_id`; titulo deve ser da mesma org; duplicado `queued` devolve `deduplicated: true` |
 | POST | `/api/integrations/:provider/sync/receivable` | admin, operador (`erp.mapping.write`) |
 | POST | `/api/jobs/erp/process` | admin, operador (`erp.jobs.process`) ou Bearer `ERP_JOB_PROCESS_SECRET` |
 | POST | `/api/jobs/notifications/process` | admin, operador (`jobs.notifications.process`) ou Bearer `NOTIFICATION_JOB_PROCESS_SECRET` |
-| POST | `/api/jobs/reconcile/run` | admin, operador, financeiro (`jobs.reconcile.run`) ou Bearer `RECONCILE_JOB_PROCESS_SECRET` |
+| POST | `/api/jobs/reconcile/run` | admin, operador, financeiro (`jobs.reconcile.run`) ou Bearer `RECONCILE_JOB_PROCESS_SECRET`. Sessao: so mapeamentos do `tenant_id` do perfil. Maquina: opcional `?tenant_id=<uuid>` para uma org; sem parametro percorre todos (limite 500) |
 
 Listagem com filtros: `GET /api/integrations/mappings?provider=omie&entity_type=client&page=1&pageSize=50`
+
+### Reconciliacao (`/api/jobs/reconcile/run`)
+
+Resposta inclui `issues` (novos registos `erp_reconciliation_issues` nesta execucao) e `scanned` (mapeamentos `receivable` analisados). Issues `missing_external` em aberto sao deduplicados por tenant/provedor/titulo (indice unico parcial, migracao `0020`).
 
 O sync de recebivel chama `enrichReceivableFromErpMappings` e preenche `omieCodigoClienteFornecedor` / `contaAzulIdCliente` / `contaAzulIdItemServico` no DTO antes do HTTP.
 

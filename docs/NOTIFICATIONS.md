@@ -1,0 +1,42 @@
+# Notificacoes push (motorista)
+
+## Fluxo
+
+1. **PWA motorista** (`/driver`): com variaveis `NEXT_PUBLIC_FIREBASE_*` + `NEXT_PUBLIC_FCM_VAPID_KEY`, o componente `DriverPushRegister` pede permissao e chama `POST /api/drivers/push-token`. Sem Firebase, o motorista pode colar o token FCM manualmente (staging).
+2. Operacao enfileira `notification_jobs` com `recipientType: "driver"`, `recipientId` = UUID do motorista e `tenant_id` da organizacao.
+3. Monitoramento: `GET /api/jobs/notifications?status=queued` (operador/admin, tenant da sessao).
+4. Worker/cron: `POST /api/jobs/notifications/process` (opcional `?limit=20` e `?tenant_id=` em job maquina).
+5. O processor le `FCM_SERVER_KEY` e envia **FCM HTTP legacy** com payload `data`; o service worker `/driver/service-worker.js` mostra notificacao no dispositivo.
+
+## Variaveis
+
+| Variavel | Uso |
+|----------|-----|
+| `FCM_SERVER_KEY` | Chave de servidor Firebase (Project settings → Cloud Messaging → Server key). Sem esta variavel os jobs falham com `PUSH_PROVIDER_NOT_CONFIGURED` e nada e marcado como enviado falsamente. |
+| `NEXT_PUBLIC_FIREBASE_*` + `NEXT_PUBLIC_FCM_VAPID_KEY` | Auto-registo do token no browser (ver `.env.example`). |
+| `NOTIFICATION_JOB_PROCESS_SECRET` | Bearer para o processor em ambiente agendado. |
+
+## Smoke E2E HTTP
+
+```bash
+BASE_URL=https://seu-preview.vercel.app npm run test:e2e-smoke
+```
+
+## Estados
+
+- `notification_jobs.status`: `success` apenas apos resposta FCM com `success > 0`; caso contrario `error` e `last_error` preenchido.
+- `notifications.status`: `sent` ou `failed` com `error` alinhado ao motivo.
+
+## Base de dados
+
+- `driver_push_tokens`: token por motorista (migracao `0018`).
+- Politica RLS: motorista gere apenas a sua linha.
+
+## Auditoria
+
+`POST /api/drivers/push-token` regista `driver.push_token_upsert` em `audit_events`.
+
+## Migracoes relacionadas
+
+- `0018`: tokens + indices de auditoria.
+- `0021`: leitura RLS de `audit_events` por tenant (admin/operador/financeiro).

@@ -66,12 +66,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (error) return fail("DISPATCH_FAILED", error.message, 500);
 
-    await enqueueNotificationJob({
-      eventType: "trip_dispatched",
-      recipientType: "driver",
-      recipientId: body.driver_id,
-      tripId: id
-    });
+    await enqueueNotificationJob(
+      {
+        eventType: "trip_dispatched",
+        recipientType: "driver",
+        recipientId: body.driver_id,
+        tripId: id
+      },
+      { tenantId }
+    );
 
     await insertAuditEvent({
       tenantId,

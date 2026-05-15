@@ -84,12 +84,15 @@ export async function tryAutoDirectAssignAfterApprove(opts: {
   }
 
   try {
-    await enqueueNotificationJob({
-      eventType: "trip_dispatched",
-      recipientType: "driver",
-      recipientId: driverId,
-      tripId
-    });
+    await enqueueNotificationJob(
+      {
+        eventType: "trip_dispatched",
+        recipientType: "driver",
+        recipientId: driverId,
+        tripId
+      },
+      { tenantId }
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await insertAuditEvent({

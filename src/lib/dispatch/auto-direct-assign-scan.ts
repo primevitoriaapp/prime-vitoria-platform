@@ -80,12 +80,15 @@ export async function scanAndAssignStaleApprovedTrips(opts: {
       trips_assigned += 1;
 
       try {
-        await enqueueNotificationJob({
-          eventType: "trip_dispatched",
-          recipientType: "driver",
-          recipientId: driverId,
-          tripId: trip.id
-        });
+        await enqueueNotificationJob(
+          {
+            eventType: "trip_dispatched",
+            recipientType: "driver",
+            recipientId: driverId,
+            tripId: trip.id
+          },
+          { tenantId: tid }
+        );
       } catch {
         // notificação falhou; viagem já despachada
       }

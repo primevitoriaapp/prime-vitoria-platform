@@ -22,6 +22,7 @@ const STAGING_TRIP_APPROVED = "c2000000-0000-4000-8000-000000000002";
 const ACCOUNTS = [
   { key: "admin", email: "staging-admin@example.com", name: "Admin Staging", role: "admin" },
   { key: "operador", email: "staging-operador@example.com", name: "Operador Staging", role: "operador" },
+  { key: "financeiro", email: "staging-financeiro@example.com", name: "Financeiro Staging", role: "financeiro" },
   { key: "motorista", email: "staging-motorista@example.com", name: "Motorista Staging", role: "motorista" },
   { key: "cliente", email: "staging-cliente@example.com", name: "Cliente Staging", role: "cliente" }
 ];
@@ -171,6 +172,36 @@ async function main() {
   if (t1) throw t1;
   const { error: t2 } = await db.from("trips").upsert(tripB, { onConflict: "id" });
   if (t2) throw t2;
+
+  console.log("[seed] Financeiro sample on approved trip…");
+  const { error: tfErr } = await db.from("trip_financials").upsert(
+    {
+      trip_id: STAGING_TRIP_APPROVED,
+      amount_client: 350,
+      amount_driver: 180,
+      tolls: 0,
+      parking: 0,
+      extras: 0,
+      discount: 0,
+      net_margin: 170
+    },
+    { onConflict: "trip_id" }
+  );
+  if (tfErr) throw tfErr;
+
+  const due = new Date(Date.now() + 30 * 86400 * 1000).toISOString().slice(0, 10);
+  const { error: arErr } = await db.from("accounts_receivable").upsert(
+    {
+      trip_id: STAGING_TRIP_APPROVED,
+      client_id: STAGING_CLIENT_ID,
+      amount: 350,
+      issue_date: new Date().toISOString().slice(0, 10),
+      due_date: due,
+      status: "open"
+    },
+    { onConflict: "trip_id" }
+  );
+  if (arErr) throw arErr;
 
   console.log("\n[seed] OK. Utilizadores de teste (mesma palavra-passe = STAGING_SEED_PASSWORD):");
   for (const acc of ACCOUNTS) {

@@ -1,5 +1,6 @@
 import { DispatchAutomationSettings } from "@/components/dispatch-automation-settings";
 import { DispatchConsole } from "@/components/dispatch-console";
+import { NotificationJobsPanel } from "@/components/notification-jobs-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { TripTable } from "@/components/trip-table";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
@@ -31,6 +32,7 @@ export default async function DispatchPage() {
       <div className="mt-6">
         <DispatchAutomationSettings />
       </div>
+      <NotificationJobsPanel tenantId={realtimeTenantId} />
       <div className="card mt-6">
         <p className="text-sm text-slate-700">Endpoints de referência:</p>
         <ul className="mt-2 list-inside list-disc text-sm text-slate-600">

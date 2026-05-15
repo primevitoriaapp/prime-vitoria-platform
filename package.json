@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:e2e-smoke": "node scripts/e2e-smoke-http.mjs",
+    "test:e2e-staging": "node scripts/e2e-staging-auth.mjs",
     "env:ensure-dispatch-scan-secret": "node scripts/ensure-dispatch-direct-scan-secret.mjs",
     "predev": "node scripts/ensure-dispatch-direct-scan-secret.mjs",
     "db:start": "npx supabase start",
@@ -21,6 +23,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.8",
+    "firebase": "^11.10.0",
     "leaflet": "^1.9.4",
     "next": "^15.3.2",
     "react": "^19.1.0",

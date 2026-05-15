@@ -59,7 +59,7 @@ export async function runDispatchOfferRpcAndNotify(opts: {
             offerId: offer.id,
             tripId
           },
-          { correlation_id: notifyCorrelationId }
+          { tenantId, correlation_id: notifyCorrelationId }
         )
       )
     );

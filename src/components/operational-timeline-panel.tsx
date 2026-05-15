@@ -17,6 +17,15 @@ type Entry =
       at: string;
       author_profile_id: string;
       body: string;
+    }
+  | {
+      kind: "status";
+      id: string;
+      at: string;
+      from_status: string | null;
+      to_status: string;
+      changed_by: string | null;
+      source: string | null;
     };
 
 type Props = { tripId: string };
@@ -54,7 +63,7 @@ export function OperationalTimelinePanel({ tripId }: Props) {
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="text-base font-semibold text-slate-900">Histórico operacional</h2>
       <p className="mt-1 text-xs text-slate-500">
-        Auditoria da viagem e notas internas (quando aplicável), por ordem cronológica inversa.
+        Auditoria, transições de estado e notas internas, por ordem cronológica inversa.
       </p>
       {loading ? <p className="mt-3 text-sm text-slate-600">A carregar…</p> : null}
       {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
@@ -64,7 +73,10 @@ export function OperationalTimelinePanel({ tripId }: Props) {
             <li className="text-slate-500">Sem eventos registados para esta viagem.</li>
           ) : (
             items.map((e) => (
-              <li key={e.kind === "audit" ? e.id : `n-${e.id}`} className="border-b border-slate-100 pb-2 last:border-0">
+              <li
+                key={e.kind === "note" ? `n-${e.id}` : e.id}
+                className="border-b border-slate-100 pb-2 last:border-0"
+              >
                 <p className="font-mono text-xs text-slate-400">
                   {new Date(e.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" })}
                 </p>
@@ -76,6 +88,14 @@ export function OperationalTimelinePanel({ tripId }: Props) {
                     ) : (
                       <span className="ml-2 text-xs text-slate-400">(sistema)</span>
                     )}
+                  </div>
+                ) : e.kind === "status" ? (
+                  <div className="mt-1">
+                    <span className="text-xs font-medium uppercase text-slate-500">Estado</span>
+                    <p className="mt-1 text-slate-800">
+                      {e.from_status ?? "—"} → <span className="font-medium">{e.to_status}</span>
+                    </p>
+                    {e.source ? <p className="mt-1 text-xs text-slate-500">Origem: {e.source}</p> : null}
                   </div>
                 ) : (
                   <div className="mt-1">
