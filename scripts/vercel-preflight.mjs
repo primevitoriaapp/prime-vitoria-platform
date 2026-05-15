@@ -6,6 +6,7 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 
 function loadDotEnvLocal() {
   const path = resolve(process.cwd(), ".env.local");
@@ -77,6 +78,16 @@ if (base) {
   }
 } else {
   console.log("skip live checks (set BASE_URL or NEXT_PUBLIC_BASE_URL)");
+}
+
+console.log("\n-- ERP env --");
+const erp = spawnSync("node", ["scripts/erp-preflight.mjs"], { stdio: "inherit" });
+if (erp.status !== 0) fail = true;
+
+if (process.env.SENTRY_DSN?.trim() || process.env.NEXT_PUBLIC_SENTRY_DSN?.trim()) {
+  console.log("ok Sentry DSN configured");
+} else {
+  console.log("warn SENTRY_DSN (optional monitoring)");
 }
 
 console.log(fail ? "\nPreflight FAILED" : "\nPreflight OK");

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DriverConsole } from "@/components/driver-console";
 import { DriverPushRegister } from "@/components/driver-push-register";
+import { DriverOffersPanel } from "@/components/driver-offers-panel";
 import { DriverTripsPanel } from "@/components/driver-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
@@ -50,6 +51,7 @@ export default async function DriverPage() {
           Aceite a corrida, actualize o estado e use Maps/Waze. Ao concluir, o KM é recalculado automaticamente.
         </p>
 
+        <DriverOffersPanel />
         <DriverTripsPanel tenantId={tenantId} />
 
         <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">

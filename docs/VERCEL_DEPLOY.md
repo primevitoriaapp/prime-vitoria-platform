@@ -38,11 +38,26 @@ openssl rand -hex 32
 | Jobs | `ERP_JOB_PROCESS_SECRET`, `NOTIFICATION_JOB_PROCESS_SECRET`, `RECONCILE_JOB_PROCESS_SECRET`, `DISPATCH_DIRECT_SCAN_SECRET` |
 | Push motorista | `FCM_SERVER_KEY`, `NEXT_PUBLIC_FIREBASE_*`, `NEXT_PUBLIC_FCM_VAPID_KEY` |
 | ERP (opcional) | `ERP_OMIE_*`, `ERP_CONTA_AZUL_*`, webhooks `ERP_*_WEBHOOK_SECRET` |
+| ERP go-live | `ERP_REQUIRE_LIVE=true` + validar com `npm run erp:preflight` |
+| Monitorização | `SENTRY_DSN` ou `NEXT_PUBLIC_SENTRY_DSN`; opcional `SENTRY_ORG`, `SENTRY_PROJECT` |
 | Segurança | `ERP_INTEGRATION_ALLOWED_IPS` (opcional) |
 
 **Não definir** `TRUST_HEADER_AUTH=true` em produção.
 
 Copie o resto de `.env.example` conforme necessidade.
+
+### ERP em modo live
+
+1. Preencha credenciais Omie e/ou Conta Azul (ver `docs/ERP_INTEGRATION.md`).
+2. Cadastre mapeamentos `POST /api/integrations/mappings` se não usar IDs globais no env.
+3. No Mac ou CI: `npm run erp:preflight` — com app no ar: `BASE_URL=https://preview.vercel.app STAGING_E2E_PASSWORD=... npm run erp:preflight -- --http`.
+4. Opcional em produção: `ERP_REQUIRE_LIVE=true` para falhar preflight sem credenciais.
+
+### Sentry
+
+1. Crie projeto em [sentry.io](https://sentry.io) (Next.js).
+2. Defina `SENTRY_DSN` (servidor) e/ou `NEXT_PUBLIC_SENTRY_DSN` (cliente) na Vercel.
+3. Sem DSN, o build ignora o wrapper Sentry (`next.config.ts`).
 
 ## 4. Supabase Auth
 

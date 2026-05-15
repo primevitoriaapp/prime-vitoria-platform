@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { TripAgendaOperationalStack } from "@/components/trip-agenda-operational-stack";
 import { TripAgendaQuickActions } from "@/components/trip-agenda-quick-actions";
 import { TripAgendaDispatchPanel } from "@/components/trip-agenda-dispatch-panel";
+import { TripAgendaOffersPanel } from "@/components/trip-agenda-offers-panel";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 
 type Props = {
@@ -39,14 +40,22 @@ export function TripAgendaFocusPanel({
         onDone={() => router.refresh()}
       />
       {showClaimBar ? (
-        <TripAgendaDispatchPanel
-          tripId={tripId}
-          operationalStatus={operationalStatus}
-          assignedDriverId={assignedDriverId}
-          assignedVehicle={assignedVehicle}
-          devFallbackRole={dispatchRole}
-          onDone={() => router.refresh()}
-        />
+        <>
+          <TripAgendaOffersPanel
+            tripId={tripId}
+            operationalStatus={operationalStatus}
+            devFallbackRole={dispatchRole}
+            onDone={() => router.refresh()}
+          />
+          <TripAgendaDispatchPanel
+            tripId={tripId}
+            operationalStatus={operationalStatus}
+            assignedDriverId={assignedDriverId}
+            assignedVehicle={assignedVehicle}
+            devFallbackRole={dispatchRole}
+            onDone={() => router.refresh()}
+          />
+        </>
       ) : null}
       <TripAgendaOperationalStack
         tripId={tripId}

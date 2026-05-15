@@ -1,11 +1,19 @@
-import { EntityCrudPanel } from "@/components/entity-crud-panel";
+import { ClientsFleetPanel } from "@/components/clients-fleet-panel";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 
 async function getClients() {
   const response = await fetchInternalApi("/api/clients");
   if (!response.ok) return [];
   const payload = await response.json();
-  return payload.data as Array<{ id: string; name: string; type: string; document?: string; email?: string }>;
+  return payload.data as Array<{
+    id: string;
+    name: string;
+    type: string;
+    document?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    active: boolean;
+  }>;
 }
 
 export default async function ClientsPage() {
@@ -13,28 +21,11 @@ export default async function ClientsPage() {
 
   return (
     <main>
-      <h1>Clientes Corporativos</h1>
-      <EntityCrudPanel
-        title="Novo cliente"
-        endpoint="/api/clients"
-        fields={[
-          { key: "type", label: "Tipo (PF/PJ)", required: true },
-          { key: "name", label: "Nome", required: true },
-          { key: "document", label: "Documento" },
-          { key: "email", label: "E-mail", type: "email" },
-          { key: "phone", label: "Telefone" }
-        ]}
-      />
-      <section className="card">
-        <h2>Clientes cadastrados</h2>
-        <ul>
-          {clients.map((client) => (
-            <li key={client.id}>
-              {client.name} ({client.type}) - {client.document ?? "sem documento"}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <h1>Clientes corporativos</h1>
+      <p className="mb-4 max-w-2xl text-sm text-slate-600">
+        Cadastro de empresas e pessoas do portal cliente. Desactivar impede novas solicitações com esse cliente.
+      </p>
+      <ClientsFleetPanel initialClients={clients} />
     </main>
   );
 }

@@ -28,6 +28,7 @@
     "go-live:preflight": "node scripts/go-live-preflight.mjs"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.53.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.8",
     "firebase": "^11.10.0",
@@ -38,6 +39,7 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@types/leaflet": "^1.9.20",
     "@types/node": "^22.15.3",
     "@types/react": "^19.1.2",
@@ -47,7 +49,6 @@
     "eslint-config-next": "^15.3.2",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3",
-    "@playwright/test": "^1.52.0"
+    "typescript": "^5.8.3"
   }
 }
