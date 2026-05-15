@@ -15,8 +15,16 @@ const listSchema = z.object({
 export async function GET(request: Request) {
   try {
     const session = await getSessionContext();
-    assertCapability(session, "finance.read");
     const tenantId = assertTenantScope(session);
+
+    if (session.role === "motorista") {
+      assertCapability(session, "finance.payable.read.own");
+      if (!session.driverId) {
+        return fail("FORBIDDEN", "Motorista precisa de cadastro vinculado", 403);
+      }
+    } else {
+      assertCapability(session, "finance.read");
+    }
 
     const q = listSchema.parse(Object.fromEntries(new URL(request.url).searchParams.entries()));
     const from = (q.page - 1) * q.pageSize;
@@ -31,6 +39,9 @@ export async function GET(request: Request) {
 
     if (q.status) {
       query = query.eq("status", q.status);
+    }
+    if (session.role === "motorista" && session.driverId) {
+      query = query.eq("driver_id", session.driverId);
     }
 
     const { data, error, count } = await query;

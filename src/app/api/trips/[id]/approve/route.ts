@@ -8,6 +8,7 @@ import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-a
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { tryAutoDirectAssignAfterApprove } from "@/lib/dispatch/auto-direct-assign-after-approve";
 import { loadDispatchAutomationSettings, tryAutoDispatchOfferAfterApprove } from "@/lib/dispatch/auto-offer-after-approve";
+import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,6 +27,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (!canTransition(trip.operational_status, "approved")) {
       return fail("INVALID_STATUS_TRANSITION", "Cannot approve trip", 409);
+    }
+
+    const claimCheck = await ensureOperationalClaimForMutation(session, tenantId, id, request);
+    if (!claimCheck.ok) {
+      return fail(claimCheck.code, claimCheck.message, claimCheck.code === "CLAIM_NOT_OWNER" ? 403 : 409);
     }
 
     const { data, error } = await db

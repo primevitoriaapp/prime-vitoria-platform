@@ -2,9 +2,9 @@ import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
-import { assertCapability } from "@/lib/security/rbac";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { uploadPaymentProofFile } from "@/lib/storage/payment-proof-upload";
+import { loadDriverPayableForSession } from "@/lib/finance/driver-payable-access";
 
 export const runtime = "nodejs";
 
@@ -12,9 +12,11 @@ export const runtime = "nodejs";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSessionContext();
-    assertCapability(session, "finance.write");
     const tenantId = assertTenantScope(session);
     const { id: payableId } = await params;
+
+    const access = await loadDriverPayableForSession(session, tenantId, payableId);
+    if ("error" in access) return access.error;
 
     const { data: row, error: loadErr } = await db
       .from("driver_payables")
@@ -23,9 +25,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .maybeSingle();
 
     if (loadErr || !row) return fail("PAYABLE_NOT_FOUND", "Título não encontrado", 404);
-
-    const { data: trip } = await db.from("trips").select("tenant_id").eq("id", row.trip_id).maybeSingle();
-    if (!trip || trip.tenant_id !== tenantId) return fail("FORBIDDEN", "Título fora do tenant", 403);
 
     const form = await request.formData();
     const file = form.get("file");

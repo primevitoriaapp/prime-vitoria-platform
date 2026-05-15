@@ -15,10 +15,11 @@ type PayableRow = {
 
 type Props = {
   tenantId: string | null;
-  devFallbackRole?: "financeiro" | "admin";
+  devFallbackRole?: "financeiro" | "admin" | "motorista";
 };
 
 export function DriverPayablesPanel({ tenantId, devFallbackRole = "financeiro" }: Props) {
+  const financeStaff = devFallbackRole === "financeiro" || devFallbackRole === "admin";
   const [statusFilter, setStatusFilter] = useState<"" | "open" | "paid" | "cancelled">("open");
   const [items, setItems] = useState<PayableRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -123,7 +124,9 @@ export function DriverPayablesPanel({ tenantId, devFallbackRole = "financeiro" }
   return (
     <section className="card mt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-slate-900">Contas a pagar (motoristas)</h2>
+        <h2 className="text-lg font-semibold text-slate-900">
+          {financeStaff ? "Contas a pagar (motoristas)" : "Os meus pagamentos"}
+        </h2>
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={statusFilter}
@@ -189,7 +192,7 @@ export function DriverPayablesPanel({ tenantId, devFallbackRole = "financeiro" }
                       <button type="button" className="text-xs text-amber-800" onClick={() => void attachProofUrl(row.id)}>
                         URL
                       </button>
-                      {row.status === "open" ? (
+                      {financeStaff && row.status === "open" ? (
                         <>
                           <button type="button" className="text-xs text-emerald-800" onClick={() => void markPaid(row.id)}>
                             Marcar paga
@@ -199,7 +202,7 @@ export function DriverPayablesPanel({ tenantId, devFallbackRole = "financeiro" }
                           </button>
                         </>
                       ) : null}
-                      {row.status === "paid" ? (
+                      {financeStaff && row.status === "paid" ? (
                         <button type="button" className="text-xs text-amber-800" onClick={() => void reopen(row.id)}>
                           Estornar
                         </button>

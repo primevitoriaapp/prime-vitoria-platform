@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DriverConsole } from "@/components/driver-console";
 import { DriverPushRegister } from "@/components/driver-push-register";
 import { DriverOffersPanel } from "@/components/driver-offers-panel";
+import { DriverPayablesPanel } from "@/components/driver-payables-panel";
 import { DriverTripsPanel } from "@/components/driver-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
@@ -53,6 +54,13 @@ export default async function DriverPage() {
 
         <DriverOffersPanel />
         <DriverTripsPanel tenantId={tenantId} />
+
+        <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Pagamentos</h2>
+          <div className="mt-3 [&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100">
+            <DriverPayablesPanel tenantId={tenantId} devFallbackRole="motorista" />
+          </div>
+        </section>
 
         <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Notificações push</h2>

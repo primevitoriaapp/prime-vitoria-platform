@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { notifyOperationalClaimChanged } from "@/lib/client/operational-claim-events";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 
@@ -89,6 +90,7 @@ export function TripAgendaDispatchPanel({
       return;
     }
     setMessage("Corrida despachada ao motorista.");
+    notifyOperationalClaimChanged(tripId);
     onDone?.();
   }
 
@@ -121,6 +123,7 @@ export function TripAgendaDispatchPanel({
       return;
     }
     setMessage("Motorista reatribuído; novo parceiro notificado.");
+    notifyOperationalClaimChanged(tripId);
     setReassignReason("");
     onDone?.();
   }

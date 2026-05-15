@@ -47,3 +47,10 @@
 - E2E: relatório operacional no smoke staging; Playwright `e2e/pilot-client-awaiting.spec.ts` (CI); `e2e/pilot-client-driver-staging.spec.ts` (staging); `test:e2e-playwright:staging`.
 - Notificações: push motorista + in-app financeiro/admin/operador; eventos `operations.*`; painéis agenda/despacho; smoke staging `in-app`; RLS (`0035`–`0037`).
 - **Vercel / go-live:** `docs/VERCEL_DEPLOY.md`, `npm run vercel:preflight`, `npm run go-live:preflight`; checklist em `docs/GO_LIVE_RUNBOOK.md`; RLS `erp_sync_jobs` (`0038`).
+- **Multiatendimento:** claim com nomes de operador; `ensureOperationalClaimForMutation` (auto-assume quando `require_operational_claim=false`); guardas em aprovar/despacho/ofertas/notas.
+- **Fila e histórico:** `GET /api/operations/queue` (nomes); `GET /api/operations/history` (filtros `status`, `client_id`, `driver_id`, `days`); timeline com `profile_names`.
+- **Pós-corrida:** `runPostTripAutomation` recalcula KM, `ensureDriverPayableFromTripFinancials` cria pagável se existir `trip_financials.amount_driver`.
+- **Comprovantes motorista:** `loadDriverPayableForSession` com intent `read`/`write`; motorista lista e envia comprovantes nos próprios títulos.
+- **UX multiatendimento:** evento `prime:operational-claim-changed` refresca barra de claim após aprovar/despacho/reatribuir/oferta.
+- **Ofertas agenda + motorista PWA:** painéis `TripAgendaOffersPanel`, `DriverOffersPanel`.
+- **Frota/clientes:** painéis com editar/desactivar; Sentry opcional; `GET /api/integrations/status`; `npm run erp:preflight`.

@@ -7,6 +7,7 @@ import { assertCapability, can } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { actualKmFromTrail, plannedKmFromCoords } from "@/lib/trips/km-distance";
+import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 
 const patchSchema = z.object({
   mode: z.enum(["recalculate", "manual"]),
@@ -80,6 +81,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       })
     );
     if (denied) return denied;
+
+    const claimCheck = await ensureOperationalClaimForMutation(session, tenantId, tripId, request);
+    if (!claimCheck.ok) {
+      return fail(claimCheck.code, claimCheck.message, claimCheck.code === "CLAIM_NOT_OWNER" ? 403 : 409);
+    }
 
     let planned: number | null = body.planned_km ?? null;
     let actual: number | null = body.actual_km ?? null;

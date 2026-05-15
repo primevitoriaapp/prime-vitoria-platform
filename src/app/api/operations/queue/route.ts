@@ -4,6 +4,7 @@ import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
+import { resolveProfileNames } from "@/lib/profiles/resolve-profile-names";
 
 const ACTIVE_STATUSES = ["requested", "approved", "dispatched", "accepted", "on_the_way", "arrived", "in_progress"];
 
@@ -61,10 +62,21 @@ export async function GET(request: Request) {
       );
     }
 
-    let items = (trips ?? []).map((t) => ({
-      ...t,
-      claim: claimsByTrip[t.id as string] ?? null
-    }));
+    const profileIds = Object.values(claimsByTrip).map((c) => c.operator_profile_id);
+    const profileNames = await resolveProfileNames(profileIds);
+
+    let items = (trips ?? []).map((t) => {
+      const claim = claimsByTrip[t.id as string];
+      return {
+        ...t,
+        claim: claim
+          ? {
+              ...claim,
+              operator_name: profileNames[claim.operator_profile_id] ?? null
+            }
+          : null
+      };
+    });
 
     if (q.unclaimedOnly) {
       items = items.filter((t) => !t.claim);

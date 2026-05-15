@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { notifyOperationalClaimChanged } from "@/lib/client/operational-claim-events";
 
 type KmData = {
   planned_km: number | null;
@@ -55,6 +56,7 @@ export function TripKmPanel({ tripId, devFallbackRole = "operador", canEdit = tr
       return;
     }
     setMessage("Distância recalculada.");
+    notifyOperationalClaimChanged(tripId);
     await load();
   }
 
@@ -74,6 +76,7 @@ export function TripKmPanel({ tripId, devFallbackRole = "operador", canEdit = tr
       return;
     }
     setMessage("KM actual guardado.");
+    notifyOperationalClaimChanged(tripId);
     await load();
   }
 

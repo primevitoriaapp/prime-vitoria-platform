@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { notifyOperationalClaimChanged } from "@/lib/client/operational-claim-events";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 
 type Props = {
@@ -30,6 +31,7 @@ export function TripAgendaQuickActions({ tripId, operationalStatus, devFallbackR
       return;
     }
     setMessage("Corrida aprovada.");
+    notifyOperationalClaimChanged(tripId);
     onDone?.();
   }
 

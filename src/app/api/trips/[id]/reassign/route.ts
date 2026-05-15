@@ -6,7 +6,7 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
-import { assertOperationalClaimForAction } from "@/lib/trips/operational-claim-guard";
+import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
 
 const bodySchema = z.object({
@@ -36,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
     if (denied) return denied;
 
-    const claimCheck = await assertOperationalClaimForAction(session, tenantId, id);
+    const claimCheck = await ensureOperationalClaimForMutation(session, tenantId, id, request);
     if (!claimCheck.ok) {
       return fail(claimCheck.code, claimCheck.message, claimCheck.code === "CLAIM_NOT_OWNER" ? 403 : 409);
     }

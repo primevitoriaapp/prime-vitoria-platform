@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { notifyOperationalClaimChanged } from "@/lib/client/operational-claim-events";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 
 type DriverOption = {
@@ -121,6 +122,7 @@ export function TripAgendaOffersPanel({
       return;
     }
     setMessage("Oferta aprovada — corrida despachada.");
+    notifyOperationalClaimChanged(tripId);
     await loadOffers();
     onDone?.();
   }

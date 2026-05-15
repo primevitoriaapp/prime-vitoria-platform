@@ -3,76 +3,84 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
-import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 
-type QueueItem = {
+type HistoryRow = {
   id: string;
   scheduled_at: string;
   operational_status: TripOperationalStatus;
-  passenger_name: string | null;
   origin_text: string;
   destination_text: string;
-  claim: { operator_profile_id: string; claimed_at: string; operator_name?: string | null } | null;
+  passenger_name: string | null;
+  planned_km: number | null;
+  actual_km: number | null;
+  driver_name: string | null;
 };
 
 type Props = {
-  tenantId: string | null;
   devFallbackRole?: "operador" | "admin";
+  days?: number;
 };
 
-export function OperationalQueuePanel({ tenantId, devFallbackRole = "operador" }: Props) {
-  const [unclaimedOnly, setUnclaimedOnly] = useState(false);
-  const [items, setItems] = useState<QueueItem[]>([]);
+export function OperationalHistoryPanel({ devFallbackRole = "operador", days = 14 }: Props) {
+  const [items, setItems] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"" | TripOperationalStatus>("");
 
   const load = useCallback(async () => {
     setLoading(true);
-    setMessage(null);
-    const qs = new URLSearchParams({ page: "1", pageSize: "40" });
-    if (unclaimedOnly) qs.set("unclaimedOnly", "true");
-
-    const res = await fetchWithSupabaseSession(`/api/operations/queue?${qs}`, {}, devFallbackRole);
+    const qs = new URLSearchParams({ page: "1", pageSize: "40", days: String(days) });
+    if (statusFilter) qs.set("status", statusFilter);
+    const res = await fetchWithSupabaseSession(`/api/operations/history?${qs}`, {}, devFallbackRole);
     const json = (await res.json()) as {
       success?: boolean;
-      data?: { items: QueueItem[] };
+      data?: { items: HistoryRow[] };
       error?: { message?: string };
     };
     if (!res.ok || !json.success) {
       setItems([]);
-      setMessage(json.error?.message ?? "Fila indisponível.");
+      setMessage(json.error?.message ?? "Histórico indisponível.");
       setLoading(false);
       return;
     }
     setItems(json.data?.items ?? []);
+    setMessage(null);
     setLoading(false);
-  }, [unclaimedOnly, devFallbackRole]);
+  }, [days, devFallbackRole, statusFilter]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  useTenantTableRefresh(tenantId, ["trips", "trip_operational_claims"], load);
-
   return (
     <section className="card mt-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-slate-900">Fila operacional</h2>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={unclaimedOnly} onChange={(e) => setUnclaimedOnly(e.target.checked)} />
-          Só sem atendimento
-        </label>
-        <button type="button" onClick={() => void load()} disabled={loading} className="text-sm">
-          Actualizar
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold text-slate-900">Histórico operacional ({days} dias)</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label="Filtrar estado"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "" | TripOperationalStatus)}
+            className="rounded border border-slate-300 px-2 py-1 text-sm"
+          >
+            <option value="">Todos encerrados</option>
+            <option value="completed">Concluídas</option>
+            <option value="cancelled">Canceladas</option>
+            <option value="no_show">No-show</option>
+            <option value="rejected">Rejeitadas</option>
+          </select>
+          <button type="button" onClick={() => void load()} disabled={loading} className="text-sm text-amber-800">
+            Actualizar
+          </button>
+        </div>
       </div>
       {message ? <p className="mt-2 text-sm text-red-700">{message}</p> : null}
       {loading ? (
         <p className="mt-3 text-sm text-slate-600">A carregar…</p>
       ) : items.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">Nenhuma viagem activa na fila.</p>
+        <p className="mt-3 text-sm text-slate-500">Sem viagens encerradas no período.</p>
       ) : (
         <ul className="mt-3 divide-y divide-slate-100 text-sm">
           {items.map((row) => (
@@ -82,19 +90,14 @@ export function OperationalQueuePanel({ tenantId, devFallbackRole = "operador" }
                   {new Date(row.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                 </span>
                 <span className="ml-2 text-slate-600">{STATUS_CORRIDA_PT[row.operational_status]}</span>
-                {row.claim ? (
-                  <span className="ml-2 text-xs text-amber-800">
-                    · {row.claim.operator_name?.trim() || "em atendimento"}
-                  </span>
-                ) : (
-                  <span className="ml-2 text-xs text-red-700">· sem operador</span>
-                )}
+                {row.driver_name ? <span className="ml-2 text-xs text-slate-500">· {row.driver_name}</span> : null}
                 <p className="text-xs text-slate-500">
                   {row.origin_text} → {row.destination_text}
+                  {row.actual_km != null ? ` · ${row.actual_km} km` : row.planned_km != null ? ` · ${row.planned_km} km plan.` : ""}
                 </p>
               </div>
               <Link href={`/agenda?trip=${row.id}`} className="text-sm font-medium text-amber-700 hover:underline">
-                Abrir
+                Detalhe
               </Link>
             </li>
           ))}

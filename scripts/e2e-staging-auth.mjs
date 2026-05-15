@@ -204,6 +204,11 @@ async function main() {
     console.log("ok erp integration status");
   }
 
+  if (role === "operador" || role === "admin") {
+    await apiGet(token, "/api/operations/history?page=1&pageSize=5&days=7");
+    console.log("ok operations history");
+  }
+
   const tripId = trips.items[0]?.id;
   if (tripId && tripReaderRoles.includes(role)) {
     await apiGet(token, `/api/trips/${tripId}/operational-timeline`);
@@ -215,6 +220,10 @@ async function main() {
   }
 
   if (role === "motorista") {
+    const payables = await apiGet(token, "/api/finance/driver-payables?pageSize=5");
+    if (!Array.isArray(payables.items)) throw new Error("motorista driver payables items missing");
+    console.log(`ok motorista driver payables (${payables.items.length} items)`);
+
     const assigned = trips.items.filter((t) => t.driver_id);
     if (assigned.length < 1) {
       console.warn("warn motorista: no assigned trips (assign driver_id in seed for staging)");

@@ -9,6 +9,7 @@ import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-a
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { notifyTripStatusTransition } from "@/lib/notifications/trip-status-notify";
 import { runPostTripAutomation } from "@/lib/trips/post-trip-automation";
+import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 
 const bodySchema = z.object({
   to_status: z.enum([
@@ -58,6 +59,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         `Cannot transition from ${trip.operational_status} to ${body.to_status}`,
         409
       );
+    }
+
+    if (session.role === "motorista") {
+      if (!session.driverId || trip.driver_id !== session.driverId) {
+        return fail("FORBIDDEN", "Motorista so pode actualizar as proprias corridas", 403);
+      }
+      const allowed = driverNextStatuses(trip.operational_status);
+      if (!allowed.includes(body.to_status)) {
+        return fail("INVALID_STATUS_TRANSITION", "Transicao nao permitida para motorista", 409);
+      }
     }
 
     const statusSource = session.role === "motorista" ? "driver" : "admin";

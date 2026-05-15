@@ -6,6 +6,8 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
+import { enqueueNotificationJob } from "@/lib/notifications/events";
 
 const bodySchema = z.object({
   driver_id: z.string().uuid()
@@ -62,6 +64,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
       .eq("tenant_id", tenantId);
 
     if (offerError) return fail("OFFER_APPROVE_FAILED", offerError.message, 500);
+
+    await enqueueNotificationJob(
+      {
+        eventType: "trip_dispatched",
+        recipientType: "driver",
+        recipientId: body.driver_id,
+        tripId: offer.trip_id
+      },
+      { tenantId }
+    );
 
     await db
       .from("dispatch_offer_responses")

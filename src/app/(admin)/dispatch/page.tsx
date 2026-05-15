@@ -1,4 +1,5 @@
 import { DispatchAutomationSettings } from "@/components/dispatch-automation-settings";
+import { OperationalHistoryPanel } from "@/components/operational-history-panel";
 import { OperationalQueuePanel } from "@/components/operational-queue-panel";
 import { DispatchConsole } from "@/components/dispatch-console";
 import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
@@ -35,6 +36,7 @@ export default async function DispatchPage() {
         tenantId={realtimeTenantId}
         devFallbackRole={session.role === "admin" ? "admin" : "operador"}
       />
+      <OperationalHistoryPanel devFallbackRole={session.role === "admin" ? "admin" : "operador"} />
       <InAppNotificationsPanel
         tenantId={realtimeTenantId}
         devFallbackRole={session.role === "admin" ? "admin" : "operador"}

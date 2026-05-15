@@ -33,7 +33,14 @@ const ROLE_CAPABILITIES: Record<UserRole, string[]> = {
     "notifications.read"
   ],
   cliente: ["trip.request", "trip.read.own"],
-  motorista: ["trip.read.assigned", "trip.accept", "trip.status", "location.write"]
+  motorista: [
+    "trip.read.assigned",
+    "trip.accept",
+    "trip.status",
+    "location.write",
+    "finance.payable.read.own",
+    "finance.payable.proof.own"
+  ]
 };
 
 export function can(session: SessionContext, capability: string): boolean {

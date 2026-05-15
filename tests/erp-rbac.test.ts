@@ -73,6 +73,12 @@ test("motorista can post location capability", () => {
   assert.equal(can(session("motorista"), "location.write"), true);
 });
 
+test("motorista can read own payables and upload proof", () => {
+  assert.equal(can(session("motorista"), "finance.payable.read.own"), true);
+  assert.equal(can(session("motorista"), "finance.payable.proof.own"), true);
+  assert.equal(can(session("motorista"), "finance.read"), false);
+});
+
 test("operador can post driver locations for operations", () => {
   assert.equal(can(session("operador"), "location.write"), true);
 });

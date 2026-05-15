@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { z } from "zod";
 import { AgendaDateRangeForm } from "@/components/agenda-date-range-form";
+import { OperationalHistoryPanel } from "@/components/operational-history-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { TripAgendaFocusPanel } from "@/components/trip-agenda-focus-panel";
@@ -65,6 +66,9 @@ export default async function AgendaPage({
         estado aparecem na tabela quando o tenant da sessão corresponde.
       </p>
       <AgendaDateRangeForm initialFromIso={scheduledFrom} initialToIso={scheduledTo} />
+      {showClaimBar ? (
+        <OperationalHistoryPanel devFallbackRole={session.role === "operador" ? "operador" : "admin"} days={7} />
+      ) : null}
       {showClaimBar ? (
         <InAppNotificationsPanel
           tenantId={realtimeTenantId}

@@ -4,6 +4,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { can } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
+import { resolveProfileNames } from "@/lib/profiles/resolve-profile-names";
 
 export type TimelineEntry =
   | {
@@ -162,7 +163,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       x.at < y.at ? 1 : x.at > y.at ? -1 : 0
     );
 
-    return ok({ trip_id: tripId, items: merged });
+    const profileIds: string[] = [];
+    for (const e of merged) {
+      if (e.kind === "audit" && e.actor_user_id) profileIds.push(e.actor_user_id);
+      if (e.kind === "note") profileIds.push(e.author_profile_id);
+      if (e.kind === "status" && e.changed_by) profileIds.push(e.changed_by);
+      if (e.kind === "claim") profileIds.push(e.operator_profile_id);
+    }
+    const profile_names = await resolveProfileNames(profileIds);
+
+    return ok({ trip_id: tripId, items: merged, profile_names });
   } catch (error) {
     return mapApiError(error);
   }

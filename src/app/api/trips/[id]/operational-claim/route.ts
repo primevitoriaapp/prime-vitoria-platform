@@ -44,7 +44,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .is("released_at", null)
       .maybeSingle();
 
-    return ok({ active: claim ?? null });
+    let operator_name: string | null = null;
+    if (claim?.operator_profile_id) {
+      const { data: prof } = await db.from("profiles").select("name").eq("id", claim.operator_profile_id).maybeSingle();
+      operator_name = prof?.name ?? null;
+    }
+
+    return ok({
+      active: claim ? { ...claim, operator_name } : null
+    });
   } catch (error) {
     return mapApiError(error);
   }

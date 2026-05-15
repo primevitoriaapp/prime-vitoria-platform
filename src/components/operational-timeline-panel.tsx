@@ -37,8 +37,14 @@ type Entry =
 
 type Props = { tripId: string };
 
+function profileLabel(id: string | null, names: Record<string, string>): string {
+  if (!id) return "(sistema)";
+  return names[id]?.trim() || `${id.slice(0, 8)}…`;
+}
+
 export function OperationalTimelinePanel({ tripId }: Props) {
   const [items, setItems] = useState<Entry[]>([]);
+  const [profileNames, setProfileNames] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -54,6 +60,7 @@ export function OperationalTimelinePanel({ tripId }: Props) {
           return;
         }
         setItems((json.data?.items ?? []) as Entry[]);
+        setProfileNames((json.data?.profile_names ?? {}) as Record<string, string>);
       })
       .catch(() => {
         setError("Falha de rede.");
@@ -90,11 +97,7 @@ export function OperationalTimelinePanel({ tripId }: Props) {
                 {e.kind === "audit" ? (
                   <div className="mt-1">
                     <span className="font-medium text-amber-800">{e.action}</span>
-                    {e.actor_user_id ? (
-                      <span className="ml-2 font-mono text-xs text-slate-500">{e.actor_user_id.slice(0, 8)}…</span>
-                    ) : (
-                      <span className="ml-2 text-xs text-slate-400">(sistema)</span>
-                    )}
+                    <span className="ml-2 text-xs text-slate-500">{profileLabel(e.actor_user_id, profileNames)}</span>
                   </div>
                 ) : e.kind === "status" ? (
                   <div className="mt-1">
@@ -110,13 +113,13 @@ export function OperationalTimelinePanel({ tripId }: Props) {
                     <p className="mt-1 text-slate-800">
                       {e.action === "assumed" ? "Atendimento assumido" : "Atendimento libertado"}
                     </p>
-                    <p className="mt-1 font-mono text-xs text-slate-400">{e.operator_profile_id.slice(0, 8)}…</p>
+                    <p className="mt-1 text-xs text-slate-500">{profileLabel(e.operator_profile_id, profileNames)}</p>
                   </div>
                 ) : (
                   <div className="mt-1">
                     <span className="text-xs font-medium uppercase text-slate-500">Nota interna</span>
                     <p className="mt-1 whitespace-pre-wrap text-slate-800">{e.body}</p>
-                    <p className="mt-1 font-mono text-xs text-slate-400">{e.author_profile_id.slice(0, 8)}…</p>
+                    <p className="mt-1 text-xs text-slate-500">{profileLabel(e.author_profile_id, profileNames)}</p>
                   </div>
                 )}
               </li>

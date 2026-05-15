@@ -3,14 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { OPERATIONAL_CLAIM_CHANGED } from "@/lib/client/operational-claim-events";
 
 type Props = { tripId: string; devFallbackRole?: "operador" | "admin" };
 
 export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }: Props) {
   const router = useRouter();
-  const [active, setActive] = useState<{ operator_profile_id: string; claimed_at: string } | null | undefined>(
-    undefined
-  );
+  const [active, setActive] = useState<
+    { operator_profile_id: string; claimed_at: string; operator_name?: string | null } | null | undefined
+  >(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +34,15 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const onChanged = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ tripId?: string }>).detail;
+      if (!detail?.tripId || detail.tripId === tripId) void load();
+    };
+    window.addEventListener(OPERATIONAL_CLAIM_CHANGED, onChanged);
+    return () => window.removeEventListener(OPERATIONAL_CLAIM_CHANGED, onChanged);
+  }, [tripId, load]);
 
   async function claim() {
     setBusy(true);
@@ -81,7 +91,8 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
           <span className="font-semibold text-amber-900">Multiatendimento</span>
           {active ? (
             <span className="ml-2 text-slate-700">
-              Em atendimento por <span className="font-mono text-xs">{active.operator_profile_id.slice(0, 8)}…</span>
+              Em atendimento por{" "}
+              <span className="font-medium">{active.operator_name?.trim() || active.operator_profile_id.slice(0, 8)}</span>
               {" · "}
               {new Date(active.claimed_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
             </span>

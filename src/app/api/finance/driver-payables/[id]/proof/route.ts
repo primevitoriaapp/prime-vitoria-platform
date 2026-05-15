@@ -3,8 +3,8 @@ import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
-import { assertCapability } from "@/lib/security/rbac";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { loadDriverPayableForSession } from "@/lib/finance/driver-payable-access";
 
 const bodySchema = z.object({
   storage_url: z.string().url().max(2048),
@@ -16,10 +16,12 @@ const bodySchema = z.object({
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSessionContext();
-    assertCapability(session, "finance.write");
     const tenantId = assertTenantScope(session);
     const { id: payableId } = await params;
     const body = bodySchema.parse(await request.json());
+
+    const access = await loadDriverPayableForSession(session, tenantId, payableId);
+    if ("error" in access) return access.error;
 
     const { data: row, error: loadErr } = await db
       .from("driver_payables")
@@ -28,9 +30,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .maybeSingle();
 
     if (loadErr || !row) return fail("PAYABLE_NOT_FOUND", "Título não encontrado", 404);
-
-    const { data: trip } = await db.from("trips").select("tenant_id").eq("id", row.trip_id).maybeSingle();
-    if (!trip || trip.tenant_id !== tenantId) return fail("FORBIDDEN", "Título fora do tenant", 403);
 
     const { data: proof, error: insErr } = await db
       .from("driver_payment_proofs")
@@ -67,15 +66,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSessionContext();
-    assertCapability(session, "finance.read");
     const tenantId = assertTenantScope(session);
     const { id: payableId } = await params;
 
-    const { data: row } = await db.from("driver_payables").select("id, trip_id").eq("id", payableId).maybeSingle();
-    if (!row) return fail("PAYABLE_NOT_FOUND", "Título não encontrado", 404);
-
-    const { data: trip } = await db.from("trips").select("tenant_id").eq("id", row.trip_id).maybeSingle();
-    if (!trip || trip.tenant_id !== tenantId) return fail("FORBIDDEN", "Título fora do tenant", 403);
+    const access = await loadDriverPayableForSession(session, tenantId, payableId, "read");
+    if ("error" in access) return access.error;
 
     const { data: proofs, error } = await db
       .from("driver_payment_proofs")

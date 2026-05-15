@@ -3,6 +3,7 @@ import { insertAuditEvent } from "@/lib/server/audit-log";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
 import { enqueueInAppForTenantRoles } from "@/lib/notifications/enqueue-for-profiles";
 import { actualKmFromTrail, plannedKmFromCoords } from "@/lib/trips/km-distance";
+import { ensureDriverPayableFromTripFinancials } from "@/lib/finance/ensure-driver-payable";
 
 export type PostTripAutomationInput = {
   tripId: string;
@@ -76,6 +77,8 @@ export async function runPostTripAutomation(input: PostTripAutomationInput): Pro
     entityId: tripId,
     metadata: { planned_km: planned, actual_km: actual, km_source: kmSource }
   });
+
+  await ensureDriverPayableFromTripFinancials(tripId, tenantId);
 
   const { data: payable } = await db
     .from("driver_payables")
