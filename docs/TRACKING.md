@@ -11,6 +11,7 @@
 
 - Estado operacional, origem, destino, passageiro (se houver), horario agendado.
 - Ultima posicao GPS da corrida (`driver_locations`), se existir.
+- `planned_km` / `actual_km` quando calculados (migracao `0025`; recalculo automatico ao concluir a corrida).
 - Nao expoe IDs internos de cliente/motorista nem dados financeiros.
 
 ## Supabase

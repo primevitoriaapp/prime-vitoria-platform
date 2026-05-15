@@ -5,6 +5,7 @@ import { OperationalTimelinePanel } from "@/components/operational-timeline-pane
 import { TripOperationalClaimBar } from "@/components/trip-operational-claim-bar";
 import { TripOperatorNotesPanel } from "@/components/trip-operator-notes-panel";
 import { TripFinanceErpPanel } from "@/components/trip-finance-erp-panel";
+import { TripKmPanel } from "@/components/trip-km-panel";
 
 type Props = {
   tripId: string;
@@ -31,6 +32,7 @@ export function TripAgendaOperationalStack({
       {showFinancePanel ? (
         <TripFinanceErpPanel tripId={tripId} devFallbackRole={financeDevRole} writeMode={financeWriteMode} />
       ) : null}
+      <TripKmPanel tripId={tripId} devFallbackRole={financeDevRole === "operador" ? "operador" : "admin"} />
       <div className="grid gap-6 lg:grid-cols-2">
         <OperationalTimelinePanel key={`${tripId}-tl-${timelineKey}`} tripId={tripId} />
         <TripOperatorNotesPanel tripId={tripId} onPosted={() => setTimelineKey((k) => k + 1)} />

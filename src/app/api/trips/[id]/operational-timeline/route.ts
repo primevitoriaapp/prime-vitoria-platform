@@ -29,6 +29,13 @@ export type TimelineEntry =
       to_status: string;
       changed_by: string | null;
       source: string | null;
+    }
+  | {
+      kind: "claim";
+      id: string;
+      at: string;
+      action: "assumed" | "released";
+      operator_profile_id: string;
     };
 
 /** Histórico operacional: auditoria da viagem + notas internas, ordenado por tempo (mais recente primeiro). */
@@ -86,12 +93,23 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .order("changed_at", { ascending: false })
       .limit(150);
 
-    const [{ data: audits, error: aErr }, { data: notes, error: nErr }, { data: statuses, error: sErr }] =
-      await Promise.all([auditQuery, notesQuery, statusQuery]);
+    const claimsQuery = includeInternalNotes
+      ? db
+          .from("trip_operational_claims")
+          .select("id, operator_profile_id, claimed_at, released_at")
+          .eq("trip_id", tripId)
+          .eq("tenant_id", tenantId)
+          .order("claimed_at", { ascending: false })
+          .limit(50)
+      : Promise.resolve({ data: [] as const, error: null });
+
+    const [{ data: audits, error: aErr }, { data: notes, error: nErr }, { data: statuses, error: sErr }, { data: claims, error: cErr }] =
+      await Promise.all([auditQuery, notesQuery, statusQuery, claimsQuery]);
 
     if (aErr) return fail("TIMELINE_AUDIT_FAILED", aErr.message, 500);
     if (nErr) return fail("TIMELINE_NOTES_FAILED", nErr.message, 500);
     if (sErr) return fail("TIMELINE_STATUS_FAILED", sErr.message, 500);
+    if (cErr) return fail("TIMELINE_CLAIMS_FAILED", cErr.message, 500);
 
     const auditEntries: TimelineEntry[] = (audits ?? []).map((row) => ({
       kind: "audit" as const,
@@ -110,6 +128,26 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       body: row.body as string
     }));
 
+    const claimEntries: TimelineEntry[] = [];
+    for (const row of claims ?? []) {
+      claimEntries.push({
+        kind: "claim",
+        id: `c-${row.id}-a`,
+        at: row.claimed_at as string,
+        action: "assumed",
+        operator_profile_id: row.operator_profile_id as string
+      });
+      if (row.released_at) {
+        claimEntries.push({
+          kind: "claim",
+          id: `c-${row.id}-r`,
+          at: row.released_at as string,
+          action: "released",
+          operator_profile_id: row.operator_profile_id as string
+        });
+      }
+    }
+
     const statusEntries: TimelineEntry[] = (statuses ?? []).map((row) => ({
       kind: "status" as const,
       id: `s-${row.id}`,
@@ -120,7 +158,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       source: (row.source as string | null) ?? null
     }));
 
-    const merged = [...auditEntries, ...noteEntries, ...statusEntries].sort((x, y) =>
+    const merged = [...auditEntries, ...noteEntries, ...statusEntries, ...claimEntries].sort((x, y) =>
       x.at < y.at ? 1 : x.at > y.at ? -1 : 0
     );
 

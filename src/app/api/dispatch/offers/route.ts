@@ -7,6 +7,7 @@ import { assertCapability } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { runDispatchOfferRpcAndNotify } from "@/lib/dispatch/run-offer-creation";
+import { assertOperationalClaimForAction } from "@/lib/trips/operational-claim-guard";
 
 const createOfferSchema = z.object({
   trip_id: z.string().uuid(),
@@ -41,6 +42,11 @@ export async function POST(request: Request) {
       })
     );
     if (tripDenied) return tripDenied;
+
+    const claimCheck = await assertOperationalClaimForAction(session, tenantId, body.trip_id);
+    if (!claimCheck.ok) {
+      return fail(claimCheck.code, claimCheck.message, claimCheck.code === "CLAIM_NOT_OWNER" ? 403 : 409);
+    }
 
     const createdByUuid = z.string().uuid().safeParse(session.userId);
     const p_created_by = createdByUuid.success ? createdByUuid.data : null;

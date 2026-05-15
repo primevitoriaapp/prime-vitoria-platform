@@ -177,7 +177,7 @@ export default async function ClientPage() {
                         </p>
                       </div>
                       <div className="shrink-0 pt-1 sm:pt-0">
-                        <TripTrackingLinkButton tripId={trip.id} variant="dark" />
+                        <TripTrackingLinkButton tripId={trip.id} variant="dark" devFallbackRole="cliente" />
                       </div>
                     </li>
                   ))}
@@ -212,7 +212,7 @@ export default async function ClientPage() {
         <section id="solicitar" className="space-y-3">
           <h2 className="font-serif text-xl text-white">Nova solicitação</h2>
           <div className="[&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100 [&_input]:placeholder:text-slate-500">
-            <ClientRequestConsole />
+            <ClientRequestConsole clientId={clientId} costCenters={costCenters ?? []} />
           </div>
         </section>
       </main>

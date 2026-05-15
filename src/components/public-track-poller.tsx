@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { PublicTrackMap } from "@/components/public-track-map";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 
@@ -11,6 +12,10 @@ type TrackPayload = {
   passenger_name: string | null;
   scheduled_at: string;
   location: { lat: number; lng: number; recorded_at: string } | null;
+  origin_coords?: { lat: number; lng: number } | null;
+  destination_coords?: { lat: number; lng: number } | null;
+  planned_km?: number | null;
+  actual_km?: number | null;
 };
 
 type Props = {
@@ -50,9 +55,18 @@ export function PublicTrackPoller({ token, initial }: Props) {
 
   const statusLabel = STATUS_CORRIDA_PT[data.operational_status] ?? data.operational_status;
 
+  const driverPoint = data.location
+    ? { lat: data.location.lat, lng: data.location.lng, label: "Motorista" }
+    : null;
+
   return (
     <>
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      <PublicTrackMap
+        origin={data.origin_coords ? { ...data.origin_coords, label: "Origem" } : null}
+        destination={data.destination_coords ? { ...data.destination_coords, label: "Destino" } : null}
+        driver={driverPoint}
+      />
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 text-sm leading-relaxed text-slate-300">
         <p>
           <span className="text-slate-500">Estado operacional:</span>{" "}
@@ -73,21 +87,19 @@ export function PublicTrackPoller({ token, initial }: Props) {
           Agendada:{" "}
           {new Date(data.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
         </p>
+        {data.planned_km != null || data.actual_km != null ? (
+          <p className="mt-1 text-xs text-slate-500">
+            Distância: {data.planned_km != null ? `${data.planned_km} km plan.` : ""}
+            {data.actual_km != null ? ` · ${data.actual_km} km real` : ""}
+          </p>
+        ) : null}
         <p className="mt-3 text-xs text-slate-600">Atualiza automaticamente a cada 15 s.</p>
       </div>
       {data.location ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 text-sm text-slate-300">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Ultima posicao registrada</p>
-          <p className="mt-2 font-mono text-amber-400/90">
-            {data.location.lat.toFixed(5)}, {data.location.lng.toFixed(5)}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            {new Date(data.location.recorded_at).toLocaleString("pt-BR", {
-              dateStyle: "short",
-              timeStyle: "medium"
-            })}
-          </p>
-        </div>
+        <p className="text-xs text-slate-500">
+          GPS: {data.location.lat.toFixed(5)}, {data.location.lng.toFixed(5)} ·{" "}
+          {new Date(data.location.recorded_at).toLocaleString("pt-BR", { timeStyle: "short" })}
+        </p>
       ) : (
         <p className="text-sm text-slate-500">Ainda nao ha posicao GPS associada a esta corrida.</p>
       )}

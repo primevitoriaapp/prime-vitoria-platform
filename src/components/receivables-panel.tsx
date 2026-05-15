@@ -19,7 +19,7 @@ type Props = {
 };
 
 export function ReceivablesPanel({ tenantId, devFallbackRole = "financeiro" }: Props) {
-  const [statusFilter, setStatusFilter] = useState<"" | "open" | "paid">("open");
+  const [statusFilter, setStatusFilter] = useState<"" | "open" | "paid" | "cancelled">("open");
   const [items, setItems] = useState<ReceivableRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,47 @@ export function ReceivablesPanel({ tenantId, devFallbackRole = "financeiro" }: P
     void load();
   }, [load]);
 
-  useTenantTableRefresh(tenantId, ["trips"], load);
+  useTenantTableRefresh(tenantId, ["accounts_receivable"], load);
+
+  async function postAction(
+    receivableId: string,
+    path: "mark-paid" | "reopen" | "cancel",
+    body: Record<string, unknown> = {}
+  ) {
+    setMessage(null);
+    const res = await fetchWithSupabaseSession(
+      `/api/finance/receivables/${receivableId}/${path}`,
+      { method: "POST", body: JSON.stringify(body) },
+      devFallbackRole
+    );
+    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    if (!res.ok || !json.success) {
+      setMessage(json.error?.message ?? "Operação não concluída.");
+      return false;
+    }
+    return true;
+  }
+
+  async function markPaid(receivableId: string) {
+    if (await postAction(receivableId, "mark-paid", { payment_method: "manual" })) {
+      setMessage("Título marcado como pago.");
+      await load();
+    }
+  }
+
+  async function reopen(receivableId: string) {
+    if (await postAction(receivableId, "reopen", { reason: "estorno manual" })) {
+      setMessage("Baixa revertida — título em aberto.");
+      await load();
+    }
+  }
+
+  async function cancelReceivable(receivableId: string) {
+    if (await postAction(receivableId, "cancel", { reason: "cancelamento manual" })) {
+      setMessage("Título cancelado.");
+      await load();
+    }
+  }
 
   async function enqueueErp(provider: "omie" | "conta_azul", receivableId: string) {
     setMessage(null);
@@ -93,6 +133,7 @@ export function ReceivablesPanel({ tenantId, devFallbackRole = "financeiro" }: P
           >
             <option value="open">Em aberto</option>
             <option value="paid">Pagos</option>
+            <option value="cancelled">Cancelados</option>
             <option value="">Todos</option>
           </select>
           <button type="button" onClick={() => void load()} disabled={loading} className="text-sm">
@@ -114,7 +155,7 @@ export function ReceivablesPanel({ tenantId, devFallbackRole = "financeiro" }: P
                 <th className="py-2 pr-2">Valor</th>
                 <th className="py-2 pr-2">Estado</th>
                 <th className="py-2 pr-2">Corrida</th>
-                <th className="py-2">ERP</th>
+                <th className="py-2">Acções</th>
               </tr>
             </thead>
             <tbody>
@@ -127,6 +168,33 @@ export function ReceivablesPanel({ tenantId, devFallbackRole = "financeiro" }: P
                   <td className="py-2 pr-2">{row.status}</td>
                   <td className="py-2 pr-2 font-mono text-xs">{row.trip_id.slice(0, 8)}…</td>
                   <td className="py-2">
+                    {row.status === "open" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="mr-2 text-xs font-medium text-emerald-800"
+                          onClick={() => void markPaid(row.id)}
+                        >
+                          Marcar pago
+                        </button>
+                        <button
+                          type="button"
+                          className="mr-2 text-xs text-slate-600"
+                          onClick={() => void cancelReceivable(row.id)}
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    ) : null}
+                    {row.status === "paid" ? (
+                      <button
+                        type="button"
+                        className="mr-2 text-xs font-medium text-amber-800"
+                        onClick={() => void reopen(row.id)}
+                      >
+                        Estornar
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="mr-1 text-xs text-amber-800"

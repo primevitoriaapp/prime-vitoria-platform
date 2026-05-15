@@ -10,6 +10,10 @@ export type PublicTrackSnapshot = {
   passenger_name: string | null;
   scheduled_at: string;
   location: { lat: number; lng: number; recorded_at: string } | null;
+  origin_coords: { lat: number; lng: number } | null;
+  destination_coords: { lat: number; lng: number } | null;
+  planned_km: number | null;
+  actual_km: number | null;
   expires_at: string;
 };
 
@@ -29,7 +33,9 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
 
   const { data: trip } = await db
     .from("trips")
-    .select("operational_status, origin_text, destination_text, passenger_name, scheduled_at")
+    .select(
+      "operational_status, origin_text, destination_text, passenger_name, scheduled_at, planned_km, actual_km, origin_lat, origin_lng, destination_lat, destination_lng"
+    )
     .eq("id", row.trip_id)
     .maybeSingle();
 
@@ -57,6 +63,16 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
           recorded_at: loc.recorded_at as string
         }
       : null,
+    origin_coords:
+      trip.origin_lat != null && trip.origin_lng != null
+        ? { lat: Number(trip.origin_lat), lng: Number(trip.origin_lng) }
+        : null,
+    destination_coords:
+      trip.destination_lat != null && trip.destination_lng != null
+        ? { lat: Number(trip.destination_lat), lng: Number(trip.destination_lng) }
+        : null,
+    planned_km: trip.planned_km != null ? Number(trip.planned_km) : null,
+    actual_km: trip.actual_km != null ? Number(trip.actual_km) : null,
     expires_at: row.expires_at as string
   };
 }

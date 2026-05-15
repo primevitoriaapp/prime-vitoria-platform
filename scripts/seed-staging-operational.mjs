@@ -134,6 +134,14 @@ async function main() {
   );
   if (dErr) throw dErr;
 
+  const { data: driverRow, error: driverLookupErr } = await db
+    .from("drivers")
+    .select("id")
+    .eq("profile_id", motoristaId)
+    .maybeSingle();
+  if (driverLookupErr) throw driverLookupErr;
+  if (!driverRow?.id) throw new Error("Staging driver row missing after upsert");
+
   const adminId = ids.admin;
   const scheduled = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
   const scheduled2 = new Date(Date.now() + 72 * 3600 * 1000).toISOString();
@@ -146,7 +154,11 @@ async function main() {
     service_type: "Transfer executivo",
     scheduled_at: scheduled,
     origin_text: "Aeroporto (staging)",
+    origin_lat: -20.258,
+    origin_lng: -40.2869,
     destination_text: "Centro corporativo (staging)",
+    destination_lat: -20.3155,
+    destination_lng: -40.3128,
     dispatch_mode: "offer",
     operational_status: "requested",
     passenger_name: "Convidado seed",
@@ -159,9 +171,14 @@ async function main() {
     service_type: "City tour",
     scheduled_at: scheduled2,
     origin_text: "Hotel staging",
+    origin_lat: -20.29,
+    origin_lng: -40.3,
     destination_text: "Cliente staging",
+    destination_lat: -20.32,
+    destination_lng: -40.34,
     dispatch_mode: "directed",
     operational_status: "approved",
+    driver_id: driverRow.id,
     passenger_name: "Convidado seed 2",
     created_by: adminId,
     approved_by: adminId,

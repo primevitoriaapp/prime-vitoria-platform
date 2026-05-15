@@ -12,7 +12,8 @@ const putSchema = z
     auto_offer_on_approve: z.boolean(),
     auto_direct_assign_on_approve: z.boolean(),
     offer_expires_seconds: z.number().int().min(30).max(3600),
-    max_offer_candidates: z.number().int().min(1).max(50)
+    max_offer_candidates: z.number().int().min(1).max(50),
+    require_operational_claim: z.boolean()
   })
   .superRefine((val, ctx) => {
     if (val.auto_offer_on_approve && val.auto_direct_assign_on_approve) {
@@ -49,6 +50,7 @@ export async function PUT(request: Request) {
         auto_direct_assign_on_approve: body.auto_direct_assign_on_approve,
         offer_expires_seconds: body.offer_expires_seconds,
         max_offer_candidates: body.max_offer_candidates,
+        require_operational_claim: body.require_operational_claim,
         updated_at: new Date().toISOString(),
         updated_by: session.userId
       },

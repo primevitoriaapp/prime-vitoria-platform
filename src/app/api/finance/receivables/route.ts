@@ -24,11 +24,8 @@ export async function GET(request: Request) {
 
     let query = db
       .from("accounts_receivable")
-      .select(
-        "id, trip_id, client_id, amount, due_date, status, issue_date, created_at, trips!inner(tenant_id)",
-        { count: "exact" }
-      )
-      .eq("trips.tenant_id", tenantId)
+      .select("id, trip_id, client_id, amount, due_date, status, issue_date, created_at", { count: "exact" })
+      .eq("tenant_id", tenantId)
       .order("due_date", { ascending: true })
       .range(from, to);
 
@@ -39,13 +36,8 @@ export async function GET(request: Request) {
     const { data, error, count } = await query;
     if (error) return fail("RECEIVABLES_LIST_FAILED", error.message, 500);
 
-    const items = (data ?? []).map((row) => {
-      const { trips: _t, ...rest } = row as Record<string, unknown> & { trips?: unknown };
-      return rest;
-    });
-
     return ok({
-      items,
+      items: data ?? [],
       page: q.page,
       pageSize: q.pageSize,
       total: count ?? 0

@@ -1,4 +1,10 @@
 {
   "framework": "nextjs",
-  "regions": ["gru1"]
+  "regions": ["gru1"],
+  "crons": [
+    { "path": "/api/cron/notifications", "schedule": "*/2 * * * *" },
+    { "path": "/api/cron/erp", "schedule": "*/3 * * * *" },
+    { "path": "/api/cron/dispatch-scan", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/reconcile", "schedule": "0 6 * * *" }
+  ]
 }

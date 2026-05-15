@@ -6,7 +6,7 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 
 const listSchema = z.object({
-  status: z.enum(["open", "paid"]).optional(),
+  status: z.enum(["open", "paid", "cancelled"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(50)
 });
@@ -24,11 +24,8 @@ export async function GET(request: Request) {
 
     let query = db
       .from("driver_payables")
-      .select(
-        "id, trip_id, driver_id, amount, due_date, status, paid_at, trips!inner(tenant_id)",
-        { count: "exact" }
-      )
-      .eq("trips.tenant_id", tenantId)
+      .select("id, trip_id, driver_id, amount, due_date, status, paid_at", { count: "exact" })
+      .eq("tenant_id", tenantId)
       .order("due_date", { ascending: true })
       .range(from, to);
 
@@ -39,13 +36,8 @@ export async function GET(request: Request) {
     const { data, error, count } = await query;
     if (error) return fail("DRIVER_PAYABLES_LIST_FAILED", error.message, 500);
 
-    const items = (data ?? []).map((row) => {
-      const { trips: _t, ...rest } = row as Record<string, unknown> & { trips?: unknown };
-      return rest;
-    });
-
     return ok({
-      items,
+      items: data ?? [],
       page: q.page,
       pageSize: q.pageSize,
       total: count ?? 0

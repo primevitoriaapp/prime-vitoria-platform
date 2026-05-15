@@ -95,7 +95,7 @@ Corrida exemplo:
 - **Login** — cada papel com o email acima.
 - **Criação de corrida** — operador/admin (API ou UI quando existir).
 - **Despacho** — direcionado vs oferta; exclusividade automática (settings).
-- **Agenda** — intervalo de datas, tabela, link **Notas**; com sessão financeiro/admin na viagem `approved`, painel **Financeiro e ERP** (gerar financeiro, enfileirar Omie/Conta Azul).
+- **Agenda** — intervalo de datas, tabela, link **Notas**; aprovar viagem `requested`; financeiro/admin: painel **Financeiro e ERP**; operador: **Sincronização ERP** (sem valores).
 - **Timeline** — histórico operacional na viagem selecionada.
 - **Realtime** — duas sessões: alterar estado de viagem e ver refresh na agenda/despacho.
 - **Painel motorista** — `/driver` com sessão motorista.
@@ -135,4 +135,29 @@ export STAGING_E2E_PASSWORD=<mesma do seed>
 npm run test:e2e-staging
 ```
 
-Valida sessão, viagens, fila de notificações, reconciliação (quando aplicável), títulos a receber e resumo `GET /api/finance/trips/:id` (financeiro/admin), auditoria e timeline.
+Valida sessão, viagens, fila de notificações, reconciliação (quando aplicável), títulos a receber, relatório operacional JSON/CSV (`GET /api/reports/operations/trips`, admin/financeiro), webhooks inbox, resumo `GET /api/finance/trips/:id` (financeiro/admin), `GET /api/trips/:id/finance-summary` (operador sem valores), auditoria e timeline.
+
+Todos os papéis de seed em sequência:
+
+```bash
+npm run test:e2e-staging-all
+```
+
+Requer as mesmas variáveis; corre um smoke por `STAGING_E2E_ROLE`. GitHub Actions: workflow `staging-e2e.yml` (manual ou cron) com secrets `STAGING_BASE_URL` e `STAGING_E2E_PASSWORD`.
+
+## 9. Playwright (browser + API em staging)
+
+CI local (`ci.yml`): `npm run test:e2e-playwright` — health, login guest redirect, relatório sem auth (401/403).
+
+Contra deployment real (login Supabase no browser):
+
+```bash
+export PLAYWRIGHT_STAGING=1
+export PLAYWRIGHT_BASE_URL=https://seu-preview.vercel.app
+export NEXT_PUBLIC_SUPABASE_URL=...
+export NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+export STAGING_E2E_PASSWORD=<mesma do seed>
+npm run test:e2e-playwright:staging
+```
+
+Inclui login → agenda (operador), login → financeiro (painel webhooks), e smoke Bearer do relatório JSON/CSV.

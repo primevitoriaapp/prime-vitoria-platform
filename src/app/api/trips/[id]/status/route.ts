@@ -7,6 +7,8 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { notifyTripStatusTransition } from "@/lib/notifications/trip-status-notify";
+import { runPostTripAutomation } from "@/lib/trips/post-trip-automation";
 
 const bodySchema = z.object({
   to_status: z.enum([
@@ -58,6 +60,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
+    const statusSource = session.role === "motorista" ? "driver" : "admin";
+    await db.rpc("set_trip_status_audit_context", {
+      p_source: statusSource,
+      p_changed_by: session.userId
+    });
+
     const { data, error } = await db
       .from("trips")
       .update({ operational_status: body.to_status })
@@ -67,6 +75,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .single();
 
     if (error) return fail("TRIP_STATUS_UPDATE_FAILED", error.message, 500);
+
+    if (body.to_status === "completed") {
+      await runPostTripAutomation({ tripId: id, tenantId, actorUserId: session.userId }).catch(() => {
+        /* não bloqueia conclusão */
+      });
+    }
+
+    await notifyTripStatusTransition(tenantId, data, trip.operational_status, body.to_status).catch(() => {
+      /* não bloqueia transição */
+    });
 
     await insertAuditEvent({
       tenantId,

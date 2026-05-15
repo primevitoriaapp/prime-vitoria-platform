@@ -10,6 +10,10 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "test:e2e-smoke": "node scripts/e2e-smoke-http.mjs",
     "test:e2e-staging": "node scripts/e2e-staging-auth.mjs",
+    "test:e2e-staging-all": "node scripts/e2e-staging-all-roles.mjs",
+    "test:e2e-playwright": "playwright test",
+    "test:e2e-playwright:staging": "PLAYWRIGHT_STAGING=1 playwright test e2e/staging-authenticated.spec.ts",
+    "test:e2e-playwright:install": "playwright install chromium",
     "env:ensure-dispatch-scan-secret": "node scripts/ensure-dispatch-direct-scan-secret.mjs",
     "predev": "node scripts/ensure-dispatch-direct-scan-secret.mjs",
     "db:start": "npx supabase start",
@@ -40,6 +44,7 @@
     "eslint-config-next": "^15.3.2",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@playwright/test": "^1.52.0"
   }
 }

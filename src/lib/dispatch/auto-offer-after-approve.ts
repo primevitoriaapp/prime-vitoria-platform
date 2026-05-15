@@ -8,19 +8,23 @@ export type DispatchAutomationRow = {
   auto_direct_assign_on_approve: boolean;
   offer_expires_seconds: number;
   max_offer_candidates: number;
+  require_operational_claim: boolean;
 };
 
 const DEFAULT_SETTINGS: DispatchAutomationRow = {
   auto_offer_on_approve: false,
   auto_direct_assign_on_approve: false,
   offer_expires_seconds: 180,
-  max_offer_candidates: 8
+  max_offer_candidates: 8,
+  require_operational_claim: false
 };
 
 export async function loadDispatchAutomationSettings(tenantId: string): Promise<DispatchAutomationRow> {
   const { data, error } = await db
     .from("dispatch_automation_settings")
-    .select("auto_offer_on_approve, auto_direct_assign_on_approve, offer_expires_seconds, max_offer_candidates")
+    .select(
+      "auto_offer_on_approve, auto_direct_assign_on_approve, offer_expires_seconds, max_offer_candidates, require_operational_claim"
+    )
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
@@ -37,7 +41,8 @@ export async function loadDispatchAutomationSettings(tenantId: string): Promise<
     auto_offer_on_approve,
     auto_direct_assign_on_approve,
     offer_expires_seconds: data.offer_expires_seconds ?? DEFAULT_SETTINGS.offer_expires_seconds,
-    max_offer_candidates: data.max_offer_candidates ?? DEFAULT_SETTINGS.max_offer_candidates
+    max_offer_candidates: data.max_offer_candidates ?? DEFAULT_SETTINGS.max_offer_candidates,
+    require_operational_claim: Boolean(data.require_operational_claim)
   };
 }
 

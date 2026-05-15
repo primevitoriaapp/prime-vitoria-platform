@@ -13,6 +13,8 @@ out/
 # logs / OS
 npm-debug.log*
 .DS_Store
+test-results/
+playwright-report/
 
 # TypeScript
 *.tsbuildinfo

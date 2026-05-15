@@ -103,6 +103,24 @@ Variaveis para modo **live**:
 
 Se `ERP_CONTA_AZUL_NUMERO_VENDA` estiver vazio, o sistema chama `GET /v1/venda/proximo-numero` antes de criar a venda.
 
+## Webhooks inbound
+
+`POST /api/integrations/webhooks/{omie|conta_azul|generic}`
+
+- Corpo: JSON arbitrario (evento do ERP).
+- Header `x-webhook-signature`: `sha256=<HMAC-SHA256 do body em hex>`.
+- Segredos: `ERP_OMIE_WEBHOOK_SECRET`, `ERP_CONTA_AZUL_WEBHOOK_SECRET` ou `ERP_WEBHOOK_SECRET` (fallback).
+- Opcional: `x-tenant-id` (UUID) para auditoria e gravação em `erp_webhook_inbox` (migracao `0029`).
+- IP allowlist: `ERP_INTEGRATION_ALLOWED_IPS` (mesma regra das outras rotas de integracao).
+
+Processamento assíncrono (migracao `0030`): cron `/api/cron/erp` e `POST /api/jobs/erp/process` leem `erp_webhook_inbox` com `status=pending`, interpretam eventos de baixa/liquidação (codigo `PV-{uuid}` ou `external_id` em `erp_entity_mappings`) e marcam `accounts_receivable` como `paid` quando aplicável.
+
+| Metodo | Rota | Capability |
+|--------|------|------------|
+| GET | `/api/integrations/webhooks/inbox` | `erp.mapping.read` — lista por tenant (`status`, `provider`, paginacao) |
+| POST | `/api/integrations/webhooks/inbox/process` | `finance.write` ou `erp.jobs.process` — processa pendentes do tenant |
+| POST | `/api/integrations/webhooks/inbox/:id/reprocess` | `finance.write` — recoloca `error`/`ignored` como `pending` |
+
 ## Tratamento de erros
 
 Falhas HTTP ou fault SOAP Omie retornam `502` no endpoint de sync e gravam mensagem em `erp_sync_jobs.last_error` quando processados pela fila.

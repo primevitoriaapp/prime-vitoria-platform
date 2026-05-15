@@ -124,6 +124,8 @@ export function NotificationJobsPanel({ tenantId = null, devFallbackRole = "oper
               {items.map((row) => {
                 const payload = row.payload ?? {};
                 const eventType = String(payload.eventType ?? "—");
+                const channel = String(payload.channel ?? "push");
+                const recipientType = String(payload.recipientType ?? "—");
                 const recipientId = String(payload.recipientId ?? "—");
                 return (
                   <tr key={row.id} className="border-b border-slate-100">
@@ -133,9 +135,12 @@ export function NotificationJobsPanel({ tenantId = null, devFallbackRole = "oper
                         timeStyle: "short"
                       })}
                     </td>
-                    <td className="py-2 pr-2">{eventType}</td>
-                    <td className="max-w-[120px] truncate py-2 pr-2 font-mono text-xs" title={recipientId}>
-                      {recipientId.slice(0, 8)}…
+                    <td className="py-2 pr-2">
+                      {eventType}
+                      <span className="text-slate-400"> · {channel}</span>
+                    </td>
+                    <td className="max-w-[120px] truncate py-2 pr-2 font-mono text-xs" title={`${recipientType}:${recipientId}`}>
+                      {recipientType.slice(0, 3)}:{recipientId.slice(0, 6)}…
                     </td>
                     <td className="py-2 pr-2">
                       <span

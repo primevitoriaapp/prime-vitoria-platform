@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { KpiCard } from "@/components/kpi-card";
 import { LiveMap } from "@/components/live-map";
+import { OperationsReportExport } from "@/components/operations-report-export";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import type { SessionContext } from "@/lib/domain/types";
 import { can } from "@/lib/security/rbac";
@@ -82,6 +83,11 @@ export default async function DashboardPage() {
             ))}
           </ul>
         </section>
+      ) : null}
+      {can(session, "report.read") ? (
+        <OperationsReportExport
+          devFallbackRole={session.role === "financeiro" ? "financeiro" : session.role === "operador" ? "operador" : "admin"}
+        />
       ) : null}
       <h2 className="mt-8">Monitoramento em tempo real</h2>
       <LiveMap tenantId={realtimeTenantId} />

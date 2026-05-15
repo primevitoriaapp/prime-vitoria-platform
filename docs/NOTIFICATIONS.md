@@ -32,6 +32,17 @@ BASE_URL=https://seu-preview.vercel.app npm run test:e2e-smoke
 - `driver_push_tokens`: token por motorista (migracao `0018`).
 - Politica RLS: motorista gere apenas a sua linha.
 
+## Canal in-app (financeiro / admin)
+
+Jobs com `channel: "in_app"` e `recipientType: "profile"` sao processados sem FCM (`processNotificationJobs` marca `success`). Usados em:
+
+- Conclusao de corrida (`trip.completed`) para perfis `financeiro` e `admin`
+- Pagavel motorista em aberto apos `runPostTripAutomation`
+
+Push ao motorista continua a exigir `FCM_SERVER_KEY` e `POST /api/drivers/push-token`.
+
+Transicoes de estado (`notifyTripStatusTransition`): push em `dispatched`, `completed`, `cancelled`.
+
 ## Auditoria
 
 `POST /api/drivers/push-token` regista `driver.push_token_upsert` em `audit_events`.

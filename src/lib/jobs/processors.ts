@@ -1,7 +1,10 @@
 import { db } from "../server/db";
 import { resolveAdapter } from "../integrations/adapters";
 import { enrichReceivableFromErpMappings } from "../integrations/map-receivable-for-erp";
+import { parseWebhookPayload } from "../integrations/parse-webhook-payload";
+import type { Provider } from "../integrations/types";
 import { isPostgresUniqueViolation } from "../server/postgres-errors";
+import { insertAuditEvent } from "../server/audit-log";
 import { fcmDataFromPayload, sendFcmLegacyDataMessage } from "../notifications/fcm-legacy";
 
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -81,6 +84,11 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
         .eq("id", job.id);
       processed += 1;
     };
+
+    if (channel === "in_app" && recipientType === "profile" && uuidRe.test(recipientId)) {
+      await succeedJob();
+      continue;
+    }
 
     if (!fcmKey) {
       await failJob("PUSH_PROVIDER_NOT_CONFIGURED", "FCM_SERVER_KEY nao definido");
@@ -289,4 +297,166 @@ export async function runReconciliation(opts?: ReconciliationRunOptions) {
   }
 
   return { issues, scanned };
+}
+
+export type ErpWebhookProcessOptions = {
+  limit?: number;
+  tenantId?: string;
+};
+
+/**
+ * Processa entradas pendentes em `erp_webhook_inbox` (baixa de titulo, atualização de mapeamento).
+ */
+export async function processErpWebhookInbox(opts?: ErpWebhookProcessOptions) {
+  const limit = opts?.limit ?? 30;
+  let query = db
+    .from("erp_webhook_inbox")
+    .select("*")
+    .eq("status", "pending")
+    .order("received_at", { ascending: true })
+    .limit(limit);
+
+  if (opts?.tenantId) {
+    query = query.eq("tenant_id", opts.tenantId);
+  }
+
+  const { data: rows, error: fetchErr } = await query;
+  if (fetchErr) {
+    throw new Error(fetchErr.message);
+  }
+
+  let processed = 0;
+  let ignored = 0;
+  let errors = 0;
+
+  for (const row of rows ?? []) {
+    const now = new Date().toISOString();
+    const attempts = (row.attempt_count ?? 0) + 1;
+    const inboxId = row.id as string;
+    const tenantId = (row.tenant_id as string | null) ?? null;
+    const provider = row.provider as Provider | "generic";
+    const payload = row.payload;
+
+    const finish = async (status: "processed" | "ignored" | "error", lastError: string | null) => {
+      await db
+        .from("erp_webhook_inbox")
+        .update({
+          status,
+          processed_at: now,
+          last_error: lastError,
+          attempt_count: attempts
+        })
+        .eq("id", inboxId);
+      if (status === "processed") processed += 1;
+      else if (status === "ignored") ignored += 1;
+      else errors += 1;
+    };
+
+    try {
+      const parsed = parseWebhookPayload(provider, payload);
+
+      if (parsed.kind === "unknown") {
+        await finish("ignored", null);
+        continue;
+      }
+
+      let receivableId = parsed.receivableInternalId;
+      if (!receivableId && parsed.externalId && provider !== "generic") {
+        let mapQuery = db
+          .from("erp_entity_mappings")
+          .select("internal_id, tenant_id")
+          .eq("provider", provider)
+          .eq("entity_type", "receivable")
+          .eq("external_id", parsed.externalId)
+          .limit(1);
+        if (tenantId) {
+          mapQuery = mapQuery.eq("tenant_id", tenantId);
+        }
+        const { data: mapping } = await mapQuery.maybeSingle();
+        receivableId = mapping?.internal_id as string | undefined;
+      }
+
+      if (!receivableId) {
+        await finish("ignored", "Nenhum titulo interno identificado no payload");
+        continue;
+      }
+
+      const { data: receivable } = await db
+        .from("accounts_receivable")
+        .select("id, trip_id, status")
+        .eq("id", receivableId)
+        .maybeSingle();
+
+      if (!receivable) {
+        await finish("error", "Receivable not found");
+        continue;
+      }
+
+      const { data: tripRow } = await db.from("trips").select("tenant_id").eq("id", receivable.trip_id).maybeSingle();
+      const tripTenantId = tripRow?.tenant_id as string | undefined;
+      if (!tripTenantId) {
+        await finish("error", "Trip tenant not found");
+        continue;
+      }
+      if (tenantId && tripTenantId !== tenantId) {
+        await finish("error", "tenant_id do webhook não confere com a corrida");
+        continue;
+      }
+
+      const effectiveTenantId = tenantId ?? tripTenantId;
+
+      if (receivable.status === "cancelled") {
+        await finish("ignored", "Titulo cancelado");
+        continue;
+      }
+
+      if (parsed.kind === "receivable_paid" && receivable.status !== "paid") {
+        const { error: payErr } = await db
+          .from("accounts_receivable")
+          .update({
+            status: "paid",
+            paid_at: now,
+            payment_method: `erp_webhook:${provider}`
+          })
+          .eq("id", receivableId);
+        if (payErr) {
+          await finish("error", payErr.message);
+          continue;
+        }
+
+        if (provider !== "generic") {
+          await db
+            .from("erp_entity_mappings")
+            .update({
+              sync_status: "paid",
+              last_sync_at: now
+            })
+            .eq("tenant_id", effectiveTenantId)
+            .eq("provider", provider)
+            .eq("entity_type", "receivable")
+            .eq("internal_id", receivableId);
+        }
+
+        await insertAuditEvent({
+          tenantId: effectiveTenantId,
+          actorUserId: null,
+          action: `erp.webhook.${provider}.receivable_paid`,
+          entityType: "accounts_receivable",
+          entityId: receivableId,
+          metadata: {
+            inbox_id: inboxId,
+            event: parsed.eventLabel,
+            external_id: parsed.externalId
+          }
+        });
+      }
+
+      await finish("processed", null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await finish("error", message);
+    }
+  }
+
+  return { processed, ignored, errors, scanned: (rows ?? []).length };
 }

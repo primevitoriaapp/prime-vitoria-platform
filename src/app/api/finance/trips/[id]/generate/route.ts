@@ -68,6 +68,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { error: arError } = await db.from("accounts_receivable").upsert(
       {
         trip_id: id,
+        tenant_id: trip.tenant_id,
         client_id: trip.client_id,
         amount: body.amount_client,
         issue_date: new Date().toISOString().slice(0, 10),
@@ -89,6 +90,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const { error: dpError } = await db.from("driver_payables").upsert(
         {
           trip_id: id,
+          tenant_id: trip.tenant_id,
           driver_id: trip.driver_id,
           amount: body.amount_driver,
           due_date: dueDate.toISOString().slice(0, 10),

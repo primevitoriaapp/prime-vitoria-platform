@@ -40,7 +40,11 @@ export interface Trip {
   /** Campos adicionais retornados pela API em listagens/detalhe */
   service_type?: string;
   origin_text?: string;
+  origin_lat?: number | null;
+  origin_lng?: number | null;
   destination_text?: string;
+  destination_lat?: number | null;
+  destination_lng?: number | null;
   passenger_name?: string | null;
   cost_center_id?: string | null;
 }

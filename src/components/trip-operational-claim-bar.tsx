@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
-type Props = { tripId: string };
+type Props = { tripId: string; devFallbackRole?: "operador" | "admin" };
 
-export function TripOperationalClaimBar({ tripId }: Props) {
+export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }: Props) {
   const router = useRouter();
   const [active, setActive] = useState<{ operator_profile_id: string; claimed_at: string } | null | undefined>(
     undefined
@@ -13,70 +14,60 @@ export function TripOperationalClaimBar({ tripId }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setError(null);
-    fetch(`/api/trips/${tripId}/operational-claim`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((json) => {
-        if (!json?.success) {
-          setActive(null);
-          setError(json?.error?.message ?? "Sem acesso à reivindicação.");
-          return;
-        }
-        setActive((json.data?.active as typeof active) ?? null);
-      })
-      .catch(() => {
-        setActive(null);
-        setError("Falha de rede.");
-      });
-  }, [tripId]);
+    const res = await fetchWithSupabaseSession(`/api/trips/${tripId}/operational-claim`, {}, devFallbackRole);
+    const json = (await res.json()) as {
+      success?: boolean;
+      data?: { active: typeof active };
+      error?: { message?: string };
+    };
+    if (!res.ok || !json.success) {
+      setActive(null);
+      setError(json.error?.message ?? "Sem acesso à reivindicação.");
+      return;
+    }
+    setActive(json.data?.active ?? null);
+  }, [tripId, devFallbackRole]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   async function claim() {
     setBusy(true);
     setError(null);
-    try {
-      const res = await fetch(`/api/trips/${tripId}/operational-claim`, {
-        method: "POST",
-        credentials: "include"
-      });
-      const json = await res.json();
-      if (!res.ok || !json?.success) {
-        setError(json?.error?.message ?? "Não foi possível assumir.");
-        return;
-      }
-      await load();
-      router.refresh();
-    } catch {
-      setError("Falha de rede.");
-    } finally {
-      setBusy(false);
+    const res = await fetchWithSupabaseSession(
+      `/api/trips/${tripId}/operational-claim`,
+      { method: "POST", body: JSON.stringify({}) },
+      devFallbackRole
+    );
+    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    setBusy(false);
+    if (!res.ok || !json.success) {
+      setError(json.error?.message ?? "Não foi possível assumir.");
+      return;
     }
+    await load();
+    router.refresh();
   }
 
   async function release() {
     setBusy(true);
     setError(null);
-    try {
-      const res = await fetch(`/api/trips/${tripId}/operational-claim`, {
-        method: "DELETE",
-        credentials: "include"
-      });
-      const json = await res.json();
-      if (!res.ok || !json?.success) {
-        setError(json?.error?.message ?? "Não foi possível libertar.");
-        return;
-      }
-      await load();
-      router.refresh();
-    } catch {
-      setError("Falha de rede.");
-    } finally {
-      setBusy(false);
+    const res = await fetchWithSupabaseSession(
+      `/api/trips/${tripId}/operational-claim`,
+      { method: "DELETE" },
+      devFallbackRole
+    );
+    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    setBusy(false);
+    if (!res.ok || !json.success) {
+      setError(json.error?.message ?? "Não foi possível libertar.");
+      return;
     }
+    await load();
+    router.refresh();
   }
 
   if (active === undefined) {

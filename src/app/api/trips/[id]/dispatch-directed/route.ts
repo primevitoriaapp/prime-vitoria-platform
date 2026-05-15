@@ -9,6 +9,7 @@ import { hasDispatchConflict } from "@/lib/dispatch/conflicts";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { assertOperationalClaimForAction } from "@/lib/trips/operational-claim-guard";
 
 const bodySchema = z.object({
   driver_id: z.string().uuid(),
@@ -30,6 +31,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null, tenant_id: trip.tenant_id })
     );
     if (denied) return denied;
+
+    const claimCheck = await assertOperationalClaimForAction(session, tenantId, id);
+    if (!claimCheck.ok) {
+      return fail(claimCheck.code, claimCheck.message, claimCheck.code === "CLAIM_NOT_OWNER" ? 403 : 409);
+    }
 
     if (!canTransition(trip.operational_status, "dispatched")) {
       return fail("INVALID_STATUS_TRANSITION", "Trip cannot be dispatched", 409);

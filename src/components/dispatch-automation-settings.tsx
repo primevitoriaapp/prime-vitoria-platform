@@ -8,6 +8,7 @@ type Settings = {
   auto_direct_assign_on_approve: boolean;
   offer_expires_seconds: number;
   max_offer_candidates: number;
+  require_operational_claim: boolean;
 };
 
 export function DispatchAutomationSettings() {
@@ -50,7 +51,8 @@ export function DispatchAutomationSettings() {
         auto_offer_on_approve: data.auto_offer_on_approve,
         auto_direct_assign_on_approve: data.auto_direct_assign_on_approve,
         offer_expires_seconds: data.offer_expires_seconds,
-        max_offer_candidates: data.max_offer_candidates
+        max_offer_candidates: data.max_offer_candidates,
+        require_operational_claim: data.require_operational_claim
       })
     })
       .then((r) => r.json())
@@ -149,6 +151,14 @@ export function DispatchAutomationSettings() {
             />
           </label>
         </div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
+          <input
+            type="checkbox"
+            checked={data.require_operational_claim}
+            onChange={(e) => setData({ ...data, require_operational_claim: e.target.checked })}
+          />
+          Exigir &quot;Assumir atendimento&quot; antes de despacho, ofertas e notas internas
+        </label>
       </div>
       {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
       {savedOk ? <p className="mt-2 text-sm text-emerald-700">Guardado.</p> : null}

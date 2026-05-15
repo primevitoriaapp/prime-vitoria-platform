@@ -19,7 +19,11 @@ export default async function PublicTrackPage({ params }: PageProps) {
     destination_text: snapshot.destination_text,
     passenger_name: snapshot.passenger_name,
     scheduled_at: snapshot.scheduled_at,
-    location: snapshot.location
+    location: snapshot.location,
+    origin_coords: snapshot.origin_coords,
+    destination_coords: snapshot.destination_coords,
+    planned_km: snapshot.planned_km,
+    actual_km: snapshot.actual_km
   };
 
   return (

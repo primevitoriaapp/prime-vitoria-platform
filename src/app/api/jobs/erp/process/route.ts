@@ -1,5 +1,5 @@
 import { fail, ok } from "@/lib/server/http";
-import { processErpSyncJobs } from "@/lib/jobs/processors";
+import { processErpSyncJobs, processErpWebhookInbox } from "@/lib/jobs/processors";
 import { getSessionContext } from "@/lib/server/session";
 import { assertCapability } from "@/lib/security/rbac";
 import { runIntegrationGuards } from "@/lib/security/integration-guard";
@@ -14,8 +14,8 @@ export async function POST(request: Request) {
       assertCapability(session, "erp.jobs.process");
     }
 
-    const result = await processErpSyncJobs();
-    return ok(result);
+    const [sync, webhooks] = await Promise.all([processErpSyncJobs(), processErpWebhookInbox()]);
+    return ok({ sync, webhooks });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes("Integration access denied")) return fail("FORBIDDEN_IP", message, 403);

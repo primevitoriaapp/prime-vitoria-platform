@@ -1,4 +1,5 @@
 import { DispatchAutomationSettings } from "@/components/dispatch-automation-settings";
+import { OperationalQueuePanel } from "@/components/operational-queue-panel";
 import { DispatchConsole } from "@/components/dispatch-console";
 import { NotificationJobsPanel } from "@/components/notification-jobs-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
@@ -29,6 +30,10 @@ export default async function DispatchPage() {
         (Supabase Realtime) para o tenant da sessão.
       </p>
       <TripTable trips={trips} />
+      <OperationalQueuePanel
+        tenantId={realtimeTenantId}
+        devFallbackRole={session.role === "admin" ? "admin" : "operador"}
+      />
       <div className="mt-6">
         <DispatchAutomationSettings />
       </div>

@@ -1,0 +1,114 @@
+import { db } from "@/lib/server/db";
+import { insertAuditEvent } from "@/lib/server/audit-log";
+import { enqueueNotificationJob } from "@/lib/notifications/events";
+import { enqueueInAppForTenantRoles } from "@/lib/notifications/enqueue-for-profiles";
+import { actualKmFromTrail, plannedKmFromCoords } from "@/lib/trips/km-distance";
+
+export type PostTripAutomationInput = {
+  tripId: string;
+  tenantId: string;
+  actorUserId: string;
+};
+
+/** Após conclusão: recalcula KM, regista auditoria e notifica financeiro se houver pagável em aberto. */
+export async function runPostTripAutomation(input: PostTripAutomationInput): Promise<{
+  planned_km: number | null;
+  actual_km: number | null;
+}> {
+  const { tripId, tenantId, actorUserId } = input;
+
+  const { data: trip } = await db
+    .from("trips")
+    .select(
+      "id, driver_id, origin_lat, origin_lng, destination_lat, destination_lng, planned_km, actual_km, operational_status"
+    )
+    .eq("id", tripId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (!trip || trip.operational_status !== "completed") {
+    return { planned_km: null, actual_km: null };
+  }
+
+  let planned = trip.planned_km != null ? Number(trip.planned_km) : plannedKmFromCoords(trip);
+  let actual: number | null = null;
+  let kmSource: "coords" | "gps_trail" | "manual" | null = null;
+
+  if (trip.driver_id) {
+    const { data: locs } = await db
+      .from("driver_locations")
+      .select("lat, lng, recorded_at")
+      .eq("trip_id", tripId)
+      .order("recorded_at", { ascending: true })
+      .limit(500);
+
+    const trail = (locs ?? []).map((r) => ({
+      lat: Number(r.lat),
+      lng: Number(r.lng),
+      recorded_at: r.recorded_at as string
+    }));
+    actual = actualKmFromTrail(trail);
+    if (actual != null) kmSource = "gps_trail";
+  }
+
+  if (planned == null) {
+    planned = plannedKmFromCoords(trip);
+    if (planned != null && !kmSource) kmSource = "coords";
+  }
+
+  const now = new Date().toISOString();
+  await db
+    .from("trips")
+    .update({
+      planned_km: planned,
+      actual_km: actual ?? trip.actual_km,
+      km_source: kmSource ?? (planned != null ? "coords" : trip.actual_km != null ? "manual" : null),
+      km_updated_at: now
+    })
+    .eq("id", tripId)
+    .eq("tenant_id", tenantId);
+
+  await insertAuditEvent({
+    tenantId,
+    actorUserId,
+    action: "trip.km_recalculated",
+    entityType: "trip",
+    entityId: tripId,
+    metadata: { planned_km: planned, actual_km: actual, km_source: kmSource }
+  });
+
+  const { data: payable } = await db
+    .from("driver_payables")
+    .select("id, driver_id, amount, status")
+    .eq("trip_id", tripId)
+    .eq("status", "open")
+    .maybeSingle();
+
+  if (payable?.driver_id) {
+    await enqueueNotificationJob(
+      {
+        eventType: "finance.driver_payable_open",
+        channel: "push",
+        recipientType: "driver",
+        recipientId: payable.driver_id,
+        tripId,
+        amount: payable.amount
+      },
+      { tenantId, correlation_id: `post-trip-${tripId}-driver` }
+    );
+    await enqueueInAppForTenantRoles(
+      tenantId,
+      ["financeiro", "admin"],
+      {
+        eventType: "finance.driver_payable_open",
+        tripId,
+        payable_id: payable.id,
+        amount: payable.amount,
+        driver_id: payable.driver_id
+      },
+      { correlation_id: `post-trip-${tripId}-finance` }
+    );
+  }
+
+  return { planned_km: planned, actual_km: actual };
+}

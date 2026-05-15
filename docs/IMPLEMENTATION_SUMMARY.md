@@ -5,7 +5,7 @@
 1. Database structure (Supabase migration with operational, financial, notification and ERP tables)
 2. Operational rules and trip status machine
 3. Administrative web panel scaffolding
-4. Operational agenda page with trip listing and finance/ERP panel on selected trip (admin/financeiro)
+4. Operational agenda: listing, quick approve, multiatendimento (claim), KM panel, finance/ERP (admin/financeiro), ERP enqueue (operador), timeline + notas
 5. Corporate client API and panel scaffold
 6. Driver API and panel scaffold
 7. Vehicle API and panel scaffold
@@ -26,7 +26,7 @@
 ## Remaining execution notes
 
 - Install npm/pnpm and dependencies to run app and tests.
-- Apply migrations `0001`–`0024` in Supabase (`0024`: RLS + realtime `erp_reconciliation_issues`) (`0021` audit RLS; `0022` `notification_jobs.tenant_id`) and configure environment variables (ver `docs/NOTIFICATIONS.md` para `FCM_SERVER_KEY` e `docs/ERP_INTEGRATION.md`).
+- Apply migrations `0001`–`0034` in Supabase (`0031` realtime webhooks; `0030` processamento inbox; `0029` webhook inbox; `0028` bucket `payment-proofs`; `0027` `require_operational_claim`; `0025`–`0026` KM/comprovantes/histórico) and configure environment variables (ver `docs/NOTIFICATIONS.md` para `FCM_SERVER_KEY` e `docs/ERP_INTEGRATION.md`).
 - Conta Azul: HTTP real `POST /v1/venda` quando `ERP_CONTA_AZUL_ACCESS_TOKEN` + IDs estao definidos (`src/lib/integrations/conta-azul-http.ts`).
 - Omie: HTTP real `IncluirContaReceber` quando credenciais + `ERP_OMIE_CODIGO_CLIENTE_FORNECEDOR` estao definidos (`src/lib/integrations/omie-http.ts`).
 - Fila ERP e reconciliacao: `GET`/`POST /api/integrations/jobs`; `POST /api/jobs/reconcile/run` com escopo por tenant (sessao ou `?tenant_id=` em job maquina); `runReconciliation` em `src/lib/jobs/processors.ts`.
@@ -34,4 +34,15 @@
 - RLS: ver migracoes `0003` e `0007` para `erp_entity_mappings`; `0021` para leitura de `audit_events`; RBAC nas rotas de integracao.
 - API: JWT Supabase (`Authorization: Bearer`) + perfil em `profiles`; em `production` sem `TRUST_HEADER_AUTH=true`, cabecalhos `x-role` nao concedem sessao (papel `guest`).
 - Push motorista: `docs/NOTIFICATIONS.md`; `FCM_SERVER_KEY` + `POST /api/drivers/push-token` antes de esperar entrega.
-- Add end-to-end browser tests after npm environment is available.
+- Staging smoke: `npm run test:e2e-staging` ou `npm run test:e2e-staging-all`. Workflow `.github/workflows/staging-e2e.yml`.
+- Playwright: `npm run test:e2e-playwright:install` depois `npm run test:e2e-playwright` (CI inclui job `playwright`).
+- Comprovantes motorista: upload `POST /api/finance/driver-payables/:id/proof/upload` (multipart) ou URL em `.../proof`.
+- Portal cliente: solicitação com `clientId` da sessão, centros de custo, rastreio copiar/abrir.
+- Relatório: `GET /api/reports/operations/trips?format=json|csv|html` (HTML → imprimir/PDF no browser) + painel no dashboard.
+- Financeiro: `mark-paid` / `reopen` / `cancel` em receivables e driver payables; realtime (`0032`–`0033`).
+- Fechamento mensal: CSV, DRE JSON/HTML, `close-all` (+ enqueue ERP), reabrir, painel (`0034`).
+- Rastreio público: mapa Leaflet (origem/destino/GPS) em `/r/[token]`.
+- Motorista: `DriverTripsPanel` com corridas atribuídas e fluxo de estados.
+- Webhook ERP: inbound + caixa de entrada (`GET/POST` inbox, painel financeiro, realtime `0031`).
+- E2E: relatório operacional no smoke staging; Playwright CI (auth) + `test:e2e-playwright:staging` (login real).
+- Notificações: push motorista + in-app financeiro/admin; transições de estado; pós-corrida com KM + pagável.

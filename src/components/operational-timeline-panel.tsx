@@ -26,6 +26,13 @@ type Entry =
       to_status: string;
       changed_by: string | null;
       source: string | null;
+    }
+  | {
+      kind: "claim";
+      id: string;
+      at: string;
+      action: "assumed" | "released";
+      operator_profile_id: string;
     };
 
 type Props = { tripId: string };
@@ -96,6 +103,14 @@ export function OperationalTimelinePanel({ tripId }: Props) {
                       {e.from_status ?? "—"} → <span className="font-medium">{e.to_status}</span>
                     </p>
                     {e.source ? <p className="mt-1 text-xs text-slate-500">Origem: {e.source}</p> : null}
+                  </div>
+                ) : e.kind === "claim" ? (
+                  <div className="mt-1">
+                    <span className="text-xs font-medium uppercase text-slate-500">Multiatendimento</span>
+                    <p className="mt-1 text-slate-800">
+                      {e.action === "assumed" ? "Atendimento assumido" : "Atendimento libertado"}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-slate-400">{e.operator_profile_id.slice(0, 8)}…</p>
                   </div>
                 ) : (
                   <div className="mt-1">
