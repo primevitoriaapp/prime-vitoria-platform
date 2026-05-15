@@ -122,6 +122,65 @@ test.describe("Pilot agenda despacho → motorista aceita (staging)", () => {
     expect(row?.operational_status).toBe("accepted");
   });
 
+  test("API: reatribuir motorista após despacho", async ({ request }) => {
+    const config = getStagingAuthConfig()!;
+    const base = config.baseUrl;
+
+    const operadorToken = await signInStaging({
+      ...config,
+      role: "operador",
+      email: stagingEmailByRole.operador
+    });
+
+    const driversRes = await request.get(`${base}/api/drivers`, {
+      headers: { Authorization: `Bearer ${operadorToken}` }
+    });
+    const driversJson = (await driversRes.json()) as {
+      data?: { id: string; default_vehicle?: { id: string } | null }[];
+    };
+    const drivers = driversJson.data ?? [];
+    if (drivers.length < 2) {
+      test.skip(true, "Staging precisa de pelo menos 2 motoristas para testar reassign");
+      return;
+    }
+
+    const tripsRes = await request.get(`${base}/api/trips?page=1&pageSize=20&status=dispatched`, {
+      headers: { Authorization: `Bearer ${operadorToken}` }
+    });
+    const tripsJson = (await tripsRes.json()) as { data?: { items: { id: string; driver_id?: string }[] } };
+    const trip = tripsJson.data?.items?.find((t) => t.driver_id);
+    if (!trip?.driver_id) {
+      test.skip(true, "Sem corrida dispatched com motorista em staging");
+      return;
+    }
+
+    const newDriver = drivers.find((d) => d.id !== trip.driver_id);
+    if (!newDriver) {
+      test.skip(true, "Sem segundo motorista disponível");
+      return;
+    }
+
+    await request.post(`${base}/api/trips/${trip.id}/operational-claim`, {
+      headers: { Authorization: `Bearer ${operadorToken}` }
+    });
+
+    const reassignRes = await request.post(`${base}/api/trips/${trip.id}/reassign`, {
+      headers: {
+        Authorization: `Bearer ${operadorToken}`,
+        "Content-Type": "application/json"
+      },
+      data: {
+        new_driver_id: newDriver.id,
+        reason: "E2E reassign Playwright",
+        ...(newDriver.default_vehicle?.id ? { vehicle_id: newDriver.default_vehicle.id } : {})
+      }
+    });
+    expect(reassignRes.ok()).toBeTruthy();
+    const body = (await reassignRes.json()) as { data?: { driver_id: string; operational_status: string } };
+    expect(body.data?.driver_id).toBe(newDriver.id);
+    expect(body.data?.operational_status).toBe("dispatched");
+  });
+
   test("UI: operador abre agenda e vê painel de despacho", async ({ page }) => {
     const config = getStagingAuthConfig()!;
     const operadorToken = await signInStaging({

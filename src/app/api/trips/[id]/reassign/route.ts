@@ -7,10 +7,12 @@ import { assertCapability } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { assertOperationalClaimForAction } from "@/lib/trips/operational-claim-guard";
+import { enqueueNotificationJob } from "@/lib/notifications/events";
 
 const bodySchema = z.object({
   new_driver_id: z.string().uuid(),
-  reason: z.string().min(3)
+  reason: z.string().min(3),
+  vehicle_id: z.string().uuid().optional()
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -39,26 +41,45 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return fail(claimCheck.code, claimCheck.message, claimCheck.code === "CLAIM_NOT_OWNER" ? 403 : 409);
     }
 
+    const update: Record<string, unknown> = {
+      driver_id: body.new_driver_id,
+      reassign_reason: body.reason,
+      operational_status: "dispatched"
+    };
+    if (body.vehicle_id) update.vehicle_id = body.vehicle_id;
+
     const { data, error } = await db
       .from("trips")
-      .update({
-        driver_id: body.new_driver_id,
-        reassign_reason: body.reason,
-        operational_status: "dispatched"
-      })
+      .update(update)
       .eq("id", id)
       .eq("tenant_id", tenantId)
       .select("*")
       .single();
 
     if (error) return fail("TRIP_REASSIGN_FAILED", error.message, 500);
+
+    await enqueueNotificationJob(
+      {
+        eventType: "trip_dispatched",
+        recipientType: "driver",
+        recipientId: body.new_driver_id,
+        tripId: id
+      },
+      { tenantId }
+    );
+
     await insertAuditEvent({
       tenantId,
       actorUserId: session.userId,
       action: "trip.reassign",
       entityType: "trip",
       entityId: id,
-      metadata: { new_driver_id: body.new_driver_id, reason: body.reason, previous_driver_id: trip.driver_id },
+      metadata: {
+        new_driver_id: body.new_driver_id,
+        reason: body.reason,
+        previous_driver_id: trip.driver_id,
+        vehicle_id: body.vehicle_id ?? null
+      },
       request
     });
     return ok(data);

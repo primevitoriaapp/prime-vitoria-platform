@@ -12,6 +12,7 @@
 | 6 | Seed staging (opcional) | `npm run seed:staging` |
 | 7 | Smoke todos os papéis | `npm run test:e2e-staging-all` |
 | 8 | Crons (Pro ou GitHub Actions) | `docs/VERCEL_CRONS.md` |
+| 9 | Uptime / readiness | `GET /api/health` e `GET /api/health?detailed=1` (503 se Supabase público em falta) |
 
 ## Pre-go-live
 
