@@ -46,3 +46,4 @@
 - Webhook ERP: inbound + caixa de entrada (`GET/POST` inbox, painel financeiro, realtime `0031`).
 - E2E: relatório operacional no smoke staging; Playwright CI (auth) + `test:e2e-playwright:staging` (login real).
 - Notificações: push motorista + in-app financeiro/admin; transições de estado; pós-corrida com KM + pagável.
+- **Vercel:** `vercel.json` (região `gru1`, crons); guia `docs/VERCEL_DEPLOY.md`; crons Hobby → `.github/workflows/vercel-crons.yml`; smoke `npm run vercel:preflight` após deploy.

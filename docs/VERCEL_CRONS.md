@@ -25,4 +25,4 @@ Continua válido usar `POST` com segredos dedicados (`NOTIFICATION_JOB_PROCESS_S
 
 ## Plano Hobby
 
-Crons na Vercel podem exigir plano Pro; em Hobby use GitHub Actions scheduled workflow ou cron externo com o mesmo `CRON_SECRET`.
+Crons na Vercel podem exigir plano Pro; em Hobby use **`.github/workflows/vercel-crons.yml`** (secrets `VERCEL_DEPLOYMENT_URL` + `CRON_SECRET`) ou cron externo com o mesmo segredo. Ver checklist em `docs/VERCEL_DEPLOY.md`.

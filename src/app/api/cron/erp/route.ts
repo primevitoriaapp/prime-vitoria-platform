@@ -3,6 +3,7 @@ import { processErpSyncJobs, processErpWebhookInbox } from "@/lib/jobs/processor
 import { isCronSecretAuthorized } from "@/lib/security/cron-auth";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /** Cron Vercel: processa fila ERP sync. */
 export async function GET(request: Request) {

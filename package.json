@@ -22,7 +22,8 @@
     "db:push": "npx supabase db push",
     "db:migrate": "npx supabase migration up",
     "db:apply-migration": "bash scripts/apply-migration.sh",
-    "seed:staging": "node scripts/seed-staging-operational.mjs"
+    "seed:staging": "node scripts/seed-staging-operational.mjs",
+    "vercel:preflight": "node scripts/vercel-preflight.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

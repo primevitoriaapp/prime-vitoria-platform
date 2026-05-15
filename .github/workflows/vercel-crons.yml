@@ -1,0 +1,52 @@
+# Fallback para crons quando o plano Vercel não inclui Cron Jobs (Hobby).
+# Secrets: VERCEL_DEPLOYMENT_URL (ex. https://xxx.vercel.app), CRON_SECRET (mesmo valor do projeto Vercel)
+
+name: Vercel crons (fallback)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  run-crons:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notifications + ERP + dispatch scan
+        env:
+          BASE_URL: ${{ secrets.VERCEL_DEPLOYMENT_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "Skip: set VERCEL_DEPLOYMENT_URL and CRON_SECRET in repo secrets"
+            exit 0
+          fi
+          BASE_URL="${BASE_URL%/}"
+          AUTH="Authorization: Bearer ${CRON_SECRET}"
+          for path in /api/cron/notifications /api/cron/erp /api/cron/dispatch-scan; do
+            echo "GET ${path}"
+            code=$(curl -sS -o /tmp/cron-out.json -w "%{http_code}" -H "$AUTH" "${BASE_URL}${path}")
+            echo "  -> HTTP ${code}"
+            head -c 200 /tmp/cron-out.json; echo
+            [ "$code" = "200" ] || exit 1
+          done
+
+  reconcile-daily:
+    if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile ERP
+        env:
+          BASE_URL: ${{ secrets.VERCEL_DEPLOYMENT_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "Skip: set VERCEL_DEPLOYMENT_URL and CRON_SECRET"
+            exit 0
+          fi
+          BASE_URL="${BASE_URL%/}"
+          curl -sS -f -H "Authorization: Bearer ${CRON_SECRET}" "${BASE_URL}/api/cron/reconcile" | head -c 300
+          echo

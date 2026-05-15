@@ -3,6 +3,7 @@ import { scanAndAssignStaleApprovedTrips } from "@/lib/dispatch/auto-direct-assi
 import { isCronSecretAuthorized } from "@/lib/security/cron-auth";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /** Cron Vercel: varre corridas approved para despacho directo automático. */
 export async function GET(request: Request) {

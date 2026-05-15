@@ -3,6 +3,7 @@ import { processNotificationJobs } from "@/lib/jobs/processors";
 import { isCronSecretAuthorized } from "@/lib/security/cron-auth";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /** Cron Vercel: processa fila de notificações (definir CRON_SECRET + FCM_SERVER_KEY). */
 export async function GET(request: Request) {

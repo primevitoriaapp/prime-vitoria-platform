@@ -3,6 +3,7 @@ import { runReconciliation } from "@/lib/jobs/processors";
 import { isCronSecretAuthorized } from "@/lib/security/cron-auth";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /** Cron Vercel: reconciliação ERP diária (todos os tenants). */
 export async function GET(request: Request) {
