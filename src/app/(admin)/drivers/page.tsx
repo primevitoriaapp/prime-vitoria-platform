@@ -1,11 +1,16 @@
-import { EntityCrudPanel } from "@/components/entity-crud-panel";
+import { DriversFleetPanel } from "@/components/drivers-fleet-panel";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 
 async function getDrivers() {
   const response = await fetchInternalApi("/api/drivers");
   if (!response.ok) return [];
   const payload = await response.json();
-  return payload.data as Array<{ id: string; cpf: string; cnh_number?: string; active: boolean }>;
+  return payload.data as Array<{
+    id: string;
+    cpf: string;
+    cnh_number?: string | null;
+    default_vehicle?: { id: string; model: string; plate: string } | null;
+  }>;
 }
 
 export default async function DriversPage() {
@@ -14,28 +19,10 @@ export default async function DriversPage() {
   return (
     <main>
       <h1>Motoristas</h1>
-      <EntityCrudPanel
-        title="Novo motorista"
-        endpoint="/api/drivers"
-        fields={[
-          { key: "profile_id", label: "ID do perfil", required: true },
-          { key: "cpf", label: "CPF", required: true },
-          { key: "cnh_number", label: "CNH" },
-          { key: "cnh_category", label: "Categoria CNH" },
-          { key: "pix_key", label: "Chave PIX" },
-          { key: "address", label: "Endereço" }
-        ]}
-      />
-      <section className="card">
-        <h2>Motoristas ativos</h2>
-        <ul>
-          {drivers.map((driver) => (
-            <li key={driver.id}>
-              CPF {driver.cpf} — CNH {driver.cnh_number ?? "não informada"}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <p className="mb-4 max-w-2xl text-sm text-slate-600">
+        Cadastro de parceiros e veículo padrão usado no despacho automático directo.
+      </p>
+      <DriversFleetPanel initialDrivers={drivers} />
     </main>
   );
 }

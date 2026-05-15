@@ -6,6 +6,10 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { isPostgresUniqueViolation } from "@/lib/server/postgres-errors";
+import {
+  attachDefaultVehiclesToDrivers,
+  attachProfileNamesToDrivers
+} from "@/lib/vehicles/driver-default-vehicle";
 
 const schema = z.object({
   profile_id: z.string().uuid(),
@@ -64,7 +68,9 @@ export async function GET() {
     const tenantId = assertTenantScope(session);
     const { data, error } = await db.from("drivers").select("*").eq("active", true).eq("tenant_id", tenantId).limit(200);
     if (error) return fail("DRIVER_LIST_FAILED", error.message, 500);
-    return ok(data ?? []);
+    const withProfiles = await attachProfileNamesToDrivers(data ?? []);
+    const withVehicles = await attachDefaultVehiclesToDrivers(withProfiles);
+    return ok(withVehicles);
   } catch (error) {
     return mapApiError(error);
   }

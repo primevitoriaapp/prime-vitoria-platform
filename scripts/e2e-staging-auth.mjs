@@ -199,6 +199,11 @@ async function main() {
     console.log("ok erp jobs list");
   }
 
+  if (role === "financeiro" || role === "operador" || role === "admin") {
+    await apiGet(token, "/api/integrations/status");
+    console.log("ok erp integration status");
+  }
+
   const tripId = trips.items[0]?.id;
   if (tripId && tripReaderRoles.includes(role)) {
     await apiGet(token, `/api/trips/${tripId}/operational-timeline`);

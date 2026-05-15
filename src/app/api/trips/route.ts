@@ -6,6 +6,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { enrichTripItemsWithVehicles } from "@/lib/trips/enrich-trip-vehicles";
 
 const listSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -181,8 +182,10 @@ export async function GET(request: Request) {
       return fail("TRIP_LIST_FAILED", error.message, 500);
     }
 
+    const items = await enrichTripItemsWithVehicles(data ?? []);
+
     return ok({
-      items: data ?? [],
+      items,
       page: query.page,
       pageSize: query.pageSize,
       total: count ?? 0

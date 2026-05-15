@@ -1,11 +1,19 @@
-import { EntityCrudPanel } from "@/components/entity-crud-panel";
+import { VehiclesFleetPanel } from "@/components/vehicles-fleet-panel";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 
 async function getVehicles() {
   const response = await fetchInternalApi("/api/vehicles");
   if (!response.ok) return [];
   const payload = await response.json();
-  return payload.data as Array<{ id: string; model: string; plate: string; category?: string }>;
+  return payload.data as Array<{
+    id: string;
+    model: string;
+    plate: string;
+    category?: string | null;
+    capacity?: number | null;
+    color?: string | null;
+    active: boolean;
+  }>;
 }
 
 export default async function VehiclesPage() {
@@ -13,28 +21,11 @@ export default async function VehiclesPage() {
 
   return (
     <main>
-      <h1>Veiculos</h1>
-      <EntityCrudPanel
-        title="Novo veiculo"
-        endpoint="/api/vehicles"
-        fields={[
-          { key: "model", label: "Modelo", required: true },
-          { key: "plate", label: "Placa", required: true },
-          { key: "category", label: "Categoria" },
-          { key: "capacity", label: "Capacidade", type: "number" },
-          { key: "color", label: "Cor" }
-        ]}
-      />
-      <section className="card">
-        <h2>Frota ativa</h2>
-        <ul>
-          {vehicles.map((vehicle) => (
-            <li key={vehicle.id}>
-              {vehicle.model} - {vehicle.plate} ({vehicle.category ?? "sem categoria"})
-            </li>
-          ))}
-        </ul>
-      </section>
+      <h1>Veículos</h1>
+      <p className="mb-4 max-w-2xl text-sm text-slate-600">
+        Cadastro da frota, edição e desactivação. Veículos padrão podem ser vinculados a motoristas na página Motoristas.
+      </p>
+      <VehiclesFleetPanel initialVehicles={vehicles} />
     </main>
   );
 }

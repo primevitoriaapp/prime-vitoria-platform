@@ -3,11 +3,14 @@
 import { useRouter } from "next/navigation";
 import { TripAgendaOperationalStack } from "@/components/trip-agenda-operational-stack";
 import { TripAgendaQuickActions } from "@/components/trip-agenda-quick-actions";
+import { TripAgendaDispatchPanel } from "@/components/trip-agenda-dispatch-panel";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 
 type Props = {
   tripId: string;
   operationalStatus: TripOperationalStatus;
+  assignedDriverId?: string | null;
+  assignedVehicle?: { id: string; plate: string; model: string } | null;
   showClaimBar: boolean;
   showFinanceWrite: boolean;
   showErpEnqueue: boolean;
@@ -17,21 +20,34 @@ type Props = {
 export function TripAgendaFocusPanel({
   tripId,
   operationalStatus,
+  assignedDriverId,
+  assignedVehicle,
   showClaimBar,
   showFinanceWrite,
   showErpEnqueue,
   financeDevRole = "operador"
 }: Props) {
   const router = useRouter();
+  const dispatchRole = showFinanceWrite ? "admin" : "operador";
 
   return (
     <div className="space-y-4">
       <TripAgendaQuickActions
         tripId={tripId}
         operationalStatus={operationalStatus}
-        devFallbackRole={showFinanceWrite ? "admin" : "operador"}
+        devFallbackRole={dispatchRole}
         onDone={() => router.refresh()}
       />
+      {showClaimBar ? (
+        <TripAgendaDispatchPanel
+          tripId={tripId}
+          operationalStatus={operationalStatus}
+          assignedDriverId={assignedDriverId}
+          assignedVehicle={assignedVehicle}
+          devFallbackRole={dispatchRole}
+          onDone={() => router.refresh()}
+        />
+      ) : null}
       <TripAgendaOperationalStack
         tripId={tripId}
         showClaimBar={showClaimBar}

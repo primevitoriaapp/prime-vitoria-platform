@@ -49,4 +49,5 @@ export interface Trip {
   cost_center_id?: string | null;
   planned_km?: number | null;
   actual_km?: number | null;
+  vehicle?: { id: string; model: string; plate: string } | null;
 }

@@ -96,6 +96,8 @@ export default async function AgendaPage({
           <TripAgendaFocusPanel
             tripId={focusTripId}
             operationalStatus={focusTrip?.operational_status ?? "requested"}
+            assignedDriverId={focusTrip?.driver_id}
+            assignedVehicle={focusTrip?.vehicle}
             showClaimBar={showClaimBar}
             showFinanceWrite={showFinanceWrite}
             showErpEnqueue={showErpEnqueue}

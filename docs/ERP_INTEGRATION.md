@@ -125,10 +125,29 @@ Processamento assíncrono (migracao `0030`): cron `/api/cron/erp` e `POST /api/j
 
 Falhas HTTP ou fault SOAP Omie retornam `502` no endpoint de sync e gravam mensagem em `erp_sync_jobs.last_error` quando processados pela fila.
 
+## Diagnóstico (modo live vs mock)
+
+`GET /api/integrations/status` (capability `erp.mapping.read`) devolve, por provedor:
+
+- `mode`: `live` ou `mock`
+- `credentials`: flags booleanas (sem valores secretos)
+- `ready_for_sync`: se um sync de recebível pode correr sem falhar por env em falta
+- `missing`: nomes de variáveis ou mapeamentos em falta
+
+Script local:
+
+```bash
+npm run erp:preflight
+# com app a correr e utilizador staging:
+BASE_URL=http://127.0.0.1:3000 STAGING_E2E_PASSWORD=... npm run erp:preflight -- --http
+```
+
+Para exigir credenciais live no preflight: `ERP_REQUIRE_LIVE=true npm run erp:preflight`.
+
 ## Testes
 
 ```bash
 npm test
 ```
 
-Inclui testes de dominio (status, margem, conflito) e formato de data Omie.
+Inclui testes de dominio (status, margem, conflito), formato de data Omie e `erp-status`.

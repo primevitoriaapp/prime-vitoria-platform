@@ -164,6 +164,11 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   {new Date(trip.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  {trip.vehicle ? (
+                    <span className="ml-2 text-amber-400/90">
+                      · {trip.vehicle.plate} ({trip.vehicle.model})
+                    </span>
+                  ) : null}
                 </p>
                 {(() => {
                   const km = formatTripKmLine(trip);

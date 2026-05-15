@@ -13,9 +13,10 @@ interface EntityCrudPanelProps {
   title: string;
   endpoint: string;
   fields: FieldDefinition[];
+  onSuccess?: () => void;
 }
 
-export function EntityCrudPanel({ title, endpoint, fields }: EntityCrudPanelProps) {
+export function EntityCrudPanel({ title, endpoint, fields, onSuccess }: EntityCrudPanelProps) {
   const initialValues = useMemo(
     () =>
       Object.fromEntries(
@@ -55,6 +56,7 @@ export function EntityCrudPanel({ title, endpoint, fields }: EntityCrudPanelProp
 
       setFeedback("Registro salvo com sucesso.");
       setForm(initialValues);
+      onSuccess?.();
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Erro inesperado.");
     } finally {

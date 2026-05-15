@@ -1,12 +1,26 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+
+type VehicleOption = { id: string; plate: string; model: string };
 
 export function DispatchConsole() {
   const [tripId, setTripId] = useState("");
   const [driverId, setDriverId] = useState("");
+  const [vehicleId, setVehicleId] = useState("");
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [candidateIds, setCandidateIds] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetch("/api/vehicles", { credentials: "include" });
+      const json = (await res.json()) as { success?: boolean; data?: VehicleOption[] };
+      if (res.ok && json.success) {
+        setVehicles(json.data ?? []);
+      }
+    })();
+  }, []);
 
   async function runAction(path: string, payload: Record<string, unknown>) {
     const response = await fetch(path, {
@@ -23,7 +37,9 @@ export function DispatchConsole() {
   async function onDispatchDirected(event: FormEvent) {
     event.preventDefault();
     try {
-      await runAction(`/api/trips/${tripId}/dispatch-directed`, { driver_id: driverId });
+      const payload: Record<string, string> = { driver_id: driverId };
+      if (vehicleId.trim()) payload.vehicle_id = vehicleId.trim();
+      await runAction(`/api/trips/${tripId}/dispatch-directed`, payload);
       setMessage("Despacho direcionado realizado.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erro no despacho.");
@@ -50,6 +66,21 @@ export function DispatchConsole() {
       <form onSubmit={onDispatchDirected} className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
         <input value={tripId} onChange={(event) => setTripId(event.target.value)} placeholder="ID da corrida" />
         <input value={driverId} onChange={(event) => setDriverId(event.target.value)} placeholder="ID do motorista (despacho direcionado)" />
+        <label style={{ display: "grid", gap: 4 }}>
+          <span className="text-sm text-slate-600">Veículo (opcional)</span>
+          <select
+            value={vehicleId}
+            onChange={(event) => setVehicleId(event.target.value)}
+            style={{ border: "1px solid #cbd5e1", borderRadius: 8, padding: "8px 10px" }}
+          >
+            <option value="">Automático / sem veículo</option>
+            {vehicles.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.plate} · {v.model}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="submit">Despachar direcionado</button>
       </form>
       <form onSubmit={onCreateOffer} className="grid" style={{ marginTop: 12 }}>

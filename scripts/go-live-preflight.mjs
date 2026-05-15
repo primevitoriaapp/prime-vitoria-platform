@@ -95,6 +95,10 @@ if (base) {
   if (smoke.status !== 0) fail = true;
   else console.log("ok e2e-smoke-http");
 
+  console.log("\n-- ERP env --");
+  const erp = spawnSync("node", ["scripts/erp-preflight.mjs"], { stdio: "inherit" });
+  if (erp.status !== 0) fail = true;
+
   if (process.env.STAGING_E2E_PASSWORD?.trim()) {
     console.log("\n-- Staging auth (opcional; 1 papel) --");
     console.log("Para todos os papéis: npm run test:e2e-staging-all");
