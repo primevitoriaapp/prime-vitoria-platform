@@ -47,4 +47,6 @@ export interface Trip {
   destination_lng?: number | null;
   passenger_name?: string | null;
   cost_center_id?: string | null;
+  planned_km?: number | null;
+  actual_km?: number | null;
 }

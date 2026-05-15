@@ -6,8 +6,8 @@
 2. Operational rules and trip status machine
 3. Administrative web panel scaffolding
 4. Operational agenda: listing, quick approve, multiatendimento (claim), KM panel, finance/ERP (admin/financeiro), ERP enqueue (operador), timeline + notas
-5. Corporate client API and panel scaffold
-6. Driver API and panel scaffold
+5. Corporate client portal (solicitação, KPIs, rastreio, refresh em tempo real)
+6. Driver API and PWA panel (fluxo estados, GPS trail, Maps/Waze, push)
 7. Vehicle API and panel scaffold
 8. Manual dispatch flow, reassign API and automatic offer dispatch flow
 9. Scheduled trips creation and retrieval API
@@ -26,7 +26,7 @@
 ## Remaining execution notes
 
 - Install npm/pnpm and dependencies to run app and tests.
-- Apply migrations `0001`–`0034` in Supabase (`0031` realtime webhooks; `0030` processamento inbox; `0029` webhook inbox; `0028` bucket `payment-proofs`; `0027` `require_operational_claim`; `0025`–`0026` KM/comprovantes/histórico) and configure environment variables (ver `docs/NOTIFICATIONS.md` para `FCM_SERVER_KEY` e `docs/ERP_INTEGRATION.md`).
+- Apply migrations `0001`–`0038` in Supabase (`0031` realtime webhooks; `0030` processamento inbox; `0029` webhook inbox; `0028` bucket `payment-proofs`; `0027` `require_operational_claim`; `0025`–`0026` KM/comprovantes/histórico) and configure environment variables (ver `docs/NOTIFICATIONS.md` para `FCM_SERVER_KEY` e `docs/ERP_INTEGRATION.md`).
 - Conta Azul: HTTP real `POST /v1/venda` quando `ERP_CONTA_AZUL_ACCESS_TOKEN` + IDs estao definidos (`src/lib/integrations/conta-azul-http.ts`).
 - Omie: HTTP real `IncluirContaReceber` quando credenciais + `ERP_OMIE_CODIGO_CLIENTE_FORNECEDOR` estao definidos (`src/lib/integrations/omie-http.ts`).
 - Fila ERP e reconciliacao: `GET`/`POST /api/integrations/jobs`; `POST /api/jobs/reconcile/run` com escopo por tenant (sessao ou `?tenant_id=` em job maquina); `runReconciliation` em `src/lib/jobs/processors.ts`.
@@ -44,6 +44,6 @@
 - Rastreio público: mapa Leaflet (origem/destino/GPS) em `/r/[token]`.
 - Motorista: `DriverTripsPanel` com corridas atribuídas e fluxo de estados.
 - Webhook ERP: inbound + caixa de entrada (`GET/POST` inbox, painel financeiro, realtime `0031`).
-- E2E: relatório operacional no smoke staging; Playwright CI (auth) + `test:e2e-playwright:staging` (login real).
-- Notificações: push motorista + in-app financeiro/admin; transições de estado; pós-corrida com KM + pagável.
-- **Vercel:** `vercel.json` (região `gru1`, crons); guia `docs/VERCEL_DEPLOY.md`; crons Hobby → `.github/workflows/vercel-crons.yml`; smoke `npm run vercel:preflight` após deploy.
+- E2E: relatório operacional no smoke staging; Playwright `e2e/pilot-client-awaiting.spec.ts` (CI); `e2e/pilot-client-driver-staging.spec.ts` (staging); `test:e2e-playwright:staging`.
+- Notificações: push motorista + in-app financeiro/admin/operador; eventos `operations.*`; painéis agenda/despacho; smoke staging `in-app`; RLS (`0035`–`0037`).
+- **Vercel / go-live:** `docs/VERCEL_DEPLOY.md`, `npm run vercel:preflight`, `npm run go-live:preflight`; checklist em `docs/GO_LIVE_RUNBOOK.md`; RLS `erp_sync_jobs` (`0038`).

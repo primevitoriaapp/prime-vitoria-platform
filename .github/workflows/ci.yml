@@ -41,6 +41,7 @@ jobs:
     env:
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
       PLAYWRIGHT_SKIP_WEBSERVER: "1"
+      TRUST_HEADER_AUTH: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -117,6 +117,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       request
     });
 
+    const { data: claimerProfile } = await db.from("profiles").select("name").eq("id", session.userId).maybeSingle();
+    const { notifyOperationalClaimTaken } = await import("@/lib/notifications/operational-notify");
+    await notifyOperationalClaimTaken(tenantId, tripId, session.userId, {
+      claimer_name: (claimerProfile?.name as string | undefined) ?? undefined
+    });
+
     return ok({ claim: row, already: false }, 201);
   } catch (error) {
     return mapApiError(error);

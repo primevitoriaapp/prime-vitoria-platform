@@ -42,8 +42,24 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
     const now = new Date().toISOString();
     const attempts = (job.attempt_count ?? 0) + 1;
 
+    const jobTenantId = job.tenant_id as string | undefined;
+
     const failJob = async (lastError: string, notifError: string) => {
+      if (!jobTenantId) {
+        await db
+          .from("notification_jobs")
+          .update({
+            status: "error",
+            last_error: "MISSING_TENANT_ID",
+            attempt_count: attempts,
+            updated_at: now
+          })
+          .eq("id", job.id);
+        processed += 1;
+        return;
+      }
       await db.from("notifications").insert({
+        tenant_id: jobTenantId,
         job_id: job.id,
         channel,
         recipient_type: recipientType,
@@ -67,7 +83,21 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
     };
 
     const succeedJob = async () => {
+      if (!jobTenantId) {
+        await db
+          .from("notification_jobs")
+          .update({
+            status: "error",
+            last_error: "MISSING_TENANT_ID",
+            attempt_count: attempts,
+            updated_at: now
+          })
+          .eq("id", job.id);
+        processed += 1;
+        return;
+      }
       await db.from("notifications").insert({
+        tenant_id: jobTenantId,
         job_id: job.id,
         channel,
         recipient_type: recipientType,
@@ -99,8 +129,6 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
       await failJob("UNSUPPORTED_RECIPIENT", `Destinatario invalido: type=${recipientType} id=${recipientId}`);
       continue;
     }
-
-    const jobTenantId = job.tenant_id as string | undefined;
 
     const tokenQuery = db.from("driver_push_tokens").select("token, tenant_id").eq("driver_id", recipientId);
     const { data: tokenRow, error: tokErr } = jobTenantId

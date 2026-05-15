@@ -82,6 +82,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
     }
 
+    if (body.to_status === "approved" && trip.operational_status !== "approved") {
+      const { notifyTripApproved } = await import("@/lib/notifications/operational-notify");
+      await notifyTripApproved(tenantId, id).catch(() => {
+        /* não bloqueia transição */
+      });
+    }
+
     await notifyTripStatusTransition(tenantId, data, trip.operational_status, body.to_status).catch(() => {
       /* não bloqueia transição */
     });

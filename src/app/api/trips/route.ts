@@ -95,6 +95,9 @@ export async function POST(request: Request) {
       request
     });
 
+    const { notifyTripRequested } = await import("@/lib/notifications/operational-notify");
+    await notifyTripRequested(tenantId, data.id as string, { client_id: body.client_id });
+
     return ok(data, 201);
   } catch (error) {
     return mapTripError(error);

@@ -97,6 +97,16 @@ async function main() {
     console.log("ok operations queue");
   }
 
+  const inAppReaderRoles = ["admin", "operador", "financeiro"];
+  if (inAppReaderRoles.includes(role)) {
+    const inApp = await apiGet(token, "/api/notifications/in-app?page=1&pageSize=10");
+    if (!Array.isArray(inApp.items)) throw new Error("in-app notifications items missing");
+    console.log(`ok in-app notifications (${inApp.items.length} items, unread ${inApp.unreadCount ?? 0})`);
+  } else {
+    await apiGetExpectForbidden(token, "/api/notifications/in-app?page=1&pageSize=5");
+    console.log("ok in-app notifications forbidden");
+  }
+
   if (operationalRoles.includes(role)) {
     await apiGet(token, "/api/jobs/notifications?page=1&pageSize=5");
     console.log("ok notification jobs list");

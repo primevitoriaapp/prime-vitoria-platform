@@ -1,25 +1,10 @@
 import Link from "next/link";
 import { ClientRequestConsole } from "@/components/client-request-console";
+import { ClientTripsPanel } from "@/components/client-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
-import { TripTrackingLinkButton } from "@/components/trip-tracking-link-button";
-import { StatusBadge } from "@/components/status-badge";
-import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { db } from "@/lib/server/db";
-import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
-
-const EM_ANDAMENTO: TripOperationalStatus[] = [
-  "dispatched",
-  "accepted",
-  "on_the_way",
-  "arrived",
-  "in_progress"
-];
-
-function inicioMesUtc(d: Date) {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
-}
 
 export default async function ClientPage() {
   const session = await getSessionContext();
@@ -54,29 +39,19 @@ export default async function ClientPage() {
   const clientId = session.clientId!;
   const tenantId = session.tenantId ?? DEFAULT_TENANT_ID;
 
-  const [{ data: clientRow }, tripsRes, { data: costCenters }] = await Promise.all([
-    db.from("clients").select("name").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle(),
-    fetchInternalApi("/api/trips?page=1&pageSize=50"),
-    db.from("cost_centers").select("id, code, name").eq("client_id", clientId).order("name").limit(30)
-  ]);
-
-  const tripsJson = tripsRes.ok ? ((await tripsRes.json()) as { success?: boolean; data?: { items: Trip[]; total: number } }) : null;
-  const items = tripsJson?.success ? (tripsJson.data?.items ?? []) : [];
-  const totalLista = tripsJson?.success ? (tripsJson.data?.total ?? items.length) : 0;
-
-  const agora = new Date();
-  const mesIni = inicioMesUtc(agora);
-  const corridasMes = items.filter((t) => new Date(t.scheduled_at) >= mesIni).length;
-  const emAndamento = items.filter((t) => EM_ANDAMENTO.includes(t.operational_status)).length;
-
-  const porCentro = new Map<string, number>();
-  for (const t of items) {
-    if (t.cost_center_id) {
-      porCentro.set(t.cost_center_id, (porCentro.get(t.cost_center_id) ?? 0) + 1);
-    }
+  let nomeCliente = "Cliente";
+  let costCenters: { id: string; code: string | null; name: string }[] = [];
+  try {
+    const [{ data: clientRow }, { data: cc }] = await Promise.all([
+      db.from("clients").select("name").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle(),
+      db.from("cost_centers").select("id, code, name").eq("client_id", clientId).order("name").limit(30)
+    ]);
+    nomeCliente = clientRow?.name ?? nomeCliente;
+    costCenters = cc ?? [];
+  } catch {
+    /* Supabase indisponível (ex.: CI com placeholders) — painel de viagens carrega via API cliente */
   }
 
-  const nomeCliente = clientRow?.name ?? "Cliente";
   const saudacao = `Olá — aqui está a visão da operação executiva da ${nomeCliente}.`;
 
   return (
@@ -119,95 +94,7 @@ export default async function ClientPage() {
           </Link>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Corridas (mês)</p>
-            <p className="mt-1 font-serif text-3xl text-amber-400">{corridasMes}</p>
-            <p className="mt-1 text-xs text-slate-500">Na página atual (até {items.length} itens)</p>
-          </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Em andamento</p>
-            <p className="mt-1 font-serif text-3xl text-amber-400">{emAndamento}</p>
-            <p className="mt-1 text-xs text-slate-500">Despachada até em progresso</p>
-          </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Total listado</p>
-            <p className="mt-1 font-serif text-3xl text-amber-400">{totalLista}</p>
-            <p className="mt-1 text-xs text-slate-500">Resultado da API (paginação)</p>
-          </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Centros de custo</p>
-            <p className="mt-1 font-serif text-3xl text-amber-400">{costCenters?.length ?? 0}</p>
-            <p className="mt-1 text-xs text-slate-500">Cadastrados para o cliente</p>
-          </div>
-        </section>
-
-        <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
-          <section id="corridas" className="space-y-4">
-            <div className="flex items-baseline justify-between gap-4">
-              <h2 className="font-serif text-xl text-white">Minhas corridas</h2>
-              <span className="text-xs text-slate-500">Ordenadas por data agendada</span>
-            </div>
-            <div className="overflow-hidden rounded-xl border border-slate-800">
-              {items.length === 0 ? (
-                <p className="p-6 text-sm text-slate-400">Nenhuma corrida encontrada. Faça a primeira solicitação abaixo.</p>
-              ) : (
-                <ul className="divide-y divide-slate-800">
-                  {items.map((trip) => (
-                    <li key={trip.id} className="flex flex-col gap-2 p-4 hover:bg-slate-900/40 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-xs text-amber-500/90">{trip.id.slice(0, 8)}…</span>
-                          <StatusBadge status={trip.operational_status} />
-                        </div>
-                        <p className="text-sm font-medium text-white">
-                          {trip.passenger_name?.trim() || "Passageiro a definir"}
-                          {trip.service_type ? (
-                            <span className="font-normal text-slate-500"> · {trip.service_type}</span>
-                          ) : null}
-                        </p>
-                        <p className="text-sm text-slate-400">
-                          {trip.origin_text} → {trip.destination_text}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {new Date(trip.scheduled_at).toLocaleString("pt-BR", {
-                            dateStyle: "short",
-                            timeStyle: "short"
-                          })}
-                        </p>
-                      </div>
-                      <div className="shrink-0 pt-1 sm:pt-0">
-                        <TripTrackingLinkButton tripId={trip.id} variant="dark" devFallbackRole="cliente" />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </section>
-
-          <aside className="space-y-4">
-            <h2 className="font-serif text-lg text-white">Centros de custo</h2>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              {(costCenters ?? []).length === 0 ? (
-                <p className="text-sm text-slate-500">Nenhum centro de custo cadastrado.</p>
-              ) : (
-                <ul className="space-y-3 text-sm">
-                  {(costCenters ?? []).map((cc) => (
-                    <li key={cc.id} className="flex justify-between gap-2 border-b border-slate-800/80 pb-2 last:border-0 last:pb-0">
-                      <span className="truncate text-slate-300">{cc.code ? `${cc.code} · ` : ""}{cc.name}</span>
-                      <span className="shrink-0 text-amber-500/90">{porCentro.get(cc.id) ?? 0}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <p className="text-xs text-slate-600">
-              Gere um link de rastreio partilhável na lista de corridas. Os totais por centro refletem apenas as
-              corridas visíveis nesta página.
-            </p>
-          </aside>
-        </div>
+        <ClientTripsPanel tenantId={tenantId} costCenters={costCenters ?? []} />
 
         <section id="solicitar" className="space-y-3">
           <h2 className="font-serif text-xl text-white">Nova solicitação</h2>

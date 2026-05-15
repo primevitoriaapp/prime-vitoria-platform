@@ -2,6 +2,7 @@ import Link from "next/link";
 import { KpiCard } from "@/components/kpi-card";
 import { LiveMap } from "@/components/live-map";
 import { OperationsReportExport } from "@/components/operations-report-export";
+import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import type { SessionContext } from "@/lib/domain/types";
 import { can } from "@/lib/security/rbac";
@@ -60,6 +61,13 @@ export default async function DashboardPage() {
         <KpiCard label="Finalizadas" value={data.completedTrips} />
         <KpiCard label="Motoristas ativos" value={data.activeDrivers} />
       </div>
+      {session.role === "admin" || session.role === "financeiro" ? (
+        <InAppNotificationsPanel
+          tenantId={realtimeTenantId}
+          devFallbackRole={session.role === "financeiro" ? "financeiro" : "admin"}
+          compact
+        />
+      ) : null}
       {auditItems.length > 0 ? (
         <section className="card mt-6">
           <div className="flex flex-wrap items-center justify-between gap-2">

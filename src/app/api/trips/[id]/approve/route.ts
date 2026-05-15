@@ -47,6 +47,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       request
     });
 
+    const { notifyTripApproved } = await import("@/lib/notifications/operational-notify");
+    await notifyTripApproved(tenantId, id);
+
     const automation = await loadDispatchAutomationSettings(tenantId);
     // Exclusividade: despacho direto automático OU oferta automática (nunca ambos).
     if (automation.auto_direct_assign_on_approve) {

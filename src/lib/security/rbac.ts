@@ -19,7 +19,8 @@ const ROLE_CAPABILITIES: Record<UserRole, string[]> = {
     "erp.jobs.process",
     "jobs.notifications.process",
     "jobs.reconcile.run",
-    "profiles.read"
+    "profiles.read",
+    "notifications.read"
   ],
   financeiro: [
     "finance.read",
@@ -28,7 +29,8 @@ const ROLE_CAPABILITIES: Record<UserRole, string[]> = {
     "report.read",
     "erp.mapping.read",
     "erp.jobs.enqueue",
-    "jobs.reconcile.run"
+    "jobs.reconcile.run",
+    "notifications.read"
   ],
   cliente: ["trip.request", "trip.read.own"],
   motorista: ["trip.read.assigned", "trip.accept", "trip.status", "location.write"]

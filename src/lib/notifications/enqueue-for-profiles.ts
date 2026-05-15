@@ -6,8 +6,9 @@ export async function enqueueInAppForTenantRoles(
   tenantId: string,
   roles: string[],
   payload: Omit<Record<string, unknown>, "channel" | "recipientType" | "recipientId">,
-  opts?: { correlation_id?: string }
+  opts?: { correlation_id?: string; excludeProfileIds?: string[] }
 ): Promise<number> {
+  const exclude = new Set(opts?.excludeProfileIds ?? []);
   const { data: profiles, error } = await db
     .from("profiles")
     .select("id")
@@ -20,6 +21,7 @@ export async function enqueueInAppForTenantRoles(
 
   let count = 0;
   for (const profile of profiles ?? []) {
+    if (exclude.has(profile.id as string)) continue;
     await enqueueNotificationJob(
       {
         ...payload,

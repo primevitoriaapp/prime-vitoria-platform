@@ -18,6 +18,7 @@ async function check(name, path, expectStatus) {
 
 async function main() {
   await check("health", "/api/health", 200);
+  await check("in-app notifications unauthenticated", "/api/notifications/in-app", [401, 403]);
   await check("public track invalid token", "/api/public/track/not-a-valid-token", [400, 404]);
   console.log("e2e smoke passed");
 }

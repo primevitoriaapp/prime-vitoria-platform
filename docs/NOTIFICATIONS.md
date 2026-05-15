@@ -38,6 +38,7 @@ Jobs com `channel: "in_app"` e `recipientType: "profile"` sao processados sem FC
 
 - Conclusao de corrida (`trip.completed`) para perfis `financeiro` e `admin`
 - Pagavel motorista em aberto apos `runPostTripAutomation`
+- Operacional (`operations.*`) para `admin` e `operador`: nova solicitacao, corrida aprovada, claim assumido por outro (`operational-notify.ts`)
 
 Push ao motorista continua a exigir `FCM_SERVER_KEY` e `POST /api/drivers/push-token`.
 
@@ -47,7 +48,15 @@ Transicoes de estado (`notifyTripStatusTransition`): push em `dispatched`, `comp
 
 `POST /api/drivers/push-token` regista `driver.push_token_upsert` em `audit_events`.
 
+## In-app (painel)
+
+- `GET /api/notifications/in-app` — lista do perfil autenticado (`notifications.read`).
+- `POST /api/notifications/in-app/[id]/read` e `.../read-all`.
+- Painel em `/finance` e resumo no `/dashboard`.
+
 ## Migracoes relacionadas
 
 - `0018`: tokens + indices de auditoria.
 - `0021`: leitura RLS de `audit_events` por tenant (admin/operador/financeiro).
+- `0035`–`0036`: `read_at`, realtime `notifications`.
+- `0037`: `notifications.tenant_id` + RLS (in-app proprio; fila `notification_jobs` para admin/operador).

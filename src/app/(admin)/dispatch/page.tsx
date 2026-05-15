@@ -1,6 +1,7 @@
 import { DispatchAutomationSettings } from "@/components/dispatch-automation-settings";
 import { OperationalQueuePanel } from "@/components/operational-queue-panel";
 import { DispatchConsole } from "@/components/dispatch-console";
+import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { NotificationJobsPanel } from "@/components/notification-jobs-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { TripTable } from "@/components/trip-table";
@@ -33,6 +34,11 @@ export default async function DispatchPage() {
       <OperationalQueuePanel
         tenantId={realtimeTenantId}
         devFallbackRole={session.role === "admin" ? "admin" : "operador"}
+      />
+      <InAppNotificationsPanel
+        tenantId={realtimeTenantId}
+        devFallbackRole={session.role === "admin" ? "admin" : "operador"}
+        compact
       />
       <div className="mt-6">
         <DispatchAutomationSettings />

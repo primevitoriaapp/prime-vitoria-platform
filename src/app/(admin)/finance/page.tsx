@@ -4,6 +4,7 @@ import { FinanceConsole } from "@/components/finance-console";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { ReceivablesPanel } from "@/components/receivables-panel";
 import { ErpWebhookInboxPanel } from "@/components/erp-webhook-inbox-panel";
+import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { ReconciliationIssuesPanel } from "@/components/reconciliation-issues-panel";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { getSessionContext } from "@/lib/server/session";
@@ -19,6 +20,12 @@ export default async function FinancePage() {
       <h1>Financeiro</h1>
       <div className="card">Contas a receber, contas a pagar, margem operacional e fechamento mensal.</div>
       <FinanceConsole />
+      {session.role === "admin" || session.role === "financeiro" ? (
+        <InAppNotificationsPanel
+          tenantId={realtimeTenantId}
+          devFallbackRole={session.role === "financeiro" ? "financeiro" : "admin"}
+        />
+      ) : null}
       <ReceivablesPanel
         tenantId={realtimeTenantId}
         devFallbackRole={session.role === "operador" ? "operador" : "financeiro"}

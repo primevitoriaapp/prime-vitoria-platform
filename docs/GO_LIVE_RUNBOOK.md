@@ -1,5 +1,18 @@
 # Go-live Runbook - Prime Vitoria
 
+## Checklist rápido
+
+| # | Item | Comando / doc |
+|---|------|----------------|
+| 1 | Migrações Supabase (`0001`–`0038`) | `npm run db:push` |
+| 2 | Variáveis Vercel + Supabase | `docs/VERCEL_DEPLOY.md`, `.env.example` |
+| 3 | Preflight automatizado | `npm run go-live:preflight` |
+| 4 | Deploy (Git push → Vercel) | `docs/VERCEL_DEPLOY.md` |
+| 5 | Auth redirects `*.vercel.app` | Painel Supabase |
+| 6 | Seed staging (opcional) | `npm run seed:staging` |
+| 7 | Smoke todos os papéis | `npm run test:e2e-staging-all` |
+| 8 | Crons (Pro ou GitHub Actions) | `docs/VERCEL_CRONS.md` |
+
 ## Pre-go-live
 
 - Confirmar variaveis `.env` completas. Em producao **nao** definir `TRUST_HEADER_AUTH` (ou deixar diferente de `true`): APIs exigem `Authorization: Bearer` JWT valido; cabecalhos `x-role` sao ignorados para sessao.
@@ -8,6 +21,7 @@
 - Aplicar todas as migracoes em `supabase/migrations` no Supabase (ordem numerica; inclui multiempresa, RLS, ERP, push tokens, auditoria).
 - Validar RLS com usuarios reais (admin, operador, cliente, motorista, financeiro).
 - Configurar integracao ERP conforme `docs/ERP_INTEGRATION.md` (testar primeiro em `mock`, depois `live`).
+- Executar `npm run go-live:preflight` (testes unitários + smoke HTTP; com `STAGING_E2E_PASSWORD` também corre um papel de staging).
 - Executar smoke tests de API (jobs: POST com Bearer do segredo correspondente ou JWT com role adequada; ver `docs/ERP_INTEGRATION.md`):
   - `/api/trips`
   - `/api/trips/:id/dispatch-directed`
