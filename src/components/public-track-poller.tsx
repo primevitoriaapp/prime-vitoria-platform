@@ -29,6 +29,12 @@ const TERMINAL_STATUSES: TripOperationalStatus[] = ["completed", "cancelled", "r
 export function PublicTrackPoller({ token, initial }: Props) {
   const [data, setData] = useState<TrackPayload>(initial);
   const [error, setError] = useState<string | null>(null);
+  const [streaming, setStreaming] = useState(false);
+
+  const applySnapshot = useCallback((snapshot: TrackPayload) => {
+    setError(null);
+    setData(snapshot);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -44,12 +50,58 @@ export function PublicTrackPoller({ token, initial }: Props) {
         setError(json.error?.message ?? "Nao foi possivel atualizar");
         return;
       }
-      setError(null);
-      setData(json.data);
+      applySnapshot(json.data);
     } catch {
       setError("Falha de rede ao atualizar");
     }
-  }, [token]);
+  }, [token, applySnapshot]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("EventSource" in window)) return;
+
+    let active = true;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let source: EventSource | null = null;
+
+    const openStream = () => {
+      if (!active) return;
+      source?.close();
+      source = new EventSource(`/api/public/track/${encodeURIComponent(token)}/stream`);
+
+      source.onopen = () => {
+        if (active) setStreaming(true);
+      };
+      source.onmessage = (event) => {
+        try {
+          const json = JSON.parse(event.data) as {
+            success?: boolean;
+            data?: TrackPayload;
+            error?: { message?: string };
+          };
+          if (json.success && json.data) {
+            applySnapshot(json.data);
+            return;
+          }
+          setError(json.error?.message ?? "Stream de acompanhamento encerrado");
+        } catch {
+          setError("Stream de acompanhamento invalido");
+        }
+      };
+      source.onerror = () => {
+        source?.close();
+        setStreaming(false);
+        if (active) retry = setTimeout(openStream, 15_000);
+      };
+    };
+
+    openStream();
+
+    return () => {
+      active = false;
+      if (retry) clearTimeout(retry);
+      source?.close();
+    };
+  }, [token, applySnapshot]);
 
   useEffect(() => {
     const ms = TERMINAL_STATUSES.includes(data.operational_status) ? 45_000 : 12_000;
@@ -104,7 +156,11 @@ export function PublicTrackPoller({ token, initial }: Props) {
             {new Date(data.km_updated_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
           </p>
         ) : null}
-        <p className="mt-3 text-xs text-slate-600">Atualiza automaticamente a cada {pollSeconds} s.</p>
+        <p className="mt-3 text-xs text-slate-600">
+          {streaming
+            ? "Atualização em tempo real ativa; polling permanece como fallback."
+            : `Atualiza automaticamente a cada ${pollSeconds} s.`}
+        </p>
       </div>
       {data.location ? (
         <p className="text-xs text-slate-500">
