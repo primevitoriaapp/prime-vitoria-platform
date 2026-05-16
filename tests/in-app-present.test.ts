@@ -88,6 +88,23 @@ test("presentInAppNotification operations.trip_reassigned", () => {
   assert.equal(view.tripId, tid);
 });
 
+test("presentInAppNotification operational status events", () => {
+  const base = {
+    id: "n9",
+    payload: { tripId: "aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb" },
+    status: "sent",
+    sent_at: null,
+    read_at: null,
+    created_at: "2026-01-01T12:00:00Z"
+  };
+  assert.equal(presentInAppNotification({ ...base, event_type: "operations.trip_cancelled" }).title, "Corrida cancelada");
+  assert.equal(
+    presentInAppNotification({ ...base, event_type: "operations.trip_on_the_way" }).title,
+    "Motorista em deslocamento"
+  );
+  assert.equal(presentInAppNotification({ ...base, event_type: "operations.trip_arrived" }).title, "Motorista no local");
+});
+
 test("presentInAppNotification finance.driver_payable_open", () => {
   const view = presentInAppNotification({
     id: "n2",

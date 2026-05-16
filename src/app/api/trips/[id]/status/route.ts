@@ -108,6 +108,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
     }
 
+    if (body.to_status === "cancelled" || body.to_status === "on_the_way" || body.to_status === "arrived") {
+      const { notifyTripStatusToStaff } = await import("@/lib/notifications/operational-notify");
+      await notifyTripStatusToStaff(tenantId, id, body.to_status, {
+        driver_id: data.driver_id,
+        excludeActorProfileId: session.userId
+      }).catch(() => {
+        /* não bloqueia transição */
+      });
+    }
+
     await notifyTripStatusTransition(tenantId, data, trip.operational_status, body.to_status).catch(() => {
       /* não bloqueia transição */
     });

@@ -41,6 +41,12 @@ export function notificationEventLabel(eventType: string): string {
       return "Despacho operacional";
     case "operations.trip_reassigned":
       return "Reatribuição operacional";
+    case "operations.trip_cancelled":
+      return "Cancelamento operacional";
+    case "operations.trip_on_the_way":
+      return "Motorista em deslocamento";
+    case "operations.trip_arrived":
+      return "Motorista no local";
     default:
       return eventType;
   }

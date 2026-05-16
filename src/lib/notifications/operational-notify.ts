@@ -104,3 +104,35 @@ export async function notifyTripReassignedToStaff(
     }
   );
 }
+
+type OperationalTripStatusEvent = "cancelled" | "on_the_way" | "arrived";
+
+const STATUS_EVENT_TYPES: Record<OperationalTripStatusEvent, string> = {
+  cancelled: "operations.trip_cancelled",
+  on_the_way: "operations.trip_on_the_way",
+  arrived: "operations.trip_arrived"
+};
+
+/** Mudanças operacionais relevantes para a equipa (cancelamento, deslocamento, chegada). */
+export async function notifyTripStatusToStaff(
+  tenantId: string,
+  tripId: string,
+  status: OperationalTripStatusEvent,
+  opts?: { driver_id?: string | null; excludeActorProfileId?: string }
+): Promise<number> {
+  const exclude = opts?.excludeActorProfileId ? [opts.excludeActorProfileId] : undefined;
+  return enqueueInAppForTenantRoles(
+    tenantId,
+    [...STAFF_ROLES],
+    {
+      eventType: STATUS_EVENT_TYPES[status],
+      tripId,
+      status,
+      driver_id: opts?.driver_id ?? null
+    },
+    {
+      correlation_id: `trip-${tripId}-staff-status-${status}`,
+      excludeProfileIds: exclude
+    }
+  );
+}

@@ -91,6 +91,23 @@ export function presentInAppNotification(row: InAppNotificationRow): InAppNotifi
         : "Corrida reatribuída a outro motorista.";
       break;
     }
+    case "operations.trip_cancelled": {
+      title = "Corrida cancelada";
+      body = tripId ? `Corrida ${tripId.slice(0, 8)}… foi cancelada.` : "Uma corrida foi cancelada.";
+      break;
+    }
+    case "operations.trip_on_the_way": {
+      title = "Motorista em deslocamento";
+      body = tripId
+        ? `Motorista iniciou deslocamento para a corrida ${tripId.slice(0, 8)}….`
+        : "Motorista iniciou deslocamento.";
+      break;
+    }
+    case "operations.trip_arrived": {
+      title = "Motorista no local";
+      body = tripId ? `Motorista chegou ao local da corrida ${tripId.slice(0, 8)}….` : "Motorista chegou ao local.";
+      break;
+    }
     default:
       if (typeof payload.title === "string") title = payload.title;
       if (typeof payload.body === "string") body = payload.body;
