@@ -5,6 +5,7 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { can } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { resolveProfileNames } from "@/lib/profiles/resolve-profile-names";
+import { auditActionMatchesPrefix } from "@/lib/trips/timeline-audit-filter";
 
 export type TimelineEntry =
   | {
@@ -39,9 +40,13 @@ export type TimelineEntry =
       operator_profile_id: string;
     };
 
-/** Histórico operacional: auditoria da viagem + notas internas, ordenado por tempo (mais recente primeiro). */
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+/** Histórico operacional: auditoria da viagem + notas internas, ordenado por tempo (mais recente primeiro). Query opcional `audit_prefix` (ex. `finance.`) limita linhas `kind=audit` por prefixo de `action`. */
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const url = new URL(request.url);
+    const auditPrefixRaw = url.searchParams.get("audit_prefix")?.trim() ?? "";
+    const auditPrefix = auditPrefixRaw.length > 0 ? auditPrefixRaw.slice(0, 80) : null;
+
     const session = await getSessionContext();
     if (!can(session, "trip.read")) {
       return fail("FORBIDDEN", "Histórico operacional requer visão global de viagens", 403);
@@ -112,14 +117,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     if (sErr) return fail("TIMELINE_STATUS_FAILED", sErr.message, 500);
     if (cErr) return fail("TIMELINE_CLAIMS_FAILED", cErr.message, 500);
 
-    const auditEntries: TimelineEntry[] = (audits ?? []).map((row) => ({
-      kind: "audit" as const,
-      id: `a-${row.id}`,
-      at: row.created_at as string,
-      action: row.action as string,
-      actor_user_id: (row.actor_user_id as string | null) ?? null,
-      metadata: (row.metadata as Record<string, unknown>) ?? {}
-    }));
+    const auditEntries: TimelineEntry[] = (audits ?? [])
+      .filter((row) => auditActionMatchesPrefix(String(row.action ?? ""), auditPrefix))
+      .map((row) => ({
+        kind: "audit" as const,
+        id: `a-${row.id}`,
+        at: row.created_at as string,
+        action: row.action as string,
+        actor_user_id: (row.actor_user_id as string | null) ?? null,
+        metadata: (row.metadata as Record<string, unknown>) ?? {}
+      }));
 
     const noteEntries: TimelineEntry[] = (notes ?? []).map((row) => ({
       kind: "note" as const,
@@ -172,7 +179,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
     const profile_names = await resolveProfileNames(profileIds);
 
-    return ok({ trip_id: tripId, items: merged, profile_names });
+    return ok({ trip_id: tripId, items: merged, profile_names, audit_prefix: auditPrefix });
   } catch (error) {
     return mapApiError(error);
   }

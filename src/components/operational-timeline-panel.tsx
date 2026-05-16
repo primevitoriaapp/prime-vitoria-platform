@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
 type Entry =
   | {
@@ -35,50 +36,88 @@ type Entry =
       operator_profile_id: string;
     };
 
-type Props = { tripId: string };
+type AuditFilter = "" | "finance." | "trip.";
+
+type Props = {
+  tripId: string;
+  devFallbackRole?: "operador" | "admin" | "financeiro";
+};
 
 function profileLabel(id: string | null, names: Record<string, string>): string {
   if (!id) return "(sistema)";
   return names[id]?.trim() || `${id.slice(0, 8)}…`;
 }
 
-export function OperationalTimelinePanel({ tripId }: Props) {
+export function OperationalTimelinePanel({ tripId, devFallbackRole = "operador" }: Props) {
   const [items, setItems] = useState<Entry[]>([]);
   const [profileNames, setProfileNames] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [auditFilter, setAuditFilter] = useState<AuditFilter>("");
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    fetch(`/api/trips/${tripId}/operational-timeline`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((json) => {
-        if (!json?.success) {
-          setError(json?.error?.message ?? "Não foi possível carregar o histórico.");
-          setItems([]);
-          return;
-        }
-        setItems((json.data?.items ?? []) as Entry[]);
-        setProfileNames((json.data?.profile_names ?? {}) as Record<string, string>);
-      })
-      .catch(() => {
-        setError("Falha de rede.");
+    const qs = new URLSearchParams();
+    if (auditFilter) qs.set("audit_prefix", auditFilter);
+    const path = `/api/trips/${tripId}/operational-timeline${qs.toString() ? `?${qs}` : ""}`;
+    try {
+      const r = await fetchWithSupabaseSession(path, {}, devFallbackRole);
+      const json = (await r.json()) as {
+        success?: boolean;
+        data?: { items: Entry[]; profile_names?: Record<string, string> };
+        error?: { message?: string };
+      };
+      if (!json?.success) {
+        setError(json?.error?.message ?? "Não foi possível carregar o histórico.");
         setItems([]);
-      })
-      .finally(() => setLoading(false));
-  }, [tripId]);
+        return;
+      }
+      setItems((json.data?.items ?? []) as Entry[]);
+      setProfileNames((json.data?.profile_names ?? {}) as Record<string, string>);
+    } catch {
+      setError("Falha de rede.");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [tripId, auditFilter, devFallbackRole]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-base font-semibold text-slate-900">Histórico operacional</h2>
-      <p className="mt-1 text-xs text-slate-500">
-        Auditoria, transições de estado e notas internas, por ordem cronológica inversa.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Histórico operacional</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Auditoria, transições de estado e notas internas, por ordem cronológica inversa.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1 text-xs">
+          <span className="self-center text-slate-500">Auditoria:</span>
+          {(
+            [
+              ["", "Tudo"],
+              ["finance.", "Financeiro"],
+              ["trip.", "Viagem"]
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value || "all"}
+              type="button"
+              onClick={() => setAuditFilter(value)}
+              className={`rounded border px-2 py-0.5 ${
+                auditFilter === value ? "border-amber-600 bg-amber-50 text-amber-900" : "border-slate-200 text-slate-600"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       {loading ? <p className="mt-3 text-sm text-slate-600">A carregar…</p> : null}
       {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
       {!loading && !error ? (

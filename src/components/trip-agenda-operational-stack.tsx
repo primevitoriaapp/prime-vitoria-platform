@@ -34,7 +34,7 @@ export function TripAgendaOperationalStack({
       ) : null}
       <TripKmPanel tripId={tripId} devFallbackRole={financeDevRole === "operador" ? "operador" : "admin"} />
       <div className="grid gap-6 lg:grid-cols-2">
-        <OperationalTimelinePanel key={`${tripId}-tl-${timelineKey}`} tripId={tripId} />
+        <OperationalTimelinePanel key={`${tripId}-tl-${timelineKey}`} tripId={tripId} devFallbackRole={financeDevRole} />
         <TripOperatorNotesPanel tripId={tripId} onPosted={() => setTimelineKey((k) => k + 1)} />
       </div>
     </div>

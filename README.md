@@ -34,3 +34,7 @@ npm run dev
 ```bash
 npm test
 ```
+
+## Histórico operacional (API)
+
+- `GET /api/trips/:id/operational-timeline` aceita query opcional `audit_prefix` (até 80 caracteres). Quando definido, filtra entradas `kind=audit` cujo `action` começa por esse prefixo (ex.: `finance.`, `trip.`). A resposta inclui `audit_prefix` para eco do filtro aplicado.

@@ -75,11 +75,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await enqueueNotificationJob(
       {
         eventType: "trip_dispatched",
+        channel: "push",
         recipientType: "driver",
         recipientId: body.driver_id,
         tripId: id
       },
-      { tenantId }
+      { tenantId, correlation_id: `trip-${id}-dispatch-${body.driver_id}` }
     );
 
     await insertAuditEvent({

@@ -24,6 +24,8 @@ type Props = {
   initial: TrackPayload;
 };
 
+const TERMINAL_STATUSES: TripOperationalStatus[] = ["completed", "cancelled", "rejected", "no_show"];
+
 export function PublicTrackPoller({ token, initial }: Props) {
   const [data, setData] = useState<TrackPayload>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -50,10 +52,12 @@ export function PublicTrackPoller({ token, initial }: Props) {
   }, [token]);
 
   useEffect(() => {
-    const id = window.setInterval(() => void refresh(), 15_000);
+    const ms = TERMINAL_STATUSES.includes(data.operational_status) ? 45_000 : 12_000;
+    const id = window.setInterval(() => void refresh(), ms);
     return () => window.clearInterval(id);
-  }, [refresh]);
+  }, [refresh, data.operational_status]);
 
+  const pollSeconds = TERMINAL_STATUSES.includes(data.operational_status) ? 45 : 12;
   const statusLabel = STATUS_CORRIDA_PT[data.operational_status] ?? data.operational_status;
 
   const driverPoint = data.location
@@ -100,7 +104,7 @@ export function PublicTrackPoller({ token, initial }: Props) {
             {new Date(data.km_updated_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
           </p>
         ) : null}
-        <p className="mt-3 text-xs text-slate-600">Atualiza automaticamente a cada 15 s.</p>
+        <p className="mt-3 text-xs text-slate-600">Atualiza automaticamente a cada {pollSeconds} s.</p>
       </div>
       {data.location ? (
         <p className="text-xs text-slate-500">
