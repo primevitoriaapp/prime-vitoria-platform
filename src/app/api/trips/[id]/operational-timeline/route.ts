@@ -5,7 +5,8 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { can } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { resolveProfileNames } from "@/lib/profiles/resolve-profile-names";
-import { auditActionMatchesPrefix } from "@/lib/trips/timeline-audit-filter";
+import { auditActionMatchesPrefix, uniqueAuditRowsById } from "@/lib/trips/timeline-audit-filter";
+import { notificationPayloadTripId } from "@/lib/trips/timeline-notification";
 
 export type TimelineEntry =
   | {
@@ -38,6 +39,18 @@ export type TimelineEntry =
       at: string;
       action: "assumed" | "released";
       operator_profile_id: string;
+    }
+  | {
+      kind: "notification";
+      id: string;
+      at: string;
+      event_type: string;
+      channel: string;
+      recipient_type: string;
+      recipient_id: string | null;
+      status: string;
+      correlation_id: string;
+      last_error: string | null;
     };
 
 /** Histórico operacional: auditoria da viagem + notas internas, ordenado por tempo (mais recente primeiro). Query opcional `audit_prefix` (ex. `finance.`) limita linhas `kind=audit` por prefixo de `action`. */
@@ -73,6 +86,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     );
     if (denied) return denied;
 
+    const [payablesResult, receivablesResult, offersResult] = await Promise.all([
+      db.from("driver_payables").select("id").eq("tenant_id", tenantId).eq("trip_id", tripId).limit(50),
+      db.from("accounts_receivable").select("id").eq("tenant_id", tenantId).eq("trip_id", tripId).limit(50),
+      db.from("dispatch_offers").select("id").eq("tenant_id", tenantId).eq("trip_id", tripId).limit(50)
+    ]);
+
+    const payableIds = (payablesResult.data ?? []).map((row) => row.id as string).filter(Boolean);
+    const receivableIds = (receivablesResult.data ?? []).map((row) => row.id as string).filter(Boolean);
+    const offerIds = (offersResult.data ?? []).map((row) => row.id as string).filter(Boolean);
+
     const auditQuery = db
       .from("audit_events")
       .select("id, action, actor_user_id, metadata, created_at")
@@ -81,6 +104,50 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .eq("entity_id", tripId)
       .order("created_at", { ascending: false })
       .limit(150);
+
+    const relatedMetadataAuditQuery = db
+      .from("audit_events")
+      .select("id, action, actor_user_id, metadata, created_at")
+      .eq("tenant_id", tenantId)
+      .contains("metadata", { trip_id: tripId })
+      .order("created_at", { ascending: false })
+      .limit(150);
+
+    const payableAuditQuery =
+      payableIds.length > 0
+        ? db
+            .from("audit_events")
+            .select("id, action, actor_user_id, metadata, created_at")
+            .eq("tenant_id", tenantId)
+            .eq("entity_type", "driver_payable")
+            .in("entity_id", payableIds)
+            .order("created_at", { ascending: false })
+            .limit(150)
+        : Promise.resolve({ data: [] as const, error: null });
+
+    const receivableAuditQuery =
+      receivableIds.length > 0
+        ? db
+            .from("audit_events")
+            .select("id, action, actor_user_id, metadata, created_at")
+            .eq("tenant_id", tenantId)
+            .eq("entity_type", "accounts_receivable")
+            .in("entity_id", receivableIds)
+            .order("created_at", { ascending: false })
+            .limit(150)
+        : Promise.resolve({ data: [] as const, error: null });
+
+    const offerAuditQuery =
+      offerIds.length > 0
+        ? db
+            .from("audit_events")
+            .select("id, action, actor_user_id, metadata, created_at")
+            .eq("tenant_id", tenantId)
+            .eq("entity_type", "dispatch_offer")
+            .in("entity_id", offerIds)
+            .order("created_at", { ascending: false })
+            .limit(150)
+        : Promise.resolve({ data: [] as const, error: null });
 
     const notesQuery = includeInternalNotes
       ? db
@@ -109,15 +176,55 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           .limit(50)
       : Promise.resolve({ data: [] as const, error: null });
 
-    const [{ data: audits, error: aErr }, { data: notes, error: nErr }, { data: statuses, error: sErr }, { data: claims, error: cErr }] =
-      await Promise.all([auditQuery, notesQuery, statusQuery, claimsQuery]);
+    const notificationsQuery = db
+      .from("notification_jobs")
+      .select("id, payload, status, correlation_id, last_error, created_at")
+      .eq("tenant_id", tenantId)
+      .contains("payload", { tripId })
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    const [
+      { data: audits, error: aErr },
+      { data: relatedMetadataAudits, error: relMetaErr },
+      { data: payableAudits, error: payAuditErr },
+      { data: receivableAudits, error: recvAuditErr },
+      { data: offerAudits, error: offerAuditErr },
+      { data: notes, error: nErr },
+      { data: statuses, error: sErr },
+      { data: claims, error: cErr },
+      { data: notifications, error: notifErr }
+    ] = await Promise.all([
+      auditQuery,
+      relatedMetadataAuditQuery,
+      payableAuditQuery,
+      receivableAuditQuery,
+      offerAuditQuery,
+      notesQuery,
+      statusQuery,
+      claimsQuery,
+      notificationsQuery
+    ]);
 
     if (aErr) return fail("TIMELINE_AUDIT_FAILED", aErr.message, 500);
+    if (relMetaErr) return fail("TIMELINE_RELATED_AUDIT_FAILED", relMetaErr.message, 500);
+    if (payAuditErr) return fail("TIMELINE_PAYABLE_AUDIT_FAILED", payAuditErr.message, 500);
+    if (recvAuditErr) return fail("TIMELINE_RECEIVABLE_AUDIT_FAILED", recvAuditErr.message, 500);
+    if (offerAuditErr) return fail("TIMELINE_OFFER_AUDIT_FAILED", offerAuditErr.message, 500);
     if (nErr) return fail("TIMELINE_NOTES_FAILED", nErr.message, 500);
     if (sErr) return fail("TIMELINE_STATUS_FAILED", sErr.message, 500);
     if (cErr) return fail("TIMELINE_CLAIMS_FAILED", cErr.message, 500);
+    if (notifErr) return fail("TIMELINE_NOTIFICATIONS_FAILED", notifErr.message, 500);
 
-    const auditEntries: TimelineEntry[] = (audits ?? [])
+    const allAuditRows = uniqueAuditRowsById([
+      ...(audits ?? []),
+      ...(relatedMetadataAudits ?? []),
+      ...(payableAudits ?? []),
+      ...(receivableAudits ?? []),
+      ...(offerAudits ?? [])
+    ]);
+
+    const auditEntries: TimelineEntry[] = allAuditRows
       .filter((row) => auditActionMatchesPrefix(String(row.action ?? ""), auditPrefix))
       .map((row) => ({
         kind: "audit" as const,
@@ -166,8 +273,26 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       source: (row.source as string | null) ?? null
     }));
 
-    const merged = [...auditEntries, ...noteEntries, ...statusEntries, ...claimEntries].sort((x, y) =>
-      x.at < y.at ? 1 : x.at > y.at ? -1 : 0
+    const notificationEntries: TimelineEntry[] = (notifications ?? [])
+      .filter((row) => notificationPayloadTripId((row.payload as Record<string, unknown> | null) ?? null) === tripId)
+      .map((row) => {
+        const payload = (row.payload as Record<string, unknown> | null) ?? {};
+        return {
+          kind: "notification" as const,
+          id: `j-${row.id}`,
+          at: row.created_at as string,
+          event_type: typeof payload.eventType === "string" ? payload.eventType : "notification",
+          channel: typeof payload.channel === "string" ? payload.channel : "unknown",
+          recipient_type: typeof payload.recipientType === "string" ? payload.recipientType : "unknown",
+          recipient_id: typeof payload.recipientId === "string" ? payload.recipientId : null,
+          status: row.status as string,
+          correlation_id: row.correlation_id as string,
+          last_error: (row.last_error as string | null) ?? null
+        };
+      });
+
+    const merged = [...auditEntries, ...noteEntries, ...statusEntries, ...claimEntries, ...notificationEntries].sort(
+      (x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0)
     );
 
     const profileIds: string[] = [];

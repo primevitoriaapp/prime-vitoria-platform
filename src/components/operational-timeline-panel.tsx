@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { notificationTimelineTitle } from "@/lib/trips/timeline-notification";
+import { timelineAuditLabel, timelineMetadataSummary } from "@/lib/trips/timeline-present";
 
 type Entry =
   | {
@@ -34,6 +36,18 @@ type Entry =
       at: string;
       action: "assumed" | "released";
       operator_profile_id: string;
+    }
+  | {
+      kind: "notification";
+      id: string;
+      at: string;
+      event_type: string;
+      channel: string;
+      recipient_type: string;
+      recipient_id: string | null;
+      status: string;
+      correlation_id: string;
+      last_error: string | null;
     };
 
 type AuditFilter = "" | "finance." | "trip.";
@@ -135,8 +149,12 @@ export function OperationalTimelinePanel({ tripId, devFallbackRole = "operador" 
                 </p>
                 {e.kind === "audit" ? (
                   <div className="mt-1">
-                    <span className="font-medium text-amber-800">{e.action}</span>
+                    <span className="font-medium text-amber-800">{timelineAuditLabel(e.action)}</span>
+                    <span className="ml-2 font-mono text-[11px] text-slate-400">{e.action}</span>
                     <span className="ml-2 text-xs text-slate-500">{profileLabel(e.actor_user_id, profileNames)}</span>
+                    {timelineMetadataSummary(e.metadata) ? (
+                      <p className="mt-1 text-xs text-slate-500">{timelineMetadataSummary(e.metadata)}</p>
+                    ) : null}
                   </div>
                 ) : e.kind === "status" ? (
                   <div className="mt-1">
@@ -153,6 +171,16 @@ export function OperationalTimelinePanel({ tripId, devFallbackRole = "operador" 
                       {e.action === "assumed" ? "Atendimento assumido" : "Atendimento libertado"}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">{profileLabel(e.operator_profile_id, profileNames)}</p>
+                  </div>
+                ) : e.kind === "notification" ? (
+                  <div className="mt-1">
+                    <span className="text-xs font-medium uppercase text-slate-500">Notificação</span>
+                    <p className="mt-1 text-slate-800">{notificationTimelineTitle({ eventType: e.event_type, channel: e.channel }, e.status)}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {e.recipient_type}
+                      {e.recipient_id ? ` ${e.recipient_id.slice(0, 8)}…` : ""} · {e.correlation_id}
+                    </p>
+                    {e.last_error ? <p className="mt-1 text-xs text-red-700">{e.last_error}</p> : null}
                   </div>
                 ) : (
                   <div className="mt-1">
