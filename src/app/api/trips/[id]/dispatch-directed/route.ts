@@ -5,7 +5,7 @@ import { canTransition } from "@/lib/domain/status";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
-import { hasDispatchConflict } from "@/lib/dispatch/conflicts";
+import { dispatchConflict } from "@/lib/dispatch/conflicts";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
@@ -41,6 +41,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return fail("INVALID_STATUS_TRANSITION", "Trip cannot be dispatched", 409);
     }
 
+    const { data: driver } = await db
+      .from("drivers")
+      .select("id, active, operational_status")
+      .eq("id", body.driver_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!driver?.active) return fail("DRIVER_NOT_AVAILABLE", "Motorista inativo ou fora do tenant", 409);
+    if (driver.operational_status === "offline") {
+      return fail("DRIVER_OFFLINE", "Motorista está offline e não pode receber despacho", 409);
+    }
+
     const { data: schedule } = await db
       .from("trips")
       .select("id, scheduled_at, operational_status")
@@ -48,15 +59,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .eq("driver_id", body.driver_id)
       .limit(100);
 
-    const conflict = hasDispatchConflict(
+    const conflict = dispatchConflict(
       (schedule ?? []).map((s) => ({
         tripId: s.id,
         scheduledAt: s.scheduled_at,
         status: s.operational_status
       })),
-      trip.scheduled_at
+      trip.scheduled_at,
+      90,
+      id
     );
-    if (conflict) return fail("DISPATCH_CONFLICT", "Driver has conflicting trip schedule", 409);
+    if (conflict) {
+      return fail("DISPATCH_CONFLICT", `Motorista tem conflito com a viagem ${conflict.tripId}`, 409);
+    }
 
     const { data, error } = await db
       .from("trips")

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { canTransition } from "../src/lib/domain/status.ts";
 import { calculateNetMargin } from "../src/lib/finance/margin.ts";
-import { hasDispatchConflict } from "../src/lib/dispatch/conflicts.ts";
+import { dispatchConflict, hasDispatchConflict } from "../src/lib/dispatch/conflicts.ts";
 import { erpIntegrationMode } from "../src/lib/integrations/erp-mode.ts";
 
 test("operational status machine blocks invalid jump", () => {
@@ -30,6 +30,11 @@ test("dispatch conflict within buffer", () => {
     "2026-05-10T10:45:00.000Z"
   );
   assert.equal(conflict, true);
+});
+
+test("dispatchConflict ignores current trip when requested", () => {
+  const schedule = [{ tripId: "current", scheduledAt: "2026-05-10T10:00:00.000Z", status: "accepted" }];
+  assert.equal(dispatchConflict(schedule, "2026-05-10T10:20:00.000Z", 90, "current"), null);
 });
 
 test("ERP mode is mock without credentials", () => {

@@ -8,6 +8,7 @@ import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-a
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
+import { dispatchConflict } from "@/lib/dispatch/conflicts";
 
 const bodySchema = z.object({
   new_driver_id: z.string().uuid(),
@@ -39,6 +40,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const claimCheck = await ensureOperationalClaimForMutation(session, tenantId, id, request);
     if (!claimCheck.ok) {
       return fail(claimCheck.code, claimCheck.message, claimCheck.code === "CLAIM_NOT_OWNER" ? 403 : 409);
+    }
+
+    const { data: driver } = await db
+      .from("drivers")
+      .select("id, active, operational_status")
+      .eq("id", body.new_driver_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!driver?.active) return fail("DRIVER_NOT_AVAILABLE", "Motorista inativo ou fora do tenant", 409);
+    if (driver.operational_status === "offline") {
+      return fail("DRIVER_OFFLINE", "Motorista está offline e não pode receber reatribuição", 409);
+    }
+
+    const { data: schedule } = await db
+      .from("trips")
+      .select("id, scheduled_at, operational_status")
+      .eq("tenant_id", tenantId)
+      .eq("driver_id", body.new_driver_id)
+      .limit(100);
+    const conflict = dispatchConflict(
+      (schedule ?? []).map((s) => ({
+        tripId: s.id,
+        scheduledAt: s.scheduled_at,
+        status: s.operational_status
+      })),
+      trip.scheduled_at,
+      90,
+      id
+    );
+    if (conflict) {
+      return fail("DISPATCH_CONFLICT", `Motorista tem conflito com a viagem ${conflict.tripId}`, 409);
     }
 
     const update: Record<string, unknown> = {

@@ -8,6 +8,7 @@ import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-a
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { runDispatchOfferRpcAndNotify } from "@/lib/dispatch/run-offer-creation";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
+import { dispatchConflict } from "@/lib/dispatch/conflicts";
 
 const createOfferSchema = z.object({
   trip_id: z.string().uuid(),
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
 
     const { data: trip, error: tripError } = await db
       .from("trips")
-      .select("id, client_id, driver_id, tenant_id")
+      .select("id, client_id, driver_id, tenant_id, scheduled_at")
       .eq("id", body.trip_id)
       .eq("tenant_id", tenantId)
       .single();
@@ -46,6 +47,45 @@ export async function POST(request: Request) {
     const claimCheck = await ensureOperationalClaimForMutation(session, tenantId, body.trip_id, request);
     if (!claimCheck.ok) {
       return fail(claimCheck.code, claimCheck.message, claimCheck.code === "CLAIM_NOT_OWNER" ? 403 : 409);
+    }
+
+    const { data: drivers } = await db
+      .from("drivers")
+      .select("id, active, operational_status")
+      .eq("tenant_id", tenantId)
+      .in("id", body.candidate_driver_ids);
+    const driverById = new Map((drivers ?? []).map((driver) => [driver.id as string, driver]));
+    const unavailableDriverId = body.candidate_driver_ids.find((driverId) => !driverById.get(driverId)?.active);
+    if (unavailableDriverId) {
+      return fail("DRIVER_NOT_AVAILABLE", `Motorista indisponível para oferta: ${unavailableDriverId}`, 409);
+    }
+    const offlineDriverId = body.candidate_driver_ids.find((driverId) => driverById.get(driverId)?.operational_status === "offline");
+    if (offlineDriverId) {
+      return fail("DRIVER_OFFLINE", `Motorista offline não pode receber oferta: ${offlineDriverId}`, 409);
+    }
+
+    const { data: candidateSchedules } = await db
+      .from("trips")
+      .select("id, driver_id, scheduled_at, operational_status")
+      .eq("tenant_id", tenantId)
+      .in("driver_id", body.candidate_driver_ids)
+      .limit(500);
+    for (const driverId of body.candidate_driver_ids) {
+      const conflict = dispatchConflict(
+        (candidateSchedules ?? [])
+          .filter((s) => s.driver_id === driverId)
+          .map((s) => ({
+            tripId: s.id,
+            scheduledAt: s.scheduled_at,
+            status: s.operational_status
+          })),
+        trip.scheduled_at,
+        90,
+        body.trip_id
+      );
+      if (conflict) {
+        return fail("DISPATCH_CONFLICT", `Motorista ${driverId} tem conflito com a viagem ${conflict.tripId}`, 409);
+      }
     }
 
     const createdByUuid = z.string().uuid().safeParse(session.userId);

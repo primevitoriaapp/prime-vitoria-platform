@@ -62,5 +62,6 @@
 - **Multiatendimento refinado:** claim ativo expõe idade em minutos e flag `stale` (45 min); conflitos orientam operador quando o atendimento parece antigo.
 - **In-app operacional (equipa):** após despacho directo, aprovação de oferta ou reatribuição, jobs `operations.trip_dispatched` / `operations.trip_reassigned` para `admin`/`operador` (exclui opcionalmente o actor); textos em `presentInAppNotification`.
 - **Estado operacional motorista:** coluna `drivers.operational_status` (`online`, `ocupado`, `deslocando`, `no_local`, `em_atendimento`, `offline`), endpoint `/api/drivers/operational-status`, painel no PWA motorista e atualização automática em despacho/reatribuição/transições.
+- **Regras de despacho:** despacho direto, reatribuição e ofertas validam motorista ativo/no tenant, bloqueiam motorista offline e recusam conflito de agenda dentro do buffer operacional.
 - **Ofertas agenda + motorista PWA:** painéis `TripAgendaOffersPanel`, `DriverOffersPanel`.
 - **Frota/clientes:** painéis com editar/desactivar; Sentry opcional; `GET /api/integrations/status`; `npm run erp:preflight`.

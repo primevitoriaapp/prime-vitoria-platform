@@ -6,16 +6,31 @@ export interface DriverScheduleItem {
 
 const ACTIVE_STATUSES = new Set(["dispatched", "accepted", "on_the_way", "arrived", "in_progress"]);
 
-export function hasDispatchConflict(existing: DriverScheduleItem[], nextScheduledAtIso: string, bufferMinutes = 90): boolean {
+export function dispatchConflict(
+  existing: DriverScheduleItem[],
+  nextScheduledAtIso: string,
+  bufferMinutes = 90,
+  ignoreTripId?: string
+): DriverScheduleItem | null {
   const target = new Date(nextScheduledAtIso).getTime();
   const bufferMs = bufferMinutes * 60 * 1000;
+  if (!Number.isFinite(target)) return null;
 
-  return existing.some((item) => {
-    if (!ACTIVE_STATUSES.has(item.status)) {
-      return false;
-    }
+  for (const item of existing) {
+    if (ignoreTripId && item.tripId === ignoreTripId) continue;
+    if (!ACTIVE_STATUSES.has(item.status)) continue;
 
     const existingTime = new Date(item.scheduledAt).getTime();
-    return Math.abs(existingTime - target) <= bufferMs;
-  });
+    if (Number.isFinite(existingTime) && Math.abs(existingTime - target) <= bufferMs) return item;
+  }
+  return null;
+}
+
+export function hasDispatchConflict(
+  existing: DriverScheduleItem[],
+  nextScheduledAtIso: string,
+  bufferMinutes = 90,
+  ignoreTripId?: string
+): boolean {
+  return dispatchConflict(existing, nextScheduledAtIso, bufferMinutes, ignoreTripId) != null;
 }
