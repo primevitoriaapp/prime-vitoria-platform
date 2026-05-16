@@ -72,6 +72,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (error) return fail("DISPATCH_FAILED", error.message, 500);
 
+    await db
+      .from("drivers")
+      .update({ operational_status: "ocupado", operational_status_updated_at: new Date().toISOString() })
+      .eq("id", body.driver_id)
+      .eq("tenant_id", tenantId);
+
     const { notifyTripDispatchedToStaff } = await import("@/lib/notifications/operational-notify");
     await notifyTripDispatchedToStaff(tenantId, id, body.driver_id, {
       dispatch_mode: "directed",

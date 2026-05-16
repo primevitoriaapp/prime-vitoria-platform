@@ -58,6 +58,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (error) return fail("TRIP_REASSIGN_FAILED", error.message, 500);
 
+    await db
+      .from("drivers")
+      .update({ operational_status: "ocupado", operational_status_updated_at: new Date().toISOString() })
+      .eq("id", body.new_driver_id)
+      .eq("tenant_id", tenantId);
+    if (trip.driver_id && trip.driver_id !== body.new_driver_id) {
+      await db
+        .from("drivers")
+        .update({ operational_status: "online", operational_status_updated_at: new Date().toISOString() })
+        .eq("id", trip.driver_id)
+        .eq("tenant_id", tenantId);
+    }
+
     const { notifyTripReassignedToStaff } = await import("@/lib/notifications/operational-notify");
     await notifyTripReassignedToStaff(tenantId, id, body.new_driver_id, (trip.driver_id as string | null) ?? null, {
       excludeActorProfileId: session.userId

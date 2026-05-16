@@ -2,6 +2,8 @@ export type UserRole = "admin" | "operador" | "financeiro" | "cliente" | "motori
 
 export type DispatchMode = "directed" | "offer";
 
+export type DriverOperationalStatus = "online" | "ocupado" | "deslocando" | "no_local" | "em_atendimento" | "offline";
+
 export type TripOperationalStatus =
   | "requested"
   | "approved"

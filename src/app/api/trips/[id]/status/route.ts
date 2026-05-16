@@ -10,6 +10,7 @@ import { insertAuditEvent } from "@/lib/server/audit-log";
 import { notifyTripStatusTransition } from "@/lib/notifications/trip-status-notify";
 import { runPostTripAutomation } from "@/lib/trips/post-trip-automation";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
+import { driverOperationalStatusForTrip } from "@/lib/drivers/operational-status";
 
 const bodySchema = z.object({
   to_status: z.enum([
@@ -86,6 +87,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .single();
 
     if (error) return fail("TRIP_STATUS_UPDATE_FAILED", error.message, 500);
+
+    const driverStatus = driverOperationalStatusForTrip(body.to_status);
+    if (data.driver_id && driverStatus) {
+      await db
+        .from("drivers")
+        .update({ operational_status: driverStatus, operational_status_updated_at: new Date().toISOString() })
+        .eq("id", data.driver_id)
+        .eq("tenant_id", tenantId);
+    }
 
     if (body.to_status === "completed") {
       await runPostTripAutomation({ tripId: id, tenantId, actorUserId: session.userId }).catch(() => {

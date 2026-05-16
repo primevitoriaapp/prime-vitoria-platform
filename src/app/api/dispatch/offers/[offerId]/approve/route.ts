@@ -65,6 +65,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
 
     if (offerError) return fail("OFFER_APPROVE_FAILED", offerError.message, 500);
 
+    await db
+      .from("drivers")
+      .update({ operational_status: "ocupado", operational_status_updated_at: new Date().toISOString() })
+      .eq("id", body.driver_id)
+      .eq("tenant_id", tenantId);
+
     const { notifyTripDispatchedToStaff } = await import("@/lib/notifications/operational-notify");
     await notifyTripDispatchedToStaff(tenantId, offer.trip_id, body.driver_id, {
       dispatch_mode: "offer",

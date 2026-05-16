@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DriverConsole } from "@/components/driver-console";
 import { DriverPushRegister } from "@/components/driver-push-register";
 import { DriverOffersPanel } from "@/components/driver-offers-panel";
+import { DriverOperationalStatusPanel } from "@/components/driver-operational-status-panel";
 import { DriverPayablesPanel } from "@/components/driver-payables-panel";
 import { DriverTripsPanel } from "@/components/driver-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
@@ -52,6 +53,7 @@ export default async function DriverPage() {
           Aceite a corrida, actualize o estado e use Maps/Waze. Ao concluir, o KM é recalculado automaticamente.
         </p>
 
+        <DriverOperationalStatusPanel />
         <DriverOffersPanel />
         <DriverTripsPanel tenantId={tenantId} />
 
