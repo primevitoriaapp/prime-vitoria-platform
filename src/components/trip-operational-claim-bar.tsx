@@ -10,7 +10,13 @@ type Props = { tripId: string; devFallbackRole?: "operador" | "admin" };
 export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }: Props) {
   const router = useRouter();
   const [active, setActive] = useState<
-    { operator_profile_id: string; claimed_at: string; operator_name?: string | null } | null | undefined
+    {
+      operator_profile_id: string;
+      claimed_at: string;
+      operator_name?: string | null;
+      age_minutes?: number;
+      stale?: boolean;
+    } | null | undefined
   >(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +101,7 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
               <span className="font-medium">{active.operator_name?.trim() || active.operator_profile_id.slice(0, 8)}</span>
               {" · "}
               {new Date(active.claimed_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+              {active.age_minutes != null ? ` · ha ${active.age_minutes} min` : ""}
             </span>
           ) : (
             <span className="ml-2 text-slate-600">Ninguém assumiu o atendimento desta viagem.</span>
@@ -119,6 +126,11 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
           </button>
         </div>
       </div>
+      {active?.stale ? (
+        <p className="mt-2 text-xs font-medium text-amber-900">
+          Atendimento parado há mais de 45 min. Se necessário, contacte admin para libertar.
+        </p>
+      ) : null}
       {error ? <p className="mt-2 text-xs text-red-700">{error}</p> : null}
     </div>
   );

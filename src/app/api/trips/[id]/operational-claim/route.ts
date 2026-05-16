@@ -6,6 +6,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability, can } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
+import { operationalClaimAgeMinutes, operationalClaimIsStale } from "@/lib/trips/operational-claim-state";
 
 async function loadTrip(tenantId: string, tripId: string) {
   const { data: trip, error } = await db
@@ -51,7 +52,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
 
     return ok({
-      active: claim ? { ...claim, operator_name } : null
+      active: claim
+        ? {
+            ...claim,
+            operator_name,
+            age_minutes: operationalClaimAgeMinutes(claim.claimed_at as string),
+            stale: operationalClaimIsStale(claim.claimed_at as string)
+          }
+        : null
     });
   } catch (error) {
     return mapApiError(error);

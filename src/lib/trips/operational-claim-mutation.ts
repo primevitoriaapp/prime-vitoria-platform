@@ -5,6 +5,7 @@ import { insertAuditEvent } from "@/lib/server/audit-log";
 import { isPostgresUniqueViolation } from "@/lib/server/postgres-errors";
 import { notifyOperationalClaimTaken } from "@/lib/notifications/operational-notify";
 import type { ClaimGuardResult } from "@/lib/trips/operational-claim-guard";
+import { operationalClaimConflictMessage } from "@/lib/trips/operational-claim-state";
 
 /**
  * Garante claim activo antes de mutações operacionais.
@@ -55,7 +56,7 @@ export async function ensureOperationalClaimForMutation(
       if (isPostgresUniqueViolation(error)) {
         const { data: again } = await db
           .from("trip_operational_claims")
-          .select("operator_profile_id")
+          .select("operator_profile_id, claimed_at")
           .eq("trip_id", tripId)
           .eq("tenant_id", tenantId)
           .is("released_at", null)
@@ -65,7 +66,7 @@ export async function ensureOperationalClaimForMutation(
           return {
             ok: false,
             code: "CLAIM_NOT_OWNER",
-            message: "Outro operador tem o atendimento desta viagem."
+            message: operationalClaimConflictMessage((again as { claimed_at?: string | null }).claimed_at ?? null)
           };
         }
       }
@@ -94,7 +95,7 @@ export async function ensureOperationalClaimForMutation(
     return {
       ok: false,
       code: "CLAIM_NOT_OWNER",
-      message: "Outro operador tem o atendimento desta viagem. Libertar ou contactar administrador."
+      message: operationalClaimConflictMessage(claim.claimed_at as string)
     };
   }
 
