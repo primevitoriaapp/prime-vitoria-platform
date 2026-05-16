@@ -8,7 +8,7 @@ import { assertCapability } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { notifyTripStatusTransition } from "@/lib/notifications/trip-status-notify";
-import { runPostTripAutomation } from "@/lib/trips/post-trip-automation";
+import { runPostTripAutomationSafely } from "@/lib/trips/post-trip-automation";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { driverOperationalStatusForTrip } from "@/lib/drivers/operational-status";
 
@@ -98,9 +98,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     if (body.to_status === "completed") {
-      await runPostTripAutomation({ tripId: id, tenantId, actorUserId: session.userId }).catch(() => {
-        /* não bloqueia conclusão */
-      });
+      await runPostTripAutomationSafely({ tripId: id, tenantId, actorUserId: session.userId });
     }
 
     if (body.to_status === "approved" && trip.operational_status !== "approved") {

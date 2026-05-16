@@ -5,6 +5,7 @@ import { enqueueInAppForTenantRoles } from "@/lib/notifications/enqueue-for-prof
 import { actualKmFromTrail, plannedKmFromCoords } from "@/lib/trips/km-distance";
 import { ensureAccountsReceivableFromTripFinancials } from "@/lib/finance/ensure-accounts-receivable";
 import { ensureDriverPayableFromTripFinancials } from "@/lib/finance/ensure-driver-payable";
+import { postTripAutomationFailureMetadata } from "@/lib/trips/post-trip-automation-failure";
 
 export type PostTripAutomationInput = {
   tripId: string;
@@ -12,11 +13,35 @@ export type PostTripAutomationInput = {
   actorUserId: string;
 };
 
-/** Após conclusão: recalcula KM, garante títulos financeiros a partir de `trip_financials`, auditoria e notificações. */
-export async function runPostTripAutomation(input: PostTripAutomationInput): Promise<{
+export type PostTripAutomationResult = {
   planned_km: number | null;
   actual_km: number | null;
+};
+
+export async function runPostTripAutomationSafely(input: PostTripAutomationInput): Promise<{
+  ok: boolean;
+  result?: PostTripAutomationResult;
+  error?: { message: string; name?: string };
 }> {
+  try {
+    const result = await runPostTripAutomation(input);
+    return { ok: true, result };
+  } catch (error) {
+    const metadata = postTripAutomationFailureMetadata(error);
+    await insertAuditEvent({
+      tenantId: input.tenantId,
+      actorUserId: input.actorUserId,
+      action: "trip.post_trip_automation_failed",
+      entityType: "trip",
+      entityId: input.tripId,
+      metadata
+    }).catch(() => undefined);
+    return { ok: false, error: metadata };
+  }
+}
+
+/** Após conclusão: recalcula KM, garante títulos financeiros a partir de `trip_financials`, auditoria e notificações. */
+export async function runPostTripAutomation(input: PostTripAutomationInput): Promise<PostTripAutomationResult> {
   const { tripId, tenantId, actorUserId } = input;
 
   const { data: trip } = await db
