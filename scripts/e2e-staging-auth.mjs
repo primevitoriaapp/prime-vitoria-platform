@@ -95,6 +95,9 @@ async function main() {
   if (role === "admin" || role === "operador") {
     await apiGet(token, "/api/operations/queue?page=1&pageSize=5");
     console.log("ok operations queue");
+    const st = encodeURIComponent(new Date(Date.now() + 864e5).toISOString());
+    await apiGet(token, `/api/operations/queue?page=1&pageSize=5&scheduled_to=${st}`);
+    console.log("ok operations queue (scheduled_to window)");
   }
 
   const inAppReaderRoles = ["admin", "operador", "financeiro"];
@@ -207,6 +210,16 @@ async function main() {
   if (role === "operador" || role === "admin") {
     await apiGet(token, "/api/operations/history?page=1&pageSize=5&days=7");
     console.log("ok operations history");
+    await apiGet(token, "/api/operations/history?page=1&pageSize=5&days=7&status=completed");
+    console.log("ok operations history (completed filter)");
+    const csvRes = await fetch(`${base}/api/operations/history?format=csv&days=5`, {
+      headers: { Authorization: `Bearer ${token}`, accept: "text/csv" }
+    });
+    const csvBody = await csvRes.text();
+    if (!csvRes.ok || !csvBody.includes("scheduled_at")) {
+      throw new Error(`operations history csv -> ${csvRes.status} ${csvBody.slice(0, 120)}`);
+    }
+    console.log("ok operations history csv");
   }
 
   const tripId = trips.items[0]?.id;

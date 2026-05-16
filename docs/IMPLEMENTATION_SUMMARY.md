@@ -44,12 +44,17 @@
 - Rastreio público: mapa Leaflet (origem/destino/GPS) em `/r/[token]`.
 - Motorista: `DriverTripsPanel` com corridas atribuídas e fluxo de estados.
 - Webhook ERP: inbound + caixa de entrada (`GET/POST` inbox, painel financeiro, realtime `0031`).
-- E2E: relatório operacional no smoke staging; Playwright `e2e/pilot-client-awaiting.spec.ts` (CI); `e2e/pilot-client-driver-staging.spec.ts` (staging); `test:e2e-playwright:staging`.
+- E2E: relatório operacional no smoke staging; Playwright `e2e/pilot-client-awaiting.spec.ts` (CI); `e2e/pilot-client-driver-staging.spec.ts` (staging); `e2e/pilot-operational-queue-mock.spec.ts`, `e2e/pilot-operational-claim-mock.spec.ts`; `test:e2e-playwright:staging`.
 - Notificações: push motorista + in-app financeiro/admin/operador; eventos `operations.*`; painéis agenda/despacho; smoke staging `in-app`; RLS (`0035`–`0037`).
-- **Vercel / go-live:** `docs/VERCEL_DEPLOY.md`, `npm run vercel:preflight`, `npm run go-live:preflight`; checklist em `docs/GO_LIVE_RUNBOOK.md`; RLS `erp_sync_jobs` (`0038`).
+- **Histórico operacional CSV:** `GET /api/operations/history?format=csv` (até 500 linhas, mesmos filtros); botão **CSV** no painel; `docs/E2E_PLAYWRIGHT.md`.
+- **Fila `unclaimedOnly`:** leitura até 300 viagens, filtro de claim em memória, `total` coerente com a lista filtrada.
+- **Queries partilhadas:** `parseOperationsHistoryQuery`, `parseOperationsQueueQuery` + testes `tests/operations-query-parse.test.ts`.
+- **Utilitários:** `endOfUtcDayIsoFromDateInput`, `buildOperationsHistoryCsv`, `canListAuditEvents` com testes dedicados.
+- **Resumo financeiro corrida:** `GET /api/trips/[id]/finance-summary` expõe `planned_km`, `actual_km`, `km_source`, `km_updated_at` a quem pode ler a viagem.
+- **Auditoria API:** `GET /api/audit-events` via `canListAuditEvents` (`admin` / `operador` / `financeiro`).
 - **Multiatendimento:** claim com nomes de operador; `ensureOperationalClaimForMutation` (auto-assume quando `require_operational_claim=false`); guardas em aprovar/despacho/ofertas/notas.
-- **Fila e histórico:** `GET /api/operations/queue` (nomes); `GET /api/operations/history` (filtros `status`, `client_id`, `driver_id`, `days`); timeline com `profile_names`.
-- **Pós-corrida:** `runPostTripAutomation` recalcula KM, `ensureDriverPayableFromTripFinancials` cria pagável se existir `trip_financials.amount_driver`.
+- **Fila e histórico:** `GET /api/operations/queue` (filtros `client_id`, `driver_id`, `scheduled_from`/`scheduled_to`, `unclaimedOnly`); `GET /api/operations/history` (+ `scheduled_to`); painéis com filtros, janela na fila, histórico «Até» data, «Carregar mais»; rastreio público com `km_updated_at`; timeline com `profile_names`.
+- **Pós-corrida:** `runPostTripAutomation` recalcula KM, `ensureDriverPayableFromTripFinancials` e `ensureAccountsReceivableFromTripFinancials` (se `trip_financials`), auditoria `finance.driver_payable_auto` / `finance.accounts_receivable_auto`, in-app AR; push + in-app **pagável motorista** só quando o pagável é **criado automaticamente** neste passo (coexistência com `trip.completed`).
 - **Comprovantes motorista:** `loadDriverPayableForSession` com intent `read`/`write`; motorista lista e envia comprovantes nos próprios títulos.
 - **UX multiatendimento:** evento `prime:operational-claim-changed` refresca barra de claim após aprovar/despacho/reatribuir/oferta.
 - **Ofertas agenda + motorista PWA:** painéis `TripAgendaOffersPanel`, `DriverOffersPanel`.

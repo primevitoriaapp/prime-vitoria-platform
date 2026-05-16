@@ -3,7 +3,7 @@ import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
-import { can } from "@/lib/security/rbac";
+import { canListAuditEvents } from "@/lib/security/audit-list-access";
 
 const listSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -12,12 +12,12 @@ const listSchema = z.object({
   action: z.string().trim().min(1).max(120).optional()
 });
 
-/** Lista eventos de auditoria do tenant (operacao / financeiro com leitura de viagens). */
+/** Lista eventos de auditoria do tenant (admin, operador ou financeiro). */
 export async function GET(request: Request) {
   try {
     const session = await getSessionContext();
-    if (!can(session, "trip.read")) {
-      return fail("FORBIDDEN", "Sem permissao para consultar auditoria", 403);
+    if (!canListAuditEvents(session.role)) {
+      return fail("FORBIDDEN", "Auditoria reservada a admin, operador e financeiro", 403);
     }
     const tenantId = assertTenantScope(session);
     const filters = listSchema.parse(Object.fromEntries(new URL(request.url).searchParams.entries()));

@@ -23,7 +23,8 @@ export default async function PublicTrackPage({ params }: PageProps) {
     origin_coords: snapshot.origin_coords,
     destination_coords: snapshot.destination_coords,
     planned_km: snapshot.planned_km,
-    actual_km: snapshot.actual_km
+    actual_km: snapshot.actual_km,
+    km_updated_at: snapshot.km_updated_at
   };
 
   return (

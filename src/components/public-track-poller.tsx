@@ -16,6 +16,7 @@ type TrackPayload = {
   destination_coords?: { lat: number; lng: number } | null;
   planned_km?: number | null;
   actual_km?: number | null;
+  km_updated_at?: string | null;
 };
 
 type Props = {
@@ -91,6 +92,12 @@ export function PublicTrackPoller({ token, initial }: Props) {
           <p className="mt-1 text-xs text-slate-500">
             Distância: {data.planned_km != null ? `${data.planned_km} km plan.` : ""}
             {data.actual_km != null ? ` · ${data.actual_km} km real` : ""}
+          </p>
+        ) : null}
+        {data.km_updated_at ? (
+          <p className="mt-1 text-xs text-slate-600">
+            KM actualizado:{" "}
+            {new Date(data.km_updated_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
           </p>
         ) : null}
         <p className="mt-3 text-xs text-slate-600">Atualiza automaticamente a cada 15 s.</p>

@@ -14,7 +14,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
     const { data: trip, error: tripErr } = await db
       .from("trips")
-      .select("id, client_id, driver_id, tenant_id, financial_status, operational_status")
+      .select("id, client_id, driver_id, tenant_id, financial_status, operational_status, planned_km, actual_km, km_source, km_updated_at")
       .eq("id", tripId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -52,6 +52,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       trip_id: tripId,
       financial_status: trip.financial_status,
       operational_status: trip.operational_status,
+      planned_km: trip.planned_km != null ? Number(trip.planned_km) : null,
+      actual_km: trip.actual_km != null ? Number(trip.actual_km) : null,
+      km_source: trip.km_source as string | null,
+      km_updated_at: trip.km_updated_at as string | null,
       has_receivable: Boolean(receivable?.id),
       receivable: showAmounts
         ? receivable

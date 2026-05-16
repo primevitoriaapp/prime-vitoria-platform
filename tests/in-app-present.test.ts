@@ -57,3 +57,19 @@ test("presentInAppNotification finance.driver_payable_open", () => {
   assert.match(view.body, /150\.50/);
   assert.equal(view.unread, false);
 });
+
+test("presentInAppNotification finance.accounts_receivable_open", () => {
+  const tid = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+  const view = presentInAppNotification({
+    id: "n5",
+    event_type: "finance.accounts_receivable_open",
+    payload: { tripId: tid, receivable_id: "r1" },
+    status: "sent",
+    sent_at: null,
+    read_at: null,
+    created_at: "2026-01-01T12:00:00Z"
+  });
+  assert.equal(view.title, "Conta a receber gerada");
+  assert.match(view.body, /pós-corrida/i);
+  assert.equal(view.tripId, tid);
+});

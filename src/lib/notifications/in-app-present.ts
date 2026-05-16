@@ -51,6 +51,12 @@ export function presentInAppNotification(row: InAppNotificationRow): InAppNotifi
           ? `Pagável de R$ ${Number(payload.amount).toFixed(2)} aguarda liquidação.`
           : "Novo pagável de motorista em aberto.";
       break;
+    case "finance.accounts_receivable_open":
+      title = "Conta a receber gerada";
+      body = tripId
+        ? `Nova conta a receber ligada à corrida ${tripId.slice(0, 8)}… (pós-corrida).`
+        : "Nova conta a receber em aberto.";
+      break;
     case "operations.trip_requested":
       title = "Nova solicitação de corrida";
       body = tripId ? `Corrida ${tripId.slice(0, 8)}… aguarda aprovação.` : "Nova corrida na fila operacional.";

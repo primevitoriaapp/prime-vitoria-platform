@@ -3,6 +3,7 @@ import { insertAuditEvent } from "@/lib/server/audit-log";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
 import { enqueueInAppForTenantRoles } from "@/lib/notifications/enqueue-for-profiles";
 import { actualKmFromTrail, plannedKmFromCoords } from "@/lib/trips/km-distance";
+import { ensureAccountsReceivableFromTripFinancials } from "@/lib/finance/ensure-accounts-receivable";
 import { ensureDriverPayableFromTripFinancials } from "@/lib/finance/ensure-driver-payable";
 
 export type PostTripAutomationInput = {
@@ -11,7 +12,7 @@ export type PostTripAutomationInput = {
   actorUserId: string;
 };
 
-/** Após conclusão: recalcula KM, regista auditoria e notifica financeiro se houver pagável em aberto. */
+/** Após conclusão: recalcula KM, garante títulos financeiros a partir de `trip_financials`, auditoria e notificações. */
 export async function runPostTripAutomation(input: PostTripAutomationInput): Promise<{
   planned_km: number | null;
   actual_km: number | null;
@@ -78,7 +79,40 @@ export async function runPostTripAutomation(input: PostTripAutomationInput): Pro
     metadata: { planned_km: planned, actual_km: actual, km_source: kmSource }
   });
 
-  await ensureDriverPayableFromTripFinancials(tripId, tenantId);
+  const dp = await ensureDriverPayableFromTripFinancials(tripId, tenantId);
+  const driverPayableAutoCreated = Boolean(dp.created && dp.payable_id);
+  if (driverPayableAutoCreated) {
+    await insertAuditEvent({
+      tenantId,
+      actorUserId,
+      action: "finance.driver_payable_auto",
+      entityType: "driver_payable",
+      entityId: dp.payable_id,
+      metadata: { trip_id: tripId }
+    });
+  }
+
+  const ar = await ensureAccountsReceivableFromTripFinancials(tripId, tenantId);
+  if (ar.created && ar.receivable_id) {
+    await insertAuditEvent({
+      tenantId,
+      actorUserId,
+      action: "finance.accounts_receivable_auto",
+      entityType: "accounts_receivable",
+      entityId: ar.receivable_id,
+      metadata: { trip_id: tripId }
+    });
+    await enqueueInAppForTenantRoles(
+      tenantId,
+      ["financeiro", "admin"],
+      {
+        eventType: "finance.accounts_receivable_open",
+        tripId,
+        receivable_id: ar.receivable_id
+      },
+      { correlation_id: `post-trip-${tripId}-ar` }
+    );
+  }
 
   const { data: payable } = await db
     .from("driver_payables")
@@ -87,7 +121,7 @@ export async function runPostTripAutomation(input: PostTripAutomationInput): Pro
     .eq("status", "open")
     .maybeSingle();
 
-  if (payable?.driver_id) {
+  if (payable?.driver_id && driverPayableAutoCreated) {
     await enqueueNotificationJob(
       {
         eventType: "finance.driver_payable_open",
