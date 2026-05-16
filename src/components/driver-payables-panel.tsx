@@ -11,6 +11,9 @@ type PayableRow = {
   amount: number;
   due_date: string;
   status: string;
+  days_until_due?: number;
+  overdue?: boolean;
+  due_label?: string;
 };
 
 type Props = {
@@ -154,6 +157,7 @@ export function DriverPayablesPanel({ tenantId, devFallbackRole = "financeiro" }
             <thead>
               <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
                 <th className="py-2 pr-2">Vencimento</th>
+                <th className="py-2 pr-2">Previsão</th>
                 <th className="py-2 pr-2">Valor</th>
                 <th className="py-2 pr-2">Estado</th>
                 <th className="py-2 pr-2">Comprovante</th>
@@ -164,6 +168,9 @@ export function DriverPayablesPanel({ tenantId, devFallbackRole = "financeiro" }
               {items.map((row) => (
                 <tr key={row.id} className="border-b border-slate-100">
                   <td className="py-2 pr-2">{row.due_date}</td>
+                  <td className={`py-2 pr-2 ${row.overdue ? "font-medium text-red-700" : ""}`}>
+                    {row.due_label ?? "—"}
+                  </td>
                   <td className="py-2 pr-2">
                     {Number(row.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </td>

@@ -4,6 +4,7 @@ import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
+import { driverPayableForecast } from "@/lib/finance/driver-payable-forecast";
 
 const listSchema = z.object({
   status: z.enum(["open", "paid", "cancelled"]).optional(),
@@ -48,7 +49,10 @@ export async function GET(request: Request) {
     if (error) return fail("DRIVER_PAYABLES_LIST_FAILED", error.message, 500);
 
     return ok({
-      items: data ?? [],
+      items: (data ?? []).map((row) => ({
+        ...row,
+        ...driverPayableForecast({ due_date: row.due_date as string, status: row.status as string })
+      })),
       page: q.page,
       pageSize: q.pageSize,
       total: count ?? 0

@@ -8,6 +8,7 @@ import { assertCapability } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { isPostgresUniqueViolation } from "@/lib/server/postgres-errors";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { driverPayableDueDate } from "@/lib/finance/driver-payable-forecast";
 
 const schema = z.object({
   amount_client: z.number().nonnegative(),
@@ -62,8 +63,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return fail("FINANCIAL_SAVE_FAILED", financialError.message, 500);
     }
 
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 30);
+    const dueDate = driverPayableDueDate();
 
     const { error: arError } = await db.from("accounts_receivable").upsert(
       {
@@ -72,7 +72,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         client_id: trip.client_id,
         amount: body.amount_client,
         issue_date: new Date().toISOString().slice(0, 10),
-        due_date: dueDate.toISOString().slice(0, 10),
+        due_date: dueDate,
         status: "open"
       },
       { onConflict: "trip_id" }
@@ -93,7 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           tenant_id: trip.tenant_id,
           driver_id: trip.driver_id,
           amount: body.amount_driver,
-          due_date: dueDate.toISOString().slice(0, 10),
+          due_date: dueDate,
           status: "open"
         },
         { onConflict: "trip_id,driver_id" }
