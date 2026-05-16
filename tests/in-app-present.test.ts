@@ -44,6 +44,50 @@ test("presentInAppNotification operations.trip_claimed", () => {
   assert.match(view.body, /Maria/);
 });
 
+test("presentInAppNotification operations.trip_dispatched directed", () => {
+  const tid = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+  const view = presentInAppNotification({
+    id: "n6",
+    event_type: "operations.trip_dispatched",
+    payload: { tripId: tid, driver_id: "d1", dispatch_mode: "directed" },
+    status: "sent",
+    sent_at: null,
+    read_at: null,
+    created_at: "2026-01-01T12:00:00Z"
+  });
+  assert.equal(view.title, "Corrida despachada");
+  assert.match(view.body, /despacho directo/);
+  assert.equal(view.tripId, tid);
+});
+
+test("presentInAppNotification operations.trip_dispatched offer", () => {
+  const view = presentInAppNotification({
+    id: "n7",
+    event_type: "operations.trip_dispatched",
+    payload: { tripId: "eee", dispatch_mode: "offer" },
+    status: "sent",
+    sent_at: null,
+    read_at: null,
+    created_at: "2026-01-01T12:00:00Z"
+  });
+  assert.match(view.body, /via oferta/);
+});
+
+test("presentInAppNotification operations.trip_reassigned", () => {
+  const tid = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+  const view = presentInAppNotification({
+    id: "n8",
+    event_type: "operations.trip_reassigned",
+    payload: { tripId: tid, new_driver_id: "n1", previous_driver_id: "p1" },
+    status: "sent",
+    sent_at: null,
+    read_at: null,
+    created_at: "2026-01-01T12:00:00Z"
+  });
+  assert.equal(view.title, "Corrida reatribuída");
+  assert.equal(view.tripId, tid);
+});
+
 test("presentInAppNotification finance.driver_payable_open", () => {
   const view = presentInAppNotification({
     id: "n2",

@@ -55,3 +55,52 @@ export async function notifyOperationalClaimTaken(
     }
   );
 }
+
+/** Despacho com motorista atribuído (painel directo ou aprovação de oferta) — visibilidade para equipa operacional. */
+export async function notifyTripDispatchedToStaff(
+  tenantId: string,
+  tripId: string,
+  driverId: string,
+  opts?: { dispatch_mode?: "directed" | "offer"; excludeActorProfileId?: string }
+): Promise<number> {
+  const exclude = opts?.excludeActorProfileId ? [opts.excludeActorProfileId] : undefined;
+  return enqueueInAppForTenantRoles(
+    tenantId,
+    [...STAFF_ROLES],
+    {
+      eventType: "operations.trip_dispatched",
+      tripId,
+      driver_id: driverId,
+      dispatch_mode: opts?.dispatch_mode ?? "directed"
+    },
+    {
+      correlation_id: `trip-${tripId}-staff-dispatch-${driverId}`,
+      excludeProfileIds: exclude
+    }
+  );
+}
+
+/** Reatribuição de motorista — aviso in-app à equipa (exclui quem executou a acção). */
+export async function notifyTripReassignedToStaff(
+  tenantId: string,
+  tripId: string,
+  newDriverId: string,
+  previousDriverId: string | null,
+  opts?: { excludeActorProfileId?: string }
+): Promise<number> {
+  const exclude = opts?.excludeActorProfileId ? [opts.excludeActorProfileId] : undefined;
+  return enqueueInAppForTenantRoles(
+    tenantId,
+    [...STAFF_ROLES],
+    {
+      eventType: "operations.trip_reassigned",
+      tripId,
+      new_driver_id: newDriverId,
+      previous_driver_id: previousDriverId
+    },
+    {
+      correlation_id: `trip-${tripId}-staff-reassign-${newDriverId}`,
+      excludeProfileIds: exclude
+    }
+  );
+}

@@ -39,7 +39,7 @@ Jobs com `channel: "in_app"` e `recipientType: "profile"` sao processados sem FC
 - Conclusao de corrida (`trip.completed`) para perfis `financeiro` e `admin`
 - Pagavel motorista em aberto: push + in-app **apenas** quando o pós-corrida **cria** o titulo automaticamente a partir de `trip_financials` (evita duplicar com titulo ja gerado em `finance/trips/generate`).
 - Conta a receber gerada automaticamente (`finance.accounts_receivable_open` in-app para admin/financeiro quando `ensureAccountsReceivableFromTripFinancials` cria titulo)
-- Operacional (`operations.*`) para `admin` e `operador`: nova solicitacao, corrida aprovada, claim assumido por outro (`operational-notify.ts`)
+- Operacional (`operations.*`) para `admin` e `operador`: nova solicitacao, corrida aprovada, claim assumido por outro, **despacho com motorista** (`operations.trip_dispatched`), **reatribuicao** (`operations.trip_reassigned`) — ver `operational-notify.ts`
 
 Push ao motorista continua a exigir `FCM_SERVER_KEY` e `POST /api/drivers/push-token`.
 

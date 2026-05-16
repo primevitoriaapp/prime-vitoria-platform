@@ -57,5 +57,6 @@
 - **Pós-corrida:** `runPostTripAutomation` recalcula KM, `ensureDriverPayableFromTripFinancials` e `ensureAccountsReceivableFromTripFinancials` (se `trip_financials`), auditoria `finance.driver_payable_auto` / `finance.accounts_receivable_auto`, in-app AR; push + in-app **pagável motorista** só quando o pagável é **criado automaticamente** neste passo (coexistência com `trip.completed`).
 - **Comprovantes motorista:** `loadDriverPayableForSession` com intent `read`/`write`; motorista lista e envia comprovantes nos próprios títulos.
 - **UX multiatendimento:** evento `prime:operational-claim-changed` refresca barra de claim após aprovar/despacho/reatribuir/oferta.
+- **In-app operacional (equipa):** após despacho directo, aprovação de oferta ou reatribuição, jobs `operations.trip_dispatched` / `operations.trip_reassigned` para `admin`/`operador` (exclui opcionalmente o actor); textos em `presentInAppNotification`.
 - **Ofertas agenda + motorista PWA:** painéis `TripAgendaOffersPanel`, `DriverOffersPanel`.
 - **Frota/clientes:** painéis com editar/desactivar; Sentry opcional; `GET /api/integrations/status`; `npm run erp:preflight`.

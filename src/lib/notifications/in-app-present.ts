@@ -76,6 +76,21 @@ export function presentInAppNotification(row: InAppNotificationRow): InAppNotifi
         : `${who} assumiu o atendimento de uma corrida.`;
       break;
     }
+    case "operations.trip_dispatched": {
+      title = "Corrida despachada";
+      const mode = payload.dispatch_mode === "offer" ? "via oferta" : "despacho directo";
+      body = tripId
+        ? `Motorista atribuído (${mode}). Corrida ${tripId.slice(0, 8)}….`
+        : `Nova atribuição de motorista (${mode}).`;
+      break;
+    }
+    case "operations.trip_reassigned": {
+      title = "Corrida reatribuída";
+      body = tripId
+        ? `Nova atribuição de motorista para a corrida ${tripId.slice(0, 8)}….`
+        : "Corrida reatribuída a outro motorista.";
+      break;
+    }
     default:
       if (typeof payload.title === "string") title = payload.title;
       if (typeof payload.body === "string") body = payload.body;

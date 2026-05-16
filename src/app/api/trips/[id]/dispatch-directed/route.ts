@@ -72,6 +72,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (error) return fail("DISPATCH_FAILED", error.message, 500);
 
+    const { notifyTripDispatchedToStaff } = await import("@/lib/notifications/operational-notify");
+    await notifyTripDispatchedToStaff(tenantId, id, body.driver_id, {
+      dispatch_mode: "directed",
+      excludeActorProfileId: session.userId
+    });
+
     await enqueueNotificationJob(
       {
         eventType: "trip_dispatched",

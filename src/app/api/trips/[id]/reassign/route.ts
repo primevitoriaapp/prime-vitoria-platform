@@ -58,6 +58,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (error) return fail("TRIP_REASSIGN_FAILED", error.message, 500);
 
+    const { notifyTripReassignedToStaff } = await import("@/lib/notifications/operational-notify");
+    await notifyTripReassignedToStaff(tenantId, id, body.new_driver_id, (trip.driver_id as string | null) ?? null, {
+      excludeActorProfileId: session.userId
+    });
+
     await enqueueNotificationJob(
       {
         eventType: "trip_dispatched",
