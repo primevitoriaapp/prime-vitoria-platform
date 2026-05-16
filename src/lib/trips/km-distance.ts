@@ -25,13 +25,27 @@ export function plannedKmFromCoords(trip: TripCoords): number | null {
 
 export type GpsPoint = { lat: number; lng: number; recorded_at: string };
 
-/** Soma segmentos consecutivos do trail GPS (km). */
-export function actualKmFromTrail(points: GpsPoint[]): number | null {
-  if (points.length < 2) return null;
-  const sorted = [...points].sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
+function validPoint(point: GpsPoint): boolean {
+  return (
+    Number.isFinite(point.lat) &&
+    Number.isFinite(point.lng) &&
+    point.lat >= -90 &&
+    point.lat <= 90 &&
+    point.lng >= -180 &&
+    point.lng <= 180 &&
+    Number.isFinite(Date.parse(point.recorded_at))
+  );
+}
+
+/** Soma segmentos consecutivos do trail GPS (km), ignorando pontos inválidos e saltos prováveis de GPS ruim. */
+export function actualKmFromTrail(points: GpsPoint[], opts?: { maxSegmentKm?: number }): number | null {
+  const maxSegmentKm = opts?.maxSegmentKm ?? 25;
+  const sorted = points.filter(validPoint).sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
+  if (sorted.length < 2) return null;
   let total = 0;
   for (let i = 1; i < sorted.length; i++) {
-    total += haversineKm(sorted[i - 1].lat, sorted[i - 1].lng, sorted[i].lat, sorted[i].lng);
+    const segment = haversineKm(sorted[i - 1].lat, sorted[i - 1].lng, sorted[i].lat, sorted[i].lng);
+    if (segment <= maxSegmentKm) total += segment;
   }
-  return Math.round(total * 100) / 100;
+  return total > 0 ? Math.round(total * 100) / 100 : null;
 }

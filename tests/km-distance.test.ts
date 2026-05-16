@@ -36,3 +36,18 @@ test("actualKmFromTrail null with single point", () => {
     null
   );
 });
+
+test("actualKmFromTrail ignores invalid points and GPS jumps", () => {
+  const km = actualKmFromTrail(
+    [
+      { lat: -20.31, lng: -40.31, recorded_at: "2026-01-01T10:00:00Z" },
+      { lat: -20.32, lng: -40.32, recorded_at: "2026-01-01T10:05:00Z" },
+      { lat: 10_000, lng: -40.32, recorded_at: "2026-01-01T10:06:00Z" },
+      { lat: 0, lng: 0, recorded_at: "2026-01-01T10:07:00Z" },
+      { lat: -20.33, lng: -40.33, recorded_at: "2026-01-01T10:10:00Z" }
+    ],
+    { maxSegmentKm: 10 }
+  );
+
+  assert.ok(km != null && km > 0 && km < 5);
+});
