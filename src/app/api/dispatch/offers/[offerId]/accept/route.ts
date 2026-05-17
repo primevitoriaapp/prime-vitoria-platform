@@ -5,6 +5,7 @@ import { isPostgresUniqueViolation } from "@/lib/server/postgres-errors";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
+import { dispatchOfferIsExpired } from "@/lib/dispatch/offer-expiration";
 
 const bodySchema = z.object({
   eta_minutes: z.number().int().min(1).max(240).optional()
@@ -23,7 +24,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
     const { data: offer } = await db.from("dispatch_offers").select("*").eq("id", offerId).eq("tenant_id", tenantId).single();
     if (!offer) return fail("OFFER_NOT_FOUND", "Offer not found", 404);
     if (offer.status !== "open") return fail("OFFER_CLOSED", "Offer is no longer open", 409);
-    if (new Date(offer.expires_at).getTime() < Date.now()) return fail("OFFER_EXPIRED", "Offer expired", 409);
+    if (dispatchOfferIsExpired(offer.expires_at)) return fail("OFFER_EXPIRED", "Offer expired", 409);
 
     const { data: recipient } = await db
       .from("dispatch_offer_recipients")

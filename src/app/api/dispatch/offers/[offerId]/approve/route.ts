@@ -11,6 +11,7 @@ import { enqueueNotificationJob } from "@/lib/notifications/events";
 import { canTransition } from "@/lib/domain/status";
 import { dispatchConflict } from "@/lib/dispatch/conflicts";
 import { runBestEffort } from "@/lib/server/best-effort";
+import { dispatchOfferIsExpired } from "@/lib/dispatch/offer-expiration";
 
 const bodySchema = z.object({
   driver_id: z.string().uuid()
@@ -27,6 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
     const { data: offer } = await db.from("dispatch_offers").select("*").eq("id", offerId).eq("tenant_id", tenantId).single();
     if (!offer) return fail("OFFER_NOT_FOUND", "Offer not found", 404);
     if (offer.status !== "open") return fail("OFFER_CLOSED", "Offer already finalized", 409);
+    if (dispatchOfferIsExpired(offer.expires_at)) return fail("OFFER_EXPIRED", "Offer expired", 409);
 
     const { data: trip, error: tripLoadError } = await db
       .from("trips")
