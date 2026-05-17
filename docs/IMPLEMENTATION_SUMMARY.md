@@ -71,5 +71,6 @@
 - **Hardening notificações:** falhas retryable em `notification_jobs` respeitam `attempt_count`, `max_attempts` e `next_retry_at` antes de virar erro final.
 - **Hardening pós-mutação:** notificações de despacho/reatribuição/oferta são best-effort após alterar a viagem, evitando erro tardio quando a mutação principal já foi persistida.
 - **Hardening rastreio público:** criação de token público retorna sucesso após persistir o token mesmo se a auditoria pós-criação falhar.
+- **Bootstrap operacional:** `npm run bootstrap:prime` configura tenant Prime Vitória, admin owner, cliente/motorista/veículo e corridas teste de forma idempotente.
 - **Ofertas agenda + motorista PWA:** painéis `TripAgendaOffersPanel`, `DriverOffersPanel`.
 - **Frota/clientes:** painéis com editar/desactivar; Sentry opcional; `GET /api/integrations/status`; `npm run erp:preflight`.

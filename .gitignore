@@ -21,3 +21,4 @@ playwright-report/
 
 # upstream clone scratch (if used)
 _upstream-prime-executive-fleet/
+.vercel

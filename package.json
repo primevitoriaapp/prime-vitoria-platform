@@ -24,6 +24,7 @@
     "db:migrate": "npx supabase migration up",
     "db:apply-migration": "bash scripts/apply-migration.sh",
     "seed:staging": "node scripts/seed-staging-operational.mjs",
+    "bootstrap:prime": "node scripts/bootstrap-prime-vitoria.mjs",
     "vercel:preflight": "node scripts/vercel-preflight.mjs",
     "go-live:preflight": "node scripts/go-live-preflight.mjs"
   },
