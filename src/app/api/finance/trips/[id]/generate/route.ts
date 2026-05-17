@@ -9,6 +9,7 @@ import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-a
 import { isPostgresUniqueViolation } from "@/lib/server/postgres-errors";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { driverPayableDueDate } from "@/lib/finance/driver-payable-forecast";
+import { financialTitleBlocksRegeneration, financialTitleStatusLabel } from "@/lib/finance/financial-regeneration";
 
 const schema = z.object({
   amount_client: z.number().nonnegative(),
@@ -46,6 +47,43 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       })
     );
     if (denied) return denied;
+
+    const [existingReceivableResult, existingPayableResult] = await Promise.all([
+      db.from("accounts_receivable").select("id, status").eq("trip_id", id).eq("tenant_id", tenantId).maybeSingle(),
+      trip.driver_id
+        ? db
+            .from("driver_payables")
+            .select("id, status")
+            .eq("trip_id", id)
+            .eq("tenant_id", tenantId)
+            .eq("driver_id", trip.driver_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null })
+    ]);
+    if (existingReceivableResult.error) {
+      return fail("RECEIVABLE_LOAD_FAILED", existingReceivableResult.error.message, 500);
+    }
+    if (existingPayableResult.error) {
+      return fail("PAYABLE_LOAD_FAILED", existingPayableResult.error.message, 500);
+    }
+
+    const existingReceivable = existingReceivableResult.data;
+    if (financialTitleBlocksRegeneration(existingReceivable?.status as string | null | undefined)) {
+      return fail(
+        "RECEIVABLE_STATUS_LOCKED",
+        `Conta a receber já está ${financialTitleStatusLabel(existingReceivable?.status as string | null | undefined)}; reabra antes de regenerar`,
+        409
+      );
+    }
+
+    const existingPayable = existingPayableResult.data;
+    if (financialTitleBlocksRegeneration(existingPayable?.status as string | null | undefined)) {
+      return fail(
+        "PAYABLE_STATUS_LOCKED",
+        `Pagável do motorista já está ${financialTitleStatusLabel(existingPayable?.status as string | null | undefined)}; reabra antes de regenerar`,
+        409
+      );
+    }
 
     const { error: financialError } = await db.from("trip_financials").upsert(
       {
