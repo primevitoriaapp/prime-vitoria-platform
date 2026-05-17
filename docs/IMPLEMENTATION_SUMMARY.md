@@ -64,5 +64,6 @@
 - **In-app status operacional:** transições para cancelada, em deslocamento e no local notificam `admin`/`operador` via `operations.trip_cancelled`, `operations.trip_on_the_way` e `operations.trip_arrived`.
 - **Estado operacional motorista:** coluna `drivers.operational_status` (`online`, `ocupado`, `deslocando`, `no_local`, `em_atendimento`, `offline`), endpoint `/api/drivers/operational-status`, painel no PWA motorista e atualização automática em despacho/reatribuição/transições.
 - **Regras de despacho:** despacho direto, reatribuição e ofertas validam motorista ativo/no tenant, bloqueiam motorista offline e recusam conflito de agenda dentro do buffer operacional.
+- **Hardening de ofertas:** aprovação de oferta revalida status da viagem, claim operacional, candidatura, aceite do motorista e disponibilidade antes de atribuir a corrida.
 - **Ofertas agenda + motorista PWA:** painéis `TripAgendaOffersPanel`, `DriverOffersPanel`.
 - **Frota/clientes:** painéis com editar/desactivar; Sentry opcional; `GET /api/integrations/status`; `npm run erp:preflight`.

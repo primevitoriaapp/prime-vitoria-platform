@@ -8,6 +8,8 @@ import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-a
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
+import { canTransition } from "@/lib/domain/status";
+import { dispatchConflict } from "@/lib/dispatch/conflicts";
 
 const bodySchema = z.object({
   driver_id: z.string().uuid()
@@ -27,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
 
     const { data: trip, error: tripLoadError } = await db
       .from("trips")
-      .select("id, client_id, driver_id, tenant_id")
+      .select("id, client_id, driver_id, tenant_id, operational_status, scheduled_at")
       .eq("id", offer.trip_id)
       .eq("tenant_id", tenantId)
       .single();
@@ -40,6 +42,61 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
       })
     );
     if (tripDenied) return tripDenied;
+
+    if (!canTransition(trip.operational_status, "dispatched")) {
+      return fail("INVALID_STATUS_TRANSITION", "Trip cannot be dispatched", 409);
+    }
+
+    const { data: recipient } = await db
+      .from("dispatch_offer_recipients")
+      .select("id")
+      .eq("offer_id", offerId)
+      .eq("driver_id", body.driver_id)
+      .maybeSingle();
+    if (!recipient) return fail("OFFER_DRIVER_NOT_CANDIDATE", "Motorista não pertence a esta oferta", 409);
+
+    const { data: acceptedResponse } = await db
+      .from("dispatch_offer_responses")
+      .select("id")
+      .eq("offer_id", offerId)
+      .eq("driver_id", body.driver_id)
+      .eq("status", "accepted")
+      .maybeSingle();
+    if (!acceptedResponse) return fail("OFFER_DRIVER_NOT_ACCEPTED", "Motorista ainda não aceitou esta oferta", 409);
+
+    const { data: driver } = await db
+      .from("drivers")
+      .select("id, active, operational_status")
+      .eq("id", body.driver_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!driver?.active) return fail("DRIVER_NOT_AVAILABLE", "Motorista inativo ou fora do tenant", 409);
+    if (driver.operational_status === "offline") {
+      return fail("DRIVER_OFFLINE", "Motorista está offline e não pode receber despacho", 409);
+    }
+
+    const { data: schedule } = await db
+      .from("trips")
+      .select("id, scheduled_at, operational_status")
+      .eq("tenant_id", tenantId)
+      .eq("driver_id", body.driver_id)
+      .limit(100);
+    const conflict = dispatchConflict(
+      (schedule ?? []).map((s) => ({
+        tripId: s.id,
+        scheduledAt: s.scheduled_at,
+        status: s.operational_status
+      })),
+      trip.scheduled_at,
+      90,
+      trip.id
+    );
+    if (conflict) return fail("DISPATCH_CONFLICT", `Motorista tem conflito com a viagem ${conflict.tripId}`, 409);
+
+    const claimCheck = await ensureOperationalClaimForMutation(session, tenantId, offer.trip_id, request);
+    if (!claimCheck.ok) {
+      return fail(claimCheck.code, claimCheck.message, claimCheck.code === "CLAIM_NOT_OWNER" ? 403 : 409);
+    }
 
     const { error: tripError } = await db
       .from("trips")

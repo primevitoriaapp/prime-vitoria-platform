@@ -37,6 +37,15 @@ test("dispatchConflict ignores current trip when requested", () => {
   assert.equal(dispatchConflict(schedule, "2026-05-10T10:20:00.000Z", 90, "current"), null);
 });
 
+test("dispatchConflict ignores terminal trips and invalid dates", () => {
+  const schedule = [
+    { tripId: "done", scheduledAt: "2026-05-10T10:00:00.000Z", status: "completed" },
+    { tripId: "bad", scheduledAt: "not-a-date", status: "accepted" }
+  ];
+  assert.equal(dispatchConflict(schedule, "2026-05-10T10:20:00.000Z"), null);
+  assert.equal(dispatchConflict(schedule, "not-a-date"), null);
+});
+
 test("ERP mode is mock without credentials", () => {
   assert.equal(erpIntegrationMode("conta_azul"), "mock");
   assert.equal(erpIntegrationMode("omie"), "mock");
