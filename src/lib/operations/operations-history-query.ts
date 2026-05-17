@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const OPERATIONS_HISTORY_STATUSES = ["completed", "cancelled", "no_show", "rejected"] as const;
 
+const isoDateTimeQueryParam = z.string().max(50).datetime({ offset: true });
+
 export const operationsHistoryQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(30),
@@ -9,7 +11,7 @@ export const operationsHistoryQuerySchema = z.object({
   client_id: z.string().uuid().optional(),
   driver_id: z.string().uuid().optional(),
   status: z.enum(["completed", "cancelled", "no_show", "rejected"]).optional(),
-  scheduled_to: z.string().max(50).optional(),
+  scheduled_to: isoDateTimeQueryParam.optional(),
   format: z.enum(["json", "csv"]).default("json")
 });
 
