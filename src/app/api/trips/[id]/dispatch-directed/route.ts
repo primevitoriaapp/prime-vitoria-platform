@@ -10,6 +10,7 @@ import { enqueueNotificationJob } from "@/lib/notifications/events";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
+import { runBestEffort } from "@/lib/server/best-effort";
 
 const bodySchema = z.object({
   driver_id: z.string().uuid(),
@@ -94,20 +95,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .eq("tenant_id", tenantId);
 
     const { notifyTripDispatchedToStaff } = await import("@/lib/notifications/operational-notify");
-    await notifyTripDispatchedToStaff(tenantId, id, body.driver_id, {
-      dispatch_mode: "directed",
-      excludeActorProfileId: session.userId
-    });
+    await runBestEffort("trip.dispatch_directed.staff_notify", () =>
+      notifyTripDispatchedToStaff(tenantId, id, body.driver_id, {
+        dispatch_mode: "directed",
+        excludeActorProfileId: session.userId
+      })
+    );
 
-    await enqueueNotificationJob(
-      {
-        eventType: "trip_dispatched",
-        channel: "push",
-        recipientType: "driver",
-        recipientId: body.driver_id,
-        tripId: id
-      },
-      { tenantId, correlation_id: `trip-${id}-dispatch-${body.driver_id}` }
+    await runBestEffort("trip.dispatch_directed.driver_push", () =>
+      enqueueNotificationJob(
+        {
+          eventType: "trip_dispatched",
+          channel: "push",
+          recipientType: "driver",
+          recipientId: body.driver_id,
+          tripId: id
+        },
+        { tenantId, correlation_id: `trip-${id}-dispatch-${body.driver_id}` }
+      )
     );
 
     await insertAuditEvent({

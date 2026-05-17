@@ -9,6 +9,7 @@ import { insertAuditEvent } from "@/lib/server/audit-log";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
 import { dispatchConflict } from "@/lib/dispatch/conflicts";
+import { runBestEffort } from "@/lib/server/best-effort";
 
 const bodySchema = z.object({
   new_driver_id: z.string().uuid(),
@@ -104,19 +105,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const { notifyTripReassignedToStaff } = await import("@/lib/notifications/operational-notify");
-    await notifyTripReassignedToStaff(tenantId, id, body.new_driver_id, (trip.driver_id as string | null) ?? null, {
-      excludeActorProfileId: session.userId
-    });
+    await runBestEffort("trip.reassign.staff_notify", () =>
+      notifyTripReassignedToStaff(tenantId, id, body.new_driver_id, (trip.driver_id as string | null) ?? null, {
+        excludeActorProfileId: session.userId
+      })
+    );
 
-    await enqueueNotificationJob(
-      {
-        eventType: "trip_dispatched",
-        channel: "push",
-        recipientType: "driver",
-        recipientId: body.new_driver_id,
-        tripId: id
-      },
-      { tenantId, correlation_id: `trip-${id}-reassign-${body.new_driver_id}` }
+    await runBestEffort("trip.reassign.driver_push", () =>
+      enqueueNotificationJob(
+        {
+          eventType: "trip_dispatched",
+          channel: "push",
+          recipientType: "driver",
+          recipientId: body.new_driver_id,
+          tripId: id
+        },
+        { tenantId, correlation_id: `trip-${id}-reassign-${body.new_driver_id}` }
+      )
     );
 
     await insertAuditEvent({
