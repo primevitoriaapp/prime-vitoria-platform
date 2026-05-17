@@ -67,5 +67,6 @@
 - **Hardening de ofertas:** aprovação de oferta revalida status da viagem, claim operacional, candidatura, aceite do motorista e disponibilidade antes de atribuir a corrida.
 - **Hardening financeiro:** regeneração financeira da viagem não reabre automaticamente contas/pagáveis já `paid` ou `cancelled`; exige reabertura explícita antes de recalcular.
 - **Hardening filtros operacionais:** `scheduled_from`/`scheduled_to` em fila e histórico exigem datetime ISO com offset antes de chegar ao banco.
+- **Hardening notificações:** falhas retryable em `notification_jobs` respeitam `attempt_count`, `max_attempts` e `next_retry_at` antes de virar erro final.
 - **Ofertas agenda + motorista PWA:** painéis `TripAgendaOffersPanel`, `DriverOffersPanel`.
 - **Frota/clientes:** painéis com editar/desactivar; Sentry opcional; `GET /api/integrations/status`; `npm run erp:preflight`.

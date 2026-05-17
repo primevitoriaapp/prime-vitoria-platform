@@ -6,6 +6,7 @@ import type { Provider } from "../integrations/types";
 import { isPostgresUniqueViolation } from "../server/postgres-errors";
 import { insertAuditEvent } from "../server/audit-log";
 import { fcmDataFromPayload, sendFcmLegacyDataMessage } from "../notifications/fcm-legacy";
+import { notificationFailureUpdate } from "../notifications/job-retry";
 
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -16,10 +17,12 @@ export type NotificationProcessOptions = {
 
 export async function processNotificationJobs(opts?: NotificationProcessOptions) {
   const limit = opts?.limit ?? 20;
+  const readyAt = new Date().toISOString();
   let query = db
     .from("notification_jobs")
     .select("*")
     .eq("status", "queued")
+    .or(`next_retry_at.is.null,next_retry_at.lte.${readyAt}`)
     .order("created_at", { ascending: true })
     .limit(limit);
 
@@ -39,12 +42,20 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
     const recipientType = String(payload.recipientType ?? "unknown");
     const recipientId = String(payload.recipientId ?? "");
 
-    const now = new Date().toISOString();
+    const nowDate = new Date();
+    const now = nowDate.toISOString();
     const attempts = (job.attempt_count ?? 0) + 1;
 
     const jobTenantId = job.tenant_id as string | undefined;
 
-    const failJob = async (lastError: string, notifError: string) => {
+    const failJob = async (lastError: string, notifError: string, opts?: { retryable?: boolean }) => {
+      const failure = notificationFailureUpdate({
+        attemptCountBefore: job.attempt_count,
+        maxAttempts: job.max_attempts,
+        now: nowDate,
+        lastError,
+        retryable: opts?.retryable
+      });
       if (!jobTenantId) {
         await db
           .from("notification_jobs")
@@ -52,30 +63,34 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
             status: "error",
             last_error: "MISSING_TENANT_ID",
             attempt_count: attempts,
+            next_retry_at: null,
             updated_at: now
           })
           .eq("id", job.id);
         processed += 1;
         return;
       }
-      await db.from("notifications").insert({
-        tenant_id: jobTenantId,
-        job_id: job.id,
-        channel,
-        recipient_type: recipientType,
-        recipient_id: recipientId || "unknown",
-        event_type: eventType,
-        payload: job.payload,
-        status: "failed",
-        sent_at: null,
-        error: notifError
-      });
+      if (failure.status === "error") {
+        await db.from("notifications").insert({
+          tenant_id: jobTenantId,
+          job_id: job.id,
+          channel,
+          recipient_type: recipientType,
+          recipient_id: recipientId || "unknown",
+          event_type: eventType,
+          payload: job.payload,
+          status: "failed",
+          sent_at: null,
+          error: notifError
+        });
+      }
       await db
         .from("notification_jobs")
         .update({
-          status: "error",
-          last_error: lastError,
-          attempt_count: attempts,
+          status: failure.status,
+          last_error: failure.last_error,
+          attempt_count: failure.attempt_count,
+          next_retry_at: failure.next_retry_at,
           updated_at: now
         })
         .eq("id", job.id);
@@ -110,7 +125,7 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
       });
       await db
         .from("notification_jobs")
-        .update({ status: "success", last_error: null, attempt_count: attempts, updated_at: now })
+        .update({ status: "success", last_error: null, attempt_count: attempts, next_retry_at: null, updated_at: now })
         .eq("id", job.id);
       processed += 1;
     };
@@ -126,7 +141,9 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
     }
 
     if (recipientType !== "driver" || !recipientId || !uuidRe.test(recipientId)) {
-      await failJob("UNSUPPORTED_RECIPIENT", `Destinatario invalido: type=${recipientType} id=${recipientId}`);
+      await failJob("UNSUPPORTED_RECIPIENT", `Destinatario invalido: type=${recipientType} id=${recipientId}`, {
+        retryable: false
+      });
       continue;
     }
 

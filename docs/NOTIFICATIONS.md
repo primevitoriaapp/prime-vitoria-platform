@@ -25,6 +25,7 @@ BASE_URL=https://seu-preview.vercel.app npm run test:e2e-smoke
 ## Estados
 
 - `notification_jobs.status`: `success` apenas apos resposta FCM com `success > 0`; caso contrario `error` e `last_error` preenchido.
+- Falhas temporarias de `notification_jobs` permanecem `queued` com `next_retry_at` ate `max_attempts`; na tentativa final viram `error` e geram registro `notifications.status=failed`.
 - `notifications.status`: `sent` ou `failed` com `error` alinhado ao motivo.
 
 ## Base de dados
