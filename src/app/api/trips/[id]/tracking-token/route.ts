@@ -7,6 +7,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { runBestEffort } from "@/lib/server/best-effort";
 
 const bodySchema = z.object({
   expires_in_hours: z.number().int().min(1).max(720).optional()
@@ -54,15 +55,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         .single();
 
       if (!error && data) {
-        await insertAuditEvent({
-          tenantId,
-          actorUserId: session.userId,
-          action: "trip.tracking_token_create",
-          entityType: "trip",
-          entityId: id,
-          metadata: { expires_at: data.expires_at },
-          request
-        });
+        await runBestEffort("trip.tracking_token_create.audit", () =>
+          insertAuditEvent({
+            tenantId,
+            actorUserId: session.userId,
+            action: "trip.tracking_token_create",
+            entityType: "trip",
+            entityId: id,
+            metadata: { expires_at: data.expires_at },
+            request
+          })
+        );
         return ok({
           token: data.token,
           path: `/r/${encodeURIComponent(data.token)}`,
