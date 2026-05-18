@@ -1,6 +1,6 @@
 import { enqueueNotificationJob } from "./events";
 import { enqueueInAppForTenantRoles } from "./enqueue-for-profiles";
-import { driverStatusPushEventType } from "./driver-status-event";
+import { driverStatusPushEventType, driverStatusPushPresentation } from "./driver-status-event";
 
 type TripNotifyRow = {
   id: string;
@@ -18,6 +18,7 @@ export async function notifyTripStatusTransition(
 ): Promise<void> {
   const base = { tripId: trip.id, fromStatus, toStatus };
   const driverPushEventType = driverStatusPushEventType(toStatus, fromStatus, trip.driver_id);
+  const driverPushPresentation = driverPushEventType ? driverStatusPushPresentation(driverPushEventType, trip.id) : null;
 
   if (toStatus === "completed") {
     if (trip.driver_id && driverPushEventType) {
@@ -27,6 +28,7 @@ export async function notifyTripStatusTransition(
           channel: "push",
           recipientType: "driver",
           recipientId: trip.driver_id,
+          ...driverPushPresentation,
           ...base
         },
         { tenantId, correlation_id: `trip-${trip.id}-completed` }
@@ -52,6 +54,7 @@ export async function notifyTripStatusTransition(
         channel: "push",
         recipientType: "driver",
         recipientId: trip.driver_id,
+        ...driverPushPresentation,
         ...base
       },
       { tenantId, correlation_id: `trip-${trip.id}-${toStatus}` }
@@ -66,6 +69,7 @@ export async function notifyTripStatusTransition(
         channel: "push",
         recipientType: "driver",
         recipientId: trip.driver_id,
+        ...driverPushPresentation,
         ...base
       },
       { tenantId, correlation_id: `trip-${trip.id}-dispatched` }

@@ -44,7 +44,7 @@ Jobs com `channel: "in_app"` e `recipientType: "profile"` sao processados sem FC
 
 Push ao motorista continua a exigir `FCM_SERVER_KEY` e `POST /api/drivers/push-token`.
 
-Transicoes de estado (`notifyTripStatusTransition`): push em `dispatched`, `completed`, `cancelled` e `no_show`.
+Transicoes de estado (`notifyTripStatusTransition`): push em `dispatched`, `completed`, `cancelled` e `no_show`, sempre com `title`/`body` amigáveis para o service worker do motorista.
 
 ## Auditoria
 
