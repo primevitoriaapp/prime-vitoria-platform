@@ -26,3 +26,27 @@ test("summarizeClosingsToDre aggregates client and driver lines", () => {
   assert.equal(dre.closed_rows, 1);
   assert.equal(dre.draft_rows, 1);
 });
+
+test("summarizeClosingsToDre treats non-finite amounts as zero", () => {
+  const dre = summarizeClosingsToDre("2026-05-01", "2026-05-31", [
+    {
+      entity_type: "client",
+      gross_amount: Number.POSITIVE_INFINITY,
+      cost_amount: Number.NaN,
+      margin_amount: 25,
+      status: "closed"
+    },
+    {
+      entity_type: "driver",
+      gross_amount: Number.NaN,
+      cost_amount: Number.POSITIVE_INFINITY,
+      margin_amount: 0,
+      status: "draft"
+    }
+  ]);
+  assert.equal(dre.revenue_clients, 0);
+  assert.equal(dre.cost_clients, 0);
+  assert.equal(dre.margin_clients, 25);
+  assert.equal(dre.payout_drivers, 0);
+  assert.equal(dre.driver_cost_lines, 0);
+});

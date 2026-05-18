@@ -1,3 +1,5 @@
+import { closingFinancialAmount } from "./closing-amount.ts";
+
 export type ClosingLine = {
   entity_type: string;
   gross_amount: number;
@@ -34,9 +36,9 @@ export function summarizeClosingsToDre(
   let draft_rows = 0;
 
   for (const row of rows) {
-    const gross = Number(row.gross_amount) || 0;
-    const cost = Number(row.cost_amount) || 0;
-    const margin = Number(row.margin_amount) || 0;
+    const gross = closingFinancialAmount(row.gross_amount);
+    const cost = closingFinancialAmount(row.cost_amount);
+    const margin = closingFinancialAmount(row.margin_amount);
 
     if (row.status === "closed") closed_rows += 1;
     if (row.status === "draft") draft_rows += 1;
@@ -67,5 +69,6 @@ export function summarizeClosingsToDre(
 }
 
 function roundMoney(n: number): number {
+  if (!Number.isFinite(n)) return 0;
   return Math.round(n * 100) / 100;
 }
