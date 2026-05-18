@@ -8,6 +8,7 @@ import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-a
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
+import { driverDispatchedPushPayload } from "@/lib/notifications/driver-status-event";
 import { dispatchConflict } from "@/lib/dispatch/conflicts";
 import { runBestEffort } from "@/lib/server/best-effort";
 
@@ -113,13 +114,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     await runBestEffort("trip.reassign.driver_push", () =>
       enqueueNotificationJob(
-        {
-          eventType: "trip_dispatched",
-          channel: "push",
-          recipientType: "driver",
-          recipientId: body.new_driver_id,
-          tripId: id
-        },
+        driverDispatchedPushPayload(body.new_driver_id, id),
         { tenantId, correlation_id: `trip-${id}-reassign-${body.new_driver_id}` }
       )
     );

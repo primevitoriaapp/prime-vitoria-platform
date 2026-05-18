@@ -22,3 +22,14 @@ export function driverStatusPushPresentation(eventType: string, tripId: string):
       return { title: "Atualização de corrida", body: `Corrida ${shortId}... atualizada.` };
   }
 }
+
+export function driverDispatchedPushPayload(driverId: string, tripId: string) {
+  return {
+    eventType: "trip.dispatched",
+    channel: "push",
+    recipientType: "driver",
+    recipientId: driverId,
+    tripId,
+    ...driverStatusPushPresentation("trip.dispatched", tripId)
+  };
+}

@@ -1,6 +1,7 @@
 import { loadDispatchAutomationSettings } from "@/lib/dispatch/auto-offer-after-approve";
 import { listEligibleDriverIdsForScheduling, resolveDefaultVehicleIdForDriver } from "@/lib/dispatch/driver-availability";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
+import { driverDispatchedPushPayload } from "@/lib/notifications/driver-status-event";
 import { db } from "@/lib/server/db";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 
@@ -85,12 +86,7 @@ export async function tryAutoDirectAssignAfterApprove(opts: {
 
   try {
     await enqueueNotificationJob(
-      {
-        eventType: "trip_dispatched",
-        recipientType: "driver",
-        recipientId: driverId,
-        tripId
-      },
+      driverDispatchedPushPayload(driverId, tripId),
       { tenantId }
     );
   } catch (e) {

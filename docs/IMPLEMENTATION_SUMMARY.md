@@ -71,6 +71,7 @@
 - **In-app status operacional:** transições para cancelada, em deslocamento, no local e no-show notificam `admin`/`operador` via `operations.trip_cancelled`, `operations.trip_on_the_way`, `operations.trip_arrived` e `operations.trip_no_show`.
 - **Hardening no-show:** regra central `isOperationalTripStatusEvent` controla quais status disparam aviso à equipa; `no_show` permanece histórico operacional e liberta motorista para `online`.
 - **Push motorista no-show:** `notifyTripStatusTransition` também envia `trip.no_show` ao motorista quando a corrida atribuída é encerrada como no-show, com `title`/`body` amigáveis no payload push.
+- **Push motorista despacho:** fluxos de despacho direto, reatribuição, aprovação de oferta e auto-despacho usam payload canónico `trip.dispatched` com `title`/`body` amigáveis.
 - **Estado operacional motorista:** coluna `drivers.operational_status` (`online`, `ocupado`, `deslocando`, `no_local`, `em_atendimento`, `offline`), endpoint `/api/drivers/operational-status`, painel no PWA motorista e atualização automática em despacho/reatribuição/transições.
 - **Hardening status motorista:** motorista não consegue alternar manualmente online/offline enquanto possui corrida ativa atribuída; o status operacional segue a corrida até terminal.
 - **Regras de despacho:** despacho direto, reatribuição e ofertas validam motorista ativo/no tenant, bloqueiam motorista offline e recusam conflito de agenda dentro do buffer operacional.

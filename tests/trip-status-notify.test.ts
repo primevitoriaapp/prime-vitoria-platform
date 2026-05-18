@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  driverDispatchedPushPayload,
   driverStatusPushEventType,
   driverStatusPushPresentation
 } from "../src/lib/notifications/driver-status-event.ts";
@@ -20,4 +21,16 @@ test("driverStatusPushPresentation gives friendly driver push text", () => {
     body: "Corrida aaaaaaaa... marcada como no-show."
   });
   assert.equal(driverStatusPushPresentation("unknown", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb").title, "Atualização de corrida");
+});
+
+test("driverDispatchedPushPayload uses friendly canonical dispatch event", () => {
+  assert.deepEqual(driverDispatchedPushPayload("driver-1", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), {
+    eventType: "trip.dispatched",
+    channel: "push",
+    recipientType: "driver",
+    recipientId: "driver-1",
+    tripId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    title: "Nova corrida atribuída",
+    body: "Corrida aaaaaaaa... disponível no painel do motorista."
+  });
 });

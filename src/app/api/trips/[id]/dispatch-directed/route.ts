@@ -7,6 +7,7 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { dispatchConflict } from "@/lib/dispatch/conflicts";
 import { enqueueNotificationJob } from "@/lib/notifications/events";
+import { driverDispatchedPushPayload } from "@/lib/notifications/driver-status-event";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
@@ -104,13 +105,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     await runBestEffort("trip.dispatch_directed.driver_push", () =>
       enqueueNotificationJob(
-        {
-          eventType: "trip_dispatched",
-          channel: "push",
-          recipientType: "driver",
-          recipientId: body.driver_id,
-          tripId: id
-        },
+        driverDispatchedPushPayload(body.driver_id, id),
         { tenantId, correlation_id: `trip-${id}-dispatch-${body.driver_id}` }
       )
     );
