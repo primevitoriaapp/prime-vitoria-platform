@@ -1,4 +1,5 @@
 import { db } from "@/lib/server/db";
+import { accountsReceivableAmountFromFinancial } from "@/lib/finance/accounts-receivable-amount";
 
 /** Cria conta a receber a partir de `trip_financials.amount_client` se a viagem está concluída e ainda não existe título. */
 export async function ensureAccountsReceivableFromTripFinancials(
@@ -26,8 +27,8 @@ export async function ensureAccountsReceivableFromTripFinancials(
     .eq("trip_id", tripId)
     .maybeSingle();
 
-  const amount = tf?.amount_client != null ? Number(tf.amount_client) : null;
-  if (amount == null || amount <= 0) return { created: false };
+  const amount = accountsReceivableAmountFromFinancial(tf?.amount_client);
+  if (amount == null) return { created: false };
 
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 30);
