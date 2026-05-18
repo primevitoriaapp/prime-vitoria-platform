@@ -80,6 +80,7 @@
 - **Hardening de ofertas:** aprovação de oferta revalida status da viagem, claim operacional, candidatura, aceite do motorista e disponibilidade antes de atribuir a corrida.
 - **Hardening expiração de oferta:** aceite e aprovação usam a mesma regra de expiração, tratando timestamp inválido como expirado e bloqueando aprovação tardia.
 - **Hardening financeiro:** regeneração financeira da viagem não reabre automaticamente contas/pagáveis já `paid` ou `cancelled`; exige reabertura explícita antes de recalcular.
+- **Hardening baixa financeira:** endpoints `mark-paid` de recebíveis e pagáveis compartilham schema e exigem `paid_at` ISO com offset quando informado.
 - **Hardening fechamentos:** agregação de fechamentos normaliza valores não finitos (`NaN`/infinito) como zero antes de somar e persistir rascunhos.
 - **Hardening filtros de fechamento:** listagem/export CSV de fechamentos valida datas `YYYY-MM-DD` reais e recusa período invertido antes da consulta.
 - **Hardening DRE:** resumo de fechamentos trata valores não finitos como zero antes de agregar e arredondar indicadores.

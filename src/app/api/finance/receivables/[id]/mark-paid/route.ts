@@ -1,17 +1,11 @@
-import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { loadReceivableForTenant } from "@/lib/finance/receivable-scope";
+import { financialMarkPaidBodySchema, financialPaidAt } from "@/lib/finance/mark-paid";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { insertAuditEvent } from "@/lib/server/audit-log";
-
-const bodySchema = z.object({
-  payment_method: z.string().min(1).max(80),
-  paid_at: z.string().datetime().optional(),
-  reference: z.string().max(120).optional()
-});
 
 /** Marca título a receber como pago (baixa manual no financeiro). */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -20,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     assertCapability(session, "finance.write");
     const tenantId = assertTenantScope(session);
     const { id: receivableId } = await params;
-    const body = bodySchema.parse(await request.json());
+    const body = financialMarkPaidBodySchema.parse(await request.json());
 
     const scoped = await loadReceivableForTenant(receivableId, tenantId);
     if ("error" in scoped) {
@@ -36,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return ok({ id: receivableId, status: "paid", already: true });
     }
 
-    const paidAt = body.paid_at ?? new Date().toISOString();
+    const paidAt = financialPaidAt(body);
     const { error: upErr } = await db
       .from("accounts_receivable")
       .update({
