@@ -10,3 +10,7 @@ const STATUS_EVENT_TYPES: Record<OperationalTripStatusEvent, string> = {
 export function operationalTripStatusEventType(status: OperationalTripStatusEvent): string {
   return STATUS_EVENT_TYPES[status];
 }
+
+export function isOperationalTripStatusEvent(status: string): status is OperationalTripStatusEvent {
+  return Object.hasOwn(STATUS_EVENT_TYPES, status);
+}

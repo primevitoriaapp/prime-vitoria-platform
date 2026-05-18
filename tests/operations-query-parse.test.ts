@@ -24,6 +24,11 @@ test("parseOperationsHistoryQuery optional filters", () => {
   assert.equal(q.scheduled_to, "2026-01-01T00:00:00.000Z");
 });
 
+test("parseOperationsHistoryQuery accepts no_show history status", () => {
+  const q = parseOperationsHistoryQuery(new URLSearchParams("status=no_show"));
+  assert.equal(q.status, "no_show");
+});
+
 test("parseOperationsHistoryQuery rejects invalid scheduled_to", () => {
   assert.throws(() => parseOperationsHistoryQuery(new URLSearchParams("scheduled_to=2026-01-01")));
   assert.throws(() => parseOperationsHistoryQuery(new URLSearchParams("scheduled_to=not-a-date")));

@@ -1,6 +1,8 @@
 import { enqueueInAppForTenantRoles } from "./enqueue-for-profiles";
 import { operationalTripStatusEventType, type OperationalTripStatusEvent } from "./operational-status-event";
 
+export type { OperationalTripStatusEvent } from "./operational-status-event";
+
 const STAFF_ROLES = ["admin", "operador"] as const;
 
 /** Nova corrida na fila (solicitação do cliente ou operador). */

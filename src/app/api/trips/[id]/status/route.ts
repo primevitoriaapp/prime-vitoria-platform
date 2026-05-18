@@ -11,6 +11,7 @@ import { notifyTripStatusTransition } from "@/lib/notifications/trip-status-noti
 import { runPostTripAutomationSafely } from "@/lib/trips/post-trip-automation";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { driverOperationalStatusForTrip } from "@/lib/drivers/operational-status";
+import { isOperationalTripStatusEvent } from "@/lib/notifications/operational-status-event";
 
 const bodySchema = z.object({
   to_status: z.enum([
@@ -108,12 +109,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
     }
 
-    if (
-      body.to_status === "cancelled" ||
-      body.to_status === "on_the_way" ||
-      body.to_status === "arrived" ||
-      body.to_status === "no_show"
-    ) {
+    if (isOperationalTripStatusEvent(body.to_status)) {
       const { notifyTripStatusToStaff } = await import("@/lib/notifications/operational-notify");
       await notifyTripStatusToStaff(tenantId, id, body.to_status, {
         driver_id: data.driver_id,
