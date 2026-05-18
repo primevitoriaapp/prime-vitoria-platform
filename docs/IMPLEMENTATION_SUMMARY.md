@@ -58,6 +58,7 @@
 - **KM real por GPS:** `actualKmFromTrail` ordena por horário, ignora coordenadas inválidas e descarta saltos acima do limite por segmento para evitar distorção por ponto ruim.
 - **Comprovantes motorista:** `loadDriverPayableForSession` com intent `read`/`write`; motorista lista e envia comprovantes nos próprios títulos.
 - **Financeiro motorista D+30:** helper central `driverPayableDueDate` para vencimento previsto em 30 dias; listagem de pagáveis expõe `days_until_due`, `overdue` e `due_label` para painel motorista/financeiro.
+- **Hardening financeiro motorista:** pagáveis cancelados exibem `due_label` como `Cancelado` e nunca aparecem como atrasados.
 - **UX multiatendimento:** evento `prime:operational-claim-changed` refresca barra de claim após aprovar/despacho/reatribuir/oferta.
 - **Multiatendimento refinado:** claim ativo expõe idade em minutos e flag `stale` (45 min); conflitos orientam operador quando o atendimento parece antigo.
 - **In-app operacional (equipa):** após despacho directo, aprovação de oferta ou reatribuição, jobs `operations.trip_dispatched` / `operations.trip_reassigned` para `admin`/`operador` (exclui opcionalmente o actor); textos em `presentInAppNotification`.

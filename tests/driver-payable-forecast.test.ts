@@ -26,4 +26,6 @@ test("driverPayableForecast labels open and paid payables", () => {
   });
   assert.equal(driverPayableForecast({ due_date: "2026-05-15", status: "open" }, reference).overdue, true);
   assert.equal(driverPayableForecast({ due_date: "2026-05-15", status: "paid" }, reference).due_label, "Pago");
+  assert.equal(driverPayableForecast({ due_date: "2026-05-15", status: "cancelled" }, reference).due_label, "Cancelado");
+  assert.equal(driverPayableForecast({ due_date: "2026-05-15", status: "cancelled" }, reference).overdue, false);
 });

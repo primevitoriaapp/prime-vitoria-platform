@@ -24,10 +24,12 @@ export function driverPayableForecast(row: DriverPayableForecastInput, reference
     due_label:
       row.status === "paid"
         ? "Pago"
-        : daysUntilDue < 0
-          ? `Atrasado ${Math.abs(daysUntilDue)} dia(s)`
-          : daysUntilDue === 0
-            ? "Vence hoje"
-            : `Previsto em D+${daysUntilDue}`
+        : row.status === "cancelled"
+          ? "Cancelado"
+          : daysUntilDue < 0
+            ? `Atrasado ${Math.abs(daysUntilDue)} dia(s)`
+            : daysUntilDue === 0
+              ? "Vence hoje"
+              : `Previsto em D+${daysUntilDue}`
   };
 }
