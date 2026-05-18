@@ -1,5 +1,6 @@
 import { enqueueNotificationJob } from "./events";
 import { enqueueInAppForTenantRoles } from "./enqueue-for-profiles";
+import { driverStatusPushEventType } from "./driver-status-event";
 
 type TripNotifyRow = {
   id: string;
@@ -16,12 +17,13 @@ export async function notifyTripStatusTransition(
   toStatus: string
 ): Promise<void> {
   const base = { tripId: trip.id, fromStatus, toStatus };
+  const driverPushEventType = driverStatusPushEventType(toStatus, fromStatus, trip.driver_id);
 
   if (toStatus === "completed") {
-    if (trip.driver_id) {
+    if (trip.driver_id && driverPushEventType) {
       await enqueueNotificationJob(
         {
-          eventType: "trip.completed",
+          eventType: driverPushEventType,
           channel: "push",
           recipientType: "driver",
           recipientId: trip.driver_id,
@@ -43,24 +45,24 @@ export async function notifyTripStatusTransition(
     return;
   }
 
-  if (toStatus === "cancelled" && trip.driver_id) {
+  if ((toStatus === "cancelled" || toStatus === "no_show") && trip.driver_id && driverPushEventType) {
     await enqueueNotificationJob(
       {
-        eventType: "trip.cancelled",
+        eventType: driverPushEventType,
         channel: "push",
         recipientType: "driver",
         recipientId: trip.driver_id,
         ...base
       },
-      { tenantId, correlation_id: `trip-${trip.id}-cancelled` }
+      { tenantId, correlation_id: `trip-${trip.id}-${toStatus}` }
     );
     return;
   }
 
-  if (toStatus === "dispatched" && trip.driver_id && fromStatus !== "dispatched") {
+  if (toStatus === "dispatched" && trip.driver_id && driverPushEventType) {
     await enqueueNotificationJob(
       {
-        eventType: "trip.dispatched",
+        eventType: driverPushEventType,
         channel: "push",
         recipientType: "driver",
         recipientId: trip.driver_id,

@@ -27,6 +27,8 @@ export function notificationEventLabel(eventType: string): string {
       return "Corrida concluída";
     case "trip.cancelled":
       return "Corrida cancelada";
+    case "trip.no_show":
+      return "No-show registrado";
     case "finance.driver_payable_open":
       return "Pagável motorista aberto";
     case "finance.accounts_receivable_open":

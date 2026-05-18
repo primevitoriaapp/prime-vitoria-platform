@@ -1,18 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { driverStatusPushEventType } from "../src/lib/notifications/driver-status-event.ts";
 
-/** Lógica pura: quais transições disparam push ao motorista. */
-function shouldPushDriver(toStatus: string, fromStatus: string, driverId: string | null): boolean {
-  if (!driverId) return false;
-  if (toStatus === "completed" || toStatus === "cancelled") return true;
-  if (toStatus === "dispatched" && fromStatus !== "dispatched") return true;
-  return false;
-}
-
-test("shouldPushDriver on key transitions", () => {
-  assert.equal(shouldPushDriver("completed", "in_progress", "d1"), true);
-  assert.equal(shouldPushDriver("cancelled", "dispatched", "d1"), true);
-  assert.equal(shouldPushDriver("dispatched", "approved", "d1"), true);
-  assert.equal(shouldPushDriver("dispatched", "dispatched", "d1"), false);
-  assert.equal(shouldPushDriver("completed", "in_progress", null), false);
+test("driverStatusPushEventType on key transitions", () => {
+  assert.equal(driverStatusPushEventType("completed", "in_progress", "d1"), "trip.completed");
+  assert.equal(driverStatusPushEventType("cancelled", "dispatched", "d1"), "trip.cancelled");
+  assert.equal(driverStatusPushEventType("no_show", "arrived", "d1"), "trip.no_show");
+  assert.equal(driverStatusPushEventType("dispatched", "approved", "d1"), "trip.dispatched");
+  assert.equal(driverStatusPushEventType("dispatched", "dispatched", "d1"), null);
+  assert.equal(driverStatusPushEventType("completed", "in_progress", null), null);
 });
