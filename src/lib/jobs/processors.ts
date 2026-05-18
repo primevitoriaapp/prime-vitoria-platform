@@ -5,7 +5,7 @@ import { parseWebhookPayload } from "../integrations/parse-webhook-payload";
 import type { Provider } from "../integrations/types";
 import { isPostgresUniqueViolation } from "../server/postgres-errors";
 import { insertAuditEvent } from "../server/audit-log";
-import { fcmDataFromPayload, sendFcmLegacyDataMessage } from "../notifications/fcm-legacy";
+import { fcmDataFromPayload, fcmLegacyFailureIsRetryable, sendFcmLegacyDataMessage } from "../notifications/fcm-legacy";
 import { notificationFailureUpdate } from "../notifications/job-retry";
 
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -172,7 +172,7 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
     if (send.ok) {
       await succeedJob();
     } else {
-      await failJob(send.reason, send.reason);
+      await failJob(send.reason, send.reason, { retryable: fcmLegacyFailureIsRetryable(send.reason) });
     }
   }
 

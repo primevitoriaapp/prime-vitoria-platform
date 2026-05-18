@@ -7,6 +7,13 @@ export type FcmLegacySendResult =
   | { ok: true }
   | { ok: false; reason: string };
 
+const NON_RETRYABLE_FCM_ERRORS = [
+  "invalidregistration",
+  "notregistered",
+  "mismatchsenderid",
+  "invalidpackagename"
+];
+
 /** Converte payload job para mapa de strings exigido pelo FCM data. */
 export function fcmDataFromPayload(payload: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {};
@@ -36,6 +43,11 @@ export function parseFcmLegacySendJson(json: unknown): FcmLegacySendResult {
   }
   const msg = typeof o.message === "string" ? o.message : "FCM sem sucesso e sem detalhe";
   return { ok: false, reason: msg };
+}
+
+export function fcmLegacyFailureIsRetryable(reason: string): boolean {
+  const normalized = reason.toLowerCase();
+  return !NON_RETRYABLE_FCM_ERRORS.some((error) => normalized.includes(error));
 }
 
 export async function sendFcmLegacyDataMessage(opts: {

@@ -81,6 +81,7 @@
 - **Hardening financeiro:** regeneração financeira da viagem não reabre automaticamente contas/pagáveis já `paid` ou `cancelled`; exige reabertura explícita antes de recalcular.
 - **Hardening filtros operacionais:** `scheduled_from`/`scheduled_to` em fila e histórico exigem datetime ISO com offset antes de chegar ao banco.
 - **Hardening notificações:** falhas retryable em `notification_jobs` respeitam `attempt_count`, `max_attempts` e `next_retry_at` antes de virar erro final.
+- **Hardening FCM:** erros permanentes do FCM legacy (`NotRegistered`, `InvalidRegistration`, etc.) são classificados como não-retryable para evitar reprocessamento inútil.
 - **Hardening pós-mutação:** notificações de despacho/reatribuição/oferta são best-effort após alterar a viagem, evitando erro tardio quando a mutação principal já foi persistida.
 - **Hardening rastreio público:** criação de token público retorna sucesso após persistir o token mesmo se a auditoria pós-criação falhar.
 - **Tracking público realtime:** regra central `isPublicTrackTerminalStatus` encerra SSE em status finais (`completed`, `cancelled`, `rejected`, `no_show`) e reduz retry no cliente mantendo polling lento como fallback.

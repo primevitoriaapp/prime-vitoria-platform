@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fcmDataFromPayload, parseFcmLegacySendJson } from "../src/lib/notifications/fcm-legacy.ts";
+import {
+  fcmDataFromPayload,
+  fcmLegacyFailureIsRetryable,
+  parseFcmLegacySendJson
+} from "../src/lib/notifications/fcm-legacy.ts";
 
 test("fcmDataFromPayload stringifies nested values", () => {
   const d = fcmDataFromPayload({ a: "x", b: 1, c: { z: true } });
@@ -23,4 +27,11 @@ test("parseFcmLegacySendJson failure reads results error", () => {
 test("parseFcmLegacySendJson failure without results", () => {
   const r = parseFcmLegacySendJson({ success: 0, failure: 1, results: [] });
   assert.equal(r.ok, false);
+});
+
+test("fcmLegacyFailureIsRetryable rejects permanent token errors", () => {
+  assert.equal(fcmLegacyFailureIsRetryable("FCM: NotRegistered"), false);
+  assert.equal(fcmLegacyFailureIsRetryable("FCM: InvalidRegistration"), false);
+  assert.equal(fcmLegacyFailureIsRetryable("FCM: Unavailable"), true);
+  assert.equal(fcmLegacyFailureIsRetryable("HTTP 500"), true);
 });
