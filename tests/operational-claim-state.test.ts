@@ -24,3 +24,9 @@ test("operationalClaimConflictMessage flags stale claims", () => {
   const message = operationalClaimConflictMessage("2026-05-16T10:00:00Z");
   assert.match(message, /Claim antigo/);
 });
+
+test("operationalClaimConflictMessage falls back without claim timestamp", () => {
+  const message = operationalClaimConflictMessage(null);
+  assert.match(message, /Outro operador tem o atendimento/);
+  assert.match(message, /Libertar ou contactar administrador/);
+});

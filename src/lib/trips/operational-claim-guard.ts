@@ -1,6 +1,7 @@
 import { db } from "@/lib/server/db";
 import type { SessionContext } from "@/lib/domain/types";
 import { loadDispatchAutomationSettings } from "@/lib/dispatch/auto-offer-after-approve";
+import { operationalClaimConflictMessage } from "@/lib/trips/operational-claim-state";
 
 export type ClaimGuardResult =
   | { ok: true }
@@ -22,7 +23,7 @@ export async function assertOperationalClaimForAction(
 
   const { data: claim } = await db
     .from("trip_operational_claims")
-    .select("operator_profile_id")
+    .select("operator_profile_id, claimed_at")
     .eq("trip_id", tripId)
     .eq("tenant_id", tenantId)
     .is("released_at", null)
@@ -40,7 +41,7 @@ export async function assertOperationalClaimForAction(
     return {
       ok: false,
       code: "CLAIM_NOT_OWNER",
-      message: "Outro operador tem o atendimento desta viagem. Libertar ou contactar administrador."
+      message: operationalClaimConflictMessage((claim as { claimed_at?: string | null }).claimed_at ?? null)
     };
   }
 
