@@ -5,6 +5,7 @@ import {
   driverPayableDueDate,
   driverPayableForecast
 } from "../src/lib/finance/driver-payable-forecast.ts";
+import { driverPayableAmountFromFinancial } from "../src/lib/finance/driver-payable-amount.ts";
 
 const reference = new Date("2026-05-16T15:00:00Z");
 
@@ -28,4 +29,13 @@ test("driverPayableForecast labels open and paid payables", () => {
   assert.equal(driverPayableForecast({ due_date: "2026-05-15", status: "paid" }, reference).due_label, "Pago");
   assert.equal(driverPayableForecast({ due_date: "2026-05-15", status: "cancelled" }, reference).due_label, "Cancelado");
   assert.equal(driverPayableForecast({ due_date: "2026-05-15", status: "cancelled" }, reference).overdue, false);
+});
+
+test("driverPayableAmountFromFinancial accepts only positive finite amounts", () => {
+  assert.equal(driverPayableAmountFromFinancial(120), 120);
+  assert.equal(driverPayableAmountFromFinancial("99.5"), 99.5);
+  assert.equal(driverPayableAmountFromFinancial(0), null);
+  assert.equal(driverPayableAmountFromFinancial(-1), null);
+  assert.equal(driverPayableAmountFromFinancial(Number.NaN), null);
+  assert.equal(driverPayableAmountFromFinancial(Number.POSITIVE_INFINITY), null);
 });
