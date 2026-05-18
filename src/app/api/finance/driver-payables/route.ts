@@ -1,16 +1,10 @@
-import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { driverPayableForecast } from "@/lib/finance/driver-payable-forecast";
-
-const listSchema = z.object({
-  status: z.enum(["open", "paid", "cancelled"]).optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(50)
-});
+import { parseDriverPayablesListQuery } from "@/lib/finance/driver-payables-query";
 
 /** Lista contas a pagar (motorista) do tenant via viagem. */
 export async function GET(request: Request) {
@@ -27,7 +21,7 @@ export async function GET(request: Request) {
       assertCapability(session, "finance.read");
     }
 
-    const q = listSchema.parse(Object.fromEntries(new URL(request.url).searchParams.entries()));
+    const q = parseDriverPayablesListQuery(new URL(request.url).searchParams);
     const from = (q.page - 1) * q.pageSize;
     const to = from + q.pageSize - 1;
 
@@ -40,6 +34,12 @@ export async function GET(request: Request) {
 
     if (q.status) {
       query = query.eq("status", q.status);
+    }
+    if (q.due_from) {
+      query = query.gte("due_date", q.due_from);
+    }
+    if (q.due_to) {
+      query = query.lte("due_date", q.due_to);
     }
     if (session.role === "motorista" && session.driverId) {
       query = query.eq("driver_id", session.driverId);

@@ -64,6 +64,7 @@
 - **Financeiro motorista D+30:** helper central `driverPayableDueDate` para vencimento previsto em 30 dias; listagem de pagáveis expõe `days_until_due`, `overdue` e `due_label` para painel motorista/financeiro.
 - **Hardening financeiro motorista:** pagáveis cancelados exibem `due_label` como `Cancelado` e nunca aparecem como atrasados.
 - **Hardening valor motorista:** criação automática de pagável aceita apenas `amount_driver` positivo e finito, evitando título com `NaN`/infinito.
+- **Hardening filtros motorista:** listagem de pagáveis aceita `due_from`/`due_to` com datas reais e intervalo válido, preservando escopo próprio do motorista.
 - **Hardening valor recebível:** criação automática de conta a receber aceita apenas `amount_client` positivo e finito.
 - **UX multiatendimento:** evento `prime:operational-claim-changed` refresca barra de claim após aprovar/despacho/reatribuir/oferta.
 - **Multiatendimento refinado:** claim ativo expõe idade em minutos e flag `stale` (45 min); conflitos orientam operador quando o atendimento parece antigo.
