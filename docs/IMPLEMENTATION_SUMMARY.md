@@ -94,6 +94,7 @@
 - **Hardening pós-mutação:** notificações de despacho/reatribuição/oferta são best-effort após alterar a viagem, evitando erro tardio quando a mutação principal já foi persistida.
 - **Hardening rastreio público:** criação de token público retorna sucesso após persistir o token mesmo se a auditoria pós-criação falhar.
 - **Tracking público realtime:** regra central `isPublicTrackTerminalStatus` encerra SSE em status finais (`completed`, `cancelled`, `rejected`, `no_show`) e reduz retry no cliente mantendo polling lento como fallback.
+- **Hardening payload público:** rastreio do passageiro valida coordenadas e KM finitos antes de expor origem/destino, localização atual e valores de distância.
 - **Hardening smoke HTTP/preflight:** `scripts/e2e-smoke-http.mjs`, `scripts/vercel-preflight.mjs`, `scripts/go-live-preflight.mjs` e `scripts/erp-preflight.mjs` usam loader comum de envs (`.env.supabase.local`, `.env.vercel.local`, `.env.local`, `.env`), aceitam `BASE_URL` como fallback local para `NEXT_PUBLIC_BASE_URL`, detectam Deployment Protection da Vercel, aceitam `VERCEL_AUTOMATION_BYPASS_SECRET` para validar deployment protegido e falham com diagnóstico accionável, evitando falso `200 OK`/HTML na página de login da Vercel.
 - **Bootstrap operacional:** `npm run bootstrap:prime` configura tenant Prime Vitória, admin owner, cliente/motorista/veículo e corridas teste de forma idempotente.
 - **Ofertas agenda + motorista PWA:** painéis `TripAgendaOffersPanel`, `DriverOffersPanel`.

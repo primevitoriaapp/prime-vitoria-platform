@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { isPublicTrackTerminalStatus, publicTrackRevision } from "../src/lib/public/track-revision.ts";
+import { publicTrackNumber, publicTrackPoint } from "../src/lib/public/public-track-values.ts";
 
 test("publicTrackRevision changes when location timestamp changes", () => {
   const base = publicTrackRevision({
@@ -60,4 +61,18 @@ test("isPublicTrackTerminalStatus identifies terminal passenger tracking states"
   assert.equal(isPublicTrackTerminalStatus("no_show"), true);
   assert.equal(isPublicTrackTerminalStatus("on_the_way"), false);
   assert.equal(isPublicTrackTerminalStatus("in_progress"), false);
+});
+
+test("publicTrackNumber hides non-finite public KM values", () => {
+  assert.equal(publicTrackNumber(null), null);
+  assert.equal(publicTrackNumber("12.5"), 12.5);
+  assert.equal(publicTrackNumber(Number.NaN), null);
+  assert.equal(publicTrackNumber(Number.POSITIVE_INFINITY), null);
+});
+
+test("publicTrackPoint validates public tracking coordinates", () => {
+  assert.deepEqual(publicTrackPoint("-20.3", "-40.3"), { lat: -20.3, lng: -40.3 });
+  assert.equal(publicTrackPoint("-91", "-40.3"), null);
+  assert.equal(publicTrackPoint("-20.3", "181"), null);
+  assert.equal(publicTrackPoint(Number.NaN, "-40.3"), null);
 });

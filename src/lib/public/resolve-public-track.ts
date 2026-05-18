@@ -1,6 +1,7 @@
 import { db } from "@/lib/server/db";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 import { normalizePublicTrackToken } from "./track-token";
+import { publicTrackNumber, publicTrackPoint } from "./public-track-values";
 
 export type PublicTrackSnapshot = {
   trip_id: string;
@@ -51,6 +52,8 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
     .limit(1)
     .maybeSingle();
 
+  const locationPoint = publicTrackPoint(loc?.lat, loc?.lng);
+
   return {
     trip_id: row.trip_id,
     operational_status: trip.operational_status as TripOperationalStatus,
@@ -58,23 +61,16 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
     destination_text: trip.destination_text,
     passenger_name: (trip.passenger_name as string | null) ?? null,
     scheduled_at: trip.scheduled_at,
-    location: loc
+    location: locationPoint
       ? {
-          lat: Number(loc.lat),
-          lng: Number(loc.lng),
-          recorded_at: loc.recorded_at as string
+          ...locationPoint,
+          recorded_at: loc?.recorded_at as string
         }
       : null,
-    origin_coords:
-      trip.origin_lat != null && trip.origin_lng != null
-        ? { lat: Number(trip.origin_lat), lng: Number(trip.origin_lng) }
-        : null,
-    destination_coords:
-      trip.destination_lat != null && trip.destination_lng != null
-        ? { lat: Number(trip.destination_lat), lng: Number(trip.destination_lng) }
-        : null,
-    planned_km: trip.planned_km != null ? Number(trip.planned_km) : null,
-    actual_km: trip.actual_km != null ? Number(trip.actual_km) : null,
+    origin_coords: publicTrackPoint(trip.origin_lat, trip.origin_lng),
+    destination_coords: publicTrackPoint(trip.destination_lat, trip.destination_lng),
+    planned_km: publicTrackNumber(trip.planned_km),
+    actual_km: publicTrackNumber(trip.actual_km),
     km_updated_at: (trip.km_updated_at as string | null) ?? null,
     expires_at: row.expires_at as string
   };
