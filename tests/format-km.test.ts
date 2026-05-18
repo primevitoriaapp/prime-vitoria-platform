@@ -15,3 +15,8 @@ test("formatTripKmLine planned only", () => {
 test("formatTripKmLine empty", () => {
   assert.equal(formatTripKmLine({}), null);
 });
+
+test("formatTripKmLine ignores non-finite values", () => {
+  assert.equal(formatTripKmLine({ planned_km: Number.POSITIVE_INFINITY, actual_km: Number.NaN }), null);
+  assert.equal(formatTripKmLine({ planned_km: 10, actual_km: Number.NaN }), "10.0 km (planeado)");
+});

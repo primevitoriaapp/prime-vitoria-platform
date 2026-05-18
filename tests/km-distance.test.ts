@@ -11,6 +11,14 @@ test("plannedKmFromCoords null when coords missing", () => {
   assert.equal(plannedKmFromCoords({ origin_lat: null, origin_lng: 0, destination_lat: 0, destination_lng: 0 }), null);
 });
 
+test("plannedKmFromCoords null when coords are invalid", () => {
+  assert.equal(plannedKmFromCoords({ origin_lat: 95, origin_lng: 0, destination_lat: 0, destination_lng: 0 }), null);
+  assert.equal(
+    plannedKmFromCoords({ origin_lat: Number.POSITIVE_INFINITY, origin_lng: 0, destination_lat: 0, destination_lng: 0 }),
+    null
+  );
+});
+
 test("plannedKmFromCoords computes when all set", () => {
   const km = plannedKmFromCoords({
     origin_lat: -20.3155,

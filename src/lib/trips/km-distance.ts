@@ -17,22 +17,26 @@ export type TripCoords = {
   destination_lng: number | null;
 };
 
+function validLatLng(lat: number, lng: number): boolean {
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
 export function plannedKmFromCoords(trip: TripCoords): number | null {
   const { origin_lat: oLat, origin_lng: oLng, destination_lat: dLat, destination_lng: dLng } = trip;
   if (oLat == null || oLng == null || dLat == null || dLng == null) return null;
-  return haversineKm(Number(oLat), Number(oLng), Number(dLat), Number(dLng));
+  const originLat = Number(oLat);
+  const originLng = Number(oLng);
+  const destinationLat = Number(dLat);
+  const destinationLng = Number(dLng);
+  if (!validLatLng(originLat, originLng) || !validLatLng(destinationLat, destinationLng)) return null;
+  return haversineKm(originLat, originLng, destinationLat, destinationLng);
 }
 
 export type GpsPoint = { lat: number; lng: number; recorded_at: string };
 
 function validPoint(point: GpsPoint): boolean {
   return (
-    Number.isFinite(point.lat) &&
-    Number.isFinite(point.lng) &&
-    point.lat >= -90 &&
-    point.lat <= 90 &&
-    point.lng >= -180 &&
-    point.lng <= 180 &&
+    validLatLng(point.lat, point.lng) &&
     Number.isFinite(Date.parse(point.recorded_at))
   );
 }
