@@ -108,6 +108,11 @@ export function presentInAppNotification(row: InAppNotificationRow): InAppNotifi
       body = tripId ? `Motorista chegou ao local da corrida ${tripId.slice(0, 8)}….` : "Motorista chegou ao local.";
       break;
     }
+    case "operations.trip_no_show": {
+      title = "No-show registrado";
+      body = tripId ? `Corrida ${tripId.slice(0, 8)}… foi marcada como no-show.` : "Uma corrida foi marcada como no-show.";
+      break;
+    }
     default:
       if (typeof payload.title === "string") title = payload.title;
       if (typeof payload.body === "string") body = payload.body;

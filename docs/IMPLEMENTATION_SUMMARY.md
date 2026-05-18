@@ -61,7 +61,7 @@
 - **UX multiatendimento:** evento `prime:operational-claim-changed` refresca barra de claim após aprovar/despacho/reatribuir/oferta.
 - **Multiatendimento refinado:** claim ativo expõe idade em minutos e flag `stale` (45 min); conflitos orientam operador quando o atendimento parece antigo.
 - **In-app operacional (equipa):** após despacho directo, aprovação de oferta ou reatribuição, jobs `operations.trip_dispatched` / `operations.trip_reassigned` para `admin`/`operador` (exclui opcionalmente o actor); textos em `presentInAppNotification`.
-- **In-app status operacional:** transições para cancelada, em deslocamento e no local notificam `admin`/`operador` via `operations.trip_cancelled`, `operations.trip_on_the_way` e `operations.trip_arrived`.
+- **In-app status operacional:** transições para cancelada, em deslocamento, no local e no-show notificam `admin`/`operador` via `operations.trip_cancelled`, `operations.trip_on_the_way`, `operations.trip_arrived` e `operations.trip_no_show`.
 - **Estado operacional motorista:** coluna `drivers.operational_status` (`online`, `ocupado`, `deslocando`, `no_local`, `em_atendimento`, `offline`), endpoint `/api/drivers/operational-status`, painel no PWA motorista e atualização automática em despacho/reatribuição/transições.
 - **Regras de despacho:** despacho direto, reatribuição e ofertas validam motorista ativo/no tenant, bloqueiam motorista offline e recusam conflito de agenda dentro do buffer operacional.
 - **Hardening de ofertas:** aprovação de oferta revalida status da viagem, claim operacional, candidatura, aceite do motorista e disponibilidade antes de atribuir a corrida.

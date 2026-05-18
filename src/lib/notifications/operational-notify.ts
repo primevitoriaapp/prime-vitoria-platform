@@ -1,4 +1,5 @@
 import { enqueueInAppForTenantRoles } from "./enqueue-for-profiles";
+import { operationalTripStatusEventType, type OperationalTripStatusEvent } from "./operational-status-event";
 
 const STAFF_ROLES = ["admin", "operador"] as const;
 
@@ -105,15 +106,7 @@ export async function notifyTripReassignedToStaff(
   );
 }
 
-type OperationalTripStatusEvent = "cancelled" | "on_the_way" | "arrived";
-
-const STATUS_EVENT_TYPES: Record<OperationalTripStatusEvent, string> = {
-  cancelled: "operations.trip_cancelled",
-  on_the_way: "operations.trip_on_the_way",
-  arrived: "operations.trip_arrived"
-};
-
-/** Mudanças operacionais relevantes para a equipa (cancelamento, deslocamento, chegada). */
+/** Mudanças operacionais relevantes para a equipa (cancelamento, deslocamento, chegada, no-show). */
 export async function notifyTripStatusToStaff(
   tenantId: string,
   tripId: string,
@@ -125,7 +118,7 @@ export async function notifyTripStatusToStaff(
     tenantId,
     [...STAFF_ROLES],
     {
-      eventType: STATUS_EVENT_TYPES[status],
+      eventType: operationalTripStatusEventType(status),
       tripId,
       status,
       driver_id: opts?.driver_id ?? null

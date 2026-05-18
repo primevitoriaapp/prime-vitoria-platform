@@ -47,6 +47,8 @@ export function notificationEventLabel(eventType: string): string {
       return "Motorista em deslocamento";
     case "operations.trip_arrived":
       return "Motorista no local";
+    case "operations.trip_no_show":
+      return "No-show operacional";
     default:
       return eventType;
   }

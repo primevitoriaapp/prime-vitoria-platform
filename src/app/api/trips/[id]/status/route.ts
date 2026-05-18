@@ -108,7 +108,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
     }
 
-    if (body.to_status === "cancelled" || body.to_status === "on_the_way" || body.to_status === "arrived") {
+    if (
+      body.to_status === "cancelled" ||
+      body.to_status === "on_the_way" ||
+      body.to_status === "arrived" ||
+      body.to_status === "no_show"
+    ) {
       const { notifyTripStatusToStaff } = await import("@/lib/notifications/operational-notify");
       await notifyTripStatusToStaff(tenantId, id, body.to_status, {
         driver_id: data.driver_id,

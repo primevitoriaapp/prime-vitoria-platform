@@ -103,6 +103,7 @@ test("presentInAppNotification operational status events", () => {
     "Motorista em deslocamento"
   );
   assert.equal(presentInAppNotification({ ...base, event_type: "operations.trip_arrived" }).title, "Motorista no local");
+  assert.equal(presentInAppNotification({ ...base, event_type: "operations.trip_no_show" }).title, "No-show registrado");
 });
 
 test("presentInAppNotification finance.driver_payable_open", () => {
