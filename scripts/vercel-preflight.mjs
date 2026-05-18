@@ -5,7 +5,7 @@
  *      BASE_URL=https://preview.vercel.app CRON_SECRET=... node scripts/vercel-preflight.mjs
  */
 import { spawnSync } from "node:child_process";
-import { loadEnvFiles } from "../src/lib/deploy/env-files.mjs";
+import { applyBaseUrlFallback, loadEnvFiles } from "../src/lib/deploy/env-files.mjs";
 import {
   isVercelProtectionResponse,
   parseSmokeJson,
@@ -14,6 +14,7 @@ import {
 } from "../src/lib/deploy/smoke-http.mjs";
 
 loadEnvFiles();
+applyBaseUrlFallback();
 
 const required = [
   "NEXT_PUBLIC_SUPABASE_URL",

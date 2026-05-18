@@ -39,3 +39,11 @@ export function loadEnvFiles({ cwd = process.cwd(), env = process.env, files = D
 
   return loaded;
 }
+
+export function applyBaseUrlFallback(env = process.env) {
+  const baseUrl = env.BASE_URL?.trim();
+  if (!baseUrl || env.NEXT_PUBLIC_BASE_URL?.trim()) return false;
+
+  env.NEXT_PUBLIC_BASE_URL = baseUrl;
+  return true;
+}

@@ -83,7 +83,7 @@ export CRON_SECRET=...
 curl -sS -H "Authorization: Bearer $CRON_SECRET" "$BASE_URL/api/cron/notifications"
 ```
 
-Os preflights locais carregam, nesta ordem, `.env.supabase.local`, `.env.vercel.local`, `.env.local` e `.env`. Valores já definidos no ambiente não são substituídos.
+Os preflights locais carregam, nesta ordem, `.env.supabase.local`, `.env.vercel.local`, `.env.local` e `.env`. Valores já definidos no ambiente não são substituídos. Para execução local, `BASE_URL` preenche `NEXT_PUBLIC_BASE_URL` apenas dentro do processo quando a variável pública não estiver definida.
 
 ## 6. Crons (`vercel.json`)
 

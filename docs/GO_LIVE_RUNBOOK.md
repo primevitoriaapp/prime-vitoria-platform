@@ -18,7 +18,7 @@
 
 ## Pre-go-live
 
-- Confirmar variaveis `.env` completas. Os preflights locais carregam `.env.supabase.local`, `.env.vercel.local`, `.env.local` e `.env`, sem substituir valores ja definidos no shell. Em producao **nao** definir `TRUST_HEADER_AUTH` (ou deixar diferente de `true`): APIs exigem `Authorization: Bearer` JWT valido; cabecalhos `x-role` sao ignorados para sessao.
+- Confirmar variaveis `.env` completas. Os preflights locais carregam `.env.supabase.local`, `.env.vercel.local`, `.env.local` e `.env`, sem substituir valores ja definidos no shell; `BASE_URL` pode preencher `NEXT_PUBLIC_BASE_URL` somente no processo local de preflight. Em producao **nao** definir `TRUST_HEADER_AUTH` (ou deixar diferente de `true`): APIs exigem `Authorization: Bearer` JWT valido; cabecalhos `x-role` sao ignorados para sessao.
 - Se precisar bootstrap emergencial por cabecalho em producao, definir `TRUST_HEADER_AUTH=true` por tempo limitado e revisar logs.
 - Painel Next: fluxo em `/login` (Server Action + cookies); `middleware` usa `@supabase/ssr` + `getUser()` para papel da rota. Garantir `role` em `profiles` e/ou `user_metadata` / `app_metadata` alinhados ao RBAC.
 - Aplicar todas as migracoes em `supabase/migrations` no Supabase (ordem numerica; inclui multiempresa, RLS, ERP, push tokens, auditoria).

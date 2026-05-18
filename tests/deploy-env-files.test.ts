@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadEnvFiles, parseDotEnvLine } from "../src/lib/deploy/env-files.mjs";
+import { applyBaseUrlFallback, loadEnvFiles, parseDotEnvLine } from "../src/lib/deploy/env-files.mjs";
 
 test("parseDotEnvLine parses quoted values and skips comments", () => {
   assert.deepEqual(parseDotEnvLine('NEXT_PUBLIC_BASE_URL="https://example.test"'), {
@@ -40,4 +40,15 @@ test("loadEnvFiles loads ordered env files without replacing non-empty values", 
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
+});
+
+test("applyBaseUrlFallback fills NEXT_PUBLIC_BASE_URL from BASE_URL only when missing", () => {
+  const env = { BASE_URL: " https://preview.test " };
+
+  assert.equal(applyBaseUrlFallback(env), true);
+  assert.equal(env.NEXT_PUBLIC_BASE_URL, "https://preview.test");
+
+  env.BASE_URL = "https://other.test";
+  assert.equal(applyBaseUrlFallback(env), false);
+  assert.equal(env.NEXT_PUBLIC_BASE_URL, "https://preview.test");
 });

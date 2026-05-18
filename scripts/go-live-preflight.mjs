@@ -7,9 +7,10 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { loadEnvFiles } from "../src/lib/deploy/env-files.mjs";
+import { applyBaseUrlFallback, loadEnvFiles } from "../src/lib/deploy/env-files.mjs";
 
 loadEnvFiles();
+applyBaseUrlFallback();
 
 let fail = false;
 const warn = [];
