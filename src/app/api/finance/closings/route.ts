@@ -1,20 +1,11 @@
-import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { summarizeClosingsToDre } from "@/lib/finance/dre-summary";
 import { rowsToCsv } from "@/lib/reports/csv";
+import { parseFinanceClosingsListQuery } from "@/lib/finance/closings-query";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
-
-const listSchema = z.object({
-  format: z.enum(["json", "csv"]).default("json"),
-  period_start: z.string().optional(),
-  period_end: z.string().optional(),
-  status: z.enum(["draft", "closed", "reopened"]).optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(500).default(50)
-});
 
 export async function GET(request: Request) {
   try {
@@ -22,7 +13,7 @@ export async function GET(request: Request) {
     assertCapability(session, "finance.read");
     const tenantId = assertTenantScope(session);
 
-    const q = listSchema.parse(Object.fromEntries(new URL(request.url).searchParams.entries()));
+    const q = parseFinanceClosingsListQuery(new URL(request.url).searchParams);
     const from = (q.page - 1) * q.pageSize;
     const to = from + q.pageSize - 1;
 

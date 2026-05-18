@@ -80,6 +80,7 @@
 - **Hardening expiração de oferta:** aceite e aprovação usam a mesma regra de expiração, tratando timestamp inválido como expirado e bloqueando aprovação tardia.
 - **Hardening financeiro:** regeneração financeira da viagem não reabre automaticamente contas/pagáveis já `paid` ou `cancelled`; exige reabertura explícita antes de recalcular.
 - **Hardening fechamentos:** agregação de fechamentos normaliza valores não finitos (`NaN`/infinito) como zero antes de somar e persistir rascunhos.
+- **Hardening filtros de fechamento:** listagem/export CSV de fechamentos valida datas `YYYY-MM-DD` reais e recusa período invertido antes da consulta.
 - **Hardening DRE:** resumo de fechamentos trata valores não finitos como zero antes de agregar e arredondar indicadores.
 - **Hardening posição DRE:** somatórios de contas abertas/pagas usam helper finito, evitando `NaN`/infinito em JSON e HTML.
 - **Hardening relatórios operacionais:** relatório HTML de viagens formata KM com uma casa decimal e oculta valores não finitos antes de imprimir/PDF.
