@@ -6,24 +6,16 @@
  *   npm run erp:preflight
  *   BASE_URL=https://preview.vercel.app STAGING_E2E_PASSWORD=... npm run erp:preflight -- --http
  */
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { applyBaseUrlFallback, loadEnvFiles } from "../src/lib/deploy/env-files.mjs";
+import {
+  isVercelProtectionResponse,
+  parseSmokeJson,
+  smokeRequestHeaders,
+  vercelProtectionMessage
+} from "../src/lib/deploy/smoke-http.mjs";
 
-function loadDotEnvLocal() {
-  const path = resolve(process.cwd(), ".env.local");
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    const t = line.trim();
-    if (!t || t.startsWith("#")) continue;
-    const i = t.indexOf("=");
-    if (i < 1) continue;
-    const key = t.slice(0, i).trim();
-    const val = t.slice(i + 1).trim().replace(/^["']|["']$/g, "");
-    if (!process.env[key]) process.env[key] = val;
-  }
-}
-
-loadDotEnvLocal();
+loadEnvFiles();
+applyBaseUrlFallback();
 
 const httpMode = process.argv.includes("--http");
 const baseUrl = (process.env.BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://127.0.0.1:3000").replace(
@@ -95,15 +87,22 @@ if (httpMode) {
       console.error("Auth falhou:", tokenJson.error_description ?? tokenRes.status);
       fail = true;
     } else {
-      const statusRes = await fetch(`${baseUrl}/api/integrations/status`, {
-        headers: { Authorization: `Bearer ${tokenJson.access_token}` }
+      const statusUrl = `${baseUrl}/api/integrations/status`;
+      const statusRes = await fetch(statusUrl, {
+        headers: smokeRequestHeaders(process.env, { Authorization: `Bearer ${tokenJson.access_token}` })
       });
-      const body = await statusRes.json();
-      if (!statusRes.ok) {
-        console.error("GET status falhou:", body);
+      const text = await statusRes.text();
+      if (isVercelProtectionResponse({ responseUrl: statusRes.url, body: text })) {
+        console.error(vercelProtectionMessage("erp status", statusUrl, statusRes.url));
         fail = true;
       } else {
-        console.log(JSON.stringify(body.data ?? body, null, 2));
+        const body = parseSmokeJson(text, { name: "erp status", url: statusUrl });
+        if (!statusRes.ok) {
+          console.error("GET status falhou:", body);
+          fail = true;
+        } else {
+          console.log(JSON.stringify(body.data ?? body, null, 2));
+        }
       }
     }
   }

@@ -142,6 +142,8 @@ npm run erp:preflight
 BASE_URL=http://127.0.0.1:3000 STAGING_E2E_PASSWORD=... npm run erp:preflight -- --http
 ```
 
+O preflight carrega `.env.supabase.local`, `.env.vercel.local`, `.env.local` e `.env`, aceita `BASE_URL` como fallback local de `NEXT_PUBLIC_BASE_URL` e usa `VERCEL_AUTOMATION_BYPASS_SECRET` no modo HTTP quando o deployment Vercel estiver protegido.
+
 Para exigir credenciais live no preflight: `ERP_REQUIRE_LIVE=true npm run erp:preflight`.
 
 ## Testes
