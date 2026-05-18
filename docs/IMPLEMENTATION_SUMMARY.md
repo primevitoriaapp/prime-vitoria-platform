@@ -80,6 +80,7 @@
 - **Hardening expiração de oferta:** aceite e aprovação usam a mesma regra de expiração, tratando timestamp inválido como expirado e bloqueando aprovação tardia.
 - **Hardening financeiro:** regeneração financeira da viagem não reabre automaticamente contas/pagáveis já `paid` ou `cancelled`; exige reabertura explícita antes de recalcular.
 - **Hardening fechamentos:** agregação de fechamentos normaliza valores não finitos (`NaN`/infinito) como zero antes de somar e persistir rascunhos.
+- **Hardening relatórios operacionais:** relatório HTML de viagens formata KM com uma casa decimal e oculta valores não finitos antes de imprimir/PDF.
 - **Hardening filtros operacionais:** `scheduled_from`/`scheduled_to` em fila e histórico exigem datetime ISO com offset antes de chegar ao banco.
 - **Hardening notificações:** falhas retryable em `notification_jobs` respeitam `attempt_count`, `max_attempts` e `next_retry_at` antes de virar erro final.
 - **Hardening FCM:** erros permanentes do FCM legacy (`NotRegistered`, `InvalidRegistration`, etc.) são classificados como não-retryable para evitar reprocessamento inútil.

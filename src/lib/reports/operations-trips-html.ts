@@ -23,8 +23,8 @@ export function operationsTripsReportHtml(items: TripReportRow[], generatedAt: D
 <td>${escapeHtml(t.origin_text)}</td>
 <td>${escapeHtml(t.destination_text)}</td>
 <td>${escapeHtml(t.passenger_name ?? "")}</td>
-<td>${t.planned_km ?? ""}</td>
-<td>${t.actual_km ?? ""}</td>
+<td>${formatReportKm(t.planned_km)}</td>
+<td>${formatReportKm(t.actual_km)}</td>
 <td>${escapeHtml(t.dispatch_mode)}</td>
 </tr>`
     )
@@ -69,4 +69,10 @@ function escapeHtml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+export function formatReportKm(value: number | null): string {
+  if (value == null) return "";
+  const km = Number(value);
+  return Number.isFinite(km) ? km.toFixed(1) : "";
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { operationsTripsReportHtml } from "../src/lib/reports/operations-trips-html.ts";
+import { formatReportKm, operationsTripsReportHtml } from "../src/lib/reports/operations-trips-html.ts";
 
 test("operationsTripsReportHtml escapes and lists rows", () => {
   const html = operationsTripsReportHtml(
@@ -24,4 +24,14 @@ test("operationsTripsReportHtml escapes and lists rows", () => {
   assert.match(html, /<table>/);
   assert.match(html, /A &lt;script&gt;/);
   assert.match(html, /completed/);
+  assert.match(html, /10.0/);
+  assert.match(html, /11.0/);
+});
+
+test("formatReportKm hides non-finite km values", () => {
+  assert.equal(formatReportKm(null), "");
+  assert.equal(formatReportKm(12), "12.0");
+  assert.equal(formatReportKm(12.34), "12.3");
+  assert.equal(formatReportKm(Number.NaN), "");
+  assert.equal(formatReportKm(Number.POSITIVE_INFINITY), "");
 });
