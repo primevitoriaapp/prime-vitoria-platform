@@ -1,4 +1,5 @@
 import { db } from "../server/db";
+import { closingFinancialAmount } from "./closing-amount";
 
 export type ClosingAggregate = {
   entity_type: "client" | "driver";
@@ -45,11 +46,11 @@ export async function aggregateClosingsForPeriod(
     const tf = Array.isArray(raw) ? raw[0] : raw;
     if (!tf) continue;
 
-    const amountClient = Number(tf.amount_client) || 0;
-    const amountDriver = Number(tf.amount_driver) || 0;
-    const tolls = Number(tf.tolls) || 0;
-    const parking = Number(tf.parking) || 0;
-    const netMargin = Number(tf.net_margin) || 0;
+    const amountClient = closingFinancialAmount(tf.amount_client);
+    const amountDriver = closingFinancialAmount(tf.amount_driver);
+    const tolls = closingFinancialAmount(tf.tolls);
+    const parking = closingFinancialAmount(tf.parking);
+    const netMargin = closingFinancialAmount(tf.net_margin);
     const tripCost = amountDriver + tolls + parking;
 
     const clientId = trip.client_id as string;
@@ -132,5 +133,5 @@ export async function upsertDraftClosings(
 
 
 function roundMoney(n: number): number {
-  return Math.round(n * 100) / 100;
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
 }

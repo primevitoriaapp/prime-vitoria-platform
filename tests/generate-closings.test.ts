@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { closingFinancialAmount } from "../src/lib/finance/closing-amount.ts";
 
 /** Espelha agregação de cliente/motorista (sem I/O). */
 function aggregateSample(
@@ -38,4 +39,12 @@ test("closing aggregates sum trip financials", () => {
   assert.equal(r.clientGross, 150);
   assert.equal(r.clientMargin, 53);
   assert.equal(r.driverGross, 90);
+});
+
+test("closingFinancialAmount treats non-finite values as zero", () => {
+  assert.equal(closingFinancialAmount(10.5), 10.5);
+  assert.equal(closingFinancialAmount("7.25"), 7.25);
+  assert.equal(closingFinancialAmount(null), 0);
+  assert.equal(closingFinancialAmount(Number.NaN), 0);
+  assert.equal(closingFinancialAmount(Number.POSITIVE_INFINITY), 0);
 });
