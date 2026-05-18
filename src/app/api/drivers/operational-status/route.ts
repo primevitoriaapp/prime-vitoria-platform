@@ -6,6 +6,7 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import {
+  DRIVER_MANUAL_STATUS_BLOCKING_TRIP_STATUSES,
   DRIVER_OPERATIONAL_STATUS_VALUES,
   isDriverOperationalStatus
 } from "@/lib/drivers/operational-status";
@@ -69,6 +70,26 @@ export async function POST(request: Request) {
       return fail("INVALID_DRIVER_STATUS", "Motorista so pode alternar online/offline manualmente", 400);
     }
     if (!driverId) return fail("DRIVER_ID_REQUIRED", "driver_id obrigatorio", 400);
+
+    if (session.role === "motorista") {
+      const { data: activeTrip, error: activeTripError } = await db
+        .from("trips")
+        .select("id, operational_status")
+        .eq("tenant_id", tenantId)
+        .eq("driver_id", driverId)
+        .in("operational_status", [...DRIVER_MANUAL_STATUS_BLOCKING_TRIP_STATUSES])
+        .limit(1)
+        .maybeSingle();
+
+      if (activeTripError) return fail("DRIVER_ACTIVE_TRIP_CHECK_FAILED", activeTripError.message, 500);
+      if (activeTrip) {
+        return fail(
+          "DRIVER_STATUS_LOCKED_BY_TRIP",
+          "Finalize ou atualize a corrida ativa antes de alterar disponibilidade manualmente",
+          409
+        );
+      }
+    }
 
     const updatedAt = new Date().toISOString();
     const { data, error } = await db

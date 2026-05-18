@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  DRIVER_MANUAL_STATUS_BLOCKING_TRIP_STATUSES,
+  driverManualStatusBlockedByTrip,
   driverOperationalStatusForTrip,
   isDriverOperationalStatus
 } from "../src/lib/drivers/operational-status.ts";
@@ -23,4 +25,14 @@ test("isDriverOperationalStatus accepts only known values", () => {
   assert.equal(isDriverOperationalStatus("online"), true);
   assert.equal(isDriverOperationalStatus("offline"), true);
   assert.equal(isDriverOperationalStatus("busy"), false);
+});
+
+test("driverManualStatusBlockedByTrip blocks active assigned trip statuses", () => {
+  for (const status of DRIVER_MANUAL_STATUS_BLOCKING_TRIP_STATUSES) {
+    assert.equal(driverManualStatusBlockedByTrip(status), true);
+  }
+  assert.equal(driverManualStatusBlockedByTrip("completed"), false);
+  assert.equal(driverManualStatusBlockedByTrip("cancelled"), false);
+  assert.equal(driverManualStatusBlockedByTrip("no_show"), false);
+  assert.equal(driverManualStatusBlockedByTrip("approved"), false);
 });

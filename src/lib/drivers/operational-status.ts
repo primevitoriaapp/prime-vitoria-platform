@@ -18,6 +18,15 @@ export const DRIVER_OPERATIONAL_STATUS_PT: Record<DriverOperationalStatus, strin
   offline: "Offline"
 };
 
+export const DRIVER_MANUAL_STATUS_BLOCKING_TRIP_STATUSES = [
+  "dispatched",
+  "accepted",
+  "reassigned",
+  "on_the_way",
+  "arrived",
+  "in_progress"
+] as const;
+
 export function isDriverOperationalStatus(value: unknown): value is DriverOperationalStatus {
   return typeof value === "string" && DRIVER_OPERATIONAL_STATUS_VALUES.includes(value as DriverOperationalStatus);
 }
@@ -44,4 +53,9 @@ export function driverOperationalStatusForTrip(
     default:
       return null;
   }
+}
+
+export function driverManualStatusBlockedByTrip(status: TripOperationalStatus | string | null | undefined): boolean {
+  const derived = driverOperationalStatusForTrip(status);
+  return derived !== null && derived !== "online";
 }
