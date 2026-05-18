@@ -1,8 +1,7 @@
+import { csvCell } from "../reports/csv.ts";
+
 export function csvEscape(value: string | number | null | undefined): string {
-  if (value == null) return "";
-  const s = String(value);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
+  return csvCell(value);
 }
 
 export type HistoryCsvRow = {

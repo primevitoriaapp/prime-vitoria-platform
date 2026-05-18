@@ -6,6 +6,7 @@ test("csvEscape quotes when needed", () => {
   assert.equal(csvEscape("ok"), "ok");
   assert.equal(csvEscape('say "hi"'), '"say ""hi"""');
   assert.equal(csvEscape("a\nb"), '"a\nb"');
+  assert.equal(csvEscape("=cmd"), "'=cmd");
 });
 
 test("buildOperationsHistoryCsv builds header and row", () => {
@@ -18,7 +19,7 @@ test("buildOperationsHistoryCsv builds header and row", () => {
       driver_id: "d1",
       driver_name: "João",
       passenger_name: null,
-      origin_text: "A",
+      origin_text: "=A",
       destination_text: "B",
       planned_km: 10,
       actual_km: 11,
@@ -28,4 +29,5 @@ test("buildOperationsHistoryCsv builds header and row", () => {
   assert.ok(csv.startsWith("id,scheduled_at,"));
   assert.match(csv, /completed/);
   assert.match(csv, /João/);
+  assert.match(csv, /'=A/);
 });

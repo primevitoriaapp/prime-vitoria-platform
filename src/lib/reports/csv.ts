@@ -1,10 +1,11 @@
 /** Escapa valor para CSV (RFC básico). */
 export function csvCell(value: unknown): string {
   const s = value == null ? "" : String(value);
-  if (/[",\n\r]/.test(s)) {
-    return `"${s.replace(/"/g, '""')}"`;
+  const safe = typeof value === "string" ? neutralizeCsvFormula(s) : s;
+  if (/[",\n\r]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`;
   }
-  return s;
+  return safe;
 }
 
 export function rowsToCsv(headers: string[], rows: unknown[][]): string {
@@ -13,4 +14,8 @@ export function rowsToCsv(headers: string[], rows: unknown[][]): string {
     lines.push(row.map(csvCell).join(","));
   }
   return lines.join("\n");
+}
+
+export function neutralizeCsvFormula(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 }
