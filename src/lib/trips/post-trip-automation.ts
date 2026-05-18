@@ -6,6 +6,7 @@ import { actualKmFromTrail, plannedKmFromCoords } from "@/lib/trips/km-distance"
 import { ensureAccountsReceivableFromTripFinancials } from "@/lib/finance/ensure-accounts-receivable";
 import { ensureDriverPayableFromTripFinancials } from "@/lib/finance/ensure-driver-payable";
 import { postTripAutomationFailureMetadata } from "@/lib/trips/post-trip-automation-failure";
+import { postTripKmSource, type TripKmSource } from "@/lib/trips/post-trip-km-source";
 
 export type PostTripAutomationInput = {
   tripId: string;
@@ -59,7 +60,8 @@ export async function runPostTripAutomation(input: PostTripAutomationInput): Pro
 
   let planned = trip.planned_km != null ? Number(trip.planned_km) : plannedKmFromCoords(trip);
   let actual: number | null = null;
-  let kmSource: "coords" | "gps_trail" | "manual" | null = null;
+  let kmSource: TripKmSource | null = null;
+  const previousActual = trip.actual_km != null ? Number(trip.actual_km) : null;
 
   if (trip.driver_id) {
     const { data: locs } = await db
@@ -84,12 +86,17 @@ export async function runPostTripAutomation(input: PostTripAutomationInput): Pro
   }
 
   const now = new Date().toISOString();
+  kmSource = postTripKmSource({
+    plannedKm: planned,
+    actualKmFromTrail: actual,
+    previousActualKm: previousActual
+  });
   await db
     .from("trips")
     .update({
       planned_km: planned,
-      actual_km: actual ?? trip.actual_km,
-      km_source: kmSource ?? (planned != null ? "coords" : trip.actual_km != null ? "manual" : null),
+      actual_km: actual ?? previousActual,
+      km_source: kmSource,
       km_updated_at: now
     })
     .eq("id", tripId)
