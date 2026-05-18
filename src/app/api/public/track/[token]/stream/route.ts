@@ -3,7 +3,7 @@ import { getClientIp } from "@/lib/security/integration-guard";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { normalizePublicTrackToken } from "@/lib/public/track-token";
 import { resolvePublicTrackSnapshot } from "@/lib/public/resolve-public-track";
-import { publicTrackRevision } from "@/lib/public/track-revision";
+import { isPublicTrackTerminalStatus, publicTrackRevision } from "@/lib/public/track-revision";
 
 const encoder = new TextEncoder();
 
@@ -48,6 +48,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
         };
 
         controller.enqueue(sse({ success: true, data: initial }));
+        if (isPublicTrackTerminalStatus(initial.operational_status)) {
+          close();
+          return;
+        }
 
         interval = setInterval(() => {
           void (async () => {
@@ -63,6 +67,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
             if (nextRevision !== revision) {
               revision = nextRevision;
               controller.enqueue(sse({ success: true, data: snapshot }));
+              if (isPublicTrackTerminalStatus(snapshot.operational_status)) {
+                close();
+              }
             }
           })().catch((error) => {
             if (!closed) {

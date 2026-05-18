@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { publicTrackRevision } from "../src/lib/public/track-revision.ts";
+import { isPublicTrackTerminalStatus, publicTrackRevision } from "../src/lib/public/track-revision.ts";
 
 test("publicTrackRevision changes when location timestamp changes", () => {
   const base = publicTrackRevision({
@@ -51,4 +51,13 @@ test("publicTrackRevision changes when status or KM changes", () => {
     }),
     base
   );
+});
+
+test("isPublicTrackTerminalStatus identifies terminal passenger tracking states", () => {
+  assert.equal(isPublicTrackTerminalStatus("completed"), true);
+  assert.equal(isPublicTrackTerminalStatus("cancelled"), true);
+  assert.equal(isPublicTrackTerminalStatus("rejected"), true);
+  assert.equal(isPublicTrackTerminalStatus("no_show"), true);
+  assert.equal(isPublicTrackTerminalStatus("on_the_way"), false);
+  assert.equal(isPublicTrackTerminalStatus("in_progress"), false);
 });

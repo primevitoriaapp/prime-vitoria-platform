@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PublicTrackMap } from "@/components/public-track-map";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
+import { isPublicTrackTerminalStatus } from "@/lib/public/track-revision";
 
 type TrackPayload = {
   operational_status: TripOperationalStatus;
@@ -24,12 +25,11 @@ type Props = {
   initial: TrackPayload;
 };
 
-const TERMINAL_STATUSES: TripOperationalStatus[] = ["completed", "cancelled", "rejected", "no_show"];
-
 export function PublicTrackPoller({ token, initial }: Props) {
   const [data, setData] = useState<TrackPayload>(initial);
   const [error, setError] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
+  const terminal = isPublicTrackTerminalStatus(data.operational_status);
 
   const applySnapshot = useCallback((snapshot: TrackPayload) => {
     setError(null);
@@ -58,6 +58,10 @@ export function PublicTrackPoller({ token, initial }: Props) {
 
   useEffect(() => {
     if (typeof window === "undefined" || !("EventSource" in window)) return;
+    if (terminal) {
+      setStreaming(false);
+      return;
+    }
 
     let active = true;
     let retry: ReturnType<typeof setTimeout> | null = null;
@@ -101,15 +105,15 @@ export function PublicTrackPoller({ token, initial }: Props) {
       if (retry) clearTimeout(retry);
       source?.close();
     };
-  }, [token, applySnapshot]);
+  }, [token, applySnapshot, terminal]);
 
   useEffect(() => {
-    const ms = TERMINAL_STATUSES.includes(data.operational_status) ? 45_000 : 12_000;
+    const ms = terminal ? 45_000 : 12_000;
     const id = window.setInterval(() => void refresh(), ms);
     return () => window.clearInterval(id);
-  }, [refresh, data.operational_status]);
+  }, [refresh, terminal]);
 
-  const pollSeconds = TERMINAL_STATUSES.includes(data.operational_status) ? 45 : 12;
+  const pollSeconds = terminal ? 45 : 12;
   const statusLabel = STATUS_CORRIDA_PT[data.operational_status] ?? data.operational_status;
 
   const driverPoint = data.location
