@@ -3,6 +3,7 @@ import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { summarizeClosingsToDre } from "@/lib/finance/dre-summary";
 import { dreSummaryReportHtml } from "@/lib/finance/dre-report-html";
+import { sumFinancialAmounts } from "@/lib/finance/sum-financial-amounts";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
@@ -12,10 +13,6 @@ const querySchema = z.object({
   period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   period_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 });
-
-function sumAmounts(rows: { amount: number }[] | null): number {
-  return (rows ?? []).reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
-}
 
 /** Resumo DRE do tenant no período (a partir de `financial_closings` + posição AR/AP). */
 export async function GET(request: Request) {
@@ -78,15 +75,15 @@ export async function GET(request: Request) {
 
     const receivables = {
       open_count: arOpenRows?.length ?? 0,
-      open_amount: sumAmounts(arOpenRows),
+      open_amount: sumFinancialAmounts(arOpenRows),
       paid_in_period_count: arPaidRows?.length ?? 0,
-      paid_in_period_amount: sumAmounts(arPaidRows)
+      paid_in_period_amount: sumFinancialAmounts(arPaidRows)
     };
     const payables = {
       open_count: apOpenRows?.length ?? 0,
-      open_amount: sumAmounts(apOpenRows),
+      open_amount: sumFinancialAmounts(apOpenRows),
       paid_in_period_count: apPaidRows?.length ?? 0,
-      paid_in_period_amount: sumAmounts(apPaidRows)
+      paid_in_period_amount: sumFinancialAmounts(apPaidRows)
     };
 
     if (q.format === "html") {

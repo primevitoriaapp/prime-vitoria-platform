@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { summarizeClosingsToDre } from "../src/lib/finance/dre-summary.ts";
+import { sumFinancialAmounts } from "../src/lib/finance/sum-financial-amounts.ts";
 
 test("summarizeClosingsToDre aggregates client and driver lines", () => {
   const dre = summarizeClosingsToDre("2026-05-01", "2026-05-31", [
@@ -49,4 +50,18 @@ test("summarizeClosingsToDre treats non-finite amounts as zero", () => {
   assert.equal(dre.margin_clients, 25);
   assert.equal(dre.payout_drivers, 0);
   assert.equal(dre.driver_cost_lines, 0);
+});
+
+test("sumFinancialAmounts ignores non-finite row amounts", () => {
+  assert.equal(
+    sumFinancialAmounts([
+      { amount: 10 },
+      { amount: "2.5" },
+      { amount: Number.NaN },
+      { amount: Number.POSITIVE_INFINITY },
+      { amount: null }
+    ]),
+    12.5
+  );
+  assert.equal(sumFinancialAmounts(null), 0);
 });
