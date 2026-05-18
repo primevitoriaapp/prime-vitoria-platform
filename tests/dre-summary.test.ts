@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { summarizeClosingsToDre } from "../src/lib/finance/dre-summary.ts";
+import { parseDreSummaryQuery } from "../src/lib/finance/dre-summary-query.ts";
 import { sumFinancialAmounts } from "../src/lib/finance/sum-financial-amounts.ts";
 
 test("summarizeClosingsToDre aggregates client and driver lines", () => {
@@ -64,4 +65,18 @@ test("sumFinancialAmounts ignores non-finite row amounts", () => {
     12.5
   );
   assert.equal(sumFinancialAmounts(null), 0);
+});
+
+test("parseDreSummaryQuery validates real date-only period", () => {
+  const q = parseDreSummaryQuery(
+    new URLSearchParams("format=html&period_start=2026-05-01&period_end=2026-05-31")
+  );
+  assert.equal(q.format, "html");
+  assert.equal(q.period_start, "2026-05-01");
+  assert.equal(q.period_end, "2026-05-31");
+  assert.throws(() => parseDreSummaryQuery(new URLSearchParams("period_start=2026-02-31&period_end=2026-03-01")));
+  assert.throws(
+    () => parseDreSummaryQuery(new URLSearchParams("period_start=2026-06-01&period_end=2026-05-31")),
+    /period_end must be after/
+  );
 });

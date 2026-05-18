@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isValidIsoDateOnly, parseFinanceClosingsListQuery } from "../src/lib/finance/closings-query.ts";
+import { isValidIsoDateOnly } from "../src/lib/datetime/iso-date-only.ts";
+import { parseFinanceClosingsListQuery } from "../src/lib/finance/closings-query.ts";
 
 test("parseFinanceClosingsListQuery applies defaults", () => {
   const q = parseFinanceClosingsListQuery(new URLSearchParams(""));

@@ -1,18 +1,12 @@
-import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { summarizeClosingsToDre } from "@/lib/finance/dre-summary";
 import { dreSummaryReportHtml } from "@/lib/finance/dre-report-html";
+import { parseDreSummaryQuery } from "@/lib/finance/dre-summary-query";
 import { sumFinancialAmounts } from "@/lib/finance/sum-financial-amounts";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
-
-const querySchema = z.object({
-  format: z.enum(["json", "html"]).default("json"),
-  period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  period_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-});
 
 /** Resumo DRE do tenant no período (a partir de `financial_closings` + posição AR/AP). */
 export async function GET(request: Request) {
@@ -21,10 +15,7 @@ export async function GET(request: Request) {
     assertCapability(session, "finance.read");
     const tenantId = assertTenantScope(session);
 
-    const q = querySchema.parse(Object.fromEntries(new URL(request.url).searchParams.entries()));
-    if (q.period_end < q.period_start) {
-      return fail("INVALID_PERIOD", "period_end deve ser >= period_start", 400);
-    }
+    const q = parseDreSummaryQuery(new URL(request.url).searchParams);
 
     const { data: closings, error: closErr } = await db
       .from("financial_closings")

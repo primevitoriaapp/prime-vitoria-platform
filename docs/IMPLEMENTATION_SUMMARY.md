@@ -83,6 +83,7 @@
 - **Hardening filtros de fechamento:** listagem/export CSV de fechamentos valida datas `YYYY-MM-DD` reais e recusa período invertido antes da consulta.
 - **Hardening DRE:** resumo de fechamentos trata valores não finitos como zero antes de agregar e arredondar indicadores.
 - **Hardening posição DRE:** somatórios de contas abertas/pagas usam helper finito, evitando `NaN`/infinito em JSON e HTML.
+- **Hardening filtros DRE:** endpoint de resumo DRE valida datas reais `YYYY-MM-DD` com helper compartilhado e recusa período invertido.
 - **Hardening relatórios operacionais:** relatório HTML de viagens formata KM com uma casa decimal e oculta valores não finitos antes de imprimir/PDF.
 - **Hardening CSV:** exports neutralizam células de texto que parecem fórmulas de planilha e histórico operacional reutiliza o escape CSV comum.
 - **Hardening filtros de relatório:** `scheduledFrom`/`scheduledTo` do relatório operacional exigem datetime ISO com offset e recusam intervalo invertido antes de consultar o banco.
