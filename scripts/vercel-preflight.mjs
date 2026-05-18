@@ -1,33 +1,19 @@
 #!/usr/bin/env node
 /**
- * Valida variáveis mínimas para deploy Vercel (lê process.env ou .env.local).
+ * Valida variáveis mínimas para deploy Vercel (lê process.env e envs locais).
  * Uso: node scripts/vercel-preflight.mjs
  *      BASE_URL=https://preview.vercel.app CRON_SECRET=... node scripts/vercel-preflight.mjs
  */
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { loadEnvFiles } from "../src/lib/deploy/env-files.mjs";
 import {
   isVercelProtectionResponse,
+  parseSmokeJson,
   smokeRequestHeaders,
   vercelProtectionMessage
 } from "../src/lib/deploy/smoke-http.mjs";
 
-function loadDotEnvLocal() {
-  const path = resolve(process.cwd(), ".env.local");
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    const t = line.trim();
-    if (!t || t.startsWith("#")) continue;
-    const i = t.indexOf("=");
-    if (i < 1) continue;
-    const key = t.slice(0, i).trim();
-    const val = t.slice(i + 1).trim().replace(/^["']|["']$/g, "");
-    if (!process.env[key]) process.env[key] = val;
-  }
-}
-
-loadDotEnvLocal();
+loadEnvFiles();
 
 const required = [
   "NEXT_PUBLIC_SUPABASE_URL",
@@ -68,7 +54,7 @@ if (base) {
       console.log(`fail health: ${vercelProtectionMessage("health", healthUrl, health.url)}`);
       fail = true;
     } else {
-      const json = JSON.parse(text);
+      const json = parseSmokeJson(text, { name: "health", url: healthUrl });
       console.log(health.ok && json?.ok ? `ok GET ${healthUrl}` : `fail health ${health.status}`);
       if (!health.ok) fail = true;
     }

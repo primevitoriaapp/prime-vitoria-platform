@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   isVercelProtectionResponse,
+  parseSmokeJson,
   smokeRequestHeaders,
   vercelProtectionMessage
 } from "../src/lib/deploy/smoke-http.mjs";
@@ -55,5 +56,18 @@ test("smokeRequestHeaders preserves extra headers with Vercel bypass", () => {
       Authorization: "Bearer cron-secret",
       "x-vercel-protection-bypass": "secret"
     }
+  );
+});
+
+test("parseSmokeJson returns parsed JSON", () => {
+  assert.deepEqual(parseSmokeJson('{"ok":true}', { name: "health", url: "https://example.test" }), {
+    ok: true
+  });
+});
+
+test("parseSmokeJson reports non-JSON responses with preview", () => {
+  assert.throws(
+    () => parseSmokeJson("<html>not the api</html>", { name: "health", url: "https://example.test/api/health" }),
+    /health: https:\/\/example\.test\/api\/health returned non-JSON response/
   );
 });

@@ -5,6 +5,7 @@
  */
 import {
   isVercelProtectionResponse,
+  parseSmokeJson,
   smokeRequestHeaders,
   vercelProtectionMessage
 } from "../src/lib/deploy/smoke-http.mjs";
@@ -23,6 +24,7 @@ async function check(name, path, expectStatus) {
   if (!ok) {
     throw new Error(`${name}: ${url} -> ${res.status} (expected ${expectStatus})\n${text.slice(0, 200)}`);
   }
+  parseSmokeJson(text, { name, url });
   console.log(`ok ${name} (${res.status})`);
 }
 

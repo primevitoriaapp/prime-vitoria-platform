@@ -18,13 +18,13 @@
 
 ## Pre-go-live
 
-- Confirmar variaveis `.env` completas. Em producao **nao** definir `TRUST_HEADER_AUTH` (ou deixar diferente de `true`): APIs exigem `Authorization: Bearer` JWT valido; cabecalhos `x-role` sao ignorados para sessao.
+- Confirmar variaveis `.env` completas. Os preflights locais carregam `.env.supabase.local`, `.env.vercel.local`, `.env.local` e `.env`, sem substituir valores ja definidos no shell. Em producao **nao** definir `TRUST_HEADER_AUTH` (ou deixar diferente de `true`): APIs exigem `Authorization: Bearer` JWT valido; cabecalhos `x-role` sao ignorados para sessao.
 - Se precisar bootstrap emergencial por cabecalho em producao, definir `TRUST_HEADER_AUTH=true` por tempo limitado e revisar logs.
 - Painel Next: fluxo em `/login` (Server Action + cookies); `middleware` usa `@supabase/ssr` + `getUser()` para papel da rota. Garantir `role` em `profiles` e/ou `user_metadata` / `app_metadata` alinhados ao RBAC.
 - Aplicar todas as migracoes em `supabase/migrations` no Supabase (ordem numerica; inclui multiempresa, RLS, ERP, push tokens, auditoria).
 - Validar RLS com usuarios reais (admin, operador, cliente, motorista, financeiro).
 - Configurar integracao ERP conforme `docs/ERP_INTEGRATION.md` (testar primeiro em `mock`, depois `live`).
-- Executar `npm run go-live:preflight` (testes unitários + smoke HTTP; com `STAGING_E2E_PASSWORD` também corre um papel de staging).
+- Executar `npm run go-live:preflight` (testes unitários + smoke HTTP; com `STAGING_E2E_PASSWORD` também corre um papel de staging). Se o deployment estiver protegido pela Vercel, defina `VERCEL_AUTOMATION_BYPASS_SECRET`.
 - Executar smoke tests de API (jobs: POST com Bearer do segredo correspondente ou JWT com role adequada; ver `docs/ERP_INTEGRATION.md`):
   - `/api/trips`
   - `/api/trips/:id/dispatch-directed`

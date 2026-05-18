@@ -21,6 +21,15 @@ export function smokeRequestHeaders(env = process.env, extraHeaders = {}) {
   return headers;
 }
 
+export function parseSmokeJson(text, { name, url }) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const preview = text.trim().slice(0, 200) || "<empty response>";
+    throw new Error(`${name}: ${url} returned non-JSON response\n${preview}`);
+  }
+}
+
 export function vercelProtectionMessage(name, url, responseUrl) {
   const target = responseUrl && responseUrl !== url ? ` (redirected to ${responseUrl})` : "";
   return `${name}: ${url}${target} is behind Vercel Deployment Protection. Use a public alias, disable protection for this deployment, or run the smoke after authenticating with Vercel.`;

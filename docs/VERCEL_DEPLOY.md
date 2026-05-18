@@ -40,7 +40,7 @@ openssl rand -hex 32
 | ERP (opcional) | `ERP_OMIE_*`, `ERP_CONTA_AZUL_*`, webhooks `ERP_*_WEBHOOK_SECRET` |
 | ERP go-live | `ERP_REQUIRE_LIVE=true` + validar com `npm run erp:preflight` |
 | Monitorização | `SENTRY_DSN` ou `NEXT_PUBLIC_SENTRY_DSN`; opcional `SENTRY_ORG`, `SENTRY_PROJECT` |
-| Segurança | `ERP_INTEGRATION_ALLOWED_IPS` (opcional) |
+| Segurança | `ERP_INTEGRATION_ALLOWED_IPS` (opcional), `VERCEL_AUTOMATION_BYPASS_SECRET` para smoke automatizado em deployment protegido |
 
 **Não definir** `TRUST_HEADER_AUTH=true` em produção.
 
@@ -74,13 +74,16 @@ Em **Authentication → URL Configuration**:
 Smoke após deploy:
 
 ```bash
-curl -sS https://SEU-DOMINIO.vercel.app/api/health
-# {"ok":true}
-
 export BASE_URL=https://SEU-DOMINIO.vercel.app
+export VERCEL_AUTOMATION_BYPASS_SECRET=... # apenas se Deployment Protection estiver ativo
+npm run test:e2e-smoke
+npm run vercel:preflight
+
 export CRON_SECRET=...
 curl -sS -H "Authorization: Bearer $CRON_SECRET" "$BASE_URL/api/cron/notifications"
 ```
+
+Os preflights locais carregam, nesta ordem, `.env.supabase.local`, `.env.vercel.local`, `.env.local` e `.env`. Valores já definidos no ambiente não são substituídos.
 
 ## 6. Crons (`vercel.json`)
 

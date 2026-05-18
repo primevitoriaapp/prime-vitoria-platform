@@ -5,24 +5,11 @@
  *      BASE_URL=https://xxx.vercel.app npm run go-live:preflight
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { loadEnvFiles } from "../src/lib/deploy/env-files.mjs";
 
-function loadDotEnvLocal() {
-  const path = resolve(process.cwd(), ".env.local");
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    const t = line.trim();
-    if (!t || t.startsWith("#")) continue;
-    const i = t.indexOf("=");
-    if (i < 1) continue;
-    const key = t.slice(0, i).trim();
-    const val = t.slice(i + 1).trim().replace(/^["']|["']$/g, "");
-    if (!process.env[key]) process.env[key] = val;
-  }
-}
-
-loadDotEnvLocal();
+loadEnvFiles();
 
 let fail = false;
 const warn = [];
