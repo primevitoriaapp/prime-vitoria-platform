@@ -43,3 +43,17 @@ test("smokeRequestHeaders adds Vercel protection bypass when configured", () => 
     "x-vercel-protection-bypass": "secret"
   });
 });
+
+test("smokeRequestHeaders preserves extra headers with Vercel bypass", () => {
+  assert.deepEqual(
+    smokeRequestHeaders(
+      { VERCEL_AUTOMATION_BYPASS_SECRET: "secret" },
+      { Authorization: "Bearer cron-secret" }
+    ),
+    {
+      accept: "application/json",
+      Authorization: "Bearer cron-secret",
+      "x-vercel-protection-bypass": "secret"
+    }
+  );
+});

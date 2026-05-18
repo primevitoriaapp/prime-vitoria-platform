@@ -7,6 +7,11 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import {
+  isVercelProtectionResponse,
+  smokeRequestHeaders,
+  vercelProtectionMessage
+} from "../src/lib/deploy/smoke-http.mjs";
 
 function loadDotEnvLocal() {
   const path = resolve(process.cwd(), ".env.local");
@@ -56,10 +61,17 @@ const cronSecret = process.env.CRON_SECRET?.trim();
 
 if (base) {
   try {
-    const health = await fetch(`${base}/api/health`);
-    const json = await health.json();
-    console.log(health.ok && json?.ok ? `ok GET ${base}/api/health` : `fail health ${health.status}`);
-    if (!health.ok) fail = true;
+    const healthUrl = `${base}/api/health`;
+    const health = await fetch(healthUrl, { headers: smokeRequestHeaders() });
+    const text = await health.text();
+    if (isVercelProtectionResponse({ responseUrl: health.url, body: text })) {
+      console.log(`fail health: ${vercelProtectionMessage("health", healthUrl, health.url)}`);
+      fail = true;
+    } else {
+      const json = JSON.parse(text);
+      console.log(health.ok && json?.ok ? `ok GET ${healthUrl}` : `fail health ${health.status}`);
+      if (!health.ok) fail = true;
+    }
   } catch (e) {
     console.log(`fail health: ${e.message}`);
     fail = true;
@@ -68,7 +80,7 @@ if (base) {
   if (cronSecret && cronSecret.length >= 16) {
     try {
       const cron = await fetch(`${base}/api/cron/notifications`, {
-        headers: { Authorization: `Bearer ${cronSecret}` }
+        headers: smokeRequestHeaders(process.env, { Authorization: `Bearer ${cronSecret}` })
       });
       console.log(cron.ok ? `ok cron notifications (${cron.status})` : `fail cron ${cron.status}`);
       if (!cron.ok) fail = true;

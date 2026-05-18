@@ -11,8 +11,8 @@ export function isVercelProtectionResponse({ responseUrl = "", body = "" } = {})
   );
 }
 
-export function smokeRequestHeaders(env = process.env) {
-  const headers = { accept: "application/json" };
+export function smokeRequestHeaders(env = process.env, extraHeaders = {}) {
+  const headers = { accept: "application/json", ...extraHeaders };
   const bypassSecret = env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
   if (bypassSecret) {
     headers["x-vercel-protection-bypass"] = bypassSecret;
