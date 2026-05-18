@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   isVercelProtectionResponse,
+  smokeRequestHeaders,
   vercelProtectionMessage
 } from "../src/lib/deploy/smoke-http.mjs";
 
@@ -34,4 +35,11 @@ test("vercelProtectionMessage explains how to unblock smoke", () => {
 
   assert.match(message, /Vercel Deployment Protection/);
   assert.match(message, /public alias/);
+});
+
+test("smokeRequestHeaders adds Vercel protection bypass when configured", () => {
+  assert.deepEqual(smokeRequestHeaders({ VERCEL_AUTOMATION_BYPASS_SECRET: " secret " }), {
+    accept: "application/json",
+    "x-vercel-protection-bypass": "secret"
+  });
 });

@@ -71,7 +71,7 @@
 - **Hardening notificações:** falhas retryable em `notification_jobs` respeitam `attempt_count`, `max_attempts` e `next_retry_at` antes de virar erro final.
 - **Hardening pós-mutação:** notificações de despacho/reatribuição/oferta são best-effort após alterar a viagem, evitando erro tardio quando a mutação principal já foi persistida.
 - **Hardening rastreio público:** criação de token público retorna sucesso após persistir o token mesmo se a auditoria pós-criação falhar.
-- **Hardening smoke HTTP:** `scripts/e2e-smoke-http.mjs` detecta Deployment Protection da Vercel e falha com diagnóstico accionável, evitando falso `200 OK` na página de login da Vercel.
+- **Hardening smoke HTTP:** `scripts/e2e-smoke-http.mjs` detecta Deployment Protection da Vercel, aceita `VERCEL_AUTOMATION_BYPASS_SECRET` para smoke em deployment protegido e falha com diagnóstico accionável, evitando falso `200 OK` na página de login da Vercel.
 - **Bootstrap operacional:** `npm run bootstrap:prime` configura tenant Prime Vitória, admin owner, cliente/motorista/veículo e corridas teste de forma idempotente.
 - **Ofertas agenda + motorista PWA:** painéis `TripAgendaOffersPanel`, `DriverOffersPanel`.
 - **Frota/clientes:** painéis com editar/desactivar; Sentry opcional; `GET /api/integrations/status`; `npm run erp:preflight`.

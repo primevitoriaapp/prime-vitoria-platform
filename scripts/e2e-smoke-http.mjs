@@ -3,13 +3,17 @@
  * Smoke HTTP contra deployment ou localhost.
  * Uso: BASE_URL=https://preview.vercel.app node scripts/e2e-smoke-http.mjs
  */
-import { isVercelProtectionResponse, vercelProtectionMessage } from "../src/lib/deploy/smoke-http.mjs";
+import {
+  isVercelProtectionResponse,
+  smokeRequestHeaders,
+  vercelProtectionMessage
+} from "../src/lib/deploy/smoke-http.mjs";
 
 const base = (process.env.BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
 async function check(name, path, expectStatus) {
   const url = `${base}${path}`;
-  const res = await fetch(url, { headers: { accept: "application/json" } });
+  const res = await fetch(url, { headers: smokeRequestHeaders() });
   const text = await res.text();
   if (isVercelProtectionResponse({ responseUrl: res.url, body: text })) {
     throw new Error(vercelProtectionMessage(name, url, res.url));
