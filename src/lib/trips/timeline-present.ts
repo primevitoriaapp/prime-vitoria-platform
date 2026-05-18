@@ -34,6 +34,23 @@ const AUDIT_LABELS: Record<string, string> = {
   "driver.push_token_upsert": "Token push do motorista atualizado"
 };
 
+const METADATA_LABELS: Record<string, string> = {
+  actual_km: "KM real",
+  amount: "Valor",
+  claim_id: "Claim",
+  client_id: "Cliente",
+  driver_id: "Motorista",
+  from: "De",
+  km_source: "Fonte KM",
+  mode: "Modo",
+  payable_id: "Pagável",
+  planned_km: "KM planejado",
+  receivable_id: "Recebível",
+  status: "Status",
+  to: "Para",
+  trip_id: "Corrida"
+};
+
 export function timelineAuditLabel(action: string): string {
   return AUDIT_LABELS[action] ?? action;
 }
@@ -42,8 +59,12 @@ export function timelineMetadataSummary(metadata: Record<string, unknown>, max =
   const pairs = Object.entries(metadata)
     .filter(([, value]) => value != null && value !== "")
     .slice(0, max)
-    .map(([key, value]) => `${key}: ${formatMetadataValue(value)}`);
+    .map(([key, value]) => `${timelineMetadataLabel(key)}: ${formatMetadataValue(value)}`);
   return pairs.length > 0 ? pairs.join(" · ") : null;
+}
+
+export function timelineMetadataLabel(key: string): string {
+  return METADATA_LABELS[key] ?? key;
 }
 
 function formatMetadataValue(value: unknown): string {
