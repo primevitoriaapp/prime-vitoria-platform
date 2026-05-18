@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
@@ -6,15 +5,7 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { rowsToCsv } from "@/lib/reports/csv";
 import { operationsTripsReportHtml } from "@/lib/reports/operations-trips-html";
-
-const querySchema = z.object({
-  format: z.enum(["json", "csv", "html"]).default("json"),
-  scheduledFrom: z.string().optional(),
-  scheduledTo: z.string().optional(),
-  status: z.string().optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(500).default(200)
-});
+import { operationsTripsReportRange, parseOperationsTripsReportQuery } from "@/lib/reports/operations-trips-query";
 
 /** Relatório operacional de viagens (JSON ou CSV). */
 export async function GET(request: Request) {
@@ -22,20 +13,8 @@ export async function GET(request: Request) {
     const session = await getSessionContext();
     assertCapability(session, "report.read");
     const tenantId = assertTenantScope(session);
-    const q = querySchema.parse(Object.fromEntries(new URL(request.url).searchParams.entries()));
-
-    let scheduledFromIso: string | null = null;
-    let scheduledToIso: string | null = null;
-    if (q.scheduledFrom?.trim()) {
-      const t = new Date(q.scheduledFrom.trim());
-      if (Number.isNaN(t.getTime())) return fail("INVALID_QUERY", "scheduledFrom inválido", 400);
-      scheduledFromIso = t.toISOString();
-    }
-    if (q.scheduledTo?.trim()) {
-      const t = new Date(q.scheduledTo.trim());
-      if (Number.isNaN(t.getTime())) return fail("INVALID_QUERY", "scheduledTo inválido", 400);
-      scheduledToIso = t.toISOString();
-    }
+    const q = parseOperationsTripsReportQuery(new URL(request.url).searchParams);
+    const { scheduledFromIso, scheduledToIso } = operationsTripsReportRange(q);
 
     const from = (q.page - 1) * q.pageSize;
     const to = from + q.pageSize - 1;
