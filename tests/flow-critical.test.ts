@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { canTransition } from "../src/lib/domain/status.ts";
 import { calculateNetMargin } from "../src/lib/finance/margin.ts";
-import { dispatchConflict, hasDispatchConflict } from "../src/lib/dispatch/conflicts.ts";
+import { dispatchConflict, hasDispatchConflict, isDispatchActiveStatus } from "../src/lib/dispatch/conflicts.ts";
 import { erpIntegrationMode } from "../src/lib/integrations/erp-mode.ts";
 
 test("operational status machine blocks invalid jump", () => {
@@ -44,6 +44,16 @@ test("dispatchConflict ignores terminal trips and invalid dates", () => {
   ];
   assert.equal(dispatchConflict(schedule, "2026-05-10T10:20:00.000Z"), null);
   assert.equal(dispatchConflict(schedule, "not-a-date"), null);
+});
+
+test("dispatchConflict treats reassigned trips as active", () => {
+  const conflict = dispatchConflict(
+    [{ tripId: "reassigned", scheduledAt: "2026-05-10T10:00:00.000Z", status: "reassigned" }],
+    "2026-05-10T10:20:00.000Z"
+  );
+  assert.equal(conflict?.tripId, "reassigned");
+  assert.equal(isDispatchActiveStatus("reassigned"), true);
+  assert.equal(isDispatchActiveStatus("completed"), false);
 });
 
 test("ERP mode is mock without credentials", () => {

@@ -4,7 +4,11 @@ export interface DriverScheduleItem {
   status: string;
 }
 
-const ACTIVE_STATUSES = new Set(["dispatched", "accepted", "on_the_way", "arrived", "in_progress"]);
+const ACTIVE_STATUSES = new Set(["dispatched", "accepted", "reassigned", "on_the_way", "arrived", "in_progress"]);
+
+export function isDispatchActiveStatus(status: string): boolean {
+  return ACTIVE_STATUSES.has(status);
+}
 
 export function dispatchConflict(
   existing: DriverScheduleItem[],
@@ -18,7 +22,7 @@ export function dispatchConflict(
 
   for (const item of existing) {
     if (ignoreTripId && item.tripId === ignoreTripId) continue;
-    if (!ACTIVE_STATUSES.has(item.status)) continue;
+    if (!isDispatchActiveStatus(item.status)) continue;
 
     const existingTime = new Date(item.scheduledAt).getTime();
     if (Number.isFinite(existingTime) && Math.abs(existingTime - target) <= bufferMs) return item;

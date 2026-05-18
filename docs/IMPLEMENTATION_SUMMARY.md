@@ -72,6 +72,7 @@
 - **Estado operacional motorista:** coluna `drivers.operational_status` (`online`, `ocupado`, `deslocando`, `no_local`, `em_atendimento`, `offline`), endpoint `/api/drivers/operational-status`, painel no PWA motorista e atualização automática em despacho/reatribuição/transições.
 - **Hardening status motorista:** motorista não consegue alternar manualmente online/offline enquanto possui corrida ativa atribuída; o status operacional segue a corrida até terminal.
 - **Regras de despacho:** despacho direto, reatribuição e ofertas validam motorista ativo/no tenant, bloqueiam motorista offline e recusam conflito de agenda dentro do buffer operacional.
+- **Hardening conflito despacho:** `reassigned` também conta como status ativo para bloquear conflito de agenda durante novo despacho.
 - **Hardening de ofertas:** aprovação de oferta revalida status da viagem, claim operacional, candidatura, aceite do motorista e disponibilidade antes de atribuir a corrida.
 - **Hardening expiração de oferta:** aceite e aprovação usam a mesma regra de expiração, tratando timestamp inválido como expirado e bloqueando aprovação tardia.
 - **Hardening financeiro:** regeneração financeira da viagem não reabre automaticamente contas/pagáveis já `paid` ou `cancelled`; exige reabertura explícita antes de recalcular.
