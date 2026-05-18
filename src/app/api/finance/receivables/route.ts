@@ -1,15 +1,9 @@
-import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
-
-const listSchema = z.object({
-  status: z.enum(["open", "paid", "cancelled"]).optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(50)
-});
+import { parseReceivablesListQuery } from "@/lib/finance/receivables-query";
 
 /** Lista titulos a receber do tenant (via viagem). */
 export async function GET(request: Request) {
@@ -18,7 +12,7 @@ export async function GET(request: Request) {
     assertCapability(session, "finance.read");
     const tenantId = assertTenantScope(session);
 
-    const q = listSchema.parse(Object.fromEntries(new URL(request.url).searchParams.entries()));
+    const q = parseReceivablesListQuery(new URL(request.url).searchParams);
     const from = (q.page - 1) * q.pageSize;
     const to = from + q.pageSize - 1;
 
@@ -31,6 +25,12 @@ export async function GET(request: Request) {
 
     if (q.status) {
       query = query.eq("status", q.status);
+    }
+    if (q.due_from) {
+      query = query.gte("due_date", q.due_from);
+    }
+    if (q.due_to) {
+      query = query.lte("due_date", q.due_to);
     }
 
     const { data, error, count } = await query;
