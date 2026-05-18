@@ -7,16 +7,7 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { enrichTripItemsWithVehicles } from "@/lib/trips/enrich-trip-vehicles";
-
-const listSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  status: z.string().optional(),
-  driverId: z.string().uuid().optional(),
-  clientId: z.string().uuid().optional(),
-  scheduledFrom: z.string().optional(),
-  scheduledTo: z.string().optional()
-});
+import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 
 const createTripSchema = z.object({
   client_id: z.string().uuid(),
@@ -108,31 +99,12 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const session = await getSessionContext();
-    const query = listSchema.parse(Object.fromEntries(new URL(request.url).searchParams.entries()));
+    const query = parseTripsListQuery(new URL(request.url).searchParams);
 
     const from = (query.page - 1) * query.pageSize;
     const to = from + query.pageSize - 1;
     const tenantId = assertTenantScope(session);
-
-    let scheduledFromIso: string | null = null;
-    let scheduledToIso: string | null = null;
-    if (query.scheduledFrom?.trim()) {
-      const t = new Date(query.scheduledFrom.trim());
-      if (Number.isNaN(t.getTime())) {
-        return fail("INVALID_QUERY", "scheduledFrom must be a valid ISO datetime", 400);
-      }
-      scheduledFromIso = t.toISOString();
-    }
-    if (query.scheduledTo?.trim()) {
-      const t = new Date(query.scheduledTo.trim());
-      if (Number.isNaN(t.getTime())) {
-        return fail("INVALID_QUERY", "scheduledTo must be a valid ISO datetime", 400);
-      }
-      scheduledToIso = t.toISOString();
-    }
-    if (scheduledFromIso && scheduledToIso && scheduledFromIso > scheduledToIso) {
-      return fail("INVALID_QUERY", "scheduledFrom must be before or equal to scheduledTo", 400);
-    }
+    const { scheduledFromIso, scheduledToIso } = tripsListQueryRange(query);
 
     let req = db.from("trips").select("*", { count: "exact" }).eq("tenant_id", tenantId);
 
