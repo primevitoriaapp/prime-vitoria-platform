@@ -13,6 +13,14 @@ import {
 
 const HISTORY_EXPORT_MAX = 500;
 
+function tripHistoryUpdatedAt(trip: {
+  approved_at?: string | null;
+  km_updated_at?: string | null;
+  created_at?: string | null;
+}): string | null {
+  return trip.approved_at ?? trip.km_updated_at ?? trip.created_at ?? null;
+}
+
 async function enrichWithDriverNames(
   tenantId: string,
   trips: { id: string; driver_id: string | null }[]
@@ -40,7 +48,7 @@ function baseHistoryQuery(
   let query = db
     .from("trips")
     .select(
-      "id, scheduled_at, operational_status, client_id, driver_id, passenger_name, origin_text, destination_text, planned_km, actual_km, updated_at",
+      "id, scheduled_at, operational_status, client_id, driver_id, passenger_name, origin_text, destination_text, planned_km, actual_km, created_at, approved_at, km_updated_at",
       { count: "exact" }
     )
     .eq("tenant_id", tenantId)
@@ -85,7 +93,11 @@ export async function GET(request: Request) {
         destination_text: t.destination_text as string,
         planned_km: t.planned_km != null ? Number(t.planned_km) : null,
         actual_km: t.actual_km != null ? Number(t.actual_km) : null,
-        updated_at: (t.updated_at as string | null) ?? null
+        updated_at: tripHistoryUpdatedAt({
+          approved_at: t.approved_at as string | null,
+          km_updated_at: t.km_updated_at as string | null,
+          created_at: t.created_at as string | null
+        })
       }));
       const csv = buildOperationsHistoryCsv(rows);
       return new NextResponse(csv, {
@@ -106,10 +118,18 @@ export async function GET(request: Request) {
 
     const driverNames = await enrichWithDriverNames(tenantId, trips ?? []);
 
-    const items = (trips ?? []).map((t) => ({
-      ...t,
-      driver_name: t.driver_id ? (driverNames[t.driver_id as string] ?? null) : null
-    }));
+    const items = (trips ?? []).map((t) => {
+      const { created_at, approved_at, km_updated_at, ...rest } = t;
+      return {
+        ...rest,
+        updated_at: tripHistoryUpdatedAt({
+          approved_at: approved_at as string | null,
+          km_updated_at: km_updated_at as string | null,
+          created_at: created_at as string | null
+        }),
+        driver_name: t.driver_id ? (driverNames[t.driver_id as string] ?? null) : null
+      };
+    });
 
     return ok({
       items,

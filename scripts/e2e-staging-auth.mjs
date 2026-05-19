@@ -110,10 +110,15 @@ async function main() {
     console.log("ok in-app notifications forbidden");
   }
 
-  if (operationalRoles.includes(role)) {
+  if (role === "admin" || role === "operador") {
     await apiGet(token, "/api/jobs/notifications?page=1&pageSize=5");
     console.log("ok notification jobs list");
+  } else if (role === "financeiro") {
+    await apiGetExpectForbidden(token, "/api/jobs/notifications?page=1&pageSize=5");
+    console.log("ok notification jobs forbidden");
+  }
 
+  if (operationalRoles.includes(role)) {
     await apiGet(token, "/api/integrations/reconciliation-issues?status=open&pageSize=5");
     console.log("ok reconciliation issues");
 
@@ -223,9 +228,13 @@ async function main() {
   }
 
   const tripId = trips.items[0]?.id;
-  if (tripId && tripReaderRoles.includes(role)) {
+  const timelineRoles = ["admin", "operador", "financeiro"];
+  if (tripId && timelineRoles.includes(role)) {
     await apiGet(token, `/api/trips/${tripId}/operational-timeline`);
     console.log("ok operational timeline");
+  } else if (tripId && (role === "motorista" || role === "cliente")) {
+    await apiGetExpectForbidden(token, `/api/trips/${tripId}/operational-timeline`);
+    console.log("ok operational timeline forbidden");
   }
 
   if (role === "cliente" && trips.items.length < 1) {

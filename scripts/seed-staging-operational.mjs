@@ -210,6 +210,7 @@ async function main() {
   const { error: arErr } = await db.from("accounts_receivable").upsert(
     {
       trip_id: STAGING_TRIP_APPROVED,
+      tenant_id: TENANT_ID,
       client_id: STAGING_CLIENT_ID,
       amount: 350,
       issue_date: new Date().toISOString().slice(0, 10),
