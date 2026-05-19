@@ -21,6 +21,7 @@ Plataforma operacional de transporte executivo corporativo, com foco em agendame
 - `public/manifest.webmanifest` + `public/sw.js`: base PWA
 - `docs/GO_LIVE_RUNBOOK.md`: checklist operacional de entrada em producao
 - `docs/ERP_INTEGRATION.md`: variaveis de ambiente e fluxo Conta Azul / Omie
+- `docs/architecture/`: arquitetura, segurança, RBAC, FSM, tenant e roadmap por fases
 
 ## Rodar localmente (após instalar npm)
 

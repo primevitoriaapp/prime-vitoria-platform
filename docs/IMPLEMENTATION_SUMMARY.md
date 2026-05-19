@@ -1,5 +1,14 @@
 # Prime Vitoria - Implementation Summary
 
+## Architecture foundation (2026-05-19)
+
+- **Documentação:** `docs/architecture/` — ARCHITECTURE, SECURITY_MODEL, RBAC_MATRIX, FSM_FLOW, TENANT_MODEL, ROADMAP_PHASES.
+- **Diretriz:** MVP operacional rápido + fundação enterprise (multi-tenant, RBAC, FSM, white-label preparado) sem rewrite.
+- **Implementado neste ciclo (código):** seed `tenant_id` em `accounts_receivable`; histórico operacional sem coluna `trips.updated_at`; E2E staging alinhado ao RBAC.
+- **Preparado:** estados alvo FSM, capabilities futuras, modelo `tenant_settings`, offline-first na Fase 3.
+- **Adiado:** módulo FSM central, JWT claims, testes tenant leakage CI, PWA offline UX.
+- **Riscos mitigados:** vazamento cross-tenant (RLS+scope); permissões incorretas (E2E por papel); API histórico quebrada em produção.
+
 ## Implemented phases in this delivery
 
 1. Database structure (Supabase migration with operational, financial, notification and ERP tables)
