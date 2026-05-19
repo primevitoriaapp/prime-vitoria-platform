@@ -50,6 +50,59 @@ async function signIn() {
   return json.access_token;
 }
 
+async function apiPost(token, path, body) {
+  const res = await fetch(`${base}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.success) {
+    throw new Error(`${path} -> ${res.status} ${json.error?.message ?? JSON.stringify(json).slice(0, 120)}`);
+  }
+  return json.data;
+}
+
+async function apiPostExpectStatus(token, path, body, expectedStatus) {
+  const res = await fetch(`${base}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+  if (res.status !== expectedStatus) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(
+      `${path} expected ${expectedStatus}, got ${res.status} ${json.error?.message ?? ""}`
+    );
+  }
+}
+
+async function apiPostExpectStatus(token, path, body, expectedStatus) {
+  const res = await fetch(`${base}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+  if (res.status !== expectedStatus) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(
+      `${path} expected ${expectedStatus}, got ${res.status} ${json.error?.message ?? ""}`
+    );
+  }
+}
+
 async function apiGet(token, path, { allowStatuses } = {}) {
   const res = await fetch(`${base}${path}`, {
     headers: { Authorization: `Bearer ${token}`, accept: "application/json" }
@@ -241,6 +294,16 @@ async function main() {
     throw new Error("cliente expected at least one own trip from seed");
   }
 
+  if (role === "cliente") {
+    const requested = trips.items.find((t) => t.operational_status === "requested");
+    if (requested?.id) {
+      await apiPost(token, `/api/trips/${requested.id}/status`, { to_status: "cancelled" });
+      console.log("ok client cancel requested trip");
+    } else {
+      console.warn("warn cliente: no requested trip to test cancel");
+    }
+  }
+
   if (role === "motorista") {
     const payables = await apiGet(token, "/api/finance/driver-payables?pageSize=5");
     if (!Array.isArray(payables.items)) throw new Error("motorista driver payables items missing");
@@ -251,6 +314,21 @@ async function main() {
       console.warn("warn motorista: no assigned trips (assign driver_id in seed for staging)");
     } else {
       console.log(`ok motorista assigned trips (${assigned.length})`);
+    }
+
+    const dispatched = trips.items.find((t) => t.operational_status === "dispatched" && t.driver_id);
+    if (dispatched?.id) {
+      await apiPost(token, `/api/trips/${dispatched.id}/status`, { to_status: "accepted" });
+      console.log("ok motorista accept dispatched trip");
+      await apiPostExpectStatus(
+        token,
+        `/api/trips/${dispatched.id}/status`,
+        { to_status: "completed" },
+        409
+      );
+      console.log("ok motorista invalid skip-to-completed blocked (from accepted)");
+    } else {
+      console.warn("warn motorista: no dispatched trip for accept flow (re-run seed)");
     }
   }
 

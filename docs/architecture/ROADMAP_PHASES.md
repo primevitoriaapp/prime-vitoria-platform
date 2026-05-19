@@ -44,12 +44,16 @@ Nada nas fases 2–4 abaixo deve atrasar esta lista sem decisão explícita.
 
 **Objetivo:** fechar lacunas da sequência MVP 1–6 sem redesign.
 
-- Endurecer transições de status nas APIs existentes.
-- Despacho + notificações push estáveis em produção (FCM secret).
-- Índices e queries de fila/despacho (já iniciado em `0014`).
-- Portal cliente: solicitar viagem + acompanhar status.
+| Item | Status |
+|------|--------|
+| Transições endurecidas (reatribuição + plano multi-passo) | Feito — `planOperationalTransition`, reassign multi-passo |
+| Cancelamento portal cliente | Feito — API + UI + E2E staging |
+| Portal: solicitar + acompanhar + rastreio | Feito (base existente) |
+| Despacho + push FCM em produção | Pendente — secret Vercel (`FCM_SERVER_KEY`) |
+| Índices fila/despacho | Feito — `0014` + `0040_operations_queue_index` |
+| E2E motorista aceite + bloqueio transição inválida | Feito — seed `dispatched` + smoke |
 
-**Preparado:** matriz RBAC e FSM documentadas.
+**Preparado:** matriz RBAC e FSM documentadas; testes de transição.
 
 **Adiado:** offline PWA, checklist, white-label UX.
 

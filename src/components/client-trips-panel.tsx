@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { clientShowsAwaitingApproval } from "@/lib/client/trip-status-ui";
+import { clientMayCancelTrip } from "@/lib/domain/status";
 
 const EM_ANDAMENTO: TripOperationalStatus[] = [
   "dispatched",
@@ -32,6 +33,7 @@ export function ClientTripsPanel({ tenantId, costCenters = [] }: Props) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active">("all");
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +59,27 @@ export function ClientTripsPanel({ tenantId, costCenters = [] }: Props) {
   }, [load]);
 
   useTenantTableRefresh(tenantId, ["trips"], load);
+
+  async function cancelTrip(tripId: string) {
+    if (!window.confirm("Cancelar esta solicitação? Esta acção não pode ser desfeita.")) return;
+    setCancellingId(tripId);
+    const res = await fetchWithSupabaseSession(
+      `/api/trips/${tripId}/status`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to_status: "cancelled" })
+      },
+      "cliente"
+    );
+    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    setCancellingId(null);
+    if (!res.ok || !json.success) {
+      window.alert(json.error?.message ?? "Não foi possível cancelar.");
+      return;
+    }
+    await load();
+  }
 
   const agora = new Date();
   const mesIni = inicioMesUtc(agora);
@@ -177,8 +200,18 @@ export function ClientTripsPanel({ tenantId, costCenters = [] }: Props) {
                         })}
                       </p>
                     </div>
-                    <div className="shrink-0 pt-1 sm:pt-0">
+                    <div className="flex shrink-0 flex-col items-stretch gap-2 pt-1 sm:items-end sm:pt-0">
                       <TripTrackingLinkButton tripId={trip.id} variant="dark" devFallbackRole="cliente" />
+                      {clientMayCancelTrip(trip.operational_status) ? (
+                        <button
+                          type="button"
+                          disabled={cancellingId === trip.id}
+                          onClick={() => void cancelTrip(trip.id)}
+                          className="rounded-lg border border-red-900/60 px-3 py-1.5 text-xs text-red-300 hover:bg-red-950/40 disabled:opacity-50"
+                        >
+                          {cancellingId === trip.id ? "A cancelar…" : "Cancelar solicitação"}
+                        </button>
+                      ) : null}
                     </div>
                   </li>
                 ))}

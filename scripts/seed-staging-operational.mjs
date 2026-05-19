@@ -177,7 +177,7 @@ async function main() {
     destination_lat: -20.32,
     destination_lng: -40.34,
     dispatch_mode: "directed",
-    operational_status: "approved",
+    operational_status: "dispatched",
     driver_id: driverRow.id,
     passenger_name: "Convidado seed 2",
     created_by: adminId,
@@ -226,7 +226,9 @@ async function main() {
     console.log(`  - ${acc.role.padEnd(10)} ${acc.email}`);
   }
   console.log(`\nCliente staging id: ${STAGING_CLIENT_ID}`);
-  console.log(`Corridas seed: ${STAGING_TRIP_REQUESTED} (requested), ${STAGING_TRIP_APPROVED} (approved)\n`);
+  console.log(
+    `Corridas seed: ${STAGING_TRIP_REQUESTED} (requested), ${STAGING_TRIP_APPROVED} (dispatched, motorista atribuído)\n`
+  );
 
   if (process.env.STAGING_SEED_RESET_PASSWORD === "true") {
     console.log("[seed] STAGING_SEED_RESET_PASSWORD=true → atualizando palavras-passe…");

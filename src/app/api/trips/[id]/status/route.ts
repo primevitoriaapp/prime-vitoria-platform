@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
-import { canTransition } from "@/lib/domain/status";
+import { clientMayCancelTrip, validateOperationalTransition } from "@/lib/domain/status";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
@@ -51,16 +51,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (session.role === "motorista") {
       assertCapability(session, "trip.status");
+    } else if (session.role === "cliente") {
+      assertCapability(session, "trip.request");
+      if (body.to_status !== "cancelled") {
+        return fail("FORBIDDEN", "Cliente só pode cancelar a solicitação", 403);
+      }
+      if (!clientMayCancelTrip(trip.operational_status)) {
+        return fail(
+          "INVALID_STATUS_TRANSITION",
+          "Cancelamento não permitido neste estado da corrida",
+          409
+        );
+      }
     } else {
       assertCapability(session, "trip.write");
     }
 
-    if (!canTransition(trip.operational_status, body.to_status)) {
-      return fail(
-        "INVALID_STATUS_TRANSITION",
-        `Cannot transition from ${trip.operational_status} to ${body.to_status}`,
-        409
-      );
+    const transition = validateOperationalTransition(trip.operational_status, body.to_status);
+    if (!transition.ok) {
+      return fail("INVALID_STATUS_TRANSITION", transition.message, 409);
     }
 
     if (session.role === "motorista") {

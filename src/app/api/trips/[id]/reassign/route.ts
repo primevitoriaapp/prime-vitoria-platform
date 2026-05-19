@@ -11,6 +11,7 @@ import { enqueueNotificationJob } from "@/lib/notifications/events";
 import { driverDispatchedPushPayload } from "@/lib/notifications/driver-status-event";
 import { dispatchConflict } from "@/lib/dispatch/conflicts";
 import { runBestEffort } from "@/lib/server/best-effort";
+import { planOperationalTransition } from "@/lib/domain/status";
 
 const bodySchema = z.object({
   new_driver_id: z.string().uuid(),
@@ -75,10 +76,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return fail("DISPATCH_CONFLICT", `Motorista tem conflito com a viagem ${conflict.tripId}`, 409);
     }
 
+    const plan = planOperationalTransition(trip.operational_status, "dispatched");
+    if (!plan.ok) {
+      return fail(
+        "INVALID_STATUS_TRANSITION",
+        `Reatribuição não permitida a partir de ${trip.operational_status}`,
+        409
+      );
+    }
+
+    await db.rpc("set_trip_status_audit_context", {
+      p_source: "admin",
+      p_changed_by: session.userId
+    });
+
+    const intermediate = plan.steps.slice(0, -1);
+    for (const step of intermediate) {
+      const { error: stepErr } = await db
+        .from("trips")
+        .update({ operational_status: step })
+        .eq("id", id)
+        .eq("tenant_id", tenantId);
+      if (stepErr) return fail("TRIP_REASSIGN_FAILED", stepErr.message, 500);
+    }
+
     const update: Record<string, unknown> = {
       driver_id: body.new_driver_id,
       reassign_reason: body.reason,
-      operational_status: "dispatched"
+      operational_status: plan.steps[plan.steps.length - 1]
     };
     if (body.vehicle_id) update.vehicle_id = body.vehicle_id;
 

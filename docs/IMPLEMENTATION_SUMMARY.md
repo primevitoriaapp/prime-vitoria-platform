@@ -1,5 +1,19 @@
 # Prime Vitoria - Implementation Summary
 
+## Fase 1 — fila operacional e smoke motorista (2026-05-19, ciclo 2)
+
+- **Implementado:** migração `0040_operations_queue_index` (índice parcial fila activa); `validateOperationalTransition` na API de status; seed staging com corrida dirigida em `dispatched`; E2E motorista (aceite + bloqueio `completed` inválido).
+- **Preparado:** mensagens de transição centralizadas para Fase 2 (`tripFsm`).
+- **Adiado:** `FCM_SERVER_KEY` em produção; módulo FSM completo.
+- **Riscos mitigados:** queries lentas na fila; motorista a saltar estados; regressão de transições (testes + E2E).
+
+## Fase 1 — transições e portal cliente (2026-05-19)
+
+- **Implementado:** `planOperationalTransition` + reatribuição com passo `reassigned` quando necessário; cancelamento pelo cliente (`requested`/`approved` → `cancelled`) na API e botão no portal; testes `tests/trip-operational-transition.test.ts`.
+- **Preparado:** mesma matriz `ALLOWED_TRANSITIONS` reutilizável na Fase 2 (`tripFsm` central).
+- **Adiado:** FCM em produção, módulo FSM completo.
+- **Riscos mitigados:** reatribuição saltando estados inválidos; cliente cancelando após despacho; regressão da máquina de estados (testes).
+
 ## Architecture foundation (2026-05-19)
 
 - **Documentação:** `docs/architecture/` — ARCHITECTURE, SECURITY_MODEL, RBAC_MATRIX, FSM_FLOW, TENANT_MODEL, ROADMAP_PHASES.

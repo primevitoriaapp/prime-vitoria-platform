@@ -30,7 +30,7 @@ Valores no banco (`0001_init.sql`):
 
 Histórico automático: trigger em `trip_status_history` (`0026`).
 
-Transições hoje: validadas nas rotas de API (motorista, despacho, aprovação) — **consolidar em módulo único `src/lib/trips/fsm.ts` é meta da Fase 2**.
+Transições hoje: `ALLOWED_TRANSITIONS` + `canTransition` em `src/lib/domain/status.ts`; reatribuição usa `planOperationalTransition` (passo `reassigned` quando necessário). **Módulo único `src/lib/trips/fsm.ts` é meta da Fase 2**.
 
 ## Estado alvo — OS (ordem de serviço)
 
