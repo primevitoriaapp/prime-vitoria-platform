@@ -221,6 +221,35 @@ async function main() {
   );
   if (arErr) throw arErr;
 
+  console.log("[seed] Pricing rule (km mínimo 20) for staging client…");
+  const { data: existingRule } = await db
+    .from("pricing_rules")
+    .select("id")
+    .eq("tenant_id", TENANT_ID)
+    .eq("client_id", STAGING_CLIENT_ID)
+    .eq("name", "Comexport — km mínimo 20")
+    .maybeSingle();
+  if (!existingRule) {
+    const { error: prIns } = await db.from("pricing_rules").insert({
+      tenant_id: TENANT_ID,
+      client_id: STAGING_CLIENT_ID,
+      name: "Comexport — km mínimo 20",
+      calculation_type: "km_with_minimum",
+      active: true,
+      priority: 10,
+      price_per_km: 5,
+      minimum_km: 20,
+      settings: {
+        driver: {
+          calculation_type: "km_with_minimum",
+          price_per_km: 2.5,
+          minimum_km: 20
+        }
+      }
+    });
+    if (prIns) throw prIns;
+  }
+
   console.log("\n[seed] OK. Utilizadores de teste (mesma palavra-passe = STAGING_SEED_PASSWORD):");
   for (const acc of ACCOUNTS) {
     console.log(`  - ${acc.role.padEnd(10)} ${acc.email}`);

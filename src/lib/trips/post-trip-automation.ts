@@ -7,6 +7,7 @@ import { ensureAccountsReceivableFromTripFinancials } from "@/lib/finance/ensure
 import { ensureDriverPayableFromTripFinancials } from "@/lib/finance/ensure-driver-payable";
 import { postTripAutomationFailureMetadata } from "@/lib/trips/post-trip-automation-failure";
 import { postTripKmSource, type TripKmSource } from "@/lib/trips/post-trip-km-source";
+import { applyTripPricingOnCompletion } from "@/lib/pricing/apply-trip-pricing";
 
 export type PostTripAutomationInput = {
   tripId: string;
@@ -48,7 +49,7 @@ export async function runPostTripAutomation(input: PostTripAutomationInput): Pro
   const { data: trip } = await db
     .from("trips")
     .select(
-      "id, driver_id, origin_lat, origin_lng, destination_lat, destination_lng, planned_km, actual_km, operational_status"
+      "id, client_id, driver_id, origin_lat, origin_lng, destination_lat, destination_lng, planned_km, actual_km, operational_status, scheduled_at"
     )
     .eq("id", tripId)
     .eq("tenant_id", tenantId)
@@ -109,6 +110,28 @@ export async function runPostTripAutomation(input: PostTripAutomationInput): Pro
     entityType: "trip",
     entityId: tripId,
     metadata: { planned_km: planned, actual_km: actual, km_source: kmSource }
+  });
+
+  const finalActualKm = actual ?? previousActual;
+  const pricing = await applyTripPricingOnCompletion({
+    tripId,
+    tenantId,
+    clientId: trip.client_id as string,
+    actorUserId,
+    kmReal: finalActualKm,
+    kmPlanned: planned,
+    scheduledAt: trip.scheduled_at as string,
+    completedAt: now
+  }).catch((err) => {
+    insertAuditEvent({
+      tenantId,
+      actorUserId,
+      action: "finance.pricing_apply_failed",
+      entityType: "trip",
+      entityId: tripId,
+      metadata: postTripAutomationFailureMetadata(err)
+    }).catch(() => undefined);
+    return { applied: false, skipped_reason: "error" as const };
   });
 
   const dp = await ensureDriverPayableFromTripFinancials(tripId, tenantId);

@@ -1,11 +1,20 @@
 # Prime Vitoria - Implementation Summary
 
+Relatórios de fechamento de ciclo seguem o modelo oficial em [CYCLE_CLOSURE_TEMPLATE.md](./CYCLE_CLOSURE_TEMPLATE.md).
+
 ## Ciclo A — secrets produção (2026-05-19)
 
 - **Implementado:** `scripts/generate-production-secrets.mjs`, `vercel-secrets-apply.mjs`, `docs/PRODUCTION_SECRETS_SETUP.md`; 5 secrets de máquina em Vercel Production; redeploy; `ok cron notifications (200)`.
 - **Preparado:** npm scripts `secrets:generate*` e `vercel:secrets:apply`.
 - **Adiado:** `FCM_SERVER_KEY` + `NEXT_PUBLIC_FIREBASE_*` (Firebase manual); secrets em Preview.
 - **Riscos mitigados:** crons 401; jobs sem bearer; documentação de rotação de secrets.
+
+## Pricing engine MVP (2026-05-19)
+
+- **Implementado:** migração `0041_pricing_rules`; `src/lib/pricing/*`; API CRUD; aplicação automática no pós-corrida; UI mínima em Clientes → Precificação; testes `pricing-calculate`; navegação motorista (Maps/Waze/Apple); `docs/PRICING_ENGINE.md`.
+- **Preparado:** tipos `daily_rate`, `hourly_plus_extra`, `event_package`, `custom`; `settings` jsonb para motorista e extensões.
+- **Adiado:** pedágio/estacionamento automático; regras por rota; Android Auto/CarPlay.
+- **Riscos mitigados:** não sobrescreve financeiro manual; títulos bloqueados ignorados; cálculo puro testado.
 
 ## Fase 1 — fila operacional e smoke motorista (2026-05-19, ciclo 2)
 

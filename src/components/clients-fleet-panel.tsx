@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { EntityCrudPanel } from "@/components/entity-crud-panel";
+import { ClientPricingRulesPanel } from "@/components/client-pricing-rules-panel";
 
 export type ClientRow = {
   id: string;
@@ -24,7 +25,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ type: "PJ", name: "", document: "", email: "", phone: "" });
   const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [pricingClientId, setPricingClientId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     const res = await fetch("/api/clients", { credentials: "include" });
@@ -175,6 +176,13 @@ export function ClientsFleetPanel({ initialClients }: Props) {
                           <button type="button" className="mr-3 text-amber-800" onClick={() => startEdit(client)}>
                             Editar
                           </button>
+                          <button
+                            type="button"
+                            className="mr-3 text-slate-700"
+                            onClick={() => setPricingClientId(client.id)}
+                          >
+                            Precificação
+                          </button>
                           <button type="button" className="text-red-700" disabled={busy} onClick={() => void deactivate(client)}>
                             Desactivar
                           </button>
@@ -188,6 +196,12 @@ export function ClientsFleetPanel({ initialClients }: Props) {
           </div>
         )}
       </section>
+      {pricingClientId ? (
+        <ClientPricingRulesPanel
+          clientId={pricingClientId}
+          clientName={clients.find((c) => c.id === pricingClientId)?.name ?? "Cliente"}
+        />
+      ) : null}
     </>
   );
 }

@@ -6,7 +6,7 @@ import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 import { StatusBadge } from "@/components/status-badge";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
-import { buildGoogleMapsDirectionsUrl, buildWazeNavigateUrl } from "@/lib/trips/driver-nav-links";
+import { buildDriverNavigationLinks } from "@/lib/trips/driver-nav-links";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { formatTripKmLine } from "@/lib/trips/format-km";
 
@@ -145,8 +145,10 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
               lng: trip.destination_lng,
               label: trip.destination_text
             };
-            const waze = buildWazeNavigateUrl(dest);
-            const maps = buildGoogleMapsDirectionsUrl(dest);
+            const navLinks = buildDriverNavigationLinks({
+              origin: { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text },
+              destination: dest
+            });
             const next = driverNextStatuses(trip.operational_status);
 
             return (
@@ -199,16 +201,24 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
                   </button>
                 </div>
 
-                <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                  <a href={maps} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">
-                    Google Maps
-                  </a>
-                  {waze ? (
-                    <a href={waze} className="text-amber-400 hover:underline">
-                      Waze
-                    </a>
-                  ) : null}
-                </div>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-xs font-medium text-amber-400 hover:text-amber-300">
+                    Abrir navegação
+                  </summary>
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                    {navLinks.map((link) => (
+                      <a
+                        key={link.id}
+                        href={link.href}
+                        target={link.id === "waze" ? undefined : "_blank"}
+                        rel={link.id === "waze" ? undefined : "noopener noreferrer"}
+                        className="text-amber-400 hover:underline"
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                </details>
               </li>
             );
           })}

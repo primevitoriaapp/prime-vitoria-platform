@@ -108,12 +108,32 @@ Nada nas fases 2–4 abaixo deve atrasar esta lista sem decisão explícita.
 
 ## Template de fecho de etapa
 
-Ao concluir qualquer entrega, registar em [IMPLEMENTATION_SUMMARY.md](../IMPLEMENTATION_SUMMARY.md):
+Ao concluir qualquer entrega, preencher o **relatório de fechamento de ciclo** (12 itens) definido em [CYCLE_CLOSURE_TEMPLATE.md](../CYCLE_CLOSURE_TEMPLATE.md) — referência canónica do modelo.
 
-1. **Implementado** — o que entrou em produção/código.
-2. **Preparado** — fundação para fases futuras.
-3. **Adiado** — explicitamente fora deste ciclo.
-4. **Riscos mitigados** — segurança, dados, operação.
+Registar o relatório preenchido em [IMPLEMENTATION_SUMMARY.md](../IMPLEMENTATION_SUMMARY.md) (uma secção por ciclo).
+
+> **Regra:** alterações destrutivas (drop de coluna/tabela, truncate, reset de dados, `force` push, rollback irreversível) **só** com confirmação explícita do utilizador.
+
+**Checklist (12 itens):**
+
+1. O que foi alterado
+2. Quais arquivos foram modificados
+3. Impacto da mudança
+4. Risco de regressão (baixo/médio/alto)
+5. Precisa migration? (sim/não)
+6. Precisa db:push? (sim/não)
+7. Precisa deploy? (sim/não)
+8. O que ficou pendente
+9. Recomendação de próximo passo
+10. Status do GitHub/Vercel/Supabase
+    - branch atual
+    - commit hash
+    - Vercel alinhado? (sim/não)
+    - Supabase alinhado? (sim/não)
+11. Impacto no MVP
+    - MVP crítico | melhoria operacional | infraestrutura | preparação futura
+12. Testado?
+    - [ ] local / [ ] staging / [ ] produção
 
 ## Offline-first (foundation only — Fase 3)
 
