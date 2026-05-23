@@ -85,24 +85,6 @@ async function apiPostExpectStatus(token, path, body, expectedStatus) {
   }
 }
 
-async function apiPostExpectStatus(token, path, body, expectedStatus) {
-  const res = await fetch(`${base}${path}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      accept: "application/json",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
-  if (res.status !== expectedStatus) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error(
-      `${path} expected ${expectedStatus}, got ${res.status} ${json.error?.message ?? ""}`
-    );
-  }
-}
-
 async function apiGet(token, path, { allowStatuses } = {}) {
   const res = await fetch(`${base}${path}`, {
     headers: { Authorization: `Bearer ${token}`, accept: "application/json" }
