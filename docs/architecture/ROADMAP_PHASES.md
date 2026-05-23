@@ -49,7 +49,7 @@ Nada nas fases 2–4 abaixo deve atrasar esta lista sem decisão explícita.
 | Transições endurecidas (reatribuição + plano multi-passo) | Feito — `planOperationalTransition`, reassign multi-passo |
 | Cancelamento portal cliente | Feito — API + UI + E2E staging |
 | Portal: solicitar + acompanhar + rastreio | Feito (base existente) |
-| Despacho + push FCM em produção | Pendente — secret Vercel (`FCM_SERVER_KEY`) |
+| Despacho + push FCM em produção | Parcial — crons/jobs OK; falta `FCM_SERVER_KEY` (Firebase) |
 | Índices fila/despacho | Feito — `0014` + `0040_operations_queue_index` |
 | E2E motorista aceite + bloqueio transição inválida | Feito — seed `dispatched` + smoke |
 

@@ -9,6 +9,9 @@ out/
 .env
 .env.local
 .env.*.local
+.production-secrets.local
+.env.vercel.production
+.env.vercel.preview
 
 # logs / OS
 npm-debug.log*

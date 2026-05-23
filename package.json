@@ -26,7 +26,10 @@
     "seed:staging": "node scripts/seed-staging-operational.mjs",
     "bootstrap:prime": "node scripts/bootstrap-prime-vitoria.mjs",
     "vercel:preflight": "node scripts/vercel-preflight.mjs",
-    "go-live:preflight": "node scripts/go-live-preflight.mjs"
+    "go-live:preflight": "node scripts/go-live-preflight.mjs",
+    "secrets:generate": "node scripts/generate-production-secrets.mjs",
+    "secrets:generate:write": "node scripts/generate-production-secrets.mjs --write",
+    "vercel:secrets:apply": "node scripts/vercel-secrets-apply.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.53.1",

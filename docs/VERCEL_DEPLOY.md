@@ -33,6 +33,13 @@ openssl rand -hex 32
 
 ## 3. Variáveis recomendadas (staging / go-live)
 
+Guia passo a passo (Ciclo A): **`docs/PRODUCTION_SECRETS_SETUP.md`**
+
+```bash
+npm run secrets:generate:write
+npm run vercel:secrets:apply   # após vercel login
+```
+
 | Grupo | Variáveis |
 |-------|-----------|
 | Jobs | `ERP_JOB_PROCESS_SECRET`, `NOTIFICATION_JOB_PROCESS_SECRET`, `RECONCILE_JOB_PROCESS_SECRET`, `DISPATCH_DIRECT_SCAN_SECRET` |

@@ -1,5 +1,12 @@
 # Prime Vitoria - Implementation Summary
 
+## Ciclo A — secrets produção (2026-05-19)
+
+- **Implementado:** `scripts/generate-production-secrets.mjs`, `vercel-secrets-apply.mjs`, `docs/PRODUCTION_SECRETS_SETUP.md`; 5 secrets de máquina em Vercel Production; redeploy; `ok cron notifications (200)`.
+- **Preparado:** npm scripts `secrets:generate*` e `vercel:secrets:apply`.
+- **Adiado:** `FCM_SERVER_KEY` + `NEXT_PUBLIC_FIREBASE_*` (Firebase manual); secrets em Preview.
+- **Riscos mitigados:** crons 401; jobs sem bearer; documentação de rotação de secrets.
+
 ## Fase 1 — fila operacional e smoke motorista (2026-05-19, ciclo 2)
 
 - **Implementado:** migração `0040_operations_queue_index` (índice parcial fila activa); `validateOperationalTransition` na API de status; seed staging com corrida dirigida em `dispatched`; E2E motorista (aceite + bloqueio `completed` inválido).
