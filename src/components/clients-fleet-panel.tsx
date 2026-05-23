@@ -25,6 +25,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ type: "PJ", name: "", document: "", email: "", phone: "" });
   const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [pricingClientId, setPricingClientId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
