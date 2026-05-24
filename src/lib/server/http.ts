@@ -21,7 +21,10 @@ export function mapApiError(error: unknown) {
     return fail("UNAUTHORIZED", "Sessão expirada ou inválida. Inicie sessão novamente.", 401);
   }
   if (message.includes("Pricing feature disabled")) {
-    return fail("PRICING_FEATURE_DISABLED", message, 422);
+    return fail("PRICING_FEATURE_DISABLED", "Funcionalidade de precificação não activa.", 422);
+  }
+  if (message.includes("no_active_pricing_rule") || message.includes("skipped_reason")) {
+    return fail("PRICING_NOT_APPLIED", "Precificação automática não aplicada nesta corrida.", 422);
   }
   if (message.includes("Trip not found")) {
     return fail("TRIP_NOT_FOUND", "Corrida não encontrada.", 404);

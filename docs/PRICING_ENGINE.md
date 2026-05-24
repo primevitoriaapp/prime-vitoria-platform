@@ -26,6 +26,7 @@ RBAC: `finance.read` / `finance.write`.
 
 - `km_billable`, `pricing_rule_id`, `calculation_metadata`
 - `trip_financials` actualizado; títulos AR/pagável via fluxo existente
+- `calculation_metadata` inclui `feature_flags_snapshot` e `pricing_profile` (`src/lib/pricing/pricing-audit-meta.ts`) para auditoria sem activar flags
 
 ## Motorista — navegação (MVP)
 

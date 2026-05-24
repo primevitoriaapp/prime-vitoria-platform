@@ -17,6 +17,13 @@ Relatórios de fechamento de ciclo seguem o modelo oficial em [CYCLE_CLOSURE_TEM
 - **Riscos mitigados:** sem alteração produção; commits em `cursor/night-cycle-hardening`.
 - **Merge (2026-05-24):** PR #1 → `cursor/pricing-engine-mvp-cycle` @ `0e4398a` (CI verde pré-merge).
 
+## Ciclo semi-autónomo — pricing branch (2026-05-24)
+
+- **Motorista:** refresh silencioso; CTA único «Próximo passo»; confirmação em `completed`/`no_show`; feedback «A processar…».
+- **Pricing:** `pricing-audit-meta.ts` (snapshot flags OFF + metadata); testes edge night_fee OFF.
+- **API:** mensagens `PRICING_FEATURE_DISABLED` / `PRICING_NOT_APPLIED` mais claras.
+- **Adiado:** smoke remoto (secrets); `db:push` 0042.
+
 ## Pós-merge pricing-engine-mvp-cycle (2026-05-24)
 
 - **Branch:** `cursor/pricing-engine-mvp-cycle` inclui night cycle + pricing MVP.
