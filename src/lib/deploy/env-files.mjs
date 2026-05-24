@@ -15,8 +15,15 @@ export function isPlaceholderEnvValue(key, value) {
   if (!v) return true;
   const lower = v.toLowerCase();
   if (lower.includes("placeholder") || lower.includes("your-") || lower.includes("changeme")) return true;
-  if (key === "NEXT_PUBLIC_SUPABASE_URL" && !v.includes("supabase.co")) return true;
-  if (GUARDED_ENV_KEYS.has(key) && v.length < 24) return true;
+  if (key === "NEXT_PUBLIC_SUPABASE_URL") {
+    if (v.includes("supabase.co")) return false;
+    if (/^https?:\/\//.test(v) && v.length >= 15) return false;
+    return true;
+  }
+  if (key === "NEXT_PUBLIC_SUPABASE_ANON_KEY" || key === "SUPABASE_SERVICE_ROLE_KEY") {
+    return v.length < 32;
+  }
+  if (GUARDED_ENV_KEYS.has(key)) return v.length < 12;
   return false;
 }
 
