@@ -29,5 +29,8 @@ export function mapApiError(error: unknown) {
   if (message.includes("INVALID_STATUS_TRANSITION") || message.includes("Cannot transition")) {
     return fail("INVALID_STATUS_TRANSITION", "Transição de estado não permitida.", 409);
   }
+  if (message.includes("Tenant mismatch") || message.includes("tenant scope")) {
+    return fail("TENANT_FORBIDDEN", "Recurso fora do âmbito da sua empresa.", 403);
+  }
   return fail("INVALID_REQUEST", message, 400);
 }

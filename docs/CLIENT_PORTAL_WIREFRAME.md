@@ -51,3 +51,31 @@ requested → cancelled (cliente)
 - `CLIENT_PORTAL_RECURRENCE=false`
 - `CLIENT_PORTAL_MULTI_PASSENGER=false`
 - `CLIENT_PORTAL_COST_CENTER=true` (dados já no modelo)
+
+## Rotas planeadas (App Router)
+
+| Rota | Componente (prep) | Papel |
+|------|-------------------|-------|
+| `/cliente` | `ClientDashboard` | cliente |
+| `/cliente/solicitar` | `ClientTripWizard` | cliente |
+| `/cliente/corridas/[id]` | `ClientTripDetail` | cliente |
+| `/cliente/centros-custo` | `ClientCostCenters` | cliente (fase 2) |
+| `/r/[token]` | público (existente) | rastreio |
+
+## Modelo de dados (já no Supabase)
+
+- `trips.client_id`, `cost_center_id` (quando aplicável)
+- `clients` corporativos seed (Comexport)
+- Filtro tenant + `trip.read.own` em APIs
+
+## Componentes a reutilizar
+
+- `StatusBadge`, timeline operacional (read-only para cliente)
+- `fetchWithSupabaseSession` + RBAC `cliente`
+- Form solicitação alinhado a `POST /api/trips` schema actual
+
+## Acessibilidade / corporativo
+
+- Contraste WCAG AA em estados de corrida
+- Labels PT-BR consistentes (`STATUS_CORRIDA_PT`)
+- Export CSV histórico (fase 2, via reports)

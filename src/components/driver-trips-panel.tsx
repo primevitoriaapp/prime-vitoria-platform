@@ -133,7 +133,10 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
         </button>
       </div>
 
-      {message ? <p className="mt-3 text-sm text-amber-200/90">{message}</p> : null}
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {loading ? "A carregar corridas…" : message ?? (active.length ? `${active.length} corridas activas` : "Sem corridas activas")}
+      </p>
+      {message ? <p className="mt-3 text-sm text-amber-200/90" aria-hidden="true">{message}</p> : null}
 
       {loading ? (
         <DriverTripSkeleton />
@@ -151,6 +154,7 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
               origin: { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text },
               destination: dest
             });
+            const primaryNav = navLinks.find((l) => l.id === "waze") ?? navLinks[0];
             const next = driverNextStatuses(trip.operational_status);
 
             return (
@@ -180,7 +184,18 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
                   return km ? <p className="mt-1 text-xs text-slate-500">{km}</p> : null;
                 })()}
 
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                {primaryNav ? (
+                  <a
+                    href={primaryNav.href}
+                    target={primaryNav.id === "waze" ? undefined : "_blank"}
+                    rel={primaryNav.id === "waze" ? undefined : "noopener noreferrer"}
+                    className="mt-4 flex min-h-[3rem] w-full items-center justify-center rounded-xl border-2 border-sky-500/80 bg-sky-950/40 px-4 py-3 text-base font-semibold text-sky-200 hover:bg-sky-900/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 md:min-h-[3.25rem] md:text-lg"
+                  >
+                    Navegar — {primaryNav.label}
+                  </a>
+                ) : null}
+
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   {next.map((s) => (
                     <button
                       key={s}

@@ -39,7 +39,7 @@ export default async function DriverPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <OperationalRealtimeBridge tenantId={tenantId} />
       <header className="border-b border-slate-800">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-4 px-4 py-4">
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-4 px-4 py-4 md:max-w-3xl lg:max-w-5xl">
           <div>
             <p className="text-xs uppercase tracking-widest text-amber-500/90">Prime Vitória</p>
             <h1 className="text-lg font-semibold text-white">Motorista</h1>
@@ -48,7 +48,7 @@ export default async function DriverPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-lg space-y-6 px-4 py-6 pb-24">
+      <main className="mx-auto max-w-lg space-y-6 px-4 py-6 pb-24 md:max-w-3xl md:px-6 lg:max-w-5xl lg:px-8">
         <p className="text-sm text-slate-400">
           Aceite a corrida, actualize o estado e use Maps/Waze. Ao concluir, o KM é recalculado automaticamente.
         </p>
