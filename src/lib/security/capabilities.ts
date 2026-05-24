@@ -55,13 +55,22 @@ export const PLANNED_CAPABILITIES = [
 
 export function capabilitiesForRole(role: UserRole): readonly string[] {
   if (role === "admin") return ["*"];
-  if (role === "operador") return CAPABILITY_GROUPS.trip.concat(
-    CAPABILITY_GROUPS.dispatch,
-    ["driver.read", "vehicle.read", "vehicle.write", "client.read", "client.write", "location.write"],
-    CAPABILITY_GROUPS.erp,
-    CAPABILITY_GROUPS.jobs,
-    ["profiles.read", "notifications.read"]
-  );
+  if (role === "operador") {
+    return [
+      ...CAPABILITY_GROUPS.trip,
+      ...CAPABILITY_GROUPS.dispatch,
+      "driver.read",
+      "vehicle.read",
+      "vehicle.write",
+      "client.read",
+      "client.write",
+      "location.write",
+      ...CAPABILITY_GROUPS.erp,
+      ...CAPABILITY_GROUPS.jobs,
+      "profiles.read",
+      "notifications.read"
+    ];
+  }
   if (role === "financeiro") {
     return [
       ...CAPABILITY_GROUPS.finance,
