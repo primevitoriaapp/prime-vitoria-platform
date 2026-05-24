@@ -9,7 +9,7 @@
 | B1 | `VERCEL_AUTOMATION_BYPASS_SECRET` ausente localmente | Smoke HTTP no preview Vercel falha (Deployment Protection) | Criar secret em Vercel → Settings → Deployment Protection → Automation; exportar localmente ou adicionar em GitHub Secrets |
 | B2 | Firebase Web / FCM (7 env vars) | Push motorista não validável em preview/prod | Seguir `docs/FIREBASE_FCM_SETUP.md` e `docs/FCM_PWA_READINESS.md` |
 | B3 | `db:push` 0042 / 0043 | Índices e RLS `trip_financials` só em repo | Aprovação explícita + janela staging |
-| B4 | Merge PR #1 → `cursor/pricing-engine-mvp-cycle` | Night cycle não integrado na branch pricing | Aprovação após smoke preview PASS |
+| B4 | Merge PR #1 → `cursor/pricing-engine-mvp-cycle` | — | **Concluído** @ `0e4398a` (2026-05-24) |
 
 ## Playwright CI (PR #1)
 

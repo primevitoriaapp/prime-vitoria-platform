@@ -15,6 +15,14 @@ Relatórios de fechamento de ciclo seguem o modelo oficial em [CYCLE_CLOSURE_TEM
 - **Preparado:** RLS `trip_financials`; capabilities `pricing.*`; perfis pricing extendidos.
 - **Adiado:** deploy produção; `db:push` 0042 sem aprovação.
 - **Riscos mitigados:** sem alteração produção; commits em `cursor/night-cycle-hardening`.
+- **Merge (2026-05-24):** PR #1 → `cursor/pricing-engine-mvp-cycle` @ `0e4398a` (CI verde pré-merge).
+
+## Pós-merge pricing-engine-mvp-cycle (2026-05-24)
+
+- **Branch:** `cursor/pricing-engine-mvp-cycle` inclui night cycle + pricing MVP.
+- **Validado:** `npm test` 264 pass; `npm run build` pass (agente cloud).
+- **Smoke staging remoto:** requer `STAGING_E2E_PASSWORD` + `VERCEL_AUTOMATION_BYPASS_SECRET` (ver `docs/BLOCKERS_AND_NEXT_ACTIONS.md`).
+- **Próximo:** preview smoke manual ou secrets GitHub; depois `db:push` 0042 com aprovação.
 
 ## Pricing engine MVP (2026-05-19)
 
