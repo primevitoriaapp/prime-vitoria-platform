@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { buildDriverNavigationLinks } from "@/lib/trips/driver-nav-links";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
+import { confirmDriverStatusTransition } from "@/lib/trips/driver-status-confirm";
 import { formatTripKmLine } from "@/lib/trips/format-km";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
@@ -33,8 +34,8 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
   const [message, setMessage] = useState<string | null>(null);
   const [busyTrip, setBusyTrip] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     const res = await fetchWithSupabaseSession("/api/trips?page=1&pageSize=30", {}, devFallbackRole);
     const json = (await res.json()) as { success?: boolean; data?: { items: Trip[] }; error?: { message?: string } };
     if (!res.ok || !json.success) {
@@ -53,13 +54,14 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
   }, [load]);
 
   useEffect(() => {
-    const timer = setInterval(() => void load(), 20_000);
+    const timer = setInterval(() => void load({ silent: true }), 20_000);
     return () => clearInterval(timer);
   }, [load]);
 
   useTenantTableRefresh(tenantId, ["trips"], load);
 
   async function setStatus(tripId: string, to_status: TripOperationalStatus) {
+    if (!confirmDriverStatusTransition(to_status)) return;
     setBusyTrip(tripId);
     setMessage(null);
     const res = await fetchWithSupabaseSession(
@@ -125,11 +127,11 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
         <h2 className="text-lg font-semibold text-white md:text-xl">Corridas activas</h2>
         <button
           type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="rounded-lg border border-slate-600 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+          onClick={() => void load({ silent: trips.length > 0 })}
+          disabled={loading && trips.length === 0}
+          className="min-h-[2.5rem] rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
         >
-          Actualizar
+          {loading && trips.length > 0 ? "A actualizar…" : "Actualizar"}
         </button>
       </div>
 
@@ -156,6 +158,9 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
             });
             const primaryNav = navLinks.find((l) => l.id === "waze") ?? navLinks[0];
             const next = driverNextStatuses(trip.operational_status);
+            const primaryStep = next[0];
+            const extraSteps = next.slice(1);
+            const isBusy = busyTrip === trip.id;
 
             return (
               <li key={trip.id} className="rounded-xl border border-slate-700 bg-slate-950/50 p-4 md:p-5">
@@ -195,28 +200,52 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
                   </a>
                 ) : null}
 
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  {next.map((s) => (
+                <div className="mt-3 flex flex-col gap-2">
+                  {primaryStep ? (
                     <button
-                      key={s}
                       type="button"
-                      disabled={busyTrip === trip.id}
-                      onClick={() => void setStatus(trip.id, s)}
-                      className="min-h-[2.75rem] flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-base font-semibold text-slate-950 hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 disabled:opacity-50 md:min-h-[3rem] md:text-lg"
+                      disabled={isBusy}
+                      aria-busy={isBusy}
+                      onClick={() => void setStatus(trip.id, primaryStep)}
+                      className="min-h-[3.25rem] w-full rounded-xl bg-amber-500 px-4 py-3 text-lg font-bold text-slate-950 hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 disabled:opacity-60 md:min-h-[3.5rem]"
                     >
-                      {trip.operational_status === "dispatched" && s === "accepted"
-                        ? "Aceitar corrida"
-                        : STATUS_CORRIDA_PT[s]}
+                      {isBusy
+                        ? "A processar…"
+                        : trip.operational_status === "dispatched" && primaryStep === "accepted"
+                          ? "Aceitar corrida"
+                          : `Próximo: ${STATUS_CORRIDA_PT[primaryStep]}`}
                     </button>
-                  ))}
-                  <button
-                    type="button"
-                    disabled={busyTrip === trip.id}
-                    onClick={() => void sendGps(trip)}
-                    className="min-h-[2.75rem] rounded-xl border border-slate-600 px-4 py-2.5 text-base text-slate-200 hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 disabled:opacity-50 md:min-h-[3rem]"
-                  >
-                    Enviar GPS
-                  </button>
+                  ) : null}
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => void sendGps(trip)}
+                      className="min-h-[2.75rem] flex-1 rounded-xl border border-slate-600 px-4 py-2.5 text-base text-slate-200 hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 disabled:opacity-50 md:min-h-[3rem]"
+                    >
+                      Enviar GPS
+                    </button>
+                  </div>
+                  {extraSteps.length > 0 ? (
+                    <details className="rounded-lg border border-slate-800/80 bg-slate-900/40 p-2">
+                      <summary className="cursor-pointer px-2 py-1 text-sm text-slate-400">
+                        Outros passos ({extraSteps.length})
+                      </summary>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {extraSteps.map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void setStatus(trip.id, s)}
+                            className="min-h-[2.5rem] rounded-lg border border-amber-600/50 px-3 py-2 text-sm font-medium text-amber-200 hover:bg-amber-950/40 disabled:opacity-50"
+                          >
+                            {STATUS_CORRIDA_PT[s]}
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  ) : null}
                 </div>
 
                 <details className="mt-3 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2">
