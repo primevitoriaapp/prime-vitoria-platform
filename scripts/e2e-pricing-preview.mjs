@@ -11,6 +11,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
+import { e2eApiHeaders } from "../src/lib/deploy/smoke-http.mjs";
 
 const base = (process.env.BASE_URL ?? "").replace(/\/$/, "");
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
@@ -46,9 +47,7 @@ async function signIn(email) {
 }
 
 async function apiGet(token, path) {
-  const res = await fetch(`${base}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, accept: "application/json" }
-  });
+  const res = await fetch(`${base}${path}`, { headers: e2eApiHeaders(token) });
   const json = await res.json().catch(() => ({}));
   if (!res.ok || !json.success) {
     throw new Error(`GET ${path} -> ${res.status} ${json.error?.message ?? ""}`);
@@ -59,11 +58,7 @@ async function apiGet(token, path) {
 async function apiPost(token, path, body) {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      accept: "application/json",
-      "Content-Type": "application/json"
-    },
+    headers: e2eApiHeaders(token, { "Content-Type": "application/json" }),
     body: JSON.stringify(body)
   });
   const json = await res.json().catch(() => ({}));
@@ -153,7 +148,7 @@ async function main() {
   console.log("ok auth (financeiro, motorista, cliente)");
 
   const sessionRes = await fetch(`${base}/api/auth/session`, {
-    headers: { Authorization: `Bearer ${motorToken}`, accept: "application/json" }
+    headers: e2eApiHeaders(motorToken)
   });
   const sessionJson = await sessionRes.json();
   const stagingDriverId = sessionJson?.data?.driverId;

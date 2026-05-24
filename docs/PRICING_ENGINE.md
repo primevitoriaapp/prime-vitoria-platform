@@ -33,6 +33,7 @@ Botão **Abrir navegação** → Google Maps, Waze, Apple Maps. Android Auto / C
 
 ## Futuro
 
+- Feature flags: `src/lib/pricing/feature-flags.ts` (`hourly_rate`, `airport_transfer`, `fixed_plus_km`, `waiting_time`, `tolls_auto`, `parking_auto` — **off por defeito**)
 - Múltiplas regras por rota/serviço (`settings` / prioridade)
 - Pedágio/estacionamento conforme `toll_policy` / `parking_policy`
 - UI completa para todos os tipos de cálculo

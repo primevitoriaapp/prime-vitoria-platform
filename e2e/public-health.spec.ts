@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { publicTrackInvalidTokenStatuses } from "./helpers/ci-expectations";
 
 test("health endpoint returns ok", async ({ request }) => {
   const res = await request.get("/api/health");
@@ -14,5 +15,5 @@ test("login page loads", async ({ page }) => {
 
 test("public track rejects invalid token", async ({ request }) => {
   const res = await request.get("/api/public/track/not-a-valid-token-xyz");
-  expect([400, 404]).toContain(res.status());
+  expect(publicTrackInvalidTokenStatuses).toContain(res.status());
 });

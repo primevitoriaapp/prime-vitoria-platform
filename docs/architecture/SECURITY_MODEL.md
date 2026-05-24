@@ -25,7 +25,7 @@
 |------|--------|
 | RLS em tabelas core | Implementado (migrações incrementais) |
 | Escopo em rotas Next | Implementado (`tenant-scope`) |
-| Testes automatizados de leakage | **Fase posterior** — adicionar suite dedicada |
+| Testes automatizados de leakage | **Em progresso** — `tests/tenant-isolation.test.ts`, `capabilities.ts` |
 | Smoke staging por papel | Implementado (`scripts/e2e-staging-auth.mjs`) |
 
 ## Autenticação

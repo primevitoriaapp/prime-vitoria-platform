@@ -4,6 +4,7 @@ import {
   mergePricingMargins,
   parseDriverPayoutConfig
 } from "./driver-payout.ts";
+import { isPricingFeatureEnabled, resolveEffectiveCalculationType } from "./feature-flags.ts";
 import { billableKmWithMinimum, resolveKmReal, roundKm, roundMoney } from "./pricing-utils.ts";
 import type { PricingCalculationResult, PricingCalculationType, PricingRuleRow, PricingTripInput } from "./types.ts";
 
@@ -22,7 +23,12 @@ function settingsNumber(rule: PricingRuleRow, key: string): number | null {
 function applyFees(base: number, rule: PricingRuleRow, input: PricingTripInput): { extras: number; breakdown: Record<string, unknown> } {
   let extras = 0;
   const breakdown: Record<string, unknown> = {};
-  if (input.is_night && rule.night_fee != null && rule.night_fee > 0) {
+  if (
+    isPricingFeatureEnabled("night_fee", rule) &&
+    input.is_night &&
+    rule.night_fee != null &&
+    rule.night_fee > 0
+  ) {
     extras += rule.night_fee;
     breakdown.night_fee = rule.night_fee;
   }
@@ -242,6 +248,14 @@ export function calculateTripPricing(
   rule: PricingRuleRow,
   input: PricingTripInput
 ): PricingCalculationResult {
+  const effectiveType = resolveEffectiveCalculationType(rule);
+  if (
+    effectiveType === "event_package" &&
+    !isPricingFeatureEnabled("event_package", rule)
+  ) {
+    throw new Error("Pricing feature disabled: event_package");
+  }
+  const effectiveRule = effectiveType === rule.calculation_type ? rule : { ...rule, calculation_type: effectiveType };
   const calculators: Record<PricingCalculationType, (r: PricingRuleRow, i: PricingTripInput) => PricingCalculationResult> = {
     fixed_price: calcFixedPrice,
     km_with_minimum: calcKmWithMinimum,
@@ -250,9 +264,9 @@ export function calculateTripPricing(
     event_package: calcEventPackage,
     custom: calcCustom
   };
-  const fn = calculators[rule.calculation_type];
+  const fn = calculators[effectiveRule.calculation_type];
   if (!fn) {
-    throw new Error(`Unsupported calculation_type: ${rule.calculation_type}`);
+    throw new Error(`Unsupported calculation_type: ${effectiveRule.calculation_type}`);
   }
-  return fn(rule, input);
+  return fn(effectiveRule, input);
 }

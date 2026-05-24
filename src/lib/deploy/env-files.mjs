@@ -3,6 +3,30 @@ import { resolve } from "node:path";
 
 export const DEFAULT_ENV_FILES = [".env.supabase.local", ".env.vercel.local", ".env.local", ".env"];
 
+/** Chaves cujo valor curto/placeholder não deve sobrescrever credenciais reais. */
+const GUARDED_ENV_KEYS = new Set([
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY"
+]);
+
+export function isPlaceholderEnvValue(key, value) {
+  const v = (value ?? "").trim();
+  if (!v) return true;
+  const lower = v.toLowerCase();
+  if (lower.includes("placeholder") || lower.includes("your-") || lower.includes("changeme")) return true;
+  if (key === "NEXT_PUBLIC_SUPABASE_URL") {
+    if (v.includes("supabase.co")) return false;
+    if (/^https?:\/\//.test(v) && v.length >= 15) return false;
+    return true;
+  }
+  if (key === "NEXT_PUBLIC_SUPABASE_ANON_KEY" || key === "SUPABASE_SERVICE_ROLE_KEY") {
+    return v.length < 32;
+  }
+  if (GUARDED_ENV_KEYS.has(key)) return v.length < 12;
+  return false;
+}
+
 export function parseDotEnvLine(line) {
   const trimmed = line.trim();
   if (!trimmed || trimmed.startsWith("#")) return null;
@@ -31,6 +55,7 @@ export function loadEnvFiles({ cwd = process.cwd(), env = process.env, files = D
       if (!parsed) continue;
 
       if (env[parsed.key]?.trim()) continue;
+      if (isPlaceholderEnvValue(parsed.key, parsed.value)) continue;
 
       env[parsed.key] = parsed.value;
       loaded.push({ file, key: parsed.key });

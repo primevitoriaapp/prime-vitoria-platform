@@ -1,0 +1,43 @@
+# Smoke contra preview Vercel (PRs feature). Requer secrets no repositório.
+# Secrets: STAGING_BASE_URL (ou deixar vazio para usar comentário Vercel), STAGING_E2E_PASSWORD,
+#          NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY,
+#          VERCEL_AUTOMATION_BYPASS_SECRET
+
+name: Preview PR smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL do preview (override)"
+        required: false
+        type: string
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  preview-smoke:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npm test
+      - name: Night preview smoke (staging APIs)
+        env:
+          BASE_URL: ${{ inputs.base_url || secrets.STAGING_BASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STAGING_E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          if [ -z "$BASE_URL" ] || [ -z "$STAGING_E2E_PASSWORD" ]; then
+            echo "skip: configure STAGING_BASE_URL and STAGING_E2E_PASSWORD in GitHub Secrets"
+            exit 0
+          fi
+          node scripts/night-preview-smoke.mjs

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { e2eApiHeaders } from "../src/lib/deploy/smoke-http.mjs";
+
 /**
  * Smoke autenticado contra staging (Supabase password grant + APIs).
  *
@@ -53,11 +55,7 @@ async function signIn() {
 async function apiPost(token, path, body) {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      accept: "application/json",
-      "Content-Type": "application/json"
-    },
+    headers: e2eApiHeaders(token, { "Content-Type": "application/json" }),
     body: JSON.stringify(body)
   });
   const json = await res.json().catch(() => ({}));
@@ -70,11 +68,7 @@ async function apiPost(token, path, body) {
 async function apiPostExpectStatus(token, path, body, expectedStatus) {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      accept: "application/json",
-      "Content-Type": "application/json"
-    },
+    headers: e2eApiHeaders(token, { "Content-Type": "application/json" }),
     body: JSON.stringify(body)
   });
   if (res.status !== expectedStatus) {
@@ -86,9 +80,7 @@ async function apiPostExpectStatus(token, path, body, expectedStatus) {
 }
 
 async function apiGet(token, path, { allowStatuses } = {}) {
-  const res = await fetch(`${base}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, accept: "application/json" }
-  });
+  const res = await fetch(`${base}${path}`, { headers: e2eApiHeaders(token) });
   const json = await res.json().catch(() => ({}));
   if (allowStatuses?.includes(res.status)) {
     return { skipped: true, status: res.status };
@@ -100,9 +92,7 @@ async function apiGet(token, path, { allowStatuses } = {}) {
 }
 
 async function apiGetExpectForbidden(token, path) {
-  const res = await fetch(`${base}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, accept: "application/json" }
-  });
+  const res = await fetch(`${base}${path}`, { headers: e2eApiHeaders(token) });
   if (res.status !== 403) {
     const json = await res.json().catch(() => ({}));
     throw new Error(`${path} expected 403, got ${res.status} ${json.error?.message ?? ""}`);
@@ -197,7 +187,7 @@ async function main() {
     console.log("ok operations report json");
 
     const csvRes = await fetch(`${base}/api/reports/operations/trips?format=csv&pageSize=5`, {
-      headers: { Authorization: `Bearer ${token}`, accept: "text/csv" }
+      headers: e2eApiHeaders(token, { accept: "text/csv" })
     });
     const csvBody = await csvRes.text();
     if (!csvRes.ok || !csvBody.startsWith("id,")) {
@@ -253,7 +243,7 @@ async function main() {
     await apiGet(token, "/api/operations/history?page=1&pageSize=5&days=7&status=completed");
     console.log("ok operations history (completed filter)");
     const csvRes = await fetch(`${base}/api/operations/history?format=csv&days=5`, {
-      headers: { Authorization: `Bearer ${token}`, accept: "text/csv" }
+      headers: e2eApiHeaders(token, { accept: "text/csv" })
     });
     const csvBody = await csvRes.text();
     if (!csvRes.ok || !csvBody.includes("scheduled_at")) {

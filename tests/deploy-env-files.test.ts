@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applyBaseUrlFallback, loadEnvFiles, parseDotEnvLine } from "../src/lib/deploy/env-files.mjs";
+import {
+  applyBaseUrlFallback,
+  isPlaceholderEnvValue,
+  loadEnvFiles,
+  parseDotEnvLine
+} from "../src/lib/deploy/env-files.mjs";
 
 test("parseDotEnvLine parses quoted values and skips comments", () => {
   assert.deepEqual(parseDotEnvLine('NEXT_PUBLIC_BASE_URL="https://example.test"'), {
@@ -40,6 +45,11 @@ test("loadEnvFiles loads ordered env files without replacing non-empty values", 
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
+});
+
+test("isPlaceholderEnvValue ignores vercel-style short placeholders", () => {
+  assert.equal(isPlaceholderEnvValue("NEXT_PUBLIC_SUPABASE_URL", "xx"), true);
+  assert.equal(isPlaceholderEnvValue("SUPABASE_SERVICE_ROLE_KEY", "from-file"), true);
 });
 
 test("applyBaseUrlFallback fills NEXT_PUBLIC_BASE_URL from BASE_URL only when missing", () => {

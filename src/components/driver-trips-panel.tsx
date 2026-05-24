@@ -9,6 +9,8 @@ import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { buildDriverNavigationLinks } from "@/lib/trips/driver-nav-links";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { formatTripKmLine } from "@/lib/trips/format-km";
+import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
+import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
 
 const ACTIVE: TripOperationalStatus[] = [
   "dispatched",
@@ -118,9 +120,9 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
 
   return (
     <>
-    <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+    <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-white">Corridas activas</h2>
+        <h2 className="text-lg font-semibold text-white md:text-xl">Corridas activas</h2>
         <button
           type="button"
           onClick={() => void load()}
@@ -131,10 +133,13 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
         </button>
       </div>
 
-      {message ? <p className="mt-3 text-sm text-amber-200/90">{message}</p> : null}
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {loading ? "A carregar corridas…" : message ?? (active.length ? `${active.length} corridas activas` : "Sem corridas activas")}
+      </p>
+      {message ? <p className="mt-3 text-sm text-amber-200/90" aria-hidden="true">{message}</p> : null}
 
       {loading ? (
-        <p className="mt-4 text-sm text-slate-500">A carregar…</p>
+        <DriverTripSkeleton />
       ) : active.length === 0 ? (
         <p className="mt-4 text-sm text-slate-500">Sem corridas activas. Novas despachos aparecem aqui com push.</p>
       ) : (
@@ -149,14 +154,16 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
               origin: { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text },
               destination: dest
             });
+            const primaryNav = navLinks.find((l) => l.id === "waze") ?? navLinks[0];
             const next = driverNextStatuses(trip.operational_status);
 
             return (
-              <li key={trip.id} className="rounded-lg border border-slate-700 bg-slate-950/50 p-4">
+              <li key={trip.id} className="rounded-xl border border-slate-700 bg-slate-950/50 p-4 md:p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={trip.operational_status} />
                   <span className="font-mono text-xs text-amber-500/80">{trip.id.slice(0, 8)}…</span>
                 </div>
+                <DriverOperationalTimeline current={trip.operational_status} />
                 <p className="mt-2 text-sm font-medium text-white">
                   {trip.passenger_name?.trim() || "Passageiro"}
                   {trip.service_type ? <span className="text-slate-500"> · {trip.service_type}</span> : null}
@@ -177,14 +184,25 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
                   return km ? <p className="mt-1 text-xs text-slate-500">{km}</p> : null;
                 })()}
 
-                <div className="mt-3 flex flex-wrap gap-2">
+                {primaryNav ? (
+                  <a
+                    href={primaryNav.href}
+                    target={primaryNav.id === "waze" ? undefined : "_blank"}
+                    rel={primaryNav.id === "waze" ? undefined : "noopener noreferrer"}
+                    className="mt-4 flex min-h-[3rem] w-full items-center justify-center rounded-xl border-2 border-sky-500/80 bg-sky-950/40 px-4 py-3 text-base font-semibold text-sky-200 hover:bg-sky-900/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 md:min-h-[3.25rem] md:text-lg"
+                  >
+                    Navegar — {primaryNav.label}
+                  </a>
+                ) : null}
+
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   {next.map((s) => (
                     <button
                       key={s}
                       type="button"
                       disabled={busyTrip === trip.id}
                       onClick={() => void setStatus(trip.id, s)}
-                      className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-amber-400 disabled:opacity-50"
+                      className="min-h-[2.75rem] flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-base font-semibold text-slate-950 hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 disabled:opacity-50 md:min-h-[3rem] md:text-lg"
                     >
                       {trip.operational_status === "dispatched" && s === "accepted"
                         ? "Aceitar corrida"
@@ -195,15 +213,15 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
                     type="button"
                     disabled={busyTrip === trip.id}
                     onClick={() => void sendGps(trip)}
-                    className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+                    className="min-h-[2.75rem] rounded-xl border border-slate-600 px-4 py-2.5 text-base text-slate-200 hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 disabled:opacity-50 md:min-h-[3rem]"
                   >
                     Enviar GPS
                   </button>
                 </div>
 
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs font-medium text-amber-400 hover:text-amber-300">
-                    Abrir navegação
+                <details className="mt-3 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2">
+                  <summary className="cursor-pointer px-2 py-1 text-sm font-medium text-amber-400 hover:text-amber-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400">
+                    Abrir navegação (Maps / Waze / Apple)
                   </summary>
                   <div className="mt-2 flex flex-wrap gap-3 text-xs">
                     {navLinks.map((link) => (

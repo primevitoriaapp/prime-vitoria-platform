@@ -30,7 +30,7 @@ Nada nas fases 2–4 abaixo deve atrasar esta lista sem decisão explícita.
 | Deploy Vercel + smoke | Feito |
 | Seed + E2E staging | Feito |
 | Secrets cron/jobs em produção | Pendente manual |
-| Migrações Supabase prod | Verificar `db:push` |
+| Migrações Supabase prod | `0041` aplicada; `0042` índices pendente push |
 
 **Preparado para futuro:** documentação em `docs/architecture/`.
 

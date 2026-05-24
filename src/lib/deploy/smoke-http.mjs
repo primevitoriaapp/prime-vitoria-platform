@@ -21,6 +21,15 @@ export function smokeRequestHeaders(env = process.env, extraHeaders = {}) {
   return headers;
 }
 
+/** Headers para E2E autenticado contra app (inclui bypass Vercel quando definido). */
+export function e2eApiHeaders(token, extraHeaders = {}, env = process.env) {
+  return smokeRequestHeaders(env, {
+    Authorization: `Bearer ${token}`,
+    accept: "application/json",
+    ...extraHeaders
+  });
+}
+
 export function parseSmokeJson(text, { name, url }) {
   try {
     return JSON.parse(text);

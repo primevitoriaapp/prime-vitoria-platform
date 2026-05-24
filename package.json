@@ -12,6 +12,7 @@
     "test:e2e-staging": "node scripts/e2e-staging-auth.mjs",
     "test:e2e-staging-all": "node scripts/e2e-staging-all-roles.mjs",
     "test:e2e-pricing-preview": "node scripts/e2e-pricing-preview.mjs",
+    "test:night-preview-smoke": "node scripts/night-preview-smoke.mjs",
     "test:e2e-playwright": "playwright test",
     "test:e2e-playwright:staging": "PLAYWRIGHT_STAGING=1 playwright test e2e/staging-authenticated.spec.ts e2e/pilot-client-driver-staging.spec.ts e2e/pilot-agenda-dispatch-driver-staging.spec.ts",
     "erp:preflight": "node scripts/erp-preflight.mjs",

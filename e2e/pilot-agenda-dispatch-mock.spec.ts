@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { ciSkipsSsrPlaywrightMocks } from "./helpers/ci-expectations";
 import {
   PILOT_MOCK_DRIVER_ID,
   PILOT_MOCK_TRIP_APPROVED_ID,
@@ -16,7 +17,9 @@ const MOCK_OFFER_ID = "o1000000-0000-4000-8000-000000000001";
  * UI piloto: operador despacha na agenda e motorista aceita no /driver.
  * CI com TRUST_HEADER_AUTH=true e APIs mockadas.
  */
-test.describe("Pilot agenda → motorista (mock CI)", () => {
+const describePilotAgenda = ciSkipsSsrPlaywrightMocks ? test.describe.skip : test.describe;
+
+describePilotAgenda("Pilot agenda → motorista (mock CI)", () => {
   test("operador cria oferta na agenda", async ({ page }) => {
     await page.setExtraHTTPHeaders(pilotOperadorHeaders());
     await page.route(`**/api/trips/${PILOT_MOCK_TRIP_APPROVED_ID}/dispatch-offers`, async (route) => {
