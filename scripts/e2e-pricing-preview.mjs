@@ -152,6 +152,13 @@ async function main() {
   const clienteToken = await signIn("staging-cliente@example.com");
   console.log("ok auth (financeiro, motorista, cliente)");
 
+  const sessionRes = await fetch(`${base}/api/auth/session`, {
+    headers: { Authorization: `Bearer ${motorToken}`, accept: "application/json" }
+  });
+  const sessionJson = await sessionRes.json();
+  const stagingDriverId = sessionJson?.data?.driverId;
+  if (!stagingDriverId) throw new Error("staging motorista driverId missing from session");
+
   const rules = await apiGet(
     financeToken,
     `/api/pricing/rules?client_id=${STAGING_CLIENT_ID}&pageSize=20`
@@ -166,7 +173,13 @@ async function main() {
   }
   console.log(`ok GET /api/pricing/rules (${rules.items.length} items, Comexport activa)`);
 
-  const { data: driverRow } = await db.from("drivers").select("id, profile_id").limit(1).maybeSingle();
+  const { data: motorProfile } = await db
+    .from("profiles")
+    .select("id")
+    .eq("id", sessionJson.data.userId)
+    .maybeSingle();
+  if (!motorProfile?.id) throw new Error("motorista profile missing");
+  const driverRow = { id: stagingDriverId };
   if (!driverRow?.id) throw new Error("driver row missing");
   const { data: adminProfile } = await db
     .from("profiles")
