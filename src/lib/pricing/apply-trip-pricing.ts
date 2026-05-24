@@ -2,6 +2,7 @@ import { db } from "@/lib/server/db";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { financialTitleBlocksRegeneration } from "@/lib/finance/financial-regeneration";
 import { calculateTripPricing } from "@/lib/pricing/calculate";
+import { buildPricingCalculationMetadata } from "@/lib/pricing/pricing-audit-meta";
 import type { PricingRuleRow, PricingTripInput } from "@/lib/pricing/types";
 
 export type ApplyTripPricingInput = {
@@ -89,17 +90,7 @@ export async function applyTripPricingOnCompletion(
   };
 
   const result = calculateTripPricing(rule, pricingInput);
-  const calculationMetadata = {
-    source: "pricing_engine",
-    pricing_rule_applied: rule.id,
-    rule_id: rule.id,
-    rule_name: rule.name,
-    calculation_type: result.calculation_type,
-    km_real: result.km_real,
-    km_billable: result.km_billable,
-    breakdown: result.breakdown,
-    applied_at: new Date().toISOString()
-  };
+  const calculationMetadata = buildPricingCalculationMetadata(rule, result);
 
   const { error: tripErr } = await db
     .from("trips")
