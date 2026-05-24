@@ -9,6 +9,13 @@ Relatórios de fechamento de ciclo seguem o modelo oficial em [CYCLE_CLOSURE_TEM
 - **Adiado:** `FCM_SERVER_KEY` + `NEXT_PUBLIC_FIREBASE_*` (Firebase manual); secrets em Preview.
 - **Riscos mitigados:** crons 401; jobs sem bearer; documentação de rotação de secrets.
 
+## Ciclo noite — hardening + prep (2026-05-24)
+
+- **Implementado:** `0042` índices performance; auditoria RLS (`docs/RLS_AUDIT_NIGHT_CYCLE.md`); `capabilities.ts`; pricing feature flags; UX motorista (timeline, skeleton, botões tablet); wireframe portal cliente; testes; mensagens API; `MVP_GO_LIVE_CHECKLIST.md`.
+- **Preparado:** RLS `trip_financials`; capabilities `pricing.*`; perfis pricing extendidos.
+- **Adiado:** deploy produção; `db:push` 0042 sem aprovação.
+- **Riscos mitigados:** sem alteração produção; commits em `cursor/night-cycle-hardening`.
+
 ## Pricing engine MVP (2026-05-19)
 
 - **Implementado:** migração `0041_pricing_rules`; `src/lib/pricing/*`; API CRUD; aplicação automática no pós-corrida; UI mínima em Clientes → Precificação; testes `pricing-calculate`; navegação motorista (Maps/Waze/Apple); `docs/PRICING_ENGINE.md`.

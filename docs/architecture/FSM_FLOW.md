@@ -103,6 +103,7 @@ stateDiagram-v2
 | Módulo central de transições | Fase 2 |
 | Checklist / documentação motorista | Fase 2–3 |
 | Sub-FSM embarque (`boarding_confirmed`) | Fase 2+ |
+| Timeline operacional motorista (UI) | Preparado em `driver-operational-timeline.tsx` (night cycle; não altera FSM DB) |
 
 ## Riscos mitigados
 
