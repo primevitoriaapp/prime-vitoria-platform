@@ -11,6 +11,11 @@
 | B3 | `db:push` 0042 / 0043 | Índices e RLS `trip_financials` só em repo | Aprovação explícita + janela staging |
 | B4 | Merge PR #1 → `cursor/pricing-engine-mvp-cycle` | Night cycle não integrado na branch pricing | Aprovação após smoke preview PASS |
 
+## Playwright CI (PR #1)
+
+- Testes API (`reports-api`, `public-track`) aceitam respostas com Supabase placeholder em CI.
+- Testes pilot mock com SSR ignorados em CI padrão; usar `PLAYWRIGHT_STAGING=1` para E2E real.
+
 ## Resolvido neste ciclo
 
 | Item | Resolução |
