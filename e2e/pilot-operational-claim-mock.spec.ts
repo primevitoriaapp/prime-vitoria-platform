@@ -1,10 +1,16 @@
 import { test, expect } from "@playwright/test";
+import { ciSkipsSsrPlaywrightMocks } from "./helpers/ci-expectations";
 import { PILOT_MOCK_TRIP_APPROVED_ID, mockApprovedTrip, pilotOperadorHeaders } from "./helpers/pilot-fixtures";
 
 /**
  * Barra de multiatendimento na agenda (mock CI).
  */
 test.describe("Pilot multiatendimento (mock CI)", () => {
+  test.skip(
+    ciSkipsSsrPlaywrightMocks,
+    "Agenda SSR carrega viagens antes dos mocks Playwright (usar PLAYWRIGHT_STAGING=1)"
+  );
+
   test("barra de claim visível e assume atendimento", async ({ page }) => {
     await page.setExtraHTTPHeaders(pilotOperadorHeaders());
 
