@@ -6,6 +6,7 @@ import { OperationalRealtimeBridge } from "@/components/operational-realtime-bri
 import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { TripAgendaFocusPanel } from "@/components/trip-agenda-focus-panel";
 import { TripTable } from "@/components/trip-table";
+import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
@@ -74,6 +75,7 @@ export default async function AgendaPage({
         Viagens ordenadas por horário agendado. Use o intervalo para planear o período; em tempo real, as alterações de
         estado aparecem na tabela quando o tenant da sessão corresponde.
       </p>
+      <StagingSmokeHints variant="light" />
       <AgendaDateRangeForm initialFromIso={scheduledFrom} initialToIso={scheduledTo} />
       {showClaimBar ? (
         <OperationalHistoryPanel devFallbackRole={session.role === "operador" ? "operador" : "admin"} days={7} />

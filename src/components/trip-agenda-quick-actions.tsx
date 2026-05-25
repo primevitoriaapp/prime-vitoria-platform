@@ -45,7 +45,11 @@ export function TripAgendaQuickActions({ tripId, operationalStatus, devFallbackR
       <button type="button" disabled={loading} onClick={() => void approve()} className="font-medium text-amber-800">
         {loading ? "A aprovar…" : "Aprovar corrida"}
       </button>
-      {message ? <span className="text-slate-700">{message}</span> : null}
+      {message ? (
+        <span className="text-slate-700" role="status" aria-live="polite">
+          {message}
+        </span>
+      ) : null}
     </div>
   );
 }

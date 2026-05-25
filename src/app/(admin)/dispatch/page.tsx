@@ -6,6 +6,7 @@ import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel
 import { NotificationJobsPanel } from "@/components/notification-jobs-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { TripTable } from "@/components/trip-table";
+import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
@@ -32,6 +33,7 @@ export default async function DispatchPage() {
         Aprovação, despacho direcionado, ofertas a motoristas e reatribuição. A tabela abaixo atualiza em tempo real
         (Supabase Realtime) para o tenant da sessão.
       </p>
+      <StagingSmokeHints variant="light" />
       <TripTable
         trips={trips}
         operatorNotesHref={(id) => {

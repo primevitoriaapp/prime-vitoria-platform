@@ -18,6 +18,8 @@ applyBaseUrlFallback();
 
 const base = (process.env.BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
 const automated = process.argv.includes("--automated");
+const logSnippet = process.argv.includes("--log-snippet");
+let lastHealth = null;
 const password = process.env.STAGING_E2E_PASSWORD?.trim() || process.env.STAGING_SEED_PASSWORD?.trim();
 
 const blockers = [];
@@ -56,7 +58,22 @@ async function probeHealth() {
   if (!c.fcm) warnings.push("FCM_SERVER_KEY ausente — push falhará até configurar Vercel");
   if (!c.fcm_web) warnings.push("Firebase Web env ausente — auto-registo push indisponível");
   if (!c.fcm_operational_ready) warnings.push("fcm_operational_ready=false — smoke FCM F1–F8 pode ser FAIL");
+  lastHealth = json;
   return json;
+}
+
+function printLogSnippet() {
+  const c = lastHealth?.checks ?? {};
+  console.log(`
+#### Automatizado (colar no EXECUTION_LOG)
+
+| Check | Resultado |
+|-------|-----------|
+| \`staging:validation-preflight\` | PASS |
+| \`staging:validation-automated\` | ${automated ? "PASS" : "N/A"} |
+| Health fcm / fcm_web / ready | ${c.fcm ?? "?"} / ${c.fcm_web ?? "?"} / ${c.fcm_operational_ready ?? "?"} |
+| BASE_URL | ${base} |
+`);
 }
 
 function printHumanPlan() {
@@ -125,8 +142,10 @@ async function main() {
     console.log("\nDica: npm run staging:validation-automated  (testes + pricing + APIs)");
   }
 
+  if (logSnippet) printLogSnippet();
   printHumanPlan();
   console.log("Preflight OK — pode iniciar smoke humano.\n");
+  console.log("Opcional preview UI: NEXT_PUBLIC_STAGING_SMOKE_HINTS=true no Vercel Preview\n");
 }
 
 main().catch((err) => {

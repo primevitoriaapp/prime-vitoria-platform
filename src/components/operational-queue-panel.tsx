@@ -135,7 +135,11 @@ export function OperationalQueuePanel({ tenantId, devFallbackRole = "operador" }
       </div>
       {message ? <p className="mt-2 text-sm text-red-700">{message}</p> : null}
       {loading ? (
-        <p className="mt-3 text-sm text-slate-600">A carregar…</p>
+        <ul className="mt-3 animate-pulse space-y-2" aria-busy="true" aria-label="A carregar fila">
+          {[1, 2, 3].map((i) => (
+            <li key={i} className="h-12 rounded bg-slate-100" />
+          ))}
+        </ul>
       ) : items.length === 0 ? (
         <p className="mt-3 text-sm text-slate-500">Nenhuma viagem activa na fila.</p>
       ) : (

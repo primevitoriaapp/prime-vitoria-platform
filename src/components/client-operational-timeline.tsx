@@ -27,6 +27,7 @@ export function ClientOperationalTimeline({ current }: Props) {
         return (
           <li key={step} className="flex items-center gap-2 text-sm">
             <span
+              aria-current={active ? "step" : undefined}
               className={[
                 "inline-flex h-8 min-w-[2rem] items-center justify-center rounded-full px-2 text-xs font-semibold",
                 active

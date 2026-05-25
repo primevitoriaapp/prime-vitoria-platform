@@ -4,6 +4,7 @@ import { DriverConsole } from "@/components/driver-console";
 import { DriverPushRegister } from "@/components/driver-push-register";
 import { DriverPushStatusBanner } from "@/components/driver-push-status-banner";
 import { DriverTripDeepLink } from "@/components/driver-trip-deep-link";
+import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { DriverOffersPanel } from "@/components/driver-offers-panel";
 import { DriverOperationalStatusPanel } from "@/components/driver-operational-status-panel";
 import { DriverPayablesPanel } from "@/components/driver-payables-panel";
@@ -56,6 +57,7 @@ export default async function DriverPage() {
           Aceite a corrida, actualize o estado e use Maps/Waze. Ao concluir, o KM é recalculado automaticamente.
         </p>
 
+        <StagingSmokeHints variant="dark" />
         <DriverPushStatusBanner />
         <Suspense fallback={null}>
           <DriverTripDeepLink />

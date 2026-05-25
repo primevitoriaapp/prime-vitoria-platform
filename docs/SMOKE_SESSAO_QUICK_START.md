@@ -18,6 +18,8 @@ npm run staging:validation-preflight
 
 Firebase no Vercel: [FIREBASE_FCM_SETUP.md](./FIREBASE_FCM_SETUP.md)
 
+Opcional no Preview: `NEXT_PUBLIC_STAGING_SMOKE_HINTS=true` — atalho para corrida oficial na UI.
+
 ---
 
 ## Contas staging (mesma password)

@@ -180,7 +180,11 @@ export function TripAgendaDispatchPanel({
         >
           {loading ? "A despachar…" : "Despachar corrida"}
         </button>
-        {message ? <p className="mt-2 text-slate-700">{message}</p> : null}
+        {message ? (
+          <p className="mt-2 text-slate-700" role="status" aria-live="polite">
+            {message}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -270,7 +274,11 @@ export function TripAgendaDispatchPanel({
             </button>
           </details>
         ) : null}
-        {message ? <p className="mt-2 text-slate-700">{message}</p> : null}
+        {message ? (
+          <p className="mt-2 text-slate-700" role="status" aria-live="polite">
+            {message}
+          </p>
+        ) : null}
       </div>
     );
   }

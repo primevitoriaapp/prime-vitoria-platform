@@ -98,9 +98,12 @@
 
 | Campo | Valor |
 |-------|--------|
-| Execuções registadas | **0** — aguarda primeira sessão humana |
-| Código pendente por P0/P1 | **Nenhum** (sem entradas no log) |
-| Próxima acção | Smoke com [SMOKE_SESSAO_QUICK_START.md](./SMOKE_SESSAO_QUICK_START.md) |
+| Modo | **Validação operacional humana real** |
+| Branch | `cursor/pricing-engine-mvp-cycle` estabilizada |
+| Engenharia | **Suporte** — sem ciclos grandes até registo abaixo |
+| Execuções registadas | **0** |
+| Código pendente | **Nenhum** até P0/P1 no log |
+| Próxima acção | Tabela «Próximos passos oficiais» ↑ |
 
 ---
 

@@ -116,7 +116,18 @@ export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false 
 
   return (
     <>
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-busy={loading}>
+        {loading && trips.length === 0 ? (
+          <>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="animate-pulse rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                <div className="h-3 w-24 rounded bg-slate-700" />
+                <div className="mt-3 h-8 w-16 rounded bg-slate-700" />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
           <p className="text-xs uppercase tracking-wide text-slate-500">Corridas (mês)</p>
           <p className="mt-1 font-serif text-3xl text-amber-400">{corridasMes}</p>
@@ -133,6 +144,8 @@ export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false 
           <p className="text-xs uppercase tracking-wide text-slate-500">Centros de custo</p>
           <p className="mt-1 font-serif text-3xl text-amber-400">{costCenters.length}</p>
         </div>
+          </>
+        )}
       </section>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_280px]">

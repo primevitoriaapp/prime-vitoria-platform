@@ -13,6 +13,7 @@ import { formatTripKmLine } from "@/lib/trips/format-km";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
+import { useDocumentVisible } from "@/hooks/use-document-visible";
 
 const ACTIVE: TripOperationalStatus[] = [
   "dispatched",
@@ -34,6 +35,8 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [busyTrip, setBusyTrip] = useState<string | null>(null);
+  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
+  const docVisible = useDocumentVisible();
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -47,6 +50,7 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
     }
     setTrips(json.data?.items ?? []);
     setMessage(null);
+    setLastRefreshAt(new Date());
     setLoading(false);
   }, [devFallbackRole]);
 
@@ -55,9 +59,10 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
   }, [load]);
 
   useEffect(() => {
+    if (!docVisible) return;
     const timer = setInterval(() => void load({ silent: true }), 20_000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, docVisible]);
 
   useTenantTableRefresh(tenantId, ["trips", "dispatch_offers"], load);
 
@@ -134,14 +139,22 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
     <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-white md:text-xl">Corridas activas</h2>
-        <button
-          type="button"
-          onClick={() => void load({ silent: trips.length > 0 })}
-          disabled={loading && trips.length === 0}
-          className="min-h-[2.5rem] rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
-        >
-          {loading && trips.length > 0 ? "A actualizar…" : "Actualizar"}
-        </button>
+        <div className="flex flex-col items-end gap-0.5">
+          <button
+            type="button"
+            onClick={() => void load({ silent: trips.length > 0 })}
+            disabled={loading && trips.length === 0}
+            className="min-h-[2.75rem] rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+          >
+            {loading && trips.length > 0 ? "A actualizar…" : "Actualizar"}
+          </button>
+          {lastRefreshAt ? (
+            <span className="text-[10px] text-slate-500">
+              Lista: {lastRefreshAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              {!docVisible ? " · separador inactivo" : null}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">

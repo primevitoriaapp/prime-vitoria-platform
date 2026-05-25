@@ -3,6 +3,7 @@ import { ClientRequestConsole } from "@/components/client-request-console";
 import { ClientTripsPanel } from "@/components/client-trips-panel";
 import { ClientPortalNav } from "@/components/client-portal-nav";
 import { ClientPortalReadonlyNotice } from "@/components/client-portal-readonly-notice";
+import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { isClientPortalReadOnly } from "@/lib/client/portal-config";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
@@ -74,6 +75,7 @@ export default async function ClientPage() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-10 px-5 py-8">
+        <StagingSmokeHints variant="dark" />
         {readOnly ? <ClientPortalReadonlyNotice readOnly /> : null}
 
         <section id="visao" className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
