@@ -1,8 +1,31 @@
 # Registo de execução — Validação staging (oficial)
 
-> **Fonte de verdade** para o [modo validação operacional humana](./MODO_VALIDACAO_OPERACIONAL_HUMANA.md).  
-> Os próximos ciclos de código corrigem **apenas P0/P1** documentados aqui.  
-> Preencher após cada sessão de smoke humano + FCM.
+> **Única fonte de verdade** para decisões de código no [modo validação operacional humana](./MODO_VALIDACAO_OPERACIONAL_HUMANA.md).  
+> **Engenharia em espera:** nenhum ciclo relevante até existir PASS/FAIL + P0/P1 reais abaixo.  
+> Correcções futuras: **só P0/P1** deste ficheiro — sem features, módulos, redesign, `db:push`, prod, `main`, portal write, pricing novo.
+
+---
+
+## Próximos passos oficiais (sessão humana — executar agora)
+
+| # | Passo | Referência |
+|---|--------|------------|
+| 1 | Firebase/Vercel configurado | [FIREBASE_FCM_SETUP.md](./FIREBASE_FCM_SETUP.md) |
+| 2 | Preflight | `npm run staging:validation-preflight` |
+| 3 | Quick start | `npm run staging:smoke-quickstart` |
+| 4 | Smoke operacional | [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md) |
+| 5 | Smoke FCM | [FCM_OPERATIONAL_SMOKE.md](./FCM_OPERATIONAL_SMOKE.md) |
+| 6 | **Registo** | Preencher template ↓ neste ficheiro |
+
+**Corrida oficial:** `c2000000-0000-4000-8000-000000000001` (requested)
+
+**Ciclo a validar:** operador → motorista → cliente → push → pricing Comexport → finalização
+
+**Observar:** cliques · lentidão · confusão · timeline · mensagens · push/refresh · workarounds
+
+**FAIL operacional se:** UUID manual · API/consola · refresh excessivo · workaround crítico
+
+**MVP pronto quando:** despacho natural · motorista sem confusão · cliente entende estado · push mínimo · Comexport OK · sem workarounds → então piloto/rollout gradual.
 
 ---
 
