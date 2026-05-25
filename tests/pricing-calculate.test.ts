@@ -48,6 +48,13 @@ test("km_with_minimum: 12 km real bills 20 km", () => {
   assert.equal(result.amount_driver, 50);
 });
 
+test("km_with_minimum: 20 km real bills 20 km (Comexport boundary)", () => {
+  const rule = baseRule({ calculation_type: "km_with_minimum", price_per_km: 5, minimum_km: 20 });
+  const result = calculateTripPricing(rule, { km_real: 20, km_planned: null, duration_hours: null });
+  assert.equal(result.km_billable, 20);
+  assert.equal(result.amount_client, 100);
+});
+
 test("km_with_minimum: 32 km real bills 32 km", () => {
   const rule = baseRule({ calculation_type: "km_with_minimum", price_per_km: 5, minimum_km: 20 });
   const result = calculateTripPricing(rule, { km_real: 32, km_planned: null, duration_hours: null });
