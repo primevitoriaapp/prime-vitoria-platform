@@ -53,19 +53,23 @@ export default async function DriverPage() {
       </header>
 
       <main className="mx-auto max-w-lg space-y-6 px-4 py-6 pb-24 md:max-w-3xl md:px-6 lg:max-w-5xl lg:px-8">
-        <p className="text-sm text-slate-400">
-          Aceite a corrida, actualize o estado e use Maps/Waze. Ao concluir, o KM é recalculado automaticamente.
-        </p>
-
         <StagingSmokeHints variant="dark" />
         <DriverPushStatusBanner />
         <Suspense fallback={null}>
           <DriverTripDeepLink />
         </Suspense>
 
-        <DriverOperationalStatusPanel />
-        <DriverOffersPanel />
         <DriverTripsPanel tenantId={tenantId} />
+
+        <section className="rounded-xl border border-violet-900/40 bg-slate-900/40 p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-300/90">Ofertas da central</h2>
+          <p className="mt-1 text-xs text-slate-500">Se não houver corrida actual acima, aceite aqui uma oferta aberta.</p>
+          <div className="mt-3">
+            <DriverOffersPanel tenantId={tenantId} />
+          </div>
+        </section>
+
+        <DriverOperationalStatusPanel />
 
         <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Pagamentos</h2>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
@@ -9,9 +9,12 @@ import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { buildDriverNavigationLinks } from "@/lib/trips/driver-nav-links";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { confirmDriverStatusTransition } from "@/lib/trips/driver-status-confirm";
+import { pickPrimaryActiveTripId } from "@/lib/trips/driver-step-copy";
 import { formatTripKmLine } from "@/lib/trips/format-km";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
+import { DriverActiveTripHero } from "@/components/driver-active-trip-hero";
+import { DriverTripRouteCard } from "@/components/driver-trip-route-card";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
 
@@ -25,6 +28,8 @@ const ACTIVE: TripOperationalStatus[] = [
 
 const HISTORY: TripOperationalStatus[] = ["completed", "cancelled", "no_show", "rejected"];
 
+const FOCUS_EVENT = "pv-driver-focus-trip";
+
 type Props = {
   tenantId?: string | null;
   devFallbackRole?: "motorista";
@@ -36,6 +41,7 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
   const [message, setMessage] = useState<string | null>(null);
   const [busyTrip, setBusyTrip] = useState<string | null>(null);
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
+  const [highlightTripId, setHighlightTripId] = useState<string | null>(null);
   const docVisible = useDocumentVisible();
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
@@ -58,13 +64,19 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
     void load();
   }, [load]);
 
+  const active = useMemo(() => trips.filter((t) => ACTIVE.includes(t.operational_status)), [trips]);
+  const primaryId = useMemo(() => pickPrimaryActiveTripId(active), [active]);
+  const primaryTrip = active.find((t) => t.id === primaryId) ?? null;
+  const otherActive = active.filter((t) => t.id !== primaryId);
+
   useEffect(() => {
     if (!docVisible) return;
-    const timer = setInterval(() => void load({ silent: true }), 20_000);
+    const intervalMs = active.length > 0 ? 12_000 : 20_000;
+    const timer = setInterval(() => void load({ silent: true }), intervalMs);
     return () => clearInterval(timer);
-  }, [load, docVisible]);
+  }, [load, docVisible, active.length]);
 
-  useTenantTableRefresh(tenantId, ["trips", "dispatch_offers"], load);
+  useTenantTableRefresh(tenantId, ["trips", "dispatch_offers"], () => void load({ silent: active.length > 0 }));
 
   useDriverPushRefresh(
     () => void load({ silent: trips.length > 0 }),
@@ -74,8 +86,19 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
     }
   );
 
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const id = (e as CustomEvent<{ tripId: string }>).detail?.tripId;
+      if (id) {
+        setHighlightTripId(id);
+        void load({ silent: trips.length > 0 });
+      }
+    };
+    window.addEventListener(FOCUS_EVENT, onFocus);
+    return () => window.removeEventListener(FOCUS_EVENT, onFocus);
+  }, [load, trips.length]);
+
   async function setStatus(tripId: string, to_status: TripOperationalStatus) {
-    if (!confirmDriverStatusTransition(to_status)) return;
     setBusyTrip(tripId);
     setMessage(null);
     const res = await fetchWithSupabaseSession(
@@ -128,7 +151,6 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
     );
   }
 
-  const active = trips.filter((t) => ACTIVE.includes(t.operational_status));
   const recentHistory = trips
     .filter((t) => HISTORY.includes(t.operational_status))
     .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
@@ -136,198 +158,148 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
 
   return (
     <>
-    <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-white md:text-xl">Corridas activas</h2>
-        <div className="flex flex-col items-end gap-0.5">
-          <button
-            type="button"
-            onClick={() => void load({ silent: trips.length > 0 })}
-            disabled={loading && trips.length === 0}
-            className="min-h-[2.75rem] rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
-          >
-            {loading && trips.length > 0 ? "A actualizar…" : "Actualizar"}
-          </button>
-          {lastRefreshAt ? (
-            <span className="text-[10px] text-slate-500">
-              Lista: {lastRefreshAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-              {!docVisible ? " · separador inactivo" : null}
-            </span>
-          ) : null}
+      <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 md:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-white md:text-xl">Corridas</h2>
+          <div className="flex flex-col items-end gap-0.5">
+            <button
+              type="button"
+              onClick={() => void load({ silent: trips.length > 0 })}
+              disabled={loading && trips.length === 0}
+              className="min-h-[2.75rem] rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+            >
+              {loading && trips.length > 0 ? "A actualizar…" : "Actualizar"}
+            </button>
+            {lastRefreshAt ? (
+              <span className="text-[10px] text-slate-500">
+                {active.length > 0 ? "Auto 12s · " : "Auto 20s · "}
+                {lastRefreshAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                {!docVisible ? " · separador inactivo" : null}
+              </span>
+            ) : null}
+          </div>
         </div>
-      </div>
 
-      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {loading ? "A carregar corridas…" : message ?? (active.length ? `${active.length} corridas activas` : "Sem corridas activas")}
-      </p>
-      {message ? <p className="mt-3 text-sm text-amber-200/90" aria-hidden="true">{message}</p> : null}
-
-      {loading ? (
-        <DriverTripSkeleton />
-      ) : active.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500">
-          Sem corridas activas. Após despacho, toque em <strong className="text-slate-400">Actualizar</strong> ou aguarde
-          notificação push (quando FCM estiver activo).
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {loading ? "A carregar corridas…" : message ?? (active.length ? `${active.length} corridas activas` : "Sem corridas activas")}
         </p>
-      ) : (
-        <ul className="mt-4 space-y-4">
-          {active.map((trip) => {
-            const dest = {
-              lat: trip.destination_lat,
-              lng: trip.destination_lng,
-              label: trip.destination_text
-            };
-            const navLinks = buildDriverNavigationLinks({
-              origin: { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text },
-              destination: dest
-            });
-            const primaryNav = navLinks.find((l) => l.id === "waze") ?? navLinks[0];
-            const next = driverNextStatuses(trip.operational_status);
-            const primaryStep = next[0];
-            const extraSteps = next.slice(1);
-            const isBusy = busyTrip === trip.id;
+        {message ? <p className="mt-3 text-sm text-amber-200/90" aria-hidden="true">{message}</p> : null}
 
-            return (
-              <li
-                key={trip.id}
-                data-driver-trip-id={trip.id}
-                className="rounded-xl border border-slate-700 bg-slate-950/50 p-4 md:p-5"
-              >
+        {loading ? (
+          <DriverTripSkeleton />
+        ) : active.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-500">
+            Sem corrida actual. Após despacho da central, a corrida aparece aqui — actualização automática a cada 20s
+            (ou notificação push quando activa).
+          </p>
+        ) : (
+          <div className="mt-4 space-y-4">
+            {primaryTrip ? (
+              <DriverActiveTripHero
+                trip={primaryTrip}
+                isBusy={busyTrip === primaryTrip.id}
+                highlighted={highlightTripId === primaryTrip.id}
+                onStatus={setStatus}
+                onGps={sendGps}
+              />
+            ) : null}
+
+            {otherActive.length > 0 ? (
+              <div>
+                <h3 className="text-sm font-medium text-slate-400">Outras corridas activas ({otherActive.length})</h3>
+                <ul className="mt-2 space-y-3">
+                  {otherActive.map((trip) => (
+                    <CompactActiveTripCard
+                      key={trip.id}
+                      trip={trip}
+                      isBusy={busyTrip === trip.id}
+                      onStatus={setStatus}
+                    />
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </section>
+
+      {recentHistory.length > 0 ? (
+        <details className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+          <summary className="cursor-pointer text-sm font-medium text-slate-400">
+            Últimas concluídas / encerradas ({recentHistory.length})
+          </summary>
+          <ul className="mt-3 space-y-3">
+            {recentHistory.map((trip) => (
+              <li key={trip.id} className="border-t border-slate-800 pt-3 first:border-0 first:pt-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={trip.operational_status} />
-                  <span className="font-mono text-xs text-amber-500/80">{trip.id.slice(0, 8)}…</span>
+                  <span className="text-xs text-slate-500">
+                    {new Date(trip.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  </span>
                 </div>
-                <DriverOperationalTimeline current={trip.operational_status} />
-                <p className="mt-2 text-sm font-medium text-white">
-                  {trip.passenger_name?.trim() || "Passageiro"}
-                  {trip.service_type ? <span className="text-slate-500"> · {trip.service_type}</span> : null}
-                </p>
                 <p className="mt-1 text-sm text-slate-400">
                   {trip.origin_text} → {trip.destination_text}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {new Date(trip.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-                  {trip.vehicle ? (
-                    <span className="ml-2 text-amber-400/90">
-                      · {trip.vehicle.plate} ({trip.vehicle.model})
-                    </span>
-                  ) : null}
-                </p>
-                {(() => {
-                  const km = formatTripKmLine(trip);
-                  return km ? <p className="mt-1 text-xs text-slate-500">{km}</p> : null;
-                })()}
-
-                {primaryNav ? (
-                  <a
-                    href={primaryNav.href}
-                    target={primaryNav.id === "waze" ? undefined : "_blank"}
-                    rel={primaryNav.id === "waze" ? undefined : "noopener noreferrer"}
-                    className="mt-4 flex min-h-[3rem] w-full items-center justify-center rounded-xl border-2 border-sky-500/80 bg-sky-950/40 px-4 py-3 text-base font-semibold text-sky-200 hover:bg-sky-900/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 md:min-h-[3.25rem] md:text-lg"
-                  >
-                    Navegar — {primaryNav.label}
-                  </a>
-                ) : null}
-
-                <div className="mt-3 flex flex-col gap-2">
-                  {primaryStep ? (
-                    <button
-                      type="button"
-                      disabled={isBusy}
-                      aria-busy={isBusy}
-                      onClick={() => void setStatus(trip.id, primaryStep)}
-                      className="min-h-[3.25rem] w-full rounded-xl bg-amber-500 px-4 py-3 text-lg font-bold text-slate-950 hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 disabled:opacity-60 md:min-h-[3.5rem]"
-                    >
-                      {isBusy
-                        ? "A processar…"
-                        : trip.operational_status === "dispatched" && primaryStep === "accepted"
-                          ? "Aceitar corrida"
-                          : STATUS_CORRIDA_PT[primaryStep]}
-                    </button>
-                  ) : null}
-                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <button
-                      type="button"
-                      disabled={isBusy}
-                      onClick={() => void sendGps(trip)}
-                      className="min-h-[2.75rem] flex-1 rounded-xl border border-slate-600 px-4 py-2.5 text-base text-slate-200 hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 disabled:opacity-50 md:min-h-[3rem]"
-                    >
-                      Enviar GPS
-                    </button>
-                  </div>
-                  {extraSteps.length > 0 ? (
-                    <details className="rounded-lg border border-slate-800/80 bg-slate-900/40 p-2">
-                      <summary className="cursor-pointer px-2 py-1 text-sm text-slate-400">
-                        Outros passos ({extraSteps.length})
-                      </summary>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {extraSteps.map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() => void setStatus(trip.id, s)}
-                            className="min-h-[2.5rem] rounded-lg border border-amber-600/50 px-3 py-2 text-sm font-medium text-amber-200 hover:bg-amber-950/40 disabled:opacity-50"
-                          >
-                            {STATUS_CORRIDA_PT[s]}
-                          </button>
-                        ))}
-                      </div>
-                    </details>
-                  ) : null}
-                </div>
-
-                <details className="mt-3 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2">
-                  <summary className="cursor-pointer px-2 py-1 text-sm font-medium text-amber-400 hover:text-amber-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400">
-                    Abrir navegação (Maps / Waze / Apple)
-                  </summary>
-                  <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                    {navLinks.map((link) => (
-                      <a
-                        key={link.id}
-                        href={link.href}
-                        target={link.id === "waze" ? undefined : "_blank"}
-                        rel={link.id === "waze" ? undefined : "noopener noreferrer"}
-                        className="text-amber-400 hover:underline"
-                      >
-                        {link.label}
-                      </a>
-                    ))}
-                  </div>
-                </details>
               </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
-
-    {recentHistory.length > 0 ? (
-      <details className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-        <summary className="cursor-pointer text-sm font-medium text-slate-400">
-          Últimas concluídas / encerradas ({recentHistory.length})
-        </summary>
-        <ul className="mt-3 space-y-3">
-          {recentHistory.map((trip) => (
-            <li key={trip.id} className="border-t border-slate-800 pt-3 first:border-0 first:pt-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge status={trip.operational_status} />
-                <span className="text-xs text-slate-500">
-                  {new Date(trip.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-slate-400">
-                {trip.origin_text} → {trip.destination_text}
-              </p>
-              {(() => {
-                const km = formatTripKmLine(trip);
-                return km ? <p className="mt-1 text-xs text-slate-500">{km}</p> : null;
-              })()}
-            </li>
-          ))}
-        </ul>
-      </details>
-    ) : null}
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </>
+  );
+}
+
+function CompactActiveTripCard({
+  trip,
+  isBusy,
+  onStatus
+}: {
+  trip: Trip;
+  isBusy: boolean;
+  onStatus: (id: string, s: TripOperationalStatus) => void;
+}) {
+  const next = driverNextStatuses(trip.operational_status)[0];
+  const nav = buildDriverNavigationLinks({
+    origin: { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text },
+    destination: { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.destination_text }
+  })[0];
+
+  return (
+    <li
+      data-driver-trip-id={trip.id}
+      className="rounded-lg border border-slate-700 bg-slate-950/50 p-3"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge status={trip.operational_status} />
+        <span className="text-sm text-white">{trip.passenger_name ?? "Passageiro"}</span>
+      </div>
+      <DriverTripRouteCard originText={trip.origin_text ?? "—"} destinationText={trip.destination_text ?? "—"} />
+      <DriverOperationalTimeline current={trip.operational_status} />
+      <div className="mt-2 flex flex-wrap gap-2">
+        {next ? (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={() => {
+              if (!confirmDriverStatusTransition(next)) return;
+              onStatus(trip.id, next);
+            }}
+            className="rounded-lg bg-amber-600/80 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {trip.operational_status === "dispatched" ? "Aceitar" : STATUS_CORRIDA_PT[next]}
+          </button>
+        ) : null}
+        {nav ? (
+          <a
+            href={nav.href}
+            className="rounded-lg border border-sky-600/50 px-3 py-2 text-sm text-sky-300"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Navegar
+          </a>
+        ) : null}
+      </div>
+    </li>
   );
 }

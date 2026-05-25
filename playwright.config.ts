@@ -20,6 +20,10 @@ export default defineConfig({
         command: "npm run start",
         url: `${baseURL}/api/health`,
         reuseExistingServer: !process.env.CI,
-        timeout: 120_000
+        timeout: 120_000,
+        env: {
+          ...process.env,
+          TRUST_HEADER_AUTH: process.env.TRUST_HEADER_AUTH ?? "true"
+        }
       }
 });

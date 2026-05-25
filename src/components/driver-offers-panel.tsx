@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
+import { useDocumentVisible } from "@/hooks/use-document-visible";
+import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 
 type OpenOffer = {
   id: string;
@@ -17,10 +19,11 @@ type OpenOffer = {
 };
 
 type Props = {
+  tenantId?: string | null;
   devFallbackRole?: "motorista";
 };
 
-export function DriverOffersPanel({ devFallbackRole = "motorista" }: Props) {
+export function DriverOffersPanel({ tenantId = null, devFallbackRole = "motorista" }: Props) {
   const [offers, setOffers] = useState<OpenOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -34,11 +37,19 @@ export function DriverOffersPanel({ devFallbackRole = "motorista" }: Props) {
     setLoading(false);
   }, [devFallbackRole]);
 
+  const docVisible = useDocumentVisible();
+
   useEffect(() => {
     void load();
-    const t = setInterval(() => void load(), 25_000);
-    return () => clearInterval(t);
   }, [load]);
+
+  useEffect(() => {
+    if (!docVisible) return;
+    const t = setInterval(() => void load(), 20_000);
+    return () => clearInterval(t);
+  }, [load, docVisible]);
+
+  useTenantTableRefresh(tenantId, ["dispatch_offers", "trips"], () => void load());
 
   useDriverPushRefresh(() => void load());
 

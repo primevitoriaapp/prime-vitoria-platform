@@ -1,5 +1,6 @@
 import type { TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
+import { driverNextStatusLabel } from "@/lib/trips/driver-step-copy";
 
 const FLOW: TripOperationalStatus[] = [
   "dispatched",
@@ -12,10 +13,44 @@ const FLOW: TripOperationalStatus[] = [
 
 type Props = {
   current: TripOperationalStatus;
+  variant?: "default" | "hero";
 };
 
-export function DriverOperationalTimeline({ current }: Props) {
+export function DriverOperationalTimeline({ current, variant = "default" }: Props) {
   const idx = FLOW.indexOf(current);
+  const nextLabel = driverNextStatusLabel(current);
+
+  if (variant === "hero") {
+    return (
+      <div className="mt-4" aria-label="Progresso da corrida">
+        <ol className="flex flex-col gap-1 border-l-2 border-slate-700 pl-3">
+          {FLOW.map((step, i) => {
+            const done = idx >= 0 && i < idx;
+            const active = step === current;
+            if (!done && !active && i > idx + 1) return null;
+            return (
+              <li
+                key={step}
+                className={[
+                  "text-sm",
+                  active ? "font-semibold text-amber-300" : done ? "text-emerald-400/90" : "text-slate-600"
+                ].join(" ")}
+              >
+                <span className="mr-2 font-mono text-xs text-slate-500">{i + 1}.</span>
+                {STATUS_CORRIDA_PT[step]}
+                {active && nextLabel ? (
+                  <span className="mt-0.5 block text-xs font-normal text-amber-200/80">
+                    Próximo: {nextLabel}
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    );
+  }
+
   return (
     <ol
       className="mt-3 flex flex-wrap items-center gap-1 text-xs md:gap-2"
