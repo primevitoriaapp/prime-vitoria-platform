@@ -66,6 +66,7 @@ export function DriverPushRegister() {
 
   useEffect(() => {
     if (!firebaseReady) return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
     let cancelled = false;
     void (async () => {
       try {

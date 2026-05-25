@@ -28,9 +28,9 @@
 
 ## Próximas acções (modo MVP operacional)
 
-1. **Smoke humano** — operador → despacho → motorista (aceite/estados) → cliente consulta (`/client`)
-2. Configurar `VERCEL_AUTOMATION_BYPASS_SECRET` + `STAGING_E2E_PASSWORD` → workflow `Preview PR smoke` (PR #2+)
-3. **FCM** no Vercel (prioridade operacional) → push motorista em staging
+1. **Smoke humano** — [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md)
+2. **FCM smoke** — [FCM_OPERATIONAL_SMOKE.md](./FCM_OPERATIONAL_SMOKE.md) após secrets Vercel
+3. Configurar `VERCEL_AUTOMATION_BYPASS_SECRET` + `STAGING_E2E_PASSWORD` → workflow Preview smoke
 4. UX motorista: menos cliques, estados mais claros (commits pequenos na branch `cursor/pricing-engine-mvp-cycle`)
 5. Portal cliente read-only: polish consulta (sem activar writes por defeito)
 6. Aprovar `db:push` 0042 em staging (índices fila) — quando houver janela

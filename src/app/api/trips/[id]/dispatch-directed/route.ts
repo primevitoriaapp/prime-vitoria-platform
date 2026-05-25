@@ -110,6 +110,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       )
     );
 
+    await runBestEffort("trip.dispatch_directed.push_process", async () => {
+      const { processNotificationJobs } = await import("@/lib/jobs/processors");
+      await processNotificationJobs({ limit: 5, tenantId });
+    });
+
     await insertAuditEvent({
       tenantId,
       actorUserId: session.userId,

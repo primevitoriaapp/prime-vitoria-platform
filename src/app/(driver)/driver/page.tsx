@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { DriverConsole } from "@/components/driver-console";
 import { DriverPushRegister } from "@/components/driver-push-register";
+import { DriverPushStatusBanner } from "@/components/driver-push-status-banner";
+import { DriverTripDeepLink } from "@/components/driver-trip-deep-link";
 import { DriverOffersPanel } from "@/components/driver-offers-panel";
 import { DriverOperationalStatusPanel } from "@/components/driver-operational-status-panel";
 import { DriverPayablesPanel } from "@/components/driver-payables-panel";
@@ -53,6 +56,11 @@ export default async function DriverPage() {
           Aceite a corrida, actualize o estado e use Maps/Waze. Ao concluir, o KM é recalculado automaticamente.
         </p>
 
+        <DriverPushStatusBanner />
+        <Suspense fallback={null}>
+          <DriverTripDeepLink />
+        </Suspense>
+
         <DriverOperationalStatusPanel />
         <DriverOffersPanel />
         <DriverTripsPanel tenantId={tenantId} />
@@ -64,7 +72,7 @@ export default async function DriverPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <section id="push-setup" className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-6">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Notificações push</h2>
           <div className="mt-3 [&_.card]:border-0 [&_.card]:bg-transparent [&_.card]:p-0 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100">
             <DriverPushRegister />

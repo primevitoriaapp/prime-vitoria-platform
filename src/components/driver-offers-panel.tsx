@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 
 type OpenOffer = {
   id: string;
@@ -38,6 +39,8 @@ export function DriverOffersPanel({ devFallbackRole = "motorista" }: Props) {
     const t = setInterval(() => void load(), 25_000);
     return () => clearInterval(t);
   }, [load]);
+
+  useDriverPushRefresh(() => void load());
 
   async function accept(offerId: string, etaMinutes?: number) {
     setBusyId(offerId);

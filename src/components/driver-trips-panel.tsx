@@ -12,6 +12,7 @@ import { confirmDriverStatusTransition } from "@/lib/trips/driver-status-confirm
 import { formatTripKmLine } from "@/lib/trips/format-km";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
+import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 
 const ACTIVE: TripOperationalStatus[] = [
   "dispatched",
@@ -58,7 +59,15 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
     return () => clearInterval(timer);
   }, [load]);
 
-  useTenantTableRefresh(tenantId, ["trips"], load);
+  useTenantTableRefresh(tenantId, ["trips", "dispatch_offers"], load);
+
+  useDriverPushRefresh(
+    () => void load({ silent: trips.length > 0 }),
+    (detail) => {
+      const label = detail.title ?? detail.body ?? "Nova actualização";
+      setMessage(label);
+    }
+  );
 
   async function setStatus(tripId: string, to_status: TripOperationalStatus) {
     if (!confirmDriverStatusTransition(to_status)) return;
@@ -166,7 +175,11 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
             const isBusy = busyTrip === trip.id;
 
             return (
-              <li key={trip.id} className="rounded-xl border border-slate-700 bg-slate-950/50 p-4 md:p-5">
+              <li
+                key={trip.id}
+                data-driver-trip-id={trip.id}
+                className="rounded-xl border border-slate-700 bg-slate-950/50 p-4 md:p-5"
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={trip.operational_status} />
                   <span className="font-mono text-xs text-amber-500/80">{trip.id.slice(0, 8)}…</span>

@@ -26,6 +26,12 @@
 
 Opcional futuro: `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` (HTTP v1).
 
+## Smoke operacional
+
+Roteiro PASS/FAIL: **[FCM_OPERATIONAL_SMOKE.md](./FCM_OPERATIONAL_SMOKE.md)**
+
+API motorista: `GET /api/drivers/push-readiness` (token + env, sem secrets).
+
 ## Validação (quando secrets existirem)
 
 1. Login motorista `/driver`

@@ -172,6 +172,9 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
     if (send.ok) {
       await succeedJob();
     } else {
+      if (process.env.NODE_ENV !== "production") {
+        console.info("[notification.push]", { jobId: job.id, eventType, recipientId, reason: send.reason });
+      }
       await failJob(send.reason, send.reason, { retryable: fcmLegacyFailureIsRetryable(send.reason) });
     }
   }

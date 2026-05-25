@@ -147,6 +147,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
       )
     );
 
+    await runBestEffort("dispatch.offer_approve.push_process", async () => {
+      const { processNotificationJobs } = await import("@/lib/jobs/processors");
+      await processNotificationJobs({ limit: 5, tenantId });
+    });
+
     await db
       .from("dispatch_offer_responses")
       .update({ status: "rejected" })

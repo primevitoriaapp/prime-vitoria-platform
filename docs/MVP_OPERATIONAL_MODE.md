@@ -32,11 +32,13 @@ Objectivo: sistema **utilizável no dia-a-dia** da Prime Vitória (operador, mot
 
 **Entregáveis típicos:** [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md), [OPERATIONAL_FRICTION_LOG.md](./OPERATIONAL_FRICTION_LOG.md), E2E staging por papel.
 
-### 2. Push / FCM (prioridade operacional)
+### 2. Push / FCM (prioridade operacional) — em curso
 
 - Recepção rápida de corridas no motorista
 - Updates em tempo real (complementar Supabase Realtime)
 - Experiência PWA motorista com notificação confiável
+- Roteiro: [FCM_OPERATIONAL_SMOKE.md](./FCM_OPERATIONAL_SMOKE.md)
+- Banner `/driver`, processamento imediato pós-despacho, foreground FCM
 
 **Dependência humana:** `docs/FIREBASE_FCM_SETUP.md`, secrets Vercel (sem alterar secrets no repo).
 
