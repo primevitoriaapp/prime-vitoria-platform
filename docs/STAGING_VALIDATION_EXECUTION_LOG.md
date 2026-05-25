@@ -99,11 +99,22 @@
 | Campo | Valor |
 |-------|--------|
 | Modo | **Validação operacional humana real** |
-| Branch | `cursor/pricing-engine-mvp-cycle` estabilizada |
-| Engenharia | **Suporte** — sem ciclos grandes até registo abaixo |
+| Branch | `cursor/pricing-engine-mvp-cycle` @ `2ee311b` (estável) |
+| Engenharia | **EM ESPERA OPERACIONAL** — sem polishing por iniciativa própria |
+| Polishing staging | Aprovado (`30c1c3c`…`2ee311b`); **congelado** até P0/P1 no log |
 | Execuções registadas | **0** |
-| Código pendente | **Nenhum** até P0/P1 no log |
-| Próxima acção | Tabela «Próximos passos oficiais» ↑ |
+| Código pendente | **Nenhum** até P0/P1 documentados |
+| Próxima acção humana | Tabela «Próximos passos oficiais» ↑ |
+
+### Engenharia autorizada até PASS no log
+
+- Corrigir build/CI
+- Bug evidente que **impeça** smoke
+- Documentação de execução / status
+
+### Engenharia **não** autorizada até PASS no log
+
+- Novo polishing, features, redesign, `db:push`, prod, `main`, mudanças estruturais
 
 ---
 

@@ -91,14 +91,19 @@ O código **não lidera**. A operação humana lidera. O [EXECUTION_LOG](./STAGI
 
 ## Papel da engenharia
 
-**Suporte à operação humana:**
+**Estado actual: EM ESPERA OPERACIONAL** (após polishing staging aprovado).
 
-1. Manter runbooks e [quick start](./SMOKE_SESSAO_QUICK_START.md) actualizados.
-2. Corrigir **apenas P0/P1** do EXECUTION_LOG em PRs pequenos.
-3. Priorizar: velocidade · atrito · clareza · confiança · push/realtime · fallback/erros.
-4. **Não** antecipar produto além do que o smoke pedir.
+Até primeiro registo PASS/FAIL no EXECUTION_LOG:
 
-Branch de trabalho habitual: `cursor/pricing-engine-mvp-cycle` (PR #2).
+| Autorizado | Não autorizado |
+|------------|----------------|
+| Build/CI quebrado | Polishing por iniciativa própria |
+| Bug que impeça smoke | Features, redesign, estrutura |
+| Docs de execução / status | `db:push`, prod, `main` |
+
+Após P0/P1 no log: correcções cirúrgicas **só** nesses itens.
+
+Branch estável: `cursor/pricing-engine-mvp-cycle` @ `2ee311b`.
 
 ---
 
