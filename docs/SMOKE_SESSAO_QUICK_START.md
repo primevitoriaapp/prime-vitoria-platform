@@ -13,6 +13,7 @@
 export BASE_URL="https://<preview>.vercel.app"
 export STAGING_E2E_PASSWORD="<senha seed>"
 npm run staging:validation-preflight
+npm run staging:smoke-urls
 # opcional: npm run staging:validation-automated
 ```
 

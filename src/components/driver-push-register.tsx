@@ -24,10 +24,15 @@ async function savePushToken(token: string, platform: "web" | "unknown"): Promis
   return null;
 }
 
+type Props = {
+  /** Painel escuro em /driver */
+  variant?: "light" | "dark";
+};
+
 /**
  * Regista token FCM do motorista (Firebase auto ou colagem manual em staging).
  */
-export function DriverPushRegister() {
+export function DriverPushRegister({ variant = "light" }: Props) {
   const firebaseReady = Boolean(readFirebaseWebConfig());
   const [state, setState] = useState<PushState>(firebaseReady ? "idle" : "unavailable");
   const [message, setMessage] = useState<string | null>(null);
@@ -96,35 +101,63 @@ export function DriverPushRegister() {
     await registerToken(token);
   }
 
+  const dark = variant === "dark";
+
   return (
-    <section className="card" style={{ marginTop: 12 }}>
-      <h2>Notificações push</h2>
-      <p className="text-sm text-slate-600">
+    <section className={dark ? "space-y-3" : "card"} style={dark ? undefined : { marginTop: 12 }}>
+      {!dark ? <h2>Notificações push</h2> : null}
+      <p className={dark ? "text-sm text-slate-400" : "text-sm text-slate-600"}>
         Necessário para receber ofertas de despacho e corridas atribuídas. Usa FCM real (sem simulação).
       </p>
       {firebaseReady ? (
-        <button type="button" onClick={() => void onAutoRegister()} disabled={state === "loading"}>
+        <button
+          type="button"
+          onClick={() => void onAutoRegister()}
+          disabled={state === "loading"}
+          className={
+            dark
+              ? "min-h-[2.75rem] w-full rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50"
+              : undefined
+          }
+        >
           {state === "loading" ? "A activar…" : "Activar notificações neste dispositivo"}
         </button>
       ) : (
-        <p className="text-sm text-amber-800">
-          Firebase Web não configurado (<code>NEXT_PUBLIC_FIREBASE_*</code> + <code>NEXT_PUBLIC_FCM_VAPID_KEY</code>).
-          Em staging, cole abaixo o token FCM obtido no dispositivo.
+        <p className={dark ? "text-sm text-amber-200/90" : "text-sm text-amber-800"}>
+          Firebase Web não configurado. Em staging, cole o token FCM abaixo.
         </p>
       )}
-      <form onSubmit={(e) => void onManualSubmit(e)} className="grid" style={{ marginTop: 8 }}>
+      <form onSubmit={(e) => void onManualSubmit(e)} className={dark ? "space-y-2" : "grid"} style={dark ? undefined : { marginTop: 8 }}>
         <input
           value={manualToken}
           onChange={(e) => setManualToken(e.target.value)}
           placeholder="Token FCM (colar se necessário)"
-          className="col-span-2"
+          className={
+            dark
+              ? "w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+              : "col-span-2"
+          }
         />
-        <button type="submit" disabled={state === "loading"}>
+        <button
+          type="submit"
+          disabled={state === "loading"}
+          className={
+            dark
+              ? "min-h-[2.5rem] rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+              : undefined
+          }
+        >
           Guardar token manualmente
         </button>
       </form>
       {message ? (
-        <p className={`mt-2 text-sm ${state === "error" ? "text-red-700" : "text-green-800"}`}>{message}</p>
+        <p
+          className={`text-sm ${state === "error" ? (dark ? "text-red-300" : "text-red-700") : dark ? "text-emerald-300" : "text-green-800"}`}
+          role="status"
+          aria-live="polite"
+        >
+          {message}
+        </p>
       ) : null}
     </section>
   );

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { notificationTimelineTitle } from "@/lib/trips/timeline-notification";
 import { timelineAuditLabel, timelineMetadataSummary } from "@/lib/trips/timeline-present";
+import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 
 type Entry =
   | {
@@ -132,8 +133,23 @@ export function OperationalTimelinePanel({ tripId, devFallbackRole = "operador" 
           ))}
         </div>
       </div>
-      {loading ? <p className="mt-3 text-sm text-slate-600">A carregar…</p> : null}
-      {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
+      {loading ? (
+        <ul className="mt-3 animate-pulse space-y-2" aria-busy="true">
+          {[1, 2, 3].map((i) => (
+            <li key={i} className="h-10 rounded bg-slate-100" />
+          ))}
+        </ul>
+      ) : null}
+      {error ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <p className="text-sm text-red-700" role="alert">
+            {error}
+          </p>
+          <button type="button" onClick={() => void load()} className="text-sm font-medium text-amber-800 underline">
+            Tentar novamente
+          </button>
+        </div>
+      ) : null}
       {!loading && !error ? (
         <ul className="mt-3 max-h-80 space-y-3 overflow-y-auto text-sm">
           {items.length === 0 ? (
@@ -160,7 +176,15 @@ export function OperationalTimelinePanel({ tripId, devFallbackRole = "operador" 
                   <div className="mt-1">
                     <span className="text-xs font-medium uppercase text-slate-500">Estado</span>
                     <p className="mt-1 text-slate-800">
-                      {e.from_status ?? "—"} → <span className="font-medium">{e.to_status}</span>
+                      {e.from_status && e.from_status in STATUS_CORRIDA_PT
+                        ? STATUS_CORRIDA_PT[e.from_status as keyof typeof STATUS_CORRIDA_PT]
+                        : (e.from_status ?? "—")}{" "}
+                      →{" "}
+                      <span className="font-medium">
+                        {e.to_status in STATUS_CORRIDA_PT
+                          ? STATUS_CORRIDA_PT[e.to_status as keyof typeof STATUS_CORRIDA_PT]
+                          : e.to_status}
+                      </span>
                     </p>
                     {e.source ? <p className="mt-1 text-xs text-slate-500">Origem: {e.source}</p> : null}
                   </div>

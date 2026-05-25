@@ -78,7 +78,11 @@ export function DriverOffersPanel({ devFallbackRole = "motorista" }: Props) {
   return (
     <section className="rounded-xl border border-violet-800/50 bg-violet-950/40 p-4">
       <h2 className="text-lg font-semibold text-violet-200">Ofertas da central</h2>
-      {message ? <p className="mt-2 text-sm text-amber-200/90">{message}</p> : null}
+      {message ? (
+        <p className="mt-2 text-sm text-amber-200/90" role="status" aria-live="polite">
+          {message}
+        </p>
+      ) : null}
       <ul className="mt-3 space-y-3">
         {offers.map((offer) => {
           const trip = offer.trip;

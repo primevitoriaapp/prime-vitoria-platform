@@ -7,6 +7,7 @@ import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel
 import { TripAgendaFocusPanel } from "@/components/trip-agenda-focus-panel";
 import { TripTable } from "@/components/trip-table";
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
+import { TripFocusHeader } from "@/components/trip-focus-header";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
@@ -113,6 +114,7 @@ export default async function AgendaPage({
               Esta viagem está fora do intervalo de datas filtrado — acções abaixo usam dados actualizados da API.
             </p>
           ) : null}
+          <TripFocusHeader tripId={focusTripId} operationalStatus={focusTrip?.operational_status ?? "requested"} />
           <TripAgendaFocusPanel
             tripId={focusTripId}
             operationalStatus={focusTrip?.operational_status ?? "requested"}

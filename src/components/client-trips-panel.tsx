@@ -211,8 +211,8 @@ export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false 
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs text-amber-500/90">{trip.id.slice(0, 8)}…</span>
                         <StatusBadge status={trip.operational_status} />
+                        <span className="font-mono text-xs text-amber-500/90">{trip.id.slice(0, 8)}…</span>
                         {clientShowsAwaitingApproval(trip.operational_status) ? (
                           <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-300">
                             Aguarda aprovação

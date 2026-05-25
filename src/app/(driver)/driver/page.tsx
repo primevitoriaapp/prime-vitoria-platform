@@ -77,7 +77,7 @@ export default async function DriverPage() {
         <section id="push-setup" className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-6">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Notificações push</h2>
           <div className="mt-3 [&_.card]:border-0 [&_.card]:bg-transparent [&_.card]:p-0 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100">
-            <DriverPushRegister />
+            <DriverPushRegister variant="dark" />
           </div>
         </section>
 

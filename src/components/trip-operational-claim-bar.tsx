@@ -87,7 +87,11 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
   }
 
   if (active === undefined) {
-    return <p className="text-sm text-slate-500">A carregar estado de atendimento…</p>;
+    return (
+      <div className="animate-pulse rounded-lg border border-amber-100 bg-amber-50/50 px-4 py-3" aria-busy="true">
+        <div className="h-4 w-48 rounded bg-amber-100" />
+      </div>
+    );
   }
 
   return (
@@ -95,6 +99,7 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <span className="font-semibold text-amber-900">Multiatendimento</span>
+          <p className="mt-0.5 text-xs text-amber-800/90">Assuma o atendimento antes de aprovar ou despachar.</p>
           {active ? (
             <span className="ml-2 text-slate-700">
               Em atendimento por{" "}
@@ -112,15 +117,15 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
             type="button"
             disabled={busy || Boolean(active)}
             onClick={() => void claim()}
-            className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-50"
+            className="min-h-[2.5rem] rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
           >
-            Assumir
+            Assumir atendimento
           </button>
           <button
             type="button"
             disabled={busy || !active}
             onClick={() => void release()}
-            className="rounded-lg border border-slate-400 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+            className="min-h-[2.5rem] rounded-lg border border-slate-400 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
           >
             Libertar
           </button>
@@ -131,7 +136,11 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
           Atendimento parado há mais de 45 min. Se necessário, contacte admin para libertar.
         </p>
       ) : null}
-      {error ? <p className="mt-2 text-xs text-red-700">{error}</p> : null}
+      {error ? (
+        <p className="mt-2 text-xs text-red-700" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -30,6 +30,7 @@
     "staging:validation-preflight": "node scripts/staging-validation-preflight.mjs",
     "staging:validation-automated": "node scripts/staging-validation-preflight.mjs --automated",
     "staging:smoke-quickstart": "node scripts/print-smoke-quickstart.mjs",
+    "staging:smoke-urls": "node scripts/staging-smoke-urls.mjs",
     "bootstrap:prime": "node scripts/bootstrap-prime-vitoria.mjs",
     "vercel:preflight": "node scripts/vercel-preflight.mjs",
     "go-live:preflight": "node scripts/go-live-preflight.mjs",

@@ -6,6 +6,7 @@ import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { StatusBadge } from "@/components/status-badge";
 import { ClientOperationalTimeline } from "@/components/client-operational-timeline";
 import { ClientTrackingReadonly } from "@/components/client-tracking-readonly";
+import { CopyTextButton } from "@/components/copy-text-button";
 import type { Trip } from "@/lib/domain/types";
 
 type CostCenter = { id: string; code: string | null; name: string };
@@ -65,8 +66,13 @@ export function ClientTripDetailPanel({ tripId, costCenters = [] }: Props) {
         ) : trip ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs text-amber-500/90">{trip.id}</span>
               <StatusBadge status={trip.operational_status} />
+              <span className="font-mono text-xs text-amber-500/90">{trip.id}</span>
+              <CopyTextButton
+                text={trip.id}
+                label="Copiar ID"
+                className="border-slate-600 text-amber-200/90"
+              />
             </div>
             <ClientOperationalTimeline current={trip.operational_status} />
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3 text-sm">
