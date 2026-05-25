@@ -71,6 +71,16 @@
 
 ---
 
+## Estado actual
+
+| Campo | Valor |
+|-------|--------|
+| Execuções registadas | **0** — aguarda primeira sessão humana |
+| Código pendente por P0/P1 | **Nenhum** (sem entradas no log) |
+| Próxima acção | Smoke com [SMOKE_SESSAO_QUICK_START.md](./SMOKE_SESSAO_QUICK_START.md) |
+
+---
+
 ## Histórico
 
 _(Substituir o template acima por entradas reais após cada sessão.)_

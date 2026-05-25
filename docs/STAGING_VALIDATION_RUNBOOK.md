@@ -89,6 +89,7 @@ Cobre: `npm test` · Comexport pricing API · smoke APIs por papel.
 
 ## Passo 4 — Smoke humano operacional
 
+**Folha rápida:** [SMOKE_SESSAO_QUICK_START.md](./SMOKE_SESSAO_QUICK_START.md) · `npm run staging:smoke-quickstart`  
 **Documento:** [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md)  
 **Tempo:** 25–40 min  
 

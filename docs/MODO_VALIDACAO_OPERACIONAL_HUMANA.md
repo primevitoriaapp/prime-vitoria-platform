@@ -43,16 +43,20 @@ operador → motorista → cliente → push → pricing Comexport → finalizaç
 
 ---
 
+## Regras absolutas (ciclos actuais)
+
+Sem deploy produção · sem merge `main` · sem `db:push` · sem migrations novas · sem módulos grandes · sem redesign · sem portal write · sem pricing novo · sem CarPlay · Comexport runtime intocado.
+
 ## Regras dos próximos ciclos de engenharia
 
-| Permitido | Proibido (sem aprovação explícita) |
-|-----------|-------------------------------------|
-| Fix P0/P1 do EXECUTION_LOG | Módulos novos grandes |
-| Mensagens, labels, 1 clique a menos | Redesign arquitectural |
-| Loading / empty / erro visível | Portal cliente write-mode |
-| Push/notificação se FAIL no FCM smoke | Pricing complexo novo |
-| Timeline/status se inconsistente | `db:push` 0042/0043 |
-| Testes que espelham o smoke | Deploy produção, merge `main` |
+| Permitido (prioridade) | Proibido |
+|------------------------|----------|
+| 1. Fix P0/P1 do EXECUTION_LOG | Módulos novos grandes |
+| 2. Velocidade operacional (menos cliques) | Redesign arquitectural |
+| 3. Atrito humano / clareza visual | Portal cliente write-mode |
+| 4. Confiança (timeline, status) | Pricing complexo novo |
+| 5. Push / realtime / fallback-erro | Migrations, `db:push` |
+| Testes que espelham o smoke | Produção, merge `main` |
 
 **Comexport:** runtime e flags OFF **intocados** salvo bugfix com teste e entrada no log.
 
@@ -73,13 +77,26 @@ Registo no EXECUTION_LOG com:
 
 ---
 
+## Princípio de gate (novo)
+
+**Nenhuma funcionalidade relevante entra** sem antes validar em staging:
+
+`operador → motorista → cliente → push → pricing Comexport → finalização`
+
+O código **não lidera**. A operação humana lidera. O [EXECUTION_LOG](./STAGING_VALIDATION_EXECUTION_LOG.md) decide o que entra no código.
+
+**Modo actual:** *acabamento operacional*, não *expansão infinita*.
+
+---
+
 ## Papel da engenharia
 
 **Suporte à operação humana:**
 
-1. Manter runbooks e scripts de preflight actualizados.
-2. Corrigir atritos reais em PRs pequenos na branch de integração.
-3. Não antecipar produto além do que o smoke pedir.
+1. Manter runbooks e [quick start](./SMOKE_SESSAO_QUICK_START.md) actualizados.
+2. Corrigir **apenas P0/P1** do EXECUTION_LOG em PRs pequenos.
+3. Priorizar: velocidade · atrito · clareza · confiança · push/realtime · fallback/erros.
+4. **Não** antecipar produto além do que o smoke pedir.
 
 Branch de trabalho habitual: `cursor/pricing-engine-mvp-cycle` (PR #2).
 

@@ -80,6 +80,9 @@ function printHumanPlan() {
      Sem workaround crítico (UUID console, API manual)
 
   Runbook completo: docs/STAGING_VALIDATION_RUNBOOK.md
+  Folha 1 página:   npm run staging:smoke-quickstart
+
+  Corrida seed (ciclo completo): c2000000-0000-4000-8000-000000000001 (requested)
 `);
 }
 
