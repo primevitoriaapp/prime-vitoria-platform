@@ -9,6 +9,7 @@ import { TripTable } from "@/components/trip-table";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
+import { buildAgendaTripHref } from "@/lib/operations/agenda-trip-href";
 
 async function getTrips() {
   const response = await fetchInternalApi("/api/trips?page=1&pageSize=50");
@@ -31,7 +32,13 @@ export default async function DispatchPage() {
         Aprovação, despacho direcionado, ofertas a motoristas e reatribuição. A tabela abaixo atualiza em tempo real
         (Supabase Realtime) para o tenant da sessão.
       </p>
-      <TripTable trips={trips} />
+      <TripTable
+        trips={trips}
+        operatorNotesHref={(id) => {
+          const trip = trips.find((t: { id: string; scheduled_at: string }) => t.id === id);
+          return trip ? buildAgendaTripHref(id, trip.scheduled_at) : `/agenda?trip=${id}`;
+        }}
+      />
       <OperationalQueuePanel
         tenantId={realtimeTenantId}
         devFallbackRole={session.role === "admin" ? "admin" : "operador"}
@@ -46,24 +53,27 @@ export default async function DispatchPage() {
         <DispatchAutomationSettings />
       </div>
       <NotificationJobsPanel tenantId={realtimeTenantId} />
-      <div className="card mt-6">
-        <p className="text-sm text-slate-700">Endpoints de referência:</p>
+      <details className="card mt-6">
+        <summary className="cursor-pointer text-sm font-medium text-slate-700">
+          Ferramentas avançadas (API / UUID)
+        </summary>
+        <p className="mt-3 text-sm text-slate-600">
+          Para operação diária use a <strong>Agenda</strong> (Abrir viagem). Esta secção é para testes técnicos.
+        </p>
         <ul className="mt-2 list-inside list-disc text-sm text-slate-600">
           <li>POST /api/trips/:id/approve</li>
           <li>POST /api/trips/:id/dispatch-directed</li>
           <li>POST /api/dispatch/offers</li>
           <li>POST /api/dispatch/offers/:offerId/approve</li>
           <li>POST /api/trips/:id/reassign</li>
-          <li>PUT /api/tenant/dispatch-settings (oferta ou despacho direto automático)</li>
-          <li>POST /api/jobs/dispatch-direct-scan (operador ou Bearer DISPATCH_DIRECT_SCAN_SECRET)</li>
-          <li>GET /api/trips com query scheduledFrom e scheduledTo (ISO, agenda)</li>
-          <li>GET/POST/DELETE /api/trips/:id/operational-claim (multiatendimento)</li>
-          <li>GET /api/trips/:id/operational-timeline (auditoria + notas internas)</li>
-          <li>GET/POST /api/trips/:id/operator-notes (admin/operador)</li>
+          <li>PUT /api/tenant/dispatch-settings</li>
+          <li>POST /api/jobs/dispatch-direct-scan</li>
+          <li>GET /api/trips?scheduledFrom&amp;scheduledTo</li>
+          <li>GET/POST/DELETE /api/trips/:id/operational-claim</li>
         </ul>
-      </div>
-      <h2 className="mt-8 font-semibold">Ações rápidas</h2>
-      <DispatchConsole />
+        <h3 className="mt-6 font-semibold text-slate-800">Console UUID</h3>
+        <DispatchConsole />
+      </details>
     </main>
   );
 }

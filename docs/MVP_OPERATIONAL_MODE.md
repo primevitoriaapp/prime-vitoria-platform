@@ -30,7 +30,7 @@ Objectivo: sistema **utilizável no dia-a-dia** da Prime Vitória (operador, mot
 - Simulações de corrida reais (staging, não prod)
 - Reduzir cliques e atrito (CTAs, confirmações só onde importa)
 
-**Entregáveis típicos:** scripts/checklists de smoke humano, E2E staging por papel, notas de atrito em `docs/BLOCKERS_AND_NEXT_ACTIONS.md`.
+**Entregáveis típicos:** [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md), [OPERATIONAL_FRICTION_LOG.md](./OPERATIONAL_FRICTION_LOG.md), E2E staging por papel.
 
 ### 2. Push / FCM (prioridade operacional)
 

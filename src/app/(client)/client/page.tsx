@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ClientRequestConsole } from "@/components/client-request-console";
 import { ClientTripsPanel } from "@/components/client-trips-panel";
 import { ClientPortalNav } from "@/components/client-portal-nav";
+import { ClientPortalReadonlyNotice } from "@/components/client-portal-readonly-notice";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { isClientPortalReadOnly } from "@/lib/client/portal-config";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
@@ -73,6 +74,8 @@ export default async function ClientPage() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-10 px-5 py-8">
+        {readOnly ? <ClientPortalReadonlyNotice readOnly /> : null}
+
         <section id="visao" className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-xl">
             <p className="font-serif text-2xl leading-snug text-white md:text-3xl">{saudacao}</p>

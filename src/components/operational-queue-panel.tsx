@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 import type { TripOperationalStatus } from "@/lib/domain/types";
+import { buildAgendaTripHref } from "@/lib/operations/agenda-trip-href";
 
 type QueueItem = {
   id: string;
@@ -156,8 +158,11 @@ export function OperationalQueuePanel({ tenantId, devFallbackRole = "operador" }
                   {row.origin_text} → {row.destination_text}
                 </p>
               </div>
-              <Link href={`/agenda?trip=${row.id}`} className="text-sm font-medium text-amber-700 hover:underline">
-                Abrir
+              <Link
+                href={buildAgendaTripHref(row.id, row.scheduled_at) as Route}
+                className="text-sm font-medium text-amber-700 hover:underline"
+              >
+                Abrir na agenda
               </Link>
             </li>
           ))}

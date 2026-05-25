@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { TripAgendaOperationalStack } from "@/components/trip-agenda-operational-stack";
+import { TripOperationalClaimBar } from "@/components/trip-operational-claim-bar";
 import { TripAgendaQuickActions } from "@/components/trip-agenda-quick-actions";
 import { TripAgendaDispatchPanel } from "@/components/trip-agenda-dispatch-panel";
 import { TripAgendaOffersPanel } from "@/components/trip-agenda-offers-panel";
@@ -33,6 +34,7 @@ export function TripAgendaFocusPanel({
 
   return (
     <div className="space-y-4">
+      {showClaimBar ? <TripOperationalClaimBar tripId={tripId} /> : null}
       <TripAgendaQuickActions
         tripId={tripId}
         operationalStatus={operationalStatus}
@@ -59,7 +61,7 @@ export function TripAgendaFocusPanel({
       ) : null}
       <TripAgendaOperationalStack
         tripId={tripId}
-        showClaimBar={showClaimBar}
+        showClaimBar={false}
         showFinancePanel={showFinanceWrite || showErpEnqueue}
         financeDevRole={financeDevRole}
         financeWriteMode={showFinanceWrite}

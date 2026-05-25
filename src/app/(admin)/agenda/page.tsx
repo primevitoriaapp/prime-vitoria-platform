@@ -55,7 +55,16 @@ export default async function AgendaPage({
   const showErpEnqueue = session.role === "operador";
   const financeDevRole =
     session.role === "financeiro" ? "financeiro" : session.role === "operador" ? "operador" : "admin";
-  const focusTrip = focusTripId ? trips.find((t: { id: string }) => t.id === focusTripId) : null;
+  let focusTrip = focusTripId ? trips.find((t: { id: string }) => t.id === focusTripId) : null;
+  let focusOutsideRange = false;
+  if (focusTripId && !focusTrip) {
+    const detailRes = await fetchInternalApi(`/api/trips/${focusTripId}`);
+    if (detailRes.ok) {
+      const payload = await detailRes.json();
+      focusTrip = payload.data ?? null;
+      focusOutsideRange = Boolean(focusTrip);
+    }
+  }
 
   return (
     <main>
@@ -97,6 +106,11 @@ export default async function AgendaPage({
               Fechar painel
             </Link>
           </div>
+          {focusOutsideRange ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Esta viagem está fora do intervalo de datas filtrado — acções abaixo usam dados actualizados da API.
+            </p>
+          ) : null}
           <TripAgendaFocusPanel
             tripId={focusTripId}
             operationalStatus={focusTrip?.operational_status ?? "requested"}
@@ -112,7 +126,7 @@ export default async function AgendaPage({
         <p className="mt-6 text-sm text-red-700">Identificador de viagem inválido na URL.</p>
       ) : (
         <p className="mt-6 text-sm text-slate-500">
-          Para notas entre operadores, escolha uma viagem na tabela (ligação &quot;Notas&quot;).
+          Clique em <strong>Abrir</strong> numa viagem para aprovar, despachar, assumir atendimento e registar notas.
         </p>
       )}
     </main>

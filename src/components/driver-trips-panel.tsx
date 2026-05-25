@@ -143,7 +143,10 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
       {loading ? (
         <DriverTripSkeleton />
       ) : active.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500">Sem corridas activas. Novas despachos aparecem aqui com push.</p>
+        <p className="mt-4 text-sm text-slate-500">
+          Sem corridas activas. Após despacho, toque em <strong className="text-slate-400">Actualizar</strong> ou aguarde
+          notificação push (quando FCM estiver activo).
+        </p>
       ) : (
         <ul className="mt-4 space-y-4">
           {active.map((trip) => {
@@ -213,7 +216,7 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
                         ? "A processar…"
                         : trip.operational_status === "dispatched" && primaryStep === "accepted"
                           ? "Aceitar corrida"
-                          : `Próximo: ${STATUS_CORRIDA_PT[primaryStep]}`}
+                          : STATUS_CORRIDA_PT[primaryStep]}
                     </button>
                   ) : null}
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

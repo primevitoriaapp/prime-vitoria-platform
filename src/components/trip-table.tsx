@@ -37,10 +37,17 @@ export function TripTable({ trips, operatorNotesHref }: TripTableProps) {
             <th align="left">Despacho</th>
             <th align="left">Status</th>
             <th align="left">Rastreio</th>
-            {showNotes ? <th align="left">Equipa</th> : null}
+            {showNotes ? <th align="left">Acções</th> : null}
           </tr>
         </thead>
         <tbody>
+          {trips.length === 0 ? (
+            <tr>
+              <td colSpan={showNotes ? 7 : 6} className="py-8 text-center text-sm text-slate-500">
+                Nenhuma viagem no período. Ajuste o intervalo de datas na agenda ou abra a fila operacional.
+              </td>
+            </tr>
+          ) : null}
           {trips.map((trip) => (
             <tr key={trip.id}>
               <td>{new Date(trip.scheduled_at).toLocaleString("pt-BR")}</td>
@@ -59,7 +66,7 @@ export function TripTable({ trips, operatorNotesHref }: TripTableProps) {
                     href={operatorNotesHref(trip.id) as Route}
                     className="text-sm font-medium text-amber-700 hover:underline"
                   >
-                    Notas
+                    Abrir
                   </Link>
                 </td>
               ) : null}

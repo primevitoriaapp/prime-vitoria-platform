@@ -55,7 +55,11 @@ export function ClientTripDetailPanel({ tripId, costCenters = [] }: Props) {
       </header>
       <main className="mx-auto max-w-3xl space-y-6 px-5 py-8">
         {loading ? (
-          <p className="text-sm text-slate-400">A carregar…</p>
+          <div className="animate-pulse space-y-4" aria-busy="true" aria-label="A carregar detalhe">
+            <div className="h-6 w-48 rounded bg-slate-800" />
+            <div className="h-20 rounded-xl bg-slate-800/80" />
+            <div className="h-32 rounded-xl bg-slate-800/60" />
+          </div>
         ) : error ? (
           <p className="text-sm text-red-300">{error}</p>
         ) : trip ? (

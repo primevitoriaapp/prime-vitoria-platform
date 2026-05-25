@@ -28,7 +28,7 @@ test.describe("Portal cliente — modo consulta", () => {
   test("mostra Modo consulta e Ver detalhe sem cancelar", async ({ page }) => {
     await page.goto("/client");
     await expect(page.getByRole("heading", { name: "Portal corporativo" })).toBeVisible();
-    await expect(page.getByText("Modo consulta")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Modo consulta activo")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("link", { name: "Ver detalhe" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Cancelar solicitação" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Nova solicitação" })).toHaveCount(0);

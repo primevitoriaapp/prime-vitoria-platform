@@ -18,7 +18,9 @@ export function ClientOperationalTimeline({ current }: Props) {
   }
 
   return (
-    <ol className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center" aria-label="Estado da corrida">
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Estado actual da corrida</p>
+      <ol className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center" aria-label="Estado da corrida">
       {CLIENT_TRIP_FLOW.map((step, i) => {
         const done = i < idx;
         const active = step === current;
@@ -47,6 +49,7 @@ export function ClientOperationalTimeline({ current }: Props) {
           </li>
         );
       })}
-    </ol>
+      </ol>
+    </div>
   );
 }

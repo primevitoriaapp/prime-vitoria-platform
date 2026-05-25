@@ -65,7 +65,11 @@ export function DriverOffersPanel({ devFallbackRole = "motorista" }: Props) {
   }
 
   if (offers.length === 0) {
-    return null;
+    return (
+      <p className="text-sm text-slate-500">
+        Sem ofertas abertas da central. Corridas já despachadas aparecem em <strong className="text-slate-400">Corridas activas</strong>.
+      </p>
+    );
   }
 
   return (

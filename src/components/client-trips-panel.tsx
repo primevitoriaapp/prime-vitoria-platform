@@ -38,9 +38,11 @@ export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false 
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active">("all");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
+    setLoadError(null);
     const res = await fetchWithSupabaseSession("/api/trips?page=1&pageSize=50", {}, "cliente");
     const json = (await res.json()) as {
       success?: boolean;
@@ -50,6 +52,7 @@ export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false 
     if (!res.ok || !json.success) {
       setTrips([]);
       setTotal(0);
+      setLoadError(json.error?.message ?? "Não foi possível carregar as corridas. Verifique a sessão.");
       setLoading(false);
       return;
     }
@@ -165,8 +168,19 @@ export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false 
             </div>
           </div>
           <div className="overflow-hidden rounded-xl border border-slate-800">
-            {loading && visible.length === 0 ? (
-              <p className="p-6 text-sm text-slate-400">A carregar…</p>
+            {loadError ? (
+              <div className="space-y-3 p-6">
+                <p className="text-sm text-red-300">{loadError}</p>
+                <button
+                  type="button"
+                  onClick={() => void load()}
+                  className="rounded-lg border border-amber-600/50 bg-amber-950/30 px-3 py-2 text-sm font-medium text-amber-200 hover:bg-amber-900/40"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : loading && visible.length === 0 ? (
+              <p className="p-6 text-sm text-slate-400">A carregar corridas…</p>
             ) : visible.length === 0 ? (
               <p className="p-6 text-sm text-slate-400">
                 {filter === "active"
