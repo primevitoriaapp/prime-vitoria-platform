@@ -1,6 +1,8 @@
 # Modo MVP operacional — Prime Vitória
 
-> **Fase actual (2026-05):** a fundação técnica é suficiente. Prioridade = **operação real**, usabilidade e estabilidade — não expansão infinita de arquitetura.
+> **Submodo actual (oficial):** [MODO_VALIDACAO_OPERACIONAL_HUMANA.md](./MODO_VALIDACAO_OPERACIONAL_HUMANA.md) — decisões guiadas pelo [STAGING_VALIDATION_EXECUTION_LOG.md](./STAGING_VALIDATION_EXECUTION_LOG.md).
+
+> **Fase (2026-05):** a fundação técnica é suficiente. Prioridade = **validar operação real** (clareza, velocidade, confiança) — não novas funcionalidades.
 
 ## Estado de referência (baseline)
 

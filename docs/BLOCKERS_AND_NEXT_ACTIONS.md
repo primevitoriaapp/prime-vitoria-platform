@@ -1,6 +1,6 @@
 # Blockers e próximas acções
 
-> Actualizado em **modo MVP operacional** ([MVP_OPERATIONAL_MODE.md](./MVP_OPERATIONAL_MODE.md)). Produção e `main` protegidas.
+> **Modo validação humana** ([MODO_VALIDACAO_OPERACIONAL_HUMANA.md](./MODO_VALIDACAO_OPERACIONAL_HUMANA.md)). Engenharia em suporte ao [EXECUTION_LOG](./STAGING_VALIDATION_EXECUTION_LOG.md). Produção e `main` protegidas.
 
 ## Blockers activos
 

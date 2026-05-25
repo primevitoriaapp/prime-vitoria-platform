@@ -1,6 +1,6 @@
 # Roadmap por Fases
 
-> **Modo actual:** [MVP_OPERATIONAL_MODE.md](../MVP_OPERATIONAL_MODE.md) — estabilidade operacional, UX real e FCM acima de expansão arquitectural.
+> **Modo actual:** [MODO_VALIDACAO_OPERACIONAL_HUMANA.md](../MODO_VALIDACAO_OPERACIONAL_HUMANA.md) — validação humana staging; código só por P0/P1 no EXECUTION_LOG.
 
 Prioridade absoluta: **Prime Vitória operando** na sequência abaixo. Arquitetura forte é transversal, entregue em fatias pequenas.
 

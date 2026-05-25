@@ -1,6 +1,8 @@
 # Registo de execução — Validação staging (oficial)
 
-> Preencher após cada sessão de smoke humano + FCM. Uma linha por execução completa.
+> **Fonte de verdade** para o [modo validação operacional humana](./MODO_VALIDACAO_OPERACIONAL_HUMANA.md).  
+> Os próximos ciclos de código corrigem **apenas P0/P1** documentados aqui.  
+> Preencher após cada sessão de smoke humano + FCM.
 
 ---
 

@@ -1,7 +1,8 @@
 # Runbook — Validação operacional real (staging)
 
-> **Fase actual do MVP:** validar operação real, não adicionar módulos.  
-> Produção e `main` permanecem bloqueados até **MVP operacional pronto**.
+> **Modo oficial:** [MODO_VALIDACAO_OPERACIONAL_HUMANA.md](./MODO_VALIDACAO_OPERACIONAL_HUMANA.md)  
+> **Registo obrigatório:** [STAGING_VALIDATION_EXECUTION_LOG.md](./STAGING_VALIDATION_EXECUTION_LOG.md)  
+> Produção e `main` bloqueados até primeiro PASS completo no log.
 
 ---
 
