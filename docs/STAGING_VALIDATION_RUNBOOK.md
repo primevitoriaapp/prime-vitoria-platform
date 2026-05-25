@@ -47,7 +47,7 @@ flowchart LR
 |--------|-----------|
 | Supabase staging + migrações | [STAGING_E2E.md](./STAGING_E2E.md) |
 | Seed contas | `npm run seed:staging` |
-| Vercel Preview URL + env Supabase | [STAGING_E2E.md](./STAGING_E2E.md) §2 |
+| Vercel Preview URL + env Supabase | [STAGING_PREVIEW_OFFICIAL.md](./STAGING_PREVIEW_OFFICIAL.md) · [STAGING_E2E.md](./STAGING_E2E.md) §2 |
 | Firebase FCM (7 vars + server key) | [FIREBASE_FCM_SETUP.md](./FIREBASE_FCM_SETUP.md) |
 | Bypass preview (CI/agente) | `VERCEL_AUTOMATION_BYPASS_SECRET` |
 

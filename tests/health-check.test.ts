@@ -18,6 +18,7 @@ test("buildHealthPayload detailed fails without supabase public env", () => {
     const p = buildHealthPayload(true);
     assert.equal(p.ok, false);
     assert.equal(p.checks?.supabase_public, false);
+    assert.equal(typeof p.staging_runtime?.node_env, "string");
   } finally {
     if (prevUrl !== undefined) process.env.NEXT_PUBLIC_SUPABASE_URL = prevUrl;
     if (prevKey !== undefined) process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = prevKey;

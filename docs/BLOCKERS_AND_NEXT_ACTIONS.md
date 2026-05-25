@@ -6,6 +6,7 @@
 
 | ID | Blocker | Impacto | Acção necessária (humano) |
 |----|---------|---------|---------------------------|
+| B0 | Preview ≠ staging funcional | Smoke humano bloqueado (URL prod, seed, env Preview) | Seguir **[STAGING_PREVIEW_OFFICIAL.md](./STAGING_PREVIEW_OFFICIAL.md)** + `npm run staging:diagnostic` |
 | B1 | `VERCEL_AUTOMATION_BYPASS_SECRET` ausente localmente | Smoke HTTP no preview Vercel falha (Deployment Protection) | Criar secret em Vercel → Settings → Deployment Protection → Automation; exportar localmente ou adicionar em GitHub Secrets |
 | B2 | Firebase Web / FCM (7 env vars) | Push motorista não validável em preview/prod | Seguir `docs/FIREBASE_FCM_SETUP.md` e `docs/FCM_PWA_READINESS.md` |
 | B3 | `db:push` 0042 / 0043 | Índices e RLS `trip_financials` só em repo | Aprovação explícita + janela staging |
@@ -48,7 +49,7 @@ export BASE_URL=http://127.0.0.1:3010 STAGING_E2E_PASSWORD='...'
 npm run test:night-preview-smoke
 
 # Smoke preview (com bypass)
-export BASE_URL=https://prime-vitoria-web-git-cursor-night-cycl-....vercel.app
+export BASE_URL=https://prime-vitoria-web-git-cursor-pricing-en-69d26a-rubens-projects2.vercel.app
 export VERCEL_AUTOMATION_BYPASS_SECRET='...'
 npm run test:night-preview-smoke
 ```

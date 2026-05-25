@@ -27,17 +27,36 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm test
+      - name: Resolve preview BASE_URL
+        id: preview_url
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "${{ inputs.base_url }}" ]; then
+            echo "url=${{ inputs.base_url }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ secrets.STAGING_BASE_URL }}" ]; then
+            echo "url=${{ secrets.STAGING_BASE_URL }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=$(node scripts/resolve-vercel-preview-url.mjs)" >> "$GITHUB_OUTPUT"
+          fi
       - name: Night preview smoke (staging APIs)
         env:
-          BASE_URL: ${{ inputs.base_url || secrets.STAGING_BASE_URL }}
+          BASE_URL: ${{ steps.preview_url.outputs.url }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           STAGING_E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
-          if [ -z "$BASE_URL" ] || [ -z "$STAGING_E2E_PASSWORD" ]; then
-            echo "skip: configure STAGING_BASE_URL and STAGING_E2E_PASSWORD in GitHub Secrets"
-            exit 0
+          missing=""
+          [ -z "$BASE_URL" ] && missing="$missing STAGING_BASE_URL"
+          [ -z "$STAGING_E2E_PASSWORD" ] && missing="$missing STAGING_E2E_PASSWORD"
+          [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] && missing="$missing NEXT_PUBLIC_SUPABASE_URL"
+          [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] && missing="$missing NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ] && missing="$missing VERCEL_AUTOMATION_BYPASS_SECRET"
+          if [ -n "$missing" ]; then
+            echo "::error::Preview smoke não configurado — secrets em falta:$missing"
+            echo "Ver docs/STAGING_PREVIEW_OFFICIAL.md"
+            exit 1
           fi
           node scripts/night-preview-smoke.mjs
