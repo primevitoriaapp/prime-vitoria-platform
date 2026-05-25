@@ -3,6 +3,8 @@
 > Complementa [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md) e [FIREBASE_FCM_SETUP.md](./FIREBASE_FCM_SETUP.md).  
 > **Sem deploy produção** até PASS humano + FCM mínimo.
 
+**Registo oficial:** [STAGING_VALIDATION_EXECUTION_LOG.md](./STAGING_VALIDATION_EXECUTION_LOG.md)
+
 **Tempo estimado:** 15–25 min (após secrets Vercel configurados)
 
 ---

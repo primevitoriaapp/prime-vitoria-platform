@@ -3,6 +3,8 @@
 > Valida o ciclo completo Prime Vitória em **staging/preview**, sem produção.  
 > Portal cliente permanece **read-only** por defeito neste roteiro.
 
+**Runbook completo (ordem + registo):** [STAGING_VALIDATION_RUNBOOK.md](./STAGING_VALIDATION_RUNBOOK.md) · [STAGING_VALIDATION_EXECUTION_LOG.md](./STAGING_VALIDATION_EXECUTION_LOG.md)
+
 **Tempo estimado de execução real:** 25–40 minutos (1 tester, 3 logins) · 45–60 min se incluir oferta de parceiros e KM manual.
 
 **Pré-requisitos**

@@ -76,13 +76,26 @@ Objectivo: sistema **utilizável no dia-a-dia** da Prime Vitória (operador, mot
 - Integração contínua em `cursor/pricing-engine-mvp-cycle` (ou branch `cursor/*` acordada)
 - PR draft: ver GitHub; smoke preview quando `VERCEL_AUTOMATION_BYPASS_SECRET` disponível
 
+## Fase actual: execução humana staging (prioridade absoluta)
+
+**Não priorizar:** novos módulos · ERP complexo · portal write · redesign.
+
+**Ordem:** [STAGING_VALIDATION_RUNBOOK.md](./STAGING_VALIDATION_RUNBOOK.md)
+
+1. Firebase/Vercel (humano)  
+2. `npm run staging:validation-preflight` (+ `staging:validation-automated`)  
+3. [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md)  
+4. [FCM_OPERATIONAL_SMOKE.md](./FCM_OPERATIONAL_SMOKE.md)  
+5. Registo em [STAGING_VALIDATION_EXECUTION_LOG.md](./STAGING_VALIDATION_EXECUTION_LOG.md)  
+6. Corrigir só blockers/atritos reais documentados  
+
 ## Critério de “pronto para operação real”
 
 1. Operador consegue ciclo completo em staging sem workaround manual crítico  
 2. Motorista recebe corrida (push ou fila visível) e fecha estados sem ambiguidade  
 3. Cliente consulta corrida e estado sem writes acidentais  
 4. Pricing de corrida piloto bate expectativa Comexport (testes + amostra real)  
-5. Smoke humano documentado com PASS ou blockers explícitos  
+5. Smoke humano + FCM documentados com PASS em `STAGING_VALIDATION_EXECUTION_LOG`  
 
 ## Documentos relacionados
 

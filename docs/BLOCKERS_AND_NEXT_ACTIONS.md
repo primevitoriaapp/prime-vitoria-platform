@@ -26,11 +26,14 @@
 | E2E bypass header | `35e928e` |
 | `.env.vercel.local` placeholders | `isPlaceholderEnvValue` em `env-files.mjs` |
 
-## Próximas acções (modo MVP operacional)
+## Próximas acções (prioridade absoluta: validação humana)
 
-1. **Smoke humano** — [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md)
-2. **FCM smoke** — [FCM_OPERATIONAL_SMOKE.md](./FCM_OPERATIONAL_SMOKE.md) após secrets Vercel
-3. Configurar `VERCEL_AUTOMATION_BYPASS_SECRET` + `STAGING_E2E_PASSWORD` → workflow Preview smoke
+1. **Firebase/Vercel** — [FIREBASE_FCM_SETUP.md](./FIREBASE_FCM_SETUP.md) (humano)
+2. `npm run staging:validation-preflight` → `staging:validation-automated`
+3. **Smoke humano** — [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md)
+4. **Smoke FCM** — [FCM_OPERATIONAL_SMOKE.md](./FCM_OPERATIONAL_SMOKE.md)
+5. **Registo PASS/FAIL** — [STAGING_VALIDATION_EXECUTION_LOG.md](./STAGING_VALIDATION_EXECUTION_LOG.md)
+6. Corrigir apenas atritos/blockers reais do registo (ciclos pequenos)
 4. UX motorista: menos cliques, estados mais claros (commits pequenos na branch `cursor/pricing-engine-mvp-cycle`)
 5. Portal cliente read-only: polish consulta (sem activar writes por defeito)
 6. Aprovar `db:push` 0042 em staging (índices fila) — quando houver janela
