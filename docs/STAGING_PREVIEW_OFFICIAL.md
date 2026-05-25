@@ -14,6 +14,30 @@
 
 O alias `git-*` muda quando o Vercel gera novo deployment; o link **Preview** no comentário do bot Vercel no PR #2 é sempre o correcto.
 
+## Corridas seed — quem vê o quê (importante)
+
+| ID | Estado após seed | Operador `/agenda` | Motorista `/driver` | Cliente `/client` |
+|----|------------------|--------------------|-----------------------|-------------------|
+| `c2000000-0000-4000-8000-000000000001` | **requested** | Sim | **Não** (até despacho) | Sim |
+| `c2000000-0000-4000-8000-000000000002` | **dispatched** + motorista | Sim | **Sim** (aceitar já) | Sim |
+
+Se o motorista abre `/driver` e não vê a `…000001`, é **esperado** até o operador aprovar e despachar.  
+Para teste rápido do painel motorista com dados reais, use a `…000002` ou complete o despacho da `…000001`.
+
+Verificação remota (sem mock UI):
+
+```bash
+export BASE_URL="https://prime-vitoria-web-git-cursor-pricing-en-69d26a-rubens-projects2.vercel.app"
+export VERCEL_AUTOMATION_BYPASS_SECRET="..."
+export NEXT_PUBLIC_SUPABASE_URL="..."
+export NEXT_PUBLIC_SUPABASE_ANON_KEY="..."
+export SUPABASE_SERVICE_ROLE_KEY="..."
+export STAGING_E2E_PASSWORD="..."
+npm run staging:real-check
+```
+
+Seed remoto (GitHub Actions → **Staging seed (remote)**) com secrets `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STAGING_E2E_PASSWORD`.
+
 ## Por que o preview parece “produção antiga” ou incompleto
 
 1. **URL errada** — produção não tem utilizadores/corridas seed.

@@ -10,7 +10,7 @@
 ## Antes de abrir o browser
 
 ```bash
-export BASE_URL="https://<preview>.vercel.app"
+export BASE_URL="https://prime-vitoria-web-git-cursor-pricing-en-69d26a-rubens-projects2.vercel.app"
 export STAGING_E2E_PASSWORD="<senha seed>"
 npm run staging:validation-preflight
 npm run staging:smoke-urls

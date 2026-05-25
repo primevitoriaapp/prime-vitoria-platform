@@ -1,0 +1,45 @@
+# Executa seed staging no Supabase remoto (workflow_dispatch).
+# Secrets: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, STAGING_SEED_PASSWORD
+# Opcional: STAGING_SEED_RESET_PASSWORD=true para repor passwords
+
+name: Staging seed (remote)
+
+on:
+  workflow_dispatch:
+    inputs:
+      reset_password:
+        description: "STAGING_SEED_RESET_PASSWORD (true para repor passwords)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Seed staging operational data
+        env:
+          STAGING_SEED_ENABLED: "true"
+          STAGING_SEED_RESET_PASSWORD: ${{ inputs.reset_password }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STAGING_SEED_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD }}
+        run: |
+          missing=""
+          [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] && missing="$missing NEXT_PUBLIC_SUPABASE_URL"
+          [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && missing="$missing SUPABASE_SERVICE_ROLE_KEY"
+          [ -z "$STAGING_SEED_PASSWORD" ] && missing="$missing STAGING_E2E_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Secrets em falta:$missing"
+            exit 1
+          fi
+          npm run seed:staging
