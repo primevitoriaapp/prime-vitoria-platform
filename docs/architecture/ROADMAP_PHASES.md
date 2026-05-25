@@ -1,5 +1,7 @@
 # Roadmap por Fases
 
+> **Modo actual:** [MVP_OPERATIONAL_MODE.md](../MVP_OPERATIONAL_MODE.md) — estabilidade operacional, UX real e FCM acima de expansão arquitectural.
+
 Prioridade absoluta: **Prime Vitória operando** na sequência abaixo. Arquitetura forte é transversal, entregue em fatias pequenas.
 
 ## Prioridade de produto (MVP)

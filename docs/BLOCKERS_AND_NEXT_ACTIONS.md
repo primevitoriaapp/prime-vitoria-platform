@@ -1,6 +1,6 @@
 # Blockers e próximas acções
 
-> Actualizado em modo semi-autónomo. Produção e `main` protegidas.
+> Actualizado em **modo MVP operacional** ([MVP_OPERATIONAL_MODE.md](./MVP_OPERATIONAL_MODE.md)). Produção e `main` protegidas.
 
 ## Blockers activos
 
@@ -10,6 +10,7 @@
 | B2 | Firebase Web / FCM (7 env vars) | Push motorista não validável em preview/prod | Seguir `docs/FIREBASE_FCM_SETUP.md` e `docs/FCM_PWA_READINESS.md` |
 | B3 | `db:push` 0042 / 0043 | Índices e RLS `trip_financials` só em repo | Aprovação explícita + janela staging |
 | B4 | Merge PR #1 → `cursor/pricing-engine-mvp-cycle` | — | **Concluído** @ `0e4398a` (2026-05-24) |
+| B5 | Smoke humano operação real | Validação dia-a-dia incompleta | Checklist em `MVP_OPERATIONAL_MODE.md`; staging + 3 papéis |
 
 ## Playwright CI (PR #1)
 
@@ -25,13 +26,14 @@
 | E2E bypass header | `35e928e` |
 | `.env.vercel.local` placeholders | `isPlaceholderEnvValue` em `env-files.mjs` |
 
-## Próximas acções (ordem sugerida)
+## Próximas acções (modo MVP operacional)
 
-1. Configurar `VERCEL_AUTOMATION_BYPASS_SECRET` + `STAGING_E2E_PASSWORD` em GitHub Secrets → correr workflow `Preview PR smoke`
-2. Smoke manual no URL do PR #1 (browser motorista)
-3. Aprovar merge PR #1 (sem main)
-4. Aprovar `db:push` 0042 em staging
-5. FCM no Vercel → validar push motorista
+1. **Smoke humano** — operador → despacho → motorista (aceite/estados) → cliente consulta (`/client`)
+2. Configurar `VERCEL_AUTOMATION_BYPASS_SECRET` + `STAGING_E2E_PASSWORD` → workflow `Preview PR smoke` (PR #2+)
+3. **FCM** no Vercel (prioridade operacional) → push motorista em staging
+4. UX motorista: menos cliques, estados mais claros (commits pequenos na branch `cursor/pricing-engine-mvp-cycle`)
+5. Portal cliente read-only: polish consulta (sem activar writes por defeito)
+6. Aprovar `db:push` 0042 em staging (índices fila) — quando houver janela
 
 ## Comandos úteis
 
