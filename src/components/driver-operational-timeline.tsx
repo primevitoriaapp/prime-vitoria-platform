@@ -39,8 +39,14 @@ export function DriverOperationalTimeline({ current }: Props) {
             >
               {i + 1}
             </span>
-            <span className={active ? "font-semibold text-amber-300" : done ? "text-slate-400" : "text-slate-600"}>
-              <span className="hidden sm:inline">{STATUS_CORRIDA_PT[step]}</span>
+            <span
+              className={[
+                "max-w-[5.5rem] truncate text-[10px] font-medium leading-tight sm:max-w-none sm:text-xs",
+                active ? "text-amber-300" : done ? "text-slate-400" : "text-slate-600"
+              ].join(" ")}
+              title={STATUS_CORRIDA_PT[step]}
+            >
+              {STATUS_CORRIDA_PT[step]}
             </span>
             {i < FLOW.length - 1 ? <span className="mx-0.5 text-slate-600" aria-hidden>→</span> : null}
           </li>

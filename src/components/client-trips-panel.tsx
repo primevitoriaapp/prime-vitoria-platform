@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { TripTrackingLinkButton } from "@/components/trip-tracking-link-button";
 import { StatusBadge } from "@/components/status-badge";
+import { ClientPassengersPanel } from "@/components/client-passengers-panel";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { clientShowsAwaitingApproval } from "@/lib/client/trip-status-ui";
@@ -22,21 +24,23 @@ type CostCenter = { id: string; code: string | null; name: string };
 type Props = {
   tenantId: string;
   costCenters?: CostCenter[];
+  /** Fase segura: sem cancelar nem gerar tracking (POST). */
+  readOnly?: boolean;
 };
 
 function inicioMesUtc(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
-export function ClientTripsPanel({ tenantId, costCenters = [] }: Props) {
+export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false }: Props) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active">("all");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     const res = await fetchWithSupabaseSession("/api/trips?page=1&pageSize=50", {}, "cliente");
     const json = (await res.json()) as {
       success?: boolean;
@@ -165,7 +169,11 @@ export function ClientTripsPanel({ tenantId, costCenters = [] }: Props) {
               <p className="p-6 text-sm text-slate-400">A carregar…</p>
             ) : visible.length === 0 ? (
               <p className="p-6 text-sm text-slate-400">
-                {filter === "active" ? "Nenhuma corrida em andamento." : "Nenhuma corrida. Faça uma solicitação abaixo."}
+                {filter === "active"
+                  ? "Nenhuma corrida em andamento."
+                  : readOnly
+                    ? "Nenhuma corrida no histórico."
+                    : "Nenhuma corrida. Faça uma solicitação abaixo."}
               </p>
             ) : (
               <ul className="divide-y divide-slate-800">
@@ -201,8 +209,16 @@ export function ClientTripsPanel({ tenantId, costCenters = [] }: Props) {
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-stretch gap-2 pt-1 sm:items-end sm:pt-0">
-                      <TripTrackingLinkButton tripId={trip.id} variant="dark" devFallbackRole="cliente" />
-                      {clientMayCancelTrip(trip.operational_status) ? (
+                      <Link
+                        href={`/client/viagens/${trip.id}`}
+                        className="rounded-lg border border-amber-600/50 bg-amber-950/30 px-3 py-2 text-center text-xs font-medium text-amber-200 hover:bg-amber-900/40"
+                      >
+                        Ver detalhe
+                      </Link>
+                      {!readOnly ? (
+                        <TripTrackingLinkButton tripId={trip.id} variant="dark" devFallbackRole="cliente" />
+                      ) : null}
+                      {!readOnly && clientMayCancelTrip(trip.operational_status) ? (
                         <button
                           type="button"
                           disabled={cancellingId === trip.id}
@@ -220,7 +236,7 @@ export function ClientTripsPanel({ tenantId, costCenters = [] }: Props) {
           </div>
         </section>
 
-        <aside className="space-y-4">
+        <aside id="centros" className="space-y-4">
           <h2 className="font-serif text-lg text-white">Centros de custo</h2>
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
             {costCenters.length === 0 ? (
@@ -245,6 +261,8 @@ export function ClientTripsPanel({ tenantId, costCenters = [] }: Props) {
           <p className="text-xs text-slate-600">Lista actualiza em tempo real quando o estado da corrida muda.</p>
         </aside>
       </div>
+
+      <ClientPassengersPanel trips={trips} />
     </>
   );
 }

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ClientRequestConsole } from "@/components/client-request-console";
 import { ClientTripsPanel } from "@/components/client-trips-panel";
+import { ClientPortalNav } from "@/components/client-portal-nav";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
+import { isClientPortalReadOnly } from "@/lib/client/portal-config";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { db } from "@/lib/server/db";
 import { getSessionContext } from "@/lib/server/session";
@@ -52,7 +54,10 @@ export default async function ClientPage() {
     /* Supabase indisponível (ex.: CI com placeholders) — painel de viagens carrega via API cliente */
   }
 
-  const saudacao = `Olá — aqui está a visão da operação executiva da ${nomeCliente}.`;
+  const readOnly = isClientPortalReadOnly();
+  const saudacao = readOnly
+    ? `Visão consulta — operação executiva da ${nomeCliente}.`
+    : `Olá — aqui está a visão da operação executiva da ${nomeCliente}.`;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -63,17 +68,7 @@ export default async function ClientPage() {
             <p className="text-xs uppercase tracking-widest text-amber-500/90">Prime Vitória</p>
             <h1 className="text-lg font-semibold text-white">Portal corporativo</h1>
           </div>
-          <nav className="flex flex-wrap gap-4 text-sm text-slate-400">
-            <a href="#visao" className="hover:text-amber-400">
-              Início
-            </a>
-            <a href="#solicitar" className="hover:text-amber-400">
-              Solicitações
-            </a>
-            <a href="#corridas" className="hover:text-amber-400">
-              Corridas
-            </a>
-          </nav>
+          <ClientPortalNav readOnly={readOnly} />
         </div>
       </header>
 
@@ -82,26 +77,31 @@ export default async function ClientPage() {
           <div className="max-w-xl">
             <p className="font-serif text-2xl leading-snug text-white md:text-3xl">{saudacao}</p>
             <p className="mt-3 text-sm text-slate-400">
-              Solicite corridas, acompanhe status e centros de custo. Valores detalhados de faturamento
-              ficarão no módulo financeiro quando estiver disponível para o portal.
+              {readOnly
+                ? "Consulte corridas, estados, centros de custo e passageiros. Solicitações e cancelamentos ficam disponíveis na próxima fase."
+                : "Solicite corridas, acompanhe status e centros de custo. Valores detalhados de faturamento ficarão no módulo financeiro quando estiver disponível para o portal."}
             </p>
           </div>
-          <Link
-            href="#solicitar"
-            className="inline-flex shrink-0 items-center justify-center rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-medium text-slate-950 hover:bg-amber-400"
-          >
-            + Nova solicitação
-          </Link>
+          {!readOnly ? (
+            <Link
+              href="#solicitar"
+              className="inline-flex shrink-0 items-center justify-center rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-medium text-slate-950 hover:bg-amber-400"
+            >
+              + Nova solicitação
+            </Link>
+          ) : null}
         </section>
 
-        <ClientTripsPanel tenantId={tenantId} costCenters={costCenters ?? []} />
+        <ClientTripsPanel tenantId={tenantId} costCenters={costCenters ?? []} readOnly={readOnly} />
 
-        <section id="solicitar" className="space-y-3">
-          <h2 className="font-serif text-xl text-white">Nova solicitação</h2>
-          <div className="[&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100 [&_input]:placeholder:text-slate-500">
-            <ClientRequestConsole clientId={clientId} costCenters={costCenters ?? []} />
-          </div>
-        </section>
+        {!readOnly ? (
+          <section id="solicitar" className="space-y-3">
+            <h2 className="font-serif text-xl text-white">Nova solicitação</h2>
+            <div className="[&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100 [&_input]:placeholder:text-slate-500">
+              <ClientRequestConsole clientId={clientId} costCenters={costCenters ?? []} />
+            </div>
+          </section>
+        ) : null}
       </main>
     </div>
   );
