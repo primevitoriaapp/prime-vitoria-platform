@@ -20,6 +20,7 @@ const ROLE_CAPABILITIES: Record<UserRole, string[]> = {
     "jobs.notifications.process",
     "jobs.reconcile.run",
     "profiles.read",
+    "audit.read",
     "notifications.read"
   ],
   financeiro: [

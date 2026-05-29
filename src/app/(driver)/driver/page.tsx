@@ -11,11 +11,13 @@ import { DriverPayablesPanel } from "@/components/driver-payables-panel";
 import { DriverTripsPanel } from "@/components/driver-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
+import { papelUsuarioPt } from "@/lib/i18n/pt-br";
 import { getSessionContext } from "@/lib/server/session";
 
 export default async function DriverPage() {
   const session = await getSessionContext();
   const isMotorista = session.role === "motorista";
+  const isGuest = session.role === "guest" || session.userId === "anonymous";
   const tenantId =
     session.role === "guest" || session.userId === "anonymous" ? null : (session.tenantId ?? DEFAULT_TENANT_ID);
 
@@ -25,15 +27,30 @@ export default async function DriverPage() {
         <main className="mx-auto max-w-lg px-5 py-16">
           <p className="text-xs uppercase tracking-widest text-amber-500/90">Prime Vitória</p>
           <h1 className="mt-2 text-2xl font-semibold text-white">App motorista</h1>
-          <p className="mt-4 text-sm text-slate-400">
-            Área para motoristas com corridas atribuídas. Instale no telemóvel após entrar com a conta de motorista.
-          </p>
-          <Link
-            href="/login?next=/driver"
-            className="mt-8 inline-block rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-amber-400"
-          >
-            Entrar
-          </Link>
+          {isGuest ? (
+            <p className="mt-4 text-sm text-slate-400">
+              Entre com <strong className="text-slate-200">staging-motorista@example.com</strong> (senha do seed
+              staging). Se o login falhar, execute o seed no Supabase deste ambiente.
+            </p>
+          ) : (
+            <p className="mt-4 text-sm text-amber-200/90">
+              Sessão actual: <strong>{papelUsuarioPt(session.role)}</strong>. Esta área exige conta{" "}
+              <strong>motorista</strong>. Saia e entre com staging-motorista@example.com.
+            </p>
+          )}
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/login?next=/driver"
+              className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-amber-400"
+            >
+              {isGuest ? "Entrar como motorista" : "Trocar conta"}
+            </Link>
+            {!isGuest ? (
+              <Link href="/agenda" className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200">
+                Ir para agenda (operador)
+              </Link>
+            ) : null}
+          </div>
         </main>
       </div>
     );

@@ -38,6 +38,9 @@ export function SiteHeader() {
     };
   }, []);
 
+  const role = session?.role;
+  const isBackoffice = role === "admin" || role === "operador" || role === "financeiro";
+
   return (
     <header
       style={{
@@ -47,19 +50,34 @@ export function SiteHeader() {
         gap: 16,
         padding: "12px 20px",
         background: "#fff",
-        borderBottom: "1px solid #e2e8f0"
+        borderBottom: "1px solid #e2e8f0",
+        flexWrap: "wrap"
       }}
     >
       <Link href="/" style={{ fontWeight: 600, textDecoration: "none", color: "#0f172a" }}>
         Prime Vitória
       </Link>
-      <nav style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14 }}>
-        <Link href="/dashboard">Painel</Link>
-        <Link href="/agenda">Agenda</Link>
-        <Link href="/users">Utilizadores</Link>
-        <Link href="/audit">Auditoria</Link>
-        <Link href="/driver">Motorista</Link>
-        <Link href="/client">Cliente</Link>
+      <nav style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, flexWrap: "wrap" }}>
+        {isBackoffice ? (
+          <>
+            <Link href="/dashboard">Painel</Link>
+            <Link href="/agenda">Agenda</Link>
+            <Link href="/clients">Clientes</Link>
+            <Link href="/drivers">Motoristas</Link>
+            <Link href="/vehicles">Veículos</Link>
+            {(role === "admin" || role === "operador") && <Link href="/users">Utilizadores</Link>}
+            <Link href="/audit">Auditoria</Link>
+            <Link href="/dispatch">Despacho</Link>
+          </>
+        ) : null}
+        {role === "motorista" ? <Link href="/driver">Motorista</Link> : null}
+        {role === "cliente" ? <Link href="/client">Cliente</Link> : null}
+        {!session && (
+          <>
+            <Link href="/driver">Motorista</Link>
+            <Link href="/client">Cliente</Link>
+          </>
+        )}
         {session === undefined ? (
           <span style={{ color: "#94a3b8" }}>…</span>
         ) : session ? (

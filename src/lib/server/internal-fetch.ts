@@ -1,8 +1,5 @@
 import { headers } from "next/headers";
-
-function baseUrl(): string {
-  return process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-}
+import { resolveAppBaseUrl } from "./app-base-url.ts";
 
 /**
  * Chamadas da propria API a partir de RSC: repassa `Cookie` do pedido HTTP
@@ -11,7 +8,7 @@ function baseUrl(): string {
 export async function fetchInternalApi(path: string, init?: RequestInit): Promise<Response> {
   const h = await headers();
   const cookie = h.get("cookie");
-  const base = baseUrl();
+  const base = resolveAppBaseUrl();
   const url = path.startsWith("http") ? path : `${base}${path.startsWith("/") ? path : `/${path}`}`;
   const merged = new Headers(init?.headers);
   if (cookie) merged.set("cookie", cookie);

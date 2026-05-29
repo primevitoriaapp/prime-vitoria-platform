@@ -45,17 +45,37 @@ export default async function DashboardPage() {
     <main>
       <OperationalRealtimeBridge tenantId={realtimeTenantId} />
       <h1>Painel operacional</h1>
-      {can(session, "profiles.read") ? (
+      {(session.role === "admin" || session.role === "operador" || session.role === "financeiro") && (
         <p className="mb-4 text-sm text-slate-600">
-          <Link href="/users" className="font-medium text-amber-700 hover:underline">
-            Utilizadores e vínculo cliente
+          <Link href="/agenda" className="font-medium text-amber-700 hover:underline">
+            Agenda
           </Link>
           {" · "}
+          <Link href="/clients" className="font-medium text-amber-700 hover:underline">
+            Clientes
+          </Link>
+          {" · "}
+          <Link href="/drivers" className="font-medium text-amber-700 hover:underline">
+            Motoristas
+          </Link>
+          {" · "}
+          <Link href="/vehicles" className="font-medium text-amber-700 hover:underline">
+            Veículos
+          </Link>
+          {can(session, "profiles.read") ? (
+            <>
+              {" · "}
+              <Link href="/users" className="font-medium text-amber-700 hover:underline">
+                Utilizadores
+              </Link>
+            </>
+          ) : null}
+          {" · "}
           <Link href="/dispatch" className="font-medium text-amber-700 hover:underline">
-            Central de despacho
+            Despacho
           </Link>
         </p>
-      ) : null}
+      )}
       <div className="grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
         <KpiCard label="Corridas" value={data.totalTrips} />
         <KpiCard label="Finalizadas" value={data.completedTrips} />

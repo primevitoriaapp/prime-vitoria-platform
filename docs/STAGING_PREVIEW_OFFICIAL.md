@@ -14,6 +14,11 @@
 
 O alias `git-*` muda quando o Vercel gera novo deployment; o link **Preview** no comentário do bot Vercel no PR #2 é sempre o correcto.
 
+## Correcção deploy Preview (dados zerados na agenda)
+
+Se a agenda mostrava **0 viagens** com login correcto: o servidor chamava a API em `NEXT_PUBLIC_BASE_URL` (produção) em vez do deployment actual.  
+Corrigido com `VERCEL_URL` em `resolveAppBaseUrl()` — redeploy do commit com esta correcção é necessário.
+
 ## Corridas seed — quem vê o quê (importante)
 
 | ID | Estado após seed | Operador `/agenda` | Motorista `/driver` | Cliente `/client` |

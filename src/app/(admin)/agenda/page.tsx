@@ -7,6 +7,7 @@ import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel
 import { TripAgendaFocusPanel } from "@/components/trip-agenda-focus-panel";
 import { TripTable } from "@/components/trip-table";
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
+import { OperadorTripCreatePanel } from "@/components/operador-trip-create-panel";
 import { TripFocusHeader } from "@/components/trip-focus-header";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
@@ -77,6 +78,9 @@ export default async function AgendaPage({
         estado aparecem na tabela quando o tenant da sessão corresponde.
       </p>
       <StagingSmokeHints variant="light" />
+      {showClaimBar ? (
+        <OperadorTripCreatePanel scheduledFrom={scheduledFrom} scheduledTo={scheduledTo} />
+      ) : null}
       <AgendaDateRangeForm initialFromIso={scheduledFrom} initialToIso={scheduledTo} />
       {showClaimBar ? (
         <OperationalHistoryPanel devFallbackRole={session.role === "operador" ? "operador" : "admin"} days={7} />

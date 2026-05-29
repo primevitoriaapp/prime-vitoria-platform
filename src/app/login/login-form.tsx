@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { LoginStagingAccounts } from "@/components/login-staging-accounts";
 import { loginAction, type LoginState } from "./actions";
 
 const initial: LoginState = {};
@@ -25,12 +26,19 @@ export function LoginForm({ defaultNext }: { defaultNext?: string }) {
         {state.error ? (
           <p role="alert" style={{ color: "#b91c1c", fontSize: 14 }}>
             {state.error}
+            {state.error.toLowerCase().includes("invalid login") ? (
+              <span style={{ display: "block", marginTop: 8, fontSize: 12, color: "#475569" }}>
+                Staging: use staging-*@example.com e a senha do seed. Se o utilizador já existia, corra o seed com
+                STAGING_SEED_RESET_PASSWORD=true.
+              </span>
+            ) : null}
           </p>
         ) : null}
         <button type="submit" disabled={pending}>
           {pending ? "Entrando…" : "Entrar"}
         </button>
       </form>
+      <LoginStagingAccounts defaultNext={defaultNext} />
     </section>
   );
 }
