@@ -1,109 +1,98 @@
 # Modo MVP operacional — Prime Vitória
 
-> **Submodo actual (oficial):** [MODO_VALIDACAO_OPERACIONAL_HUMANA.md](./MODO_VALIDACAO_OPERACIONAL_HUMANA.md) — decisões guiadas pelo [STAGING_VALIDATION_EXECUTION_LOG.md](./STAGING_VALIDATION_EXECUTION_LOG.md).
+> **Foco principal (a partir de maio/2026):** substituir o processo actual (WhatsApp, agenda manual, planilhas) por operação **dentro da plataforma**.  
+> Fluxo obrigatório: **Cliente → Operador → Motorista → Financeiro**.
 
-> **Fase (2026-05):** a fundação técnica é suficiente. Prioridade = **validar operação real** (clareza, velocidade, confiança) — não novas funcionalidades.
+## Filtro de prioridade (todo ciclo de código)
 
-## Estado de referência (baseline)
+**“Isso aproxima ou afasta o sistema do fluxo operacional real da Prime Vitória?”**
 
-| Área | Estado |
-|------|--------|
-| Núcleo operacional | Funcional (agenda, despacho, transições, financeiro base) |
-| Pricing Comexport | Validado (`km_with_minimum`, mín. 20 km, flags OFF) |
-| Multi-tenant + RLS | Estáveis para o estágio MVP |
-| Portal cliente | Read-only por defeito (`/client`) |
-| PWA motorista | Em evolução contínua |
-| CI / testes | Maduros para o estágio (unit + Playwright + smoke scripts) |
-| Regressões críticas | Nenhuma detectada na última entrega |
+- Se não impacta a operação diária → **Fase 2** ou depois.
+- Infra/documentação só quando **desbloqueia** o fluxo no celular com dados reais.
 
-## Princípio estratégico
+## Definição do MVP (o que tem de funcionar no telemóneo)
 
-**A engenharia serve a operação — não o contrário.**
+### 1. Cadastro completo
 
-Objectivo: sistema **utilizável no dia-a-dia** da Prime Vitória (operador, motorista, cliente corporativo).
+| Entidade | Criar | Editar | Inactivar | Notas no repo |
+|----------|-------|--------|-----------|---------------|
+| Clientes / empresas contratantes | ✓ UI | ✓ UI | ✓ UI | `/clients` |
+| Veículos | ✓ UI | ✓ UI | ✓ UI | `/vehicles` |
+| Motoristas | ✓ parcial | **falta** | **falta** | `/drivers` — perfil + CPF; falta telefone, editar, inactivar |
 
-## Prioridades dos próximos ciclos (ordem)
+### 2. Gestão operacional (corrida / OS)
 
-### 1. Operação real / smoke humano
+| Acção | Estado |
+|-------|--------|
+| Criar corrida (UI) | ✓ agenda — `OperadorTripCreatePanel` |
+| Editar corrida (dados, passageiro, origem/destino, notas, valores) | **falta UI** |
+| Cancelar | API/status; **falta botão operador na agenda** |
+| Reagendar | **falta** |
+| Duplicar | **falta** |
 
-- Fluxo **operador** (criar → despachar → acompanhar)
-- Fluxo **motorista** (aceitar → estados → concluir)
-- Fluxo **cliente** (consulta read-only → detalhe → timeline)
-- Simulações de corrida reais (staging, não prod)
-- Reduzir cliques e atrito (CTAs, confirmações só onde importa)
+### 3. Dados da corrida (ficha completa)
 
-**Entregáveis típicos:** [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md), [OPERATIONAL_FRICTION_LOG.md](./OPERATIONAL_FRICTION_LOG.md), E2E staging por papel.
+Passageiro, telefone, empresa (cliente), origem, destino, data/hora, observações, **valor cliente**, **valor motorista** — parte em API/DB; **expor e editar na ficha da agenda** é prioridade.
 
-### 2. Push / FCM (prioridade operacional) — em curso
+### 4. Fluxo operador
 
-- Recepção rápida de corridas no motorista
-- Updates em tempo real (complementar Supabase Realtime)
-- Experiência PWA motorista com notificação confiável
-- Roteiro: [FCM_OPERATIONAL_SMOKE.md](./FCM_OPERATIONAL_SMOKE.md)
-- Banner `/driver`, processamento imediato pós-despacho, foreground FCM
+Criar → aprovar → despachar → acompanhar status → encerrar — **núcleo existe** na agenda; falta editar/cancelar/reagendar e valores visíveis na mesma ficha.
 
-**Dependência humana:** `docs/FIREBASE_FCM_SETUP.md`, secrets Vercel (sem alterar secrets no repo).
+### 5. Fluxo motorista
 
-### 3. Portal cliente (seguro)
+Receber → aceitar → em deslocamento → cheguei → embarcado → em andamento → finalizada — **UI existe** (`/driver`); depende de seed + despacho real. **Próximas corridas** — melhorar lista.
 
-- Manter **read-only por defeito** (`NEXT_PUBLIC_CLIENT_PORTAL_READ_ONLY` só `false` com decisão)
-- Melhorar consulta e acompanhamento (UX corporativa, menos ruído)
-- Evitar faturamento / writes complexos até operação validar necessidade
+### 6. Fluxo cliente
 
-### 4. UX motorista
+Ver atendimento, status, motorista/veículo — **read-only** em `/client`; depende de `client_id` no perfil + seed.
 
-- Estados grandes, legíveis, poucos toques
-- Timeline + CTA próximo passo + feedback visual
-- Mobile / PWA first; menos erro humano (confirmações em terminais)
+### 7. Financeiro básico (por corrida)
 
-### 5. Hardening sem paralisar
+Valor cliente, valor motorista, margem, pago/pendente — **parcial** (`trip_financials`, painel financeiro); **resumo operacional simples na agenda** — prioridade.
 
-- Logs, observabilidade, testes, RBAC, RLS, performance — **em fatias pequenas**
-- Sem redesign, sem migrações destrutivas, sem flags ON por defeito
-- Comexport runtime **intocado** salvo bugfix com teste
+## Fase 2 (não bloqueia MVP)
 
-## Regras inegociáveis (continuam)
+- Bandeira 1 / 2 por horário  
+- Cobrança por tempo parado  
+- Modo **aguardando passageiro** + cronómetro + retomada por movimento  
+- Push completas, PWA motorista avançado  
+
+## Ordem de execução (engenharia)
+
+1. **Ambiente** — Vercel Preview, Supabase, seed, login (`docs/STAGING_PREVIEW_OFFICIAL.md`, `npm run staging:real-check`)  
+2. **Cadastro** — motorista completo; empresas = clientes PJ  
+3. **OS/corrida** — editar, cancelar, valores na ficha  
+4. **Operador + motorista + cliente** — polir fluxo ponta a ponta no celular  
+5. **Financeiro básico** na corrida (sem expandir ERP)  
+6. Reagendar / duplicar corrida  
+
+## Critério de “MVP validado”
+
+Uma corrida **real** no Preview, no celular, sem UUID/consola/seed manual no meio do fluxo:
+
+**Operador cria → despacha → motorista aceita e fecha estados → cliente acompanha → histórico e valores gravados.**
+
+Registo: `docs/STAGING_VALIDATION_EXECUTION_LOG.md` (PASS/FAIL por passo, não relatório de arquitectura).
+
+## Regras inegociáveis
 
 | Regra | |
 |-------|---|
 | Deploy produção | Só com aprovação explícita |
 | Merge `main` | Só com aprovação explícita |
-| `db:push` | Só com aprovação explícita |
-| Alterações destrutivas | Proibidas sem confirmação |
-| Feature flags pricing | OFF por defeito |
-| Runtime Comexport | Não quebrar |
+| `db:push` destrutivo | Só com aprovação explícita |
+| Portal cliente writes | OFF por defeito até operação pedir |
+| Pricing Comexport runtime | Não quebrar; flags OFF por defeito |
 
-## Branch e PR de trabalho
+## Branch e ambiente
 
-- Integração contínua em `cursor/pricing-engine-mvp-cycle` (ou branch `cursor/*` acordada)
-- PR draft: ver GitHub; smoke preview quando `VERCEL_AUTOMATION_BYPASS_SECRET` disponível
+- Branch: `cursor/pricing-engine-mvp-cycle`  
+- URL staging: `docs/STAGING_PREVIEW_OFFICIAL.md`  
+- PR: GitHub #2  
 
-## Fase actual: execução humana staging (prioridade absoluta)
+## Documentos de apoio (uso operacional)
 
-**Não priorizar:** novos módulos · ERP complexo · portal write · redesign.
-
-**Ordem:** [STAGING_VALIDATION_RUNBOOK.md](./STAGING_VALIDATION_RUNBOOK.md)
-
-1. Firebase/Vercel (humano)  
-2. `npm run staging:validation-preflight` (+ `staging:validation-automated`)  
-3. [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md)  
-4. [FCM_OPERATIONAL_SMOKE.md](./FCM_OPERATIONAL_SMOKE.md)  
-5. Registo em [STAGING_VALIDATION_EXECUTION_LOG.md](./STAGING_VALIDATION_EXECUTION_LOG.md)  
-6. Corrigir só blockers/atritos reais documentados  
-
-## Critério de “pronto para operação real”
-
-1. Operador consegue ciclo completo em staging sem workaround manual crítico  
-2. Motorista recebe corrida (push ou fila visível) e fecha estados sem ambiguidade  
-3. Cliente consulta corrida e estado sem writes acidentais  
-4. Pricing de corrida piloto bate expectativa Comexport (testes + amostra real)  
-5. Smoke humano + FCM documentados com PASS em `STAGING_VALIDATION_EXECUTION_LOG`  
-
-## Documentos relacionados
-
-- [MVP_GO_LIVE_CHECKLIST.md](./MVP_GO_LIVE_CHECKLIST.md) — gate produção (ainda protegido)
-- [BLOCKERS_AND_NEXT_ACTIONS.md](./BLOCKERS_AND_NEXT_ACTIONS.md) — blockers e ordem de acções
-- [CLIENT_PORTAL_WIREFRAME.md](./CLIENT_PORTAL_WIREFRAME.md) — evolução portal
-- [FCM_PWA_READINESS.md](./FCM_PWA_READINESS.md) — push motorista
-- [STAGING_E2E.md](./STAGING_E2E.md) — E2E autenticado
-- [architecture/ROADMAP_PHASES.md](./architecture/ROADMAP_PHASES.md) — fases longas
+- [STAGING_PREVIEW_OFFICIAL.md](./STAGING_PREVIEW_OFFICIAL.md) — preview + seed  
+- [OPERATIONAL_HUMAN_SMOKE.md](./OPERATIONAL_HUMAN_SMOKE.md) — roteiro humano  
+- [STAGING_VALIDATION_EXECUTION_LOG.md](./STAGING_VALIDATION_EXECUTION_LOG.md) — decisões  
+- [BLOCKERS_AND_NEXT_ACTIONS.md](./BLOCKERS_AND_NEXT_ACTIONS.md) — blockers  
