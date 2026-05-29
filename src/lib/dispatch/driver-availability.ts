@@ -56,6 +56,17 @@ export async function listEligibleDriverIdsForScheduling(opts: {
 }
 
 export async function resolveDefaultVehicleIdForDriver(driverId: string): Promise<string | null> {
+  const { data: preferred } = await db
+    .from("driver_vehicle_links")
+    .select("vehicle_id")
+    .eq("driver_id", driverId)
+    .eq("active", true)
+    .is("end_at", null)
+    .eq("is_default", true)
+    .limit(1)
+    .maybeSingle();
+  if (preferred?.vehicle_id) return preferred.vehicle_id;
+
   const { data } = await db
     .from("driver_vehicle_links")
     .select("vehicle_id")

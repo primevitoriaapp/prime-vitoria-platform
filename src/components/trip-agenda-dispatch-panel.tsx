@@ -11,6 +11,7 @@ type DriverOption = {
   cpf: string;
   profile_name?: string | null;
   default_vehicle?: { id: string; plate: string; model: string } | null;
+  linked_vehicles?: { id: string; plate: string; model: string; is_default?: boolean }[];
 };
 
 type VehicleOption = { id: string; plate: string; model: string };
@@ -36,7 +37,8 @@ export function TripAgendaDispatchPanel({
   onDone
 }: Props) {
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
-  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
+  const [allVehicles, setAllVehicles] = useState<VehicleOption[]>([]);
+  const [driverVehicles, setDriverVehicles] = useState<VehicleOption[]>([]);
   const [driverId, setDriverId] = useState("");
   const [vehicleId, setVehicleId] = useState("");
   const [reassignDriverId, setReassignDriverId] = useState("");
@@ -57,15 +59,34 @@ export function TripAgendaDispatchPanel({
         setDrivers(driversJson.data ?? []);
       }
       if (vehiclesRes.ok && vehiclesJson.success) {
-        setVehicles(vehiclesJson.data ?? []);
+        setAllVehicles(vehiclesJson.data ?? []);
       }
     })();
   }, [devFallbackRole]);
 
+  function vehiclesForDriver(driver: DriverOption | undefined): VehicleOption[] {
+    if (!driver) return [];
+    const linked = driver.linked_vehicles ?? [];
+    if (linked.length > 0) {
+      return linked.map((v) => ({ id: v.id, plate: v.plate, model: v.model }));
+    }
+    if (driver.default_vehicle) {
+      return [driver.default_vehicle];
+    }
+    return [];
+  }
+
   function onDriverChange(nextDriverId: string) {
     setDriverId(nextDriverId);
     const driver = drivers.find((d) => d.id === nextDriverId);
-    setVehicleId(driver?.default_vehicle?.id ?? "");
+    const options = vehiclesForDriver(driver);
+    setDriverVehicles(options);
+    if (options.length === 1) {
+      setVehicleId(options[0].id);
+    } else {
+      const def = driver?.linked_vehicles?.find((v) => v.is_default) ?? driver?.default_vehicle;
+      setVehicleId(def?.id ?? "");
+    }
   }
 
   async function dispatch() {
@@ -163,8 +184,10 @@ export function TripAgendaDispatchPanel({
               className="rounded border border-slate-300 px-2 py-2"
               disabled={loading}
             >
-              <option value="">Padrão do motorista / automático</option>
-              {vehicles.map((v) => (
+              <option value="">
+                {driverVehicles.length === 1 ? "Veículo único (preenchido)" : "Padrão do motorista / automático"}
+              </option>
+              {(driverId ? driverVehicles : allVehicles).map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.plate} · {v.model}
                 </option>
@@ -218,9 +241,11 @@ export function TripAgendaDispatchPanel({
                   aria-label="Novo motorista"
                   value={reassignDriverId}
                   onChange={(e) => {
-                    setReassignDriverId(e.target.value);
-                    const d = drivers.find((x) => x.id === e.target.value);
-                    setReassignVehicleId(d?.default_vehicle?.id ?? "");
+                    const nextId = e.target.value;
+                    setReassignDriverId(nextId);
+                    const d = drivers.find((x) => x.id === nextId);
+                    const opts = vehiclesForDriver(d);
+                    setReassignVehicleId(opts.length === 1 ? opts[0].id : (d?.default_vehicle?.id ?? ""));
                   }}
                   className="rounded border border-slate-300 px-2 py-2"
                   disabled={loading}
@@ -245,7 +270,10 @@ export function TripAgendaDispatchPanel({
                   disabled={loading}
                 >
                   <option value="">Manter / padrão</option>
-                  {vehicles.map((v) => (
+                  {(reassignDriverId
+                    ? vehiclesForDriver(drivers.find((d) => d.id === reassignDriverId))
+                    : allVehicles
+                  ).map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.plate} · {v.model}
                     </option>

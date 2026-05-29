@@ -1,33 +1,85 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+type LinkedVehicle = {
+  link_id: string;
+  id: string;
+  plate: string;
+  model: string;
+  brand?: string | null;
+  is_default?: boolean;
+};
+
 type DriverRow = {
   id: string;
   cpf: string;
   cnh_number?: string | null;
   profile_name?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  active?: boolean;
+  available?: boolean;
   default_vehicle?: { id: string; model: string; plate: string } | null;
+  linked_vehicles?: LinkedVehicle[];
 };
 
 type VehicleOption = { id: string; plate: string; model: string };
 type ProfileOption = { id: string; name: string; role: string; active?: boolean };
 
+type DriverDetail = DriverRow & {
+  city?: string | null;
+  district?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  operational_category?: string | null;
+  service_region?: string | null;
+  operational_notes?: string | null;
+  pix_key?: string | null;
+  bank_name?: string | null;
+  bank_branch?: string | null;
+  bank_account?: string | null;
+  bank_account_type?: string | null;
+  payee_name?: string | null;
+  payee_document?: string | null;
+  profile_phone?: string | null;
+  linked_vehicles: LinkedVehicle[];
+};
+
+const inputClass = "rounded border border-slate-300 px-2 py-2 w-full text-sm";
+
 type Props = {
   initialDrivers: DriverRow[];
 };
+
+const CATEGORY_OPTIONS = ["sedan", "SUV", "van", "executivo", "evento", "viagem", "bilíngue", "outro"];
 
 export function DriversFleetPanel({ initialDrivers }: Props) {
   const router = useRouter();
   const [drivers, setDrivers] = useState(initialDrivers);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
-  const [profileId, setProfileId] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [cnh, setCnh] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<DriverDetail | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [busyDriver, setBusyDriver] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const [createProfileId, setCreateProfileId] = useState("");
+  const [createCpf, setCreateCpf] = useState("");
+  const [createCnh, setCreateCnh] = useState("");
   const [creating, setCreating] = useState(false);
+
+  const [linkVehicleId, setLinkVehicleId] = useState("");
+  const [newVehicle, setNewVehicle] = useState({
+    plate: "",
+    model: "",
+    brand: "",
+    category: "",
+    color: "",
+    capacity: ""
+  });
 
   const reloadDrivers = useCallback(async () => {
     const res = await fetch("/api/drivers", { credentials: "include" });
@@ -37,6 +89,15 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
     }
     router.refresh();
   }, [router]);
+
+  const loadDetail = useCallback(async (driverId: string) => {
+    const res = await fetch(`/api/drivers/${driverId}`, { credentials: "include" });
+    const json = (await res.json()) as { success?: boolean; data?: DriverDetail };
+    if (res.ok && json.success && json.data) {
+      setDetail(json.data);
+      setSelectedId(driverId);
+    }
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -50,14 +111,14 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
       if (pRes.ok && pJson.success) {
         const motoristas = (pJson.data ?? []).filter((p) => p.role === "motorista" && p.active !== false);
         setProfiles(motoristas);
-        if (motoristas[0]) setProfileId(motoristas[0].id);
+        if (motoristas[0]) setCreateProfileId(motoristas[0].id);
       }
     })();
   }, []);
 
-  async function createDriver(e: React.FormEvent) {
+  async function createDriver(e: FormEvent) {
     e.preventDefault();
-    if (!profileId || !cpf.trim()) return;
+    if (!createProfileId || !createCpf.trim()) return;
     setCreating(true);
     setMessage(null);
     try {
@@ -66,19 +127,20 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          profile_id: profileId,
-          cpf: cpf.trim(),
-          cnh_number: cnh.trim() || undefined
+          profile_id: createProfileId,
+          cpf: createCpf.trim(),
+          cnh_number: createCnh.trim() || undefined
         })
       });
-      const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+      const json = (await res.json()) as { success?: boolean; data?: DriverRow; error?: { message?: string } };
       if (!res.ok || !json.success) {
         throw new Error(json.error?.message ?? "Falha ao criar motorista");
       }
-      setMessage("Motorista registado.");
-      setCpf("");
-      setCnh("");
+      setMessage("Motorista registado. Abra a ficha para completar dados e veículos.");
+      setCreateCpf("");
+      setCreateCnh("");
       await reloadDrivers();
+      if (json.data?.id) await loadDetail(json.data.id);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erro inesperado.");
     } finally {
@@ -86,28 +148,136 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
     }
   }
 
-  async function setDefaultVehicle(driverId: string, vehicleId: string) {
-    if (!vehicleId) return;
-    setBusyDriver(driverId);
+  async function saveDetail(e: FormEvent) {
+    e.preventDefault();
+    if (!detail) return;
+    setBusy(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/drivers/${driverId}/default-vehicle`, {
-        method: "PUT",
+      const res = await fetch(`/api/drivers/${detail.id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ vehicle_id: vehicleId })
+        body: JSON.stringify({
+          cpf: detail.cpf,
+          cnh_number: detail.cnh_number,
+          phone: detail.phone,
+          whatsapp: detail.whatsapp,
+          email: detail.email,
+          city: detail.city,
+          district: detail.district,
+          address: detail.address,
+          notes: detail.notes,
+          active: detail.active,
+          available: detail.available,
+          operational_category: detail.operational_category,
+          service_region: detail.service_region,
+          operational_notes: detail.operational_notes,
+          pix_key: detail.pix_key,
+          bank_name: detail.bank_name,
+          bank_branch: detail.bank_branch,
+          bank_account: detail.bank_account,
+          bank_account_type: detail.bank_account_type,
+          payee_name: detail.payee_name,
+          payee_document: detail.payee_document,
+          profile_name: detail.profile_name,
+          profile_phone: detail.profile_phone
+        })
       });
       const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message ?? "Falha ao vincular veículo");
-      }
-      setMessage("Veículo padrão actualizado.");
+      if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha ao guardar");
+      setMessage("Ficha do motorista actualizada.");
+      await reloadDrivers();
+      await loadDetail(detail.id);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Erro inesperado.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function linkExistingVehicle() {
+    if (!detail || !linkVehicleId) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/drivers/${detail.id}/vehicles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ vehicle_id: linkVehicleId, set_default: detail.linked_vehicles.length === 0 })
+      });
+      const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+      if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha ao vincular");
+      setLinkVehicleId("");
+      await loadDetail(detail.id);
+      await reloadDrivers();
+      setMessage("Veículo vinculado.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Erro inesperado.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createAndLinkVehicle(e: FormEvent) {
+    e.preventDefault();
+    if (!detail) return;
+    setBusy(true);
+    try {
+      const cap = newVehicle.capacity.trim();
+      const res = await fetch(`/api/drivers/${detail.id}/vehicles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          plate: newVehicle.plate.trim(),
+          model: newVehicle.model.trim(),
+          brand: newVehicle.brand.trim() || null,
+          category: newVehicle.category.trim() || null,
+          color: newVehicle.color.trim() || null,
+          capacity: cap ? Number(cap) : null,
+          set_default: true
+        })
+      });
+      const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+      if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha ao criar veículo");
+      setNewVehicle({ plate: "", model: "", brand: "", category: "", color: "", capacity: "" });
+      const vRes = await fetch("/api/vehicles", { credentials: "include" });
+      const vJson = (await vRes.json()) as { success?: boolean; data?: VehicleOption[] };
+      if (vRes.ok && vJson.success) setVehicles(vJson.data ?? []);
+      await loadDetail(detail.id);
+      await reloadDrivers();
+      setMessage("Veículo criado e vinculado.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Erro inesperado.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setDefaultVehicle(vehicleId: string) {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/drivers/${detail.id}/vehicles`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ vehicle_id: vehicleId, action: "set_default" })
+      });
+      const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+      if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha");
+      await loadDetail(detail.id);
       await reloadDrivers();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erro inesperado.");
     } finally {
-      setBusyDriver(null);
+      setBusy(false);
     }
+  }
+
+  function patchDetail<K extends keyof DriverDetail>(key: K, value: DriverDetail[K]) {
+    setDetail((d) => (d ? { ...d, [key]: value } : d));
   }
 
   return (
@@ -115,41 +285,33 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
       <section className="card">
         <h2 className="text-lg font-semibold text-slate-900">Novo motorista</h2>
         <p className="mt-1 text-sm text-slate-600">
-          O perfil com papel motorista deve existir em Utilizadores (ou seed). Depois vincule CPF e veículo padrão.
+          Cadastro principal: motorista com perfil de acesso. Depois abra a ficha para dados operacionais, financeiros e
+          veículos vinculados.
         </p>
         <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={(e) => void createDriver(e)}>
           <label className="grid gap-1 text-sm md:col-span-2">
             <span>Perfil (utilizador motorista)</span>
             <select
               required
-              className="rounded border border-slate-300 px-2 py-2"
-              value={profileId}
-              onChange={(e) => setProfileId(e.target.value)}
+              className={inputClass}
+              value={createProfileId}
+              onChange={(e) => setCreateProfileId(e.target.value)}
             >
               <option value="">— seleccionar —</option>
               {profiles.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} · {p.id.slice(0, 8)}…
+                  {p.name}
                 </option>
               ))}
             </select>
           </label>
           <label className="grid gap-1 text-sm">
             <span>CPF</span>
-            <input
-              required
-              className="rounded border border-slate-300 px-2 py-2"
-              value={cpf}
-              onChange={(e) => setCpf(e.target.value)}
-            />
+            <input required className={inputClass} value={createCpf} onChange={(e) => setCreateCpf(e.target.value)} />
           </label>
           <label className="grid gap-1 text-sm">
             <span>CNH</span>
-            <input
-              className="rounded border border-slate-300 px-2 py-2"
-              value={cnh}
-              onChange={(e) => setCnh(e.target.value)}
-            />
+            <input className={inputClass} value={createCnh} onChange={(e) => setCreateCnh(e.target.value)} />
           </label>
           <div className="md:col-span-2">
             <button
@@ -159,11 +321,6 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
             >
               {creating ? "A guardar…" : "Registar motorista"}
             </button>
-            {profiles.length === 0 ? (
-              <p className="mt-2 text-sm text-amber-800">
-                Nenhum perfil motorista — execute o seed ou crie utilizador com papel motorista.
-              </p>
-            ) : null}
           </div>
         </form>
       </section>
@@ -182,37 +339,346 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                     {driver.profile_name ?? "Motorista"} · CPF {driver.cpf}
                   </p>
                   <p className="text-xs text-slate-500">
-                    CNH {driver.cnh_number ?? "não informada"}
-                    {driver.default_vehicle ? (
+                    CNH {driver.cnh_number ?? "—"}
+                    {(driver.linked_vehicles?.length ?? 0) > 0 ? (
                       <span className="ml-2 text-amber-800">
-                        · veículo {driver.default_vehicle.plate} ({driver.default_vehicle.model})
+                        · {driver.linked_vehicles!.length} veículo(s)
+                        {driver.default_vehicle ? ` · padrão ${driver.default_vehicle.plate}` : ""}
                       </span>
                     ) : (
-                      <span className="ml-2 text-slate-400">· sem veículo padrão</span>
+                      <span className="ml-2 text-slate-400">· sem veículos vinculados</span>
                     )}
                   </p>
                 </div>
-                <label className="flex items-center gap-2 text-slate-700">
-                  <span className="text-xs">Veículo padrão</span>
-                  <select
-                    className="rounded border border-slate-300 px-2 py-1 text-sm"
-                    disabled={busyDriver === driver.id || vehicles.length === 0}
-                    value={driver.default_vehicle?.id ?? ""}
-                    onChange={(e) => void setDefaultVehicle(driver.id, e.target.value)}
-                  >
-                    <option value="">— seleccionar —</option>
-                    {vehicles.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.plate} · {v.model}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <button
+                  type="button"
+                  className="rounded-lg border border-amber-700 px-3 py-1.5 text-sm text-amber-900 hover:bg-amber-50"
+                  onClick={() => void loadDetail(driver.id)}
+                >
+                  {selectedId === driver.id ? "Ficha aberta" : "Abrir ficha"}
+                </button>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {detail ? (
+        <section className="card mt-6">
+          <h2 className="text-lg font-semibold text-slate-900">Ficha: {detail.profile_name ?? detail.cpf}</h2>
+          <form className="mt-4 space-y-6" onSubmit={(e) => void saveDetail(e)}>
+            <fieldset className="grid gap-3 md:grid-cols-2">
+              <legend className="mb-2 text-sm font-semibold text-slate-800 md:col-span-2">Dados pessoais</legend>
+              <label className="grid gap-1 text-sm md:col-span-2">
+                <span>Nome completo</span>
+                <input
+                  className={inputClass}
+                  value={detail.profile_name ?? ""}
+                  onChange={(e) => patchDetail("profile_name", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>CPF</span>
+                <input className={inputClass} value={detail.cpf} onChange={(e) => patchDetail("cpf", e.target.value)} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>CNH</span>
+                <input
+                  className={inputClass}
+                  value={detail.cnh_number ?? ""}
+                  onChange={(e) => patchDetail("cnh_number", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Telefone</span>
+                <input
+                  className={inputClass}
+                  value={detail.profile_phone ?? detail.phone ?? ""}
+                  onChange={(e) => patchDetail("profile_phone", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>WhatsApp</span>
+                <input
+                  className={inputClass}
+                  value={detail.whatsapp ?? ""}
+                  onChange={(e) => patchDetail("whatsapp", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm md:col-span-2">
+                <span>E-mail</span>
+                <input
+                  type="email"
+                  className={inputClass}
+                  value={detail.email ?? ""}
+                  onChange={(e) => patchDetail("email", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Cidade</span>
+                <input className={inputClass} value={detail.city ?? ""} onChange={(e) => patchDetail("city", e.target.value)} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Bairro</span>
+                <input
+                  className={inputClass}
+                  value={detail.district ?? ""}
+                  onChange={(e) => patchDetail("district", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm md:col-span-2">
+                <span>Endereço</span>
+                <input
+                  className={inputClass}
+                  value={detail.address ?? ""}
+                  onChange={(e) => patchDetail("address", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm md:col-span-2">
+                <span>Observações internas</span>
+                <textarea
+                  className={inputClass}
+                  rows={2}
+                  value={detail.notes ?? ""}
+                  onChange={(e) => patchDetail("notes", e.target.value)}
+                />
+              </label>
+            </fieldset>
+
+            <fieldset className="grid gap-3 md:grid-cols-2">
+              <legend className="mb-2 text-sm font-semibold text-slate-800 md:col-span-2">Operacional</legend>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={detail.active !== false}
+                  onChange={(e) => patchDetail("active", e.target.checked)}
+                />
+                Activo
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={detail.available !== false}
+                  onChange={(e) => patchDetail("available", e.target.checked)}
+                />
+                Disponível para corridas
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Categoria de atendimento</span>
+                <select
+                  className={inputClass}
+                  value={detail.operational_category ?? ""}
+                  onChange={(e) => patchDetail("operational_category", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Região de actuação</span>
+                <input
+                  className={inputClass}
+                  value={detail.service_region ?? ""}
+                  onChange={(e) => patchDetail("service_region", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm md:col-span-2">
+                <span>Observação operacional</span>
+                <textarea
+                  className={inputClass}
+                  rows={2}
+                  value={detail.operational_notes ?? ""}
+                  onChange={(e) => patchDetail("operational_notes", e.target.value)}
+                />
+              </label>
+            </fieldset>
+
+            <fieldset className="grid gap-3 md:grid-cols-2">
+              <legend className="mb-2 text-sm font-semibold text-slate-800 md:col-span-2">Financeiro</legend>
+              <label className="grid gap-1 text-sm md:col-span-2">
+                <span>Chave Pix</span>
+                <input
+                  className={inputClass}
+                  value={detail.pix_key ?? ""}
+                  onChange={(e) => patchDetail("pix_key", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Banco</span>
+                <input
+                  className={inputClass}
+                  value={detail.bank_name ?? ""}
+                  onChange={(e) => patchDetail("bank_name", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Agência</span>
+                <input
+                  className={inputClass}
+                  value={detail.bank_branch ?? ""}
+                  onChange={(e) => patchDetail("bank_branch", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Conta</span>
+                <input
+                  className={inputClass}
+                  value={detail.bank_account ?? ""}
+                  onChange={(e) => patchDetail("bank_account", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Tipo de conta</span>
+                <input
+                  className={inputClass}
+                  value={detail.bank_account_type ?? ""}
+                  onChange={(e) => patchDetail("bank_account_type", e.target.value)}
+                  placeholder="corrente / poupança"
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Favorecido</span>
+                <input
+                  className={inputClass}
+                  value={detail.payee_name ?? ""}
+                  onChange={(e) => patchDetail("payee_name", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>CPF/CNPJ favorecido</span>
+                <input
+                  className={inputClass}
+                  value={detail.payee_document ?? ""}
+                  onChange={(e) => patchDetail("payee_document", e.target.value)}
+                />
+              </label>
+            </fieldset>
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {busy ? "A guardar…" : "Guardar ficha do motorista"}
+            </button>
+          </form>
+
+          <div className="mt-8 border-t border-slate-200 pt-6">
+            <h3 className="font-semibold text-slate-900">Veículos vinculados</h3>
+            {detail.linked_vehicles.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-500">Nenhum veículo. Vincule da frota ou registe um novo abaixo.</p>
+            ) : (
+              <ul className="mt-3 space-y-2 text-sm">
+                {detail.linked_vehicles.map((v) => (
+                  <li key={v.link_id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-100 px-3 py-2">
+                    <span>
+                      {v.plate} · {v.model}
+                      {v.brand ? ` · ${v.brand}` : ""}
+                      {v.is_default ? (
+                        <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">padrão</span>
+                      ) : null}
+                    </span>
+                    {!v.is_default ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className="text-amber-800 text-xs"
+                        onClick={() => void setDefaultVehicle(v.id)}
+                      >
+                        Definir como padrão
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="grid gap-1 text-sm">
+                <span>Vincular veículo existente</span>
+                <select
+                  className={inputClass}
+                  value={linkVehicleId}
+                  onChange={(e) => setLinkVehicleId(e.target.value)}
+                >
+                  <option value="">— frota —</option>
+                  {vehicles
+                    .filter((v) => !detail.linked_vehicles.some((lv) => lv.id === v.id))
+                    .map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.plate} · {v.model}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  disabled={busy || !linkVehicleId}
+                  onClick={() => void linkExistingVehicle()}
+                  className="rounded-lg border border-amber-700 px-4 py-2 text-sm text-amber-900 disabled:opacity-50"
+                >
+                  Vincular
+                </button>
+              </div>
+            </div>
+
+            <form className="mt-6 grid gap-3 md:grid-cols-3" onSubmit={(e) => void createAndLinkVehicle(e)}>
+              <p className="text-sm font-medium text-slate-800 md:col-span-3">Registar novo veículo para este motorista</p>
+              <input
+                required
+                placeholder="Placa"
+                className={inputClass}
+                value={newVehicle.plate}
+                onChange={(e) => setNewVehicle((v) => ({ ...v, plate: e.target.value }))}
+              />
+              <input
+                required
+                placeholder="Modelo"
+                className={inputClass}
+                value={newVehicle.model}
+                onChange={(e) => setNewVehicle((v) => ({ ...v, model: e.target.value }))}
+              />
+              <input
+                placeholder="Marca"
+                className={inputClass}
+                value={newVehicle.brand}
+                onChange={(e) => setNewVehicle((v) => ({ ...v, brand: e.target.value }))}
+              />
+              <input
+                placeholder="Categoria"
+                className={inputClass}
+                value={newVehicle.category}
+                onChange={(e) => setNewVehicle((v) => ({ ...v, category: e.target.value }))}
+              />
+              <input
+                placeholder="Cor"
+                className={inputClass}
+                value={newVehicle.color}
+                onChange={(e) => setNewVehicle((v) => ({ ...v, color: e.target.value }))}
+              />
+              <input
+                placeholder="Capacidade"
+                type="number"
+                className={inputClass}
+                value={newVehicle.capacity}
+                onChange={(e) => setNewVehicle((v) => ({ ...v, capacity: e.target.value }))}
+              />
+              <button
+                type="submit"
+                disabled={busy}
+                className="md:col-span-3 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                Criar e vincular veículo
+              </button>
+            </form>
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }

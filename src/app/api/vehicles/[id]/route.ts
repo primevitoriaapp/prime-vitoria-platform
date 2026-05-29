@@ -10,9 +10,12 @@ import { isPostgresUniqueViolation } from "@/lib/server/postgres-errors";
 const patchSchema = z.object({
   model: z.string().min(2).optional(),
   plate: z.string().min(7).optional(),
+  brand: z.string().nullable().optional(),
   category: z.string().nullable().optional(),
   capacity: z.number().int().nullable().optional(),
   color: z.string().nullable().optional(),
+  model_year: z.number().int().nullable().optional(),
+  notes: z.string().nullable().optional(),
   active: z.boolean().optional()
 });
 

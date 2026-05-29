@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { db } from "@/lib/server/db";
+import { vehicleCadastroSchema, normalizeVehicleBody } from "@/lib/drivers/driver-cadastro-schema";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
@@ -7,21 +7,18 @@ import { assertCapability } from "@/lib/security/rbac";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { isPostgresUniqueViolation } from "@/lib/server/postgres-errors";
 
-const schema = z.object({
-  model: z.string().min(2),
-  plate: z.string().min(7),
-  category: z.string().optional(),
-  capacity: z.number().int().optional(),
-  color: z.string().optional()
-});
-
 export async function POST(request: Request) {
   try {
     const session = await getSessionContext();
     assertCapability(session, "vehicle.write");
     const tenantId = assertTenantScope(session);
-    const body = schema.parse(await request.json());
-    const { data, error } = await db.from("vehicles").insert({ ...body, tenant_id: tenantId }).select("*").single();
+    const parsed = vehicleCadastroSchema.parse(await request.json());
+    const body = normalizeVehicleBody(parsed);
+    const { data, error } = await db
+      .from("vehicles")
+      .insert({ ...body, tenant_id: tenantId, active: body.active ?? true })
+      .select("*")
+      .single();
     if (error) {
       if (isPostgresUniqueViolation(error)) {
         return fail("VEHICLE_PLATE_CONFLICT", "Ja existe veiculo com esta placa", 409);

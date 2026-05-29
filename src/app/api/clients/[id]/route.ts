@@ -1,19 +1,12 @@
-import { z } from "zod";
 import { db } from "@/lib/server/db";
+import { clientCadastroSchema, normalizeClientPatch } from "@/lib/clients/client-cadastro-schema";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 
-const patchSchema = z.object({
-  type: z.enum(["PF", "PJ"]).optional(),
-  name: z.string().min(2).optional(),
-  document: z.string().nullable().optional(),
-  email: z.string().email().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  active: z.boolean().optional()
-});
+const patchSchema = clientCadastroSchema.partial();
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -21,9 +14,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     assertCapability(session, "client.write");
     const tenantId = assertTenantScope(session);
     const { id } = await params;
-    const body = patchSchema.parse(await request.json());
+    const parsed = patchSchema.parse(await request.json());
+    const updatePayload = normalizeClientPatch(parsed);
 
-    if (Object.keys(body).length === 0) {
+    if (Object.keys(updatePayload).length === 0) {
       return fail("INVALID_BODY", "Nenhum campo para actualizar", 400);
     }
 
@@ -37,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { data, error } = await db
       .from("clients")
-      .update(body)
+      .update(updatePayload)
       .eq("id", id)
       .eq("tenant_id", tenantId)
       .select("*")
@@ -48,7 +42,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     await insertAuditEvent({
       tenantId,
       actorUserId: session.userId,
-      action: body.active === false ? "client.deactivate" : "client.update",
+      action: parsed.active === false ? "client.deactivate" : "client.update",
       entityType: "client",
       entityId: id,
       metadata: { name: data.name, type: data.type },

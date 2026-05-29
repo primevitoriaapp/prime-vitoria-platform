@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { db } from "@/lib/server/db";
+import { driverCreateSchema, normalizeDriverBody } from "@/lib/drivers/driver-cadastro-schema";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
@@ -11,34 +11,26 @@ import {
   attachProfileNamesToDrivers
 } from "@/lib/vehicles/driver-default-vehicle";
 
-const schema = z.object({
-  profile_id: z.string().uuid(),
-  cpf: z.string().min(11),
-  cnh_number: z.string().optional(),
-  cnh_category: z.string().optional(),
-  cnh_expiry: z.string().optional(),
-  pix_key: z.string().optional(),
-  address: z.string().optional(),
-  notes: z.string().optional()
-});
-
 export async function POST(request: Request) {
   try {
     const session = await getSessionContext();
     assertCapability(session, "trip.write");
     const tenantId = assertTenantScope(session);
-    const body = schema.parse(await request.json());
+    const parsed = driverCreateSchema.parse(await request.json());
+    const { profile_name, profile_phone, ...rest } = parsed;
+    const body = normalizeDriverBody(rest);
+    const insertRow = { ...body, profile_id: parsed.profile_id, cpf: parsed.cpf.trim() };
 
     const { data: prof, error: pe } = await db
       .from("profiles")
       .select("tenant_id")
-      .eq("id", body.profile_id)
+      .eq("id", parsed.profile_id)
       .maybeSingle();
     if (pe || !prof || prof.tenant_id !== tenantId) {
       return fail("FORBIDDEN", "Perfil invalido ou de outra organizacao", 403);
     }
 
-    const { data, error } = await db.from("drivers").insert({ ...body, tenant_id: tenantId }).select("*").single();
+    const { data, error } = await db.from("drivers").insert({ ...insertRow, tenant_id: tenantId }).select("*").single();
 
     if (error) {
       if (isPostgresUniqueViolation(error)) {
@@ -52,10 +44,21 @@ export async function POST(request: Request) {
       action: "driver.create",
       entityType: "driver",
       entityId: data.id,
-      metadata: { profile_id: body.profile_id },
+      metadata: { profile_id: parsed.profile_id },
       request
     });
-    return ok(data, 201);
+    if (profile_name !== undefined || profile_phone !== undefined) {
+      const profileUpdate: Record<string, string | null> = {};
+      if (profile_name !== undefined) profileUpdate.name = profile_name.trim();
+      if (profile_phone !== undefined) {
+        const t = profile_phone?.trim();
+        profileUpdate.phone = t ? t : null;
+      }
+      await db.from("profiles").update(profileUpdate).eq("id", parsed.profile_id);
+    }
+
+    const [enriched] = await attachDefaultVehiclesToDrivers(await attachProfileNamesToDrivers([data]));
+    return ok(enriched, 201);
   } catch (error) {
     return mapApiError(error);
   }

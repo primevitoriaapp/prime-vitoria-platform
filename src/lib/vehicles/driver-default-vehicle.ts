@@ -1,11 +1,32 @@
 import { db } from "@/lib/server/db";
 
-export type VehicleSummary = { id: string; model: string; plate: string };
+export type VehicleSummary = {
+  id: string;
+  model: string;
+  plate: string;
+  brand?: string | null;
+  category?: string | null;
+  is_default?: boolean;
+};
 
-export async function resolveDefaultVehicleForDriver(driverId: string): Promise<VehicleSummary | null> {
-  const { data: link } = await db
+export type LinkedVehicle = VehicleSummary & { link_id: string };
+
+async function fetchDefaultLink(driverId: string) {
+  const { data: defaultLink } = await db
     .from("driver_vehicle_links")
-    .select("vehicle_id")
+    .select("vehicle_id, id")
+    .eq("driver_id", driverId)
+    .eq("active", true)
+    .is("end_at", null)
+    .eq("is_default", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (defaultLink?.vehicle_id) return defaultLink;
+
+  const { data: fallback } = await db
+    .from("driver_vehicle_links")
+    .select("vehicle_id, id")
     .eq("driver_id", driverId)
     .eq("active", true)
     .is("end_at", null)
@@ -13,16 +34,58 @@ export async function resolveDefaultVehicleForDriver(driverId: string): Promise<
     .limit(1)
     .maybeSingle();
 
+  return fallback;
+}
+
+export async function resolveDefaultVehicleForDriver(driverId: string): Promise<VehicleSummary | null> {
+  const link = await fetchDefaultLink(driverId);
   if (!link?.vehicle_id) return null;
 
   const { data: vehicle } = await db
     .from("vehicles")
-    .select("id, model, plate")
+    .select("id, model, plate, brand, category")
     .eq("id", link.vehicle_id)
     .eq("active", true)
     .maybeSingle();
 
-  return vehicle ?? null;
+  return vehicle ? { ...vehicle, is_default: true } : null;
+}
+
+export async function listLinkedVehiclesForDriver(driverId: string): Promise<LinkedVehicle[]> {
+  const { data: links } = await db
+    .from("driver_vehicle_links")
+    .select("id, vehicle_id, is_default")
+    .eq("driver_id", driverId)
+    .eq("active", true)
+    .is("end_at", null)
+    .order("is_default", { ascending: false })
+    .order("start_at", { ascending: false });
+
+  if (!links?.length) return [];
+
+  const vehicleIds = links.map((l) => l.vehicle_id);
+  const { data: vehicles } = await db
+    .from("vehicles")
+    .select("id, model, plate, brand, category, active")
+    .in("id", vehicleIds);
+
+  const byId = new Map((vehicles ?? []).map((v) => [v.id, v]));
+
+  const out: LinkedVehicle[] = [];
+  for (const link of links) {
+    const v = byId.get(link.vehicle_id);
+    if (!v || !v.active) continue;
+    out.push({
+      link_id: link.id,
+      id: v.id,
+      model: v.model,
+      plate: v.plate,
+      brand: v.brand,
+      category: v.category,
+      is_default: Boolean(link.is_default)
+    });
+  }
+  return out;
 }
 
 export async function attachProfileNamesToDrivers<T extends { profile_id: string }>(
@@ -42,51 +105,27 @@ export async function attachProfileNamesToDrivers<T extends { profile_id: string
 
 export async function attachDefaultVehiclesToDrivers<T extends { id: string }>(
   drivers: T[]
-): Promise<Array<T & { default_vehicle: VehicleSummary | null }>> {
+): Promise<Array<T & { default_vehicle: VehicleSummary | null; linked_vehicles: LinkedVehicle[] }>> {
   if (!drivers.length) return [];
 
-  const driverIds = drivers.map((d) => d.id);
-  const { data: links } = await db
-    .from("driver_vehicle_links")
-    .select("driver_id, vehicle_id")
-    .in("driver_id", driverIds)
-    .eq("active", true)
-    .is("end_at", null);
+  const enriched = await Promise.all(
+    drivers.map(async (driver) => {
+      const linked_vehicles = await listLinkedVehiclesForDriver(driver.id);
+      const default_vehicle = linked_vehicles.find((v) => v.is_default) ?? linked_vehicles[0] ?? null;
+      return { ...driver, default_vehicle, linked_vehicles };
+    })
+  );
 
-  const vehicleIds = [...new Set((links ?? []).map((l) => l.vehicle_id))];
-  const vehicleById = new Map<string, VehicleSummary>();
-
-  if (vehicleIds.length) {
-    const { data: vehicles } = await db
-      .from("vehicles")
-      .select("id, model, plate")
-      .in("id", vehicleIds)
-      .eq("active", true);
-    for (const v of vehicles ?? []) {
-      vehicleById.set(v.id, v);
-    }
-  }
-
-  const linkByDriver = new Map<string, string>();
-  for (const link of links ?? []) {
-    if (!linkByDriver.has(link.driver_id)) {
-      linkByDriver.set(link.driver_id, link.vehicle_id);
-    }
-  }
-
-  return drivers.map((driver) => {
-    const vehicleId = linkByDriver.get(driver.id);
-    const default_vehicle = vehicleId ? (vehicleById.get(vehicleId) ?? null) : null;
-    return { ...driver, default_vehicle };
-  });
+  return enriched;
 }
 
-export async function setDefaultVehicleForDriver(opts: {
+export async function linkVehicleToDriver(opts: {
   tenantId: string;
   driverId: string;
   vehicleId: string;
+  setDefault?: boolean;
 }): Promise<void> {
-  const { tenantId, driverId, vehicleId } = opts;
+  const { tenantId, driverId, vehicleId, setDefault = false } = opts;
 
   const { data: driver, error: driverErr } = await db
     .from("drivers")
@@ -109,20 +148,86 @@ export async function setDefaultVehicleForDriver(opts: {
     throw new Error("Veiculo nao encontrado ou inactivo");
   }
 
-  const now = new Date().toISOString();
+  const { data: existing } = await db
+    .from("driver_vehicle_links")
+    .select("id, active, end_at")
+    .eq("driver_id", driverId)
+    .eq("vehicle_id", vehicleId)
+    .order("start_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let linkId = existing?.id;
+
+  if (existing && (!existing.active || existing.end_at)) {
+    await db
+      .from("driver_vehicle_links")
+      .update({ active: true, end_at: null })
+      .eq("id", existing.id);
+  } else if (!existing) {
+    const { data: inserted, error: insertErr } = await db
+      .from("driver_vehicle_links")
+      .insert({ driver_id: driverId, vehicle_id: vehicleId, active: true })
+      .select("id")
+      .single();
+    if (insertErr) throw new Error(insertErr.message);
+    linkId = inserted.id;
+  }
+
+  if (setDefault && linkId) {
+    await markDefaultVehicleLink(driverId, linkId);
+  } else {
+    const { count } = await db
+      .from("driver_vehicle_links")
+      .select("id", { count: "exact", head: true })
+      .eq("driver_id", driverId)
+      .eq("active", true)
+      .is("end_at", null);
+    if (count === 1 && linkId) {
+      await markDefaultVehicleLink(driverId, linkId);
+    }
+  }
+}
+
+async function markDefaultVehicleLink(driverId: string, linkId: string) {
   await db
     .from("driver_vehicle_links")
-    .update({ active: false, end_at: now })
+    .update({ is_default: false })
     .eq("driver_id", driverId)
     .eq("active", true)
     .is("end_at", null);
 
-  const { error: insertErr } = await db.from("driver_vehicle_links").insert({
-    driver_id: driverId,
-    vehicle_id: vehicleId,
-    active: true
-  });
-  if (insertErr) {
-    throw new Error(insertErr.message);
-  }
+  await db.from("driver_vehicle_links").update({ is_default: true }).eq("id", linkId);
+}
+
+export async function setDefaultVehicleForDriver(opts: {
+  tenantId: string;
+  driverId: string;
+  vehicleId: string;
+}): Promise<void> {
+  await linkVehicleToDriver({ ...opts, setDefault: true });
+}
+
+export async function unlinkVehicleFromDriver(opts: {
+  tenantId: string;
+  driverId: string;
+  vehicleId: string;
+}): Promise<void> {
+  const { tenantId, driverId, vehicleId } = opts;
+  const { data: driver } = await db
+    .from("drivers")
+    .select("id")
+    .eq("id", driverId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!driver) throw new Error("Motorista nao encontrado");
+
+  const now = new Date().toISOString();
+  await db
+    .from("driver_vehicle_links")
+    .update({ active: false, end_at: now, is_default: false })
+    .eq("driver_id", driverId)
+    .eq("vehicle_id", vehicleId)
+    .eq("active", true)
+    .is("end_at", null);
 }
