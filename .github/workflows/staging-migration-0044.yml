@@ -1,0 +1,60 @@
+# Aplica migration 0044 (aditiva) no Postgres de staging — NÃO produção.
+# Secrets: STAGING_DATABASE_URL (connection string postgres do projeto Supabase de staging/preview)
+# Opcional: após apply, corre validação read-only.
+
+name: Staging migration 0044 (P1 cadastro)
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_apply:
+        description: "Só validar (true) sem executar SQL"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  migration-0044:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar secret STAGING_DATABASE_URL
+        run: |
+          if [ -z "${{ secrets.STAGING_DATABASE_URL }}" ]; then
+            echo "::error::Defina o secret STAGING_DATABASE_URL (Settings → Secrets → Actions)."
+            echo "Connection string: Supabase → Project Settings → Database → URI (modo session/direct)."
+            echo "Não usar produção. Não commitar a URL no repositório."
+            exit 1
+          fi
+
+      - name: Instalar psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Aplicar migration 0044 (aditiva, idempotente)
+        if: inputs.skip_apply != 'true'
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          bash scripts/apply-migration.sh supabase/migrations/0044_operational_cadastro_extend.sql
+          echo "Registar versão em schema_migrations (se ainda não existir)"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'EOSQL'
+          INSERT INTO supabase_migrations.schema_migrations (version, name, statements)
+          VALUES ('0044', 'operational_cadastro_extend', ARRAY[]::text[])
+          ON CONFLICT (version) DO NOTHING;
+          EOSQL
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Validação read-only migration 0044
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npm run db:validate-operational-0044

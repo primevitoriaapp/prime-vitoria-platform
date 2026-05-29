@@ -1,0 +1,107 @@
+# Validação P1 no preview/staging: DB 0044 + APIs + Playwright (cadastro + despacho).
+# Secrets: STAGING_DATABASE_URL, STAGING_BASE_URL, STAGING_E2E_PASSWORD,
+#           NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+#           SUPABASE_SERVICE_ROLE_KEY, VERCEL_AUTOMATION_BYPASS_SECRET
+
+name: Staging P1 validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_migration:
+        description: "Ignorar apply migration 0044 (já aplicada)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      base_url:
+        description: "URL preview (override)"
+        required: false
+        type: string
+
+jobs:
+  migration:
+    if: inputs.skip_migration != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply + validate 0044
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::STAGING_DATABASE_URL em falta"
+            exit 1
+          fi
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          bash scripts/apply-migration.sh supabase/migrations/0044_operational_cadastro_extend.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO supabase_migrations.schema_migrations (version, name, statements) VALUES ('0044', 'operational_cadastro_extend', ARRAY[]::text[]) ON CONFLICT (version) DO NOTHING;"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Validate 0044 read-only
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npm run db:validate-operational-0044
+
+  p1-ui:
+    needs: [migration]
+    if: ${{ always() && (inputs.skip_migration == 'true' || needs.migration.result == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Resolve preview URL
+        id: preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "${{ inputs.base_url }}" ]; then
+            echo "url=${{ inputs.base_url }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ secrets.STAGING_BASE_URL }}" ]; then
+            echo "url=${{ secrets.STAGING_BASE_URL }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=$(node scripts/resolve-vercel-preview-url.mjs)" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Validate migration via DATABASE_URL (read-only)
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npm run db:validate-operational-0044
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+      - name: P1 Playwright (staging)
+        env:
+          PLAYWRIGHT_STAGING: "1"
+          PLAYWRIGHT_BASE_URL: ${{ steps.preview.outputs.url }}
+          BASE_URL: ${{ steps.preview.outputs.url }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STAGING_E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          missing=""
+          [ -z "$PLAYWRIGHT_BASE_URL" ] && missing="$missing STAGING_BASE_URL"
+          [ -z "$STAGING_E2E_PASSWORD" ] && missing="$missing STAGING_E2E_PASSWORD"
+          [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] && missing="$missing NEXT_PUBLIC_SUPABASE_URL"
+          [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] && missing="$missing NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Secrets em falta:$missing"
+            exit 1
+          fi
+          npx playwright test e2e/p1-operational-cadastro-staging.spec.ts --reporter=github
+      - name: Upload P1 screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-staging-screenshots
+          path: artifacts/p1-staging/
+          if-no-files-found: ignore

@@ -24,6 +24,7 @@
     "db:reset": "npx supabase db reset",
     "db:push": "npx supabase db push",
     "db:validate-pricing-0041": "node scripts/validate-pricing-migration-readonly.mjs",
+    "db:validate-operational-0044": "node scripts/validate-operational-cadastro-0044-readonly.mjs",
     "db:migrate": "npx supabase migration up",
     "db:apply-migration": "bash scripts/apply-migration.sh",
     "seed:staging": "node scripts/seed-staging-operational.mjs",
