@@ -59,12 +59,37 @@ Valor cliente, valor motorista, margem, pago/pendente — **parcial** (`trip_fin
 
 ## Ordem de execução (engenharia)
 
-1. **Ambiente** — Vercel Preview, Supabase, seed, login (`docs/STAGING_PREVIEW_OFFICIAL.md`, `npm run staging:real-check`)  
-2. **Cadastro** — motorista completo; empresas = clientes PJ  
-3. **OS/corrida** — editar, cancelar, valores na ficha  
-4. **Operador + motorista + cliente** — polir fluxo ponta a ponta no celular  
-5. **Financeiro básico** na corrida (sem expandir ERP)  
-6. Reagendar / duplicar corrida  
+**Pré-requisito:** Preview + Supabase + seed + login (`staging:real-check` PASS).
+
+### Prioridade 1 — Cadastro operacional completo
+
+**Motoristas:** editar cadastro · telefone · WhatsApp · veículo vinculado · activar/inactivar  
+**Clientes (empresas contratantes):** criar · editar · activar/inactivar  
+**Veículos:** criar · editar · activar/inactivar  
+
+### Prioridade 2 — Corrida / OS
+
+Ficha mínima: empresa · passageiro · telefone · origem · destino · data · horário · observações · motorista · veículo · valor cliente · valor motorista  
+
+Acções: criar · editar · cancelar · reagendar  
+
+### Prioridade 3 — Fluxo motorista (celular)
+
+Corrida actual · próximas corridas · aceitar · em deslocamento · cheguei · passageiro embarcado · em andamento · finalizada  
+
+*Preparar Fase 2 (sem bloquear MVP):* aguardando passageiro · iniciar/encerrar espera · cobrança por tempo parado  
+
+### Prioridade 4 — Financeiro operacional (na corrida)
+
+Valor cliente · valor motorista · margem · pago · pendente — **sem expandir ERP**  
+
+### Prioridade 5 — Validação real (critério final)
+
+Operador cria → despacha → motorista recebe/aceita/executa → cliente acompanha → pricing calcula → histórico grava — **celular + UI**, sem UUID, consola ou API manual  
+
+### Fase 2 (depois do MVP validado)
+
+Bandeira 1/2 · aguardando passageiro · tempo parado · retomada GPS · melhorias financeiras · push/PWA avançado  
 
 ## Critério de “MVP validado”
 
