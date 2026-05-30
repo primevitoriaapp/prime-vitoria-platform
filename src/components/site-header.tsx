@@ -39,7 +39,7 @@ export function SiteHeader() {
   }, []);
 
   const role = session?.role;
-  const isBackoffice = role === "admin" || role === "operador" || role === "financeiro";
+  const isOperadorBackoffice = role === "admin" || role === "operador";
 
   return (
     <header
@@ -58,16 +58,22 @@ export function SiteHeader() {
         Prime Vitória
       </Link>
       <nav style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, flexWrap: "wrap" }}>
-        {isBackoffice ? (
+        {isOperadorBackoffice ? (
           <>
             <Link href="/dashboard">Painel</Link>
             <Link href="/agenda">Agenda</Link>
             <Link href="/clients">Clientes</Link>
             <Link href="/drivers">Motoristas</Link>
             <Link href="/vehicles">Veículos</Link>
-            {(role === "admin" || role === "operador") && <Link href="/users">Utilizadores</Link>}
-            <Link href="/audit">Auditoria</Link>
+            {role === "admin" || role === "operador" ? <Link href="/users">Utilizadores</Link> : null}
             <Link href="/dispatch">Despacho</Link>
+            {role === "admin" ? <Link href="/finance">Financeiro</Link> : null}
+          </>
+        ) : null}
+        {role === "financeiro" ? (
+          <>
+            <Link href="/finance">Financeiro</Link>
+            <Link href="/audit">Auditoria</Link>
           </>
         ) : null}
         {role === "motorista" ? <Link href="/driver">Motorista</Link> : null}

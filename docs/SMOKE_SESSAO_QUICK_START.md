@@ -28,8 +28,10 @@ Opcional no Preview: `NEXT_PUBLIC_STAGING_SMOKE_HINTS=true` — atalho para corr
 | Papel | Email | Entrada |
 |-------|-------|---------|
 | Operador | `staging-operador@example.com` | `/login?next=/agenda` |
+| Financeiro | `staging-financeiro@example.com` | `/login?next=/finance` |
 | Motorista | `staging-motorista@example.com` | `/login?next=/driver` |
 | Cliente | `staging-cliente@example.com` | `/login?next=/client` |
+| Admin | `staging-admin@example.com` | `/login?next=/dashboard` |
 
 ---
 

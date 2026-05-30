@@ -4,6 +4,7 @@ import { isStagingSmokeHintsEnabled } from "@/lib/staging/smoke-hints";
 
 const STAGING_ACCOUNTS = [
   { label: "Operador", email: "staging-operador@example.com", next: "/agenda" },
+  { label: "Financeiro", email: "staging-financeiro@example.com", next: "/finance" },
   { label: "Motorista", email: "staging-motorista@example.com", next: "/driver" },
   { label: "Cliente", email: "staging-cliente@example.com", next: "/client" },
   { label: "Admin", email: "staging-admin@example.com", next: "/dashboard" }
