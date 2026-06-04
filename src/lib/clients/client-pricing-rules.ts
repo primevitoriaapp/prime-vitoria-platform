@@ -1,0 +1,120 @@
+import { db } from "@/lib/server/db";
+import type { PrimeChargeType } from "@/lib/pricing/prime-price-estimate";
+import { normalizePrimeServiceType } from "@/lib/pricing/prime-service-types";
+
+export type ClientPricingRuleRow = {
+  id: string;
+  client_id: string;
+  tenant_id: string;
+  service_type: string;
+  charge_type: PrimeChargeType;
+  price_per_km: number | null;
+  min_km: number | null;
+  fixed_price: number | null;
+  driver_price_per_km: number | null;
+  driver_min_km: number | null;
+  driver_fixed_price: number | null;
+  wait_tolerance_minutes: number;
+  wait_price_per_hour: number | null;
+  active: boolean;
+};
+
+export type ClientPricingRuleInput = {
+  service_type: string;
+  charge_type: PrimeChargeType;
+  price_per_km?: number | null;
+  min_km?: number | null;
+  fixed_price?: number | null;
+  driver_price_per_km?: number | null;
+  driver_min_km?: number | null;
+  driver_fixed_price?: number | null;
+  active?: boolean;
+};
+
+export async function listClientPricingRules(
+  clientId: string,
+  tenantId: string
+): Promise<ClientPricingRuleRow[]> {
+  const { data, error } = await db
+    .from("client_pricing_rules")
+    .select("*")
+    .eq("client_id", clientId)
+    .eq("tenant_id", tenantId)
+    .order("service_type");
+
+  if (error || !data) return [];
+  return data as ClientPricingRuleRow[];
+}
+
+export async function getClientPricingRule(
+  clientId: string,
+  tenantId: string,
+  serviceType: string
+): Promise<ClientPricingRuleRow | null> {
+  const key = normalizePrimeServiceType(serviceType);
+  const { data, error } = await db
+    .from("client_pricing_rules")
+    .select("*")
+    .eq("client_id", clientId)
+    .eq("tenant_id", tenantId)
+    .eq("service_type", key)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as ClientPricingRuleRow;
+}
+
+function rowFromInput(clientId: string, tenantId: string, body: ClientPricingRuleInput) {
+  const service_type = normalizePrimeServiceType(body.service_type);
+  const perKm = body.charge_type === "per_km";
+  const fixedLike = body.charge_type === "fixed" || body.charge_type === "daily";
+
+  return {
+    tenant_id: tenantId,
+    client_id: clientId,
+    service_type,
+    charge_type: body.charge_type,
+    price_per_km: perKm ? body.price_per_km ?? null : null,
+    min_km: perKm ? body.min_km ?? null : null,
+    fixed_price: fixedLike || body.charge_type === "hourly" ? body.fixed_price ?? null : null,
+    driver_price_per_km: perKm ? body.driver_price_per_km ?? null : null,
+    driver_min_km: perKm ? body.driver_min_km ?? body.min_km ?? null : null,
+    driver_fixed_price: fixedLike ? body.driver_fixed_price ?? null : null,
+    wait_tolerance_minutes: 10,
+    wait_price_per_hour: null,
+    active: body.active !== false,
+    updated_at: new Date().toISOString()
+  };
+}
+
+export async function upsertClientPricingRule(
+  clientId: string,
+  tenantId: string,
+  body: ClientPricingRuleInput
+): Promise<{ data: ClientPricingRuleRow | null; error: Error | null }> {
+  const row = rowFromInput(clientId, tenantId, body);
+  const { data, error } = await db
+    .from("client_pricing_rules")
+    .upsert(row, { onConflict: "client_id,service_type" })
+    .select("*")
+    .single();
+
+  if (error) return { data: null, error: new Error(error.message) };
+  return { data: data as ClientPricingRuleRow, error: null };
+}
+
+export async function upsertClientPricingRulesBatch(
+  clientId: string,
+  tenantId: string,
+  rules: ClientPricingRuleInput[]
+): Promise<{ data: ClientPricingRuleRow[]; error: Error | null }> {
+  const rows = rules.map((r) => rowFromInput(clientId, tenantId, r));
+  const { data, error } = await db
+    .from("client_pricing_rules")
+    .upsert(rows, { onConflict: "client_id,service_type" })
+    .select("*");
+
+  if (error) return { data: [], error: new Error(error.message) };
+  return { data: (data ?? []) as ClientPricingRuleRow[], error: null };
+}

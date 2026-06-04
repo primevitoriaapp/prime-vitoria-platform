@@ -21,6 +21,7 @@ import {
   type ServiceRegionId
 } from "@/lib/drivers/driver-ficha-options";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { DriverPayoutTableSection } from "@/components/driver-payout-table-section";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 type LinkedVehicle = {
@@ -364,8 +365,6 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       bank_account_type: trim(detail.bank_account_type),
       payee_name: trim(detail.payee_name),
       payee_document: trim(detail.payee_document),
-      payout_price_per_km: detail.payout_price_per_km ?? null,
-      payout_percent: detail.payout_percent ?? null,
       notes: trim(detail.notes)
     };
 
@@ -793,40 +792,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           </label>
         </fieldset>
 
-        <fieldset className="grid gap-3 md:grid-cols-2">
-          <legend className="mb-2 text-sm font-semibold text-slate-800 md:col-span-2">Repasse financeiro</legend>
-          <p className="text-xs text-slate-600 md:col-span-2">
-            Usado pelo motor de precificação no repasse ao motorista. Se informar valor por km, ele tem prioridade sobre o
-            percentual.
-          </p>
-          <label className="grid gap-1 text-sm">
-            <span>Valor por km repassado ao motorista (R$)</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className={inputClass}
-              value={detail.payout_price_per_km ?? ""}
-              onChange={(e) =>
-                patchDetail("payout_price_per_km", e.target.value === "" ? null : Number(e.target.value))
-              }
-            />
-          </label>
-          <label className="grid gap-1 text-sm">
-            <span>Percentual de repasse por corrida (%)</span>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              className={inputClass}
-              value={detail.payout_percent ?? ""}
-              onChange={(e) =>
-                patchDetail("payout_percent", e.target.value === "" ? null : Number(e.target.value))
-              }
-            />
-          </label>
-        </fieldset>
+        <DriverPayoutTableSection driverId={detail.id} disabled={busy} />
 
         <button
           type="submit"

@@ -24,6 +24,9 @@ export type ClientPricingConfigRow = ClientPricingConfigInput & {
   client_id: string;
   tenant_id: string;
   active: boolean;
+  driver_price_per_km?: number | null;
+  driver_min_km?: number | null;
+  driver_fixed_price?: number | null;
 };
 
 const CHARGE_TO_CALC: Record<ClientChargeType, PricingCalculationType> = {
@@ -63,7 +66,17 @@ export function clientPricingRowToEngineRule(
       source: "client_pricing_rules",
       wait_tolerance_minutes: row.wait_tolerance_minutes,
       wait_price_per_hour: row.wait_price_per_hour,
-      charge_type: row.charge_type
+      charge_type: row.charge_type,
+      driver:
+        row.charge_type === "per_km" && row.driver_price_per_km != null
+          ? {
+              calculation_type: "km_with_minimum",
+              price_per_km: row.driver_price_per_km,
+              minimum_km: row.driver_min_km ?? row.min_km
+            }
+          : row.charge_type !== "per_km" && row.driver_fixed_price != null
+            ? { calculation_type: "fixed_price", fixed_price: row.driver_fixed_price }
+            : undefined
     }
   };
 }

@@ -6,6 +6,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { normalizePrimeServiceType } from "@/lib/pricing/prime-service-types";
 import { enrichTripItemsWithVehicles } from "@/lib/trips/enrich-trip-vehicles";
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 
@@ -30,7 +31,10 @@ const createTripSchema = z.object({
   dispatch_mode: z.enum(["directed", "offer"]).default("directed"),
   passenger_name: z.string().optional(),
   passenger_phone: z.string().optional(),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  client_amount: z.coerce.number().nonnegative().optional(),
+  driver_amount: z.coerce.number().nonnegative().optional(),
+  margin: z.coerce.number().optional()
 });
 
 function mapTripError(error: unknown) {
@@ -72,13 +76,23 @@ export async function POST(request: Request) {
       return fail("FORBIDDEN", "Cliente nao pertence a esta organizacao", 403);
     }
 
+    const serviceType = normalizePrimeServiceType(body.service_type);
+    const clientAmount = body.client_amount ?? null;
+    const driverAmount = body.driver_amount ?? null;
+    const margin =
+      body.margin != null
+        ? body.margin
+        : clientAmount != null && driverAmount != null
+          ? Math.round((clientAmount - driverAmount) * 100) / 100
+          : null;
+
     const { data, error } = await db
       .from("trips")
       .insert({
         client_id: body.client_id,
         requester_id: body.requester_id ?? null,
         cost_center_id: body.cost_center_id ?? null,
-        service_type: body.service_type,
+        service_type: serviceType,
         scheduled_at: body.scheduled_at,
         origin_text: body.origin_text,
         origin_lat: body.origin_lat,
@@ -90,6 +104,9 @@ export async function POST(request: Request) {
         passenger_name: body.passenger_name ?? null,
         passenger_phone: body.passenger_phone ?? null,
         notes: body.notes ?? null,
+        client_amount: clientAmount,
+        driver_amount: driverAmount,
+        margin,
         tenant_id: tenantId,
         created_by: session.userId,
         operational_status: "requested"
@@ -99,6 +116,19 @@ export async function POST(request: Request) {
 
     if (error) {
       return fail("TRIP_CREATE_FAILED", error.message, 500);
+    }
+
+    if (clientAmount != null && driverAmount != null) {
+      const netMargin = margin ?? clientAmount - driverAmount;
+      await db.from("trip_financials").upsert(
+        {
+          trip_id: data.id,
+          amount_client: clientAmount,
+          amount_driver: driverAmount,
+          net_margin: netMargin
+        },
+        { onConflict: "trip_id" }
+      );
     }
 
     await insertAuditEvent({

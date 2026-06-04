@@ -44,7 +44,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const { data: client } = await db.from("clients").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
     if (!client) return fail("CLIENT_NOT_FOUND", "Cliente não encontrado", 404);
 
-    const { data, error } = await upsertClientPricingConfig(id, tenantId, body);
+    const { data, error } = await upsertClientPricingConfig(id, tenantId, {
+      ...body,
+      service_type: body.service_type ?? "default"
+    });
     if (error) {
       if (/client_pricing_rules|relation/i.test(error.message)) {
         return fail(
