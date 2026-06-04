@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f172a",
+  themeColor: "#0F0F0F",
   width: "device-width",
   initialScale: 1
 };
@@ -16,7 +16,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body>
+      <body className="prime-theme">
         <SiteHeader />
         {children}
       </body>

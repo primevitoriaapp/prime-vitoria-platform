@@ -62,16 +62,16 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   const driverKey = selectedDriverId ?? "none";
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="prime-theme min-h-screen bg-prime-bg text-prime-text">
       <OperationalRealtimeBridge tenantId={tenantId} />
-      <header className="border-b border-slate-800">
+      <header className="border-b border-prime-input-border bg-prime-bg">
         <div className="mx-auto flex max-w-lg flex-wrap items-center justify-between gap-4 px-4 py-4 md:max-w-3xl lg:max-w-5xl">
           <BrandLogo subtitle="MOTORISTA" compact />
           {mode === "admin" ? (
-            <label className="grid gap-1 text-xs text-slate-400">
+            <label className="grid gap-1 text-xs text-prime-muted">
               <span>Motorista em preview</span>
               <select
-                className="min-w-[12rem] rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
+                className="prime-input min-w-[12rem] py-1.5"
                 value={selectedDriverId ?? ""}
                 onChange={(e) => onDriverChange(e.target.value)}
               >

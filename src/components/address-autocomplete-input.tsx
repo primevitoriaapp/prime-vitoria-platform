@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 export type AddressPlaceSelection = {
   displayName: string;
@@ -32,7 +33,7 @@ type Props = {
   devFallbackRole?: "admin" | "operador" | "motorista" | "cliente";
 };
 
-const inputClass = "rounded border border-slate-300 px-2 py-2 w-full text-sm";
+const inputClass = PRIME_INPUT_CLASS;
 const DEBOUNCE_MS = 500;
 const MIN_CHARS = 3;
 
@@ -177,7 +178,7 @@ export function AddressAutocompleteInput({
 
   return (
     <div ref={wrapRef} className={`relative grid gap-1 text-sm ${className}`}>
-      <label htmlFor={inputId} className="font-medium text-slate-800">
+      <label htmlFor={inputId} className="font-medium text-prime-text">
         {label}
       </label>
       <input

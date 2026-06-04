@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DriverFichaPanel } from "@/components/driver-ficha-panel";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 type LinkedVehicle = {
   link_id: string;
@@ -33,7 +34,7 @@ type FormFeedback = {
   hint?: string;
 };
 
-const inputClass = "rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 w-full text-sm text-slate-100";
+const inputClass = PRIME_INPUT_CLASS;
 
 function driverInitials(name: string | null | undefined): string {
   const parts = (name ?? "M").trim().split(/\s+/).filter(Boolean);

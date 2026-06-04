@@ -73,10 +73,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     assertCapability(session, "trip.write");
     const tenantId = assertTenantScope(session);
     const { id } = await params;
-    const parsed = patchSchema.parse(await request.json());
+    const rawBody = await request.json();
+    console.log("[drivers PATCH] body recebido", { driverId: id, tenantId, body: rawBody });
+
+    const parsed = patchSchema.parse(rawBody);
     const { profile_name, profile_phone, cpf, ...driverFields } = parsed;
 
     const updateRow = normalizeDriverBody(driverFields) as Record<string, unknown>;
+    console.log("[drivers PATCH] updateRow normalizado", { driverId: id, updateRow });
 
     if (cpf !== undefined) updateRow.cpf = cpf.trim();
     if (profile_name !== undefined) updateRow.full_name = profile_name.trim();
@@ -101,6 +105,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .maybeSingle();
 
     if (loadErr) {
+      console.log("[drivers PATCH] erro Supabase (load)", loadErr);
       return fail("DRIVER_LOAD_FAILED", loadErr.message, 500, loadErr.hint ?? loadErr.details ?? undefined);
     }
     if (!existing) return fail("DRIVER_NOT_FOUND", "Motorista não encontrado", 404);
@@ -117,6 +122,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         .update(profileUpdate)
         .eq("id", existing.profile_id);
       if (profileErr) {
+        console.log("[drivers PATCH] erro Supabase (profile)", profileErr);
         return fail("PROFILE_UPDATE_FAILED", profileErr.message, 500, profileErr.hint ?? profileErr.details ?? undefined);
       }
     }
@@ -130,6 +136,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .single();
 
     if (error) {
+      console.log("[drivers PATCH] erro Supabase (drivers.update)", error);
       const hint = [error.hint, error.details, error.code].filter(Boolean).join(" — ");
       return fail("DRIVER_UPDATE_FAILED", error.message, 500, hint || undefined);
     }
@@ -149,6 +156,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     return ok(enriched);
   } catch (error) {
+    console.log("[drivers PATCH] excepção", error);
     return mapApiError(error);
   }
 }

@@ -3,19 +3,34 @@
 @tailwind utilities;
 
 @import "leaflet/dist/leaflet.css";
+@import "../styles/prime-theme.css";
 
 @layer base {
   :root {
-    color-scheme: light;
+    color-scheme: dark;
   }
 
   body {
-    @apply m-0 bg-slate-100 text-slate-900 antialiased;
+    @apply m-0 antialiased;
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+
+  body.prime-theme {
+    background-color: #0f0f0f;
+    color: #f5f5f5;
+  }
+
+  body:not(.prime-theme) {
+    @apply bg-slate-100 text-slate-900;
   }
 
   main {
     @apply p-5;
+  }
+
+  .prime-theme main,
+  .admin-theme main {
+    @apply p-0;
   }
 }
 
@@ -29,60 +44,27 @@
     @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm;
   }
 
+  .prime-theme .card,
   .admin-theme .card {
-    @apply rounded-xl border border-slate-800/90 bg-slate-900/50 p-4 shadow-none;
-  }
-
-  .admin-theme main {
-    @apply p-0;
-  }
-
-  .admin-theme h1,
-  .admin-theme h2,
-  .admin-theme h3 {
-    @apply text-white;
-  }
-
-  .admin-theme .card h2,
-  .admin-theme .card h3 {
-    @apply text-slate-100;
-  }
-
-  .admin-theme .card small,
-  .admin-theme .card p.text-slate-600,
-  .admin-theme .text-slate-600 {
-    @apply text-slate-400;
-  }
-
-  .admin-theme .card .text-slate-900,
-  .admin-theme .font-medium.text-slate-900 {
-    @apply text-slate-100;
-  }
-
-  .admin-theme input:not([type="checkbox"]):not([type="radio"]),
-  .admin-theme select,
-  .admin-theme textarea {
-    @apply border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500;
-  }
-
-  .admin-theme table thead {
-    @apply text-slate-400;
-  }
-
-  .admin-theme table tbody tr {
-    @apply border-slate-800;
-  }
-
-  .admin-theme .divide-slate-100 > * {
-    @apply border-slate-800;
+    @apply rounded-prime-card border-prime-input-border bg-prime-card p-4 text-prime-text shadow-prime-card;
   }
 
   .btn-primary {
-    @apply rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-amber-400 disabled:opacity-50;
+    @apply rounded-prime bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-amber-400 disabled:opacity-50;
+  }
+
+  .prime-theme .btn-primary,
+  .admin-theme .btn-primary {
+    @apply rounded-prime bg-prime-gold px-4 py-2 text-sm font-bold text-prime-bg hover:bg-prime-gold-hover disabled:opacity-50;
   }
 
   .btn-outline {
-    @apply rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:border-amber-500/50 hover:bg-slate-800;
+    @apply rounded-prime border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:border-amber-500/50 hover:bg-slate-800;
+  }
+
+  .prime-theme .btn-outline,
+  .admin-theme .btn-outline {
+    @apply rounded-prime border border-prime-gold bg-transparent px-4 py-2 text-sm text-prime-gold hover:border-prime-gold-hover hover:bg-prime-gold/10;
   }
 
   .badge {

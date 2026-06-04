@@ -5,6 +5,7 @@ import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
 import { ClientBillingConfigSection } from "@/components/client-billing-config-section";
 import { CLIENT_SERVICE_TYPE_OPTIONS, type ClientServiceTypeId } from "@/lib/clients/client-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 export type ClientFormValues = {
   type: "PF" | "PJ";
@@ -42,7 +43,7 @@ const emptyForm = (): ClientFormValues => ({
   service_types: []
 });
 
-const inputClass = "rounded border border-slate-300 px-2 py-2 w-full";
+const inputClass = PRIME_INPUT_CLASS;
 
 type FormFeedback = {
   kind: "success" | "error" | "info";

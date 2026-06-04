@@ -1,0 +1,197 @@
+/**
+ * Prime Vitória — identidade visual (preto profundo + dourado #C9A84C).
+ * Aplicado via classe .prime-theme no <body>.
+ */
+.prime-theme,
+.admin-theme {
+  --prime-bg: #0f0f0f;
+  --prime-card-bg: #1a1a1a;
+  --prime-input-bg: #1e1e1e;
+  --prime-input-border: #2e2e2e;
+  --prime-gold: #c9a84c;
+  --prime-gold-hover: #e2b95a;
+  --prime-text: #f5f5f5;
+  --prime-text-muted: #888888;
+  --prime-sidebar-bg: #111111;
+  --prime-sidebar-hover: #1f1f1f;
+  --prime-status-green: #2e7d32;
+  --prime-status-red: #c62828;
+  --prime-status-amber: #f57f17;
+  --prime-radius-btn: 8px;
+  --prime-radius-card: 12px;
+  --prime-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --prime-border-subtle: #2e2e2e;
+
+  color-scheme: dark;
+  background-color: var(--prime-bg);
+  color: var(--prime-text);
+}
+
+.prime-theme h1,
+.prime-theme h2,
+.prime-theme h3,
+.admin-theme h1,
+.admin-theme h2,
+.admin-theme h3 {
+  font-family: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  color: var(--prime-text);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Inputs — nunca fundo branco */
+.prime-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+.prime-theme select,
+.prime-theme textarea,
+.admin-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+.admin-theme select,
+.admin-theme textarea {
+  background-color: var(--prime-input-bg) !important;
+  color: var(--prime-text) !important;
+  border-color: var(--prime-input-border) !important;
+}
+
+.prime-theme input::placeholder,
+.prime-theme textarea::placeholder,
+.admin-theme input::placeholder,
+.admin-theme textarea::placeholder {
+  color: var(--prime-text-muted) !important;
+}
+
+.prime-input {
+  border-radius: var(--prime-radius-btn);
+  border: 1px solid var(--prime-input-border);
+  background-color: var(--prime-input-bg);
+  color: var(--prime-text);
+  padding: 0.5rem 0.625rem;
+  width: 100%;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.prime-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--prime-gold) 45%, transparent);
+  outline-offset: 1px;
+  border-color: var(--prime-gold);
+}
+
+.prime-theme .card,
+.admin-theme .card {
+  border-radius: var(--prime-radius-card);
+  border: 1px solid var(--prime-border-subtle);
+  background-color: var(--prime-card-bg);
+  color: var(--prime-text);
+  box-shadow: var(--prime-card-shadow);
+  padding: 1rem;
+}
+
+.prime-theme .btn-primary,
+.admin-theme .btn-primary {
+  border-radius: var(--prime-radius-btn);
+  background-color: var(--prime-gold);
+  color: var(--prime-bg);
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border: none;
+  transition: background-color 0.15s ease;
+}
+
+.prime-theme .btn-primary:hover:not(:disabled),
+.admin-theme .btn-primary:hover:not(:disabled) {
+  background-color: var(--prime-gold-hover);
+}
+
+.prime-theme .btn-outline,
+.admin-theme .btn-outline {
+  border-radius: var(--prime-radius-btn);
+  border: 1px solid var(--prime-gold);
+  color: var(--prime-gold);
+  background: transparent;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.prime-theme .btn-outline:hover:not(:disabled),
+.admin-theme .btn-outline:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--prime-gold) 12%, transparent);
+  color: var(--prime-gold-hover);
+  border-color: var(--prime-gold-hover);
+}
+
+.prime-theme .text-slate-600,
+.prime-theme .text-slate-500,
+.prime-theme small,
+.admin-theme .text-slate-600,
+.admin-theme .text-slate-500,
+.admin-theme small {
+  color: var(--prime-text-muted);
+}
+
+.prime-theme .text-slate-900,
+.prime-theme .font-medium.text-slate-900,
+.admin-theme .text-slate-900,
+.admin-theme .font-medium.text-slate-900 {
+  color: var(--prime-text);
+}
+
+.prime-theme .bg-white,
+.admin-theme .bg-white {
+  background-color: var(--prime-card-bg) !important;
+  color: var(--prime-text);
+}
+
+.prime-theme .border-slate-200,
+.prime-theme .border-slate-300,
+.admin-theme .border-slate-200,
+.admin-theme .border-slate-300 {
+  border-color: var(--prime-border-subtle) !important;
+}
+
+.prime-theme table thead,
+.admin-theme table thead {
+  color: var(--prime-text-muted);
+}
+
+.prime-theme table tbody tr,
+.admin-theme table tbody tr {
+  border-color: var(--prime-border-subtle);
+}
+
+.prime-theme .divide-slate-100 > *,
+.admin-theme .divide-slate-100 > * {
+  border-color: var(--prime-border-subtle);
+}
+
+.prime-nav-active {
+  border: 1px solid color-mix(in srgb, var(--prime-gold) 40%, transparent);
+  background: color-mix(in srgb, var(--prime-gold) 12%, transparent);
+  color: var(--prime-gold);
+  font-weight: 600;
+}
+
+.prime-nav-item {
+  border: 1px solid transparent;
+  color: var(--prime-text-muted);
+}
+
+.prime-nav-item:hover {
+  background: var(--prime-sidebar-hover);
+  color: var(--prime-text);
+}
+
+.prime-badge-green {
+  background: color-mix(in srgb, var(--prime-status-green) 25%, transparent);
+  color: #a5d6a7;
+}
+
+.prime-badge-red {
+  background: color-mix(in srgb, var(--prime-status-red) 25%, transparent);
+  color: #ef9a9a;
+}
+
+.prime-badge-amber {
+  background: color-mix(in srgb, var(--prime-status-amber) 25%, transparent);
+  color: #ffe082;
+}

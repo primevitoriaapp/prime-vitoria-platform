@@ -23,7 +23,7 @@ export default async function DriverPage() {
 
   if (!isMotorista && !isAdminPreview) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="min-h-screen bg-prime-bg text-slate-100">
         <main className="mx-auto max-w-lg px-5 py-16">
           <p className="text-xs uppercase tracking-widest text-amber-500/90">Prime Vitória</p>
           <h1 className="mt-2 text-2xl font-semibold text-white">App motorista</h1>
@@ -58,7 +58,7 @@ export default async function DriverPage() {
   const initialDrivers = isAdminPreview ? await loadDriversForAdmin() : [];
 
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-950" />}>
+    <Suspense fallback={<div className="min-h-screen bg-prime-bg" />}>
       <DriverAppShell
         tenantId={tenantId}
         mode={isAdminPreview ? "admin" : "motorista"}

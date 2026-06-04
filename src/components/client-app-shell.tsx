@@ -83,7 +83,7 @@ export function ClientAppShell({
         : `Olá — aqui está a visão da operação executiva da ${clientName}.`;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="prime-theme min-h-screen bg-prime-bg text-prime-text">
       <OperationalRealtimeBridge tenantId={tenantId} />
       <header className="border-b border-slate-800">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-4">

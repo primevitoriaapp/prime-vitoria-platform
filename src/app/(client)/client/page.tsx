@@ -20,7 +20,7 @@ export default async function ClientPage() {
 
   if (!isCliente && !isAdminPreview) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="min-h-screen bg-prime-bg text-slate-100">
         <main className="mx-auto max-w-lg px-5 py-16">
           <p className="text-xs uppercase tracking-widest text-amber-500/90">Prime Vitória</p>
           <h1 className="mt-2 font-serif text-2xl text-white">Portal corporativo</h1>
@@ -64,7 +64,7 @@ export default async function ClientPage() {
   const initialClients = isAdminPreview ? await loadClientsForAdmin() : [];
 
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-950" />}>
+    <Suspense fallback={<div className="min-h-screen bg-prime-bg" />}>
       <ClientAppShell
         tenantId={tenantId}
         mode={isAdminPreview ? "admin" : "cliente"}

@@ -16,7 +16,7 @@ export function DriverBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800 bg-slate-950/95 backdrop-blur md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-prime-input-border bg-prime-bg/95 backdrop-blur md:hidden"
       aria-label="Navegação motorista"
     >
       <ul className="mx-auto flex max-w-lg justify-around px-2 py-2">
@@ -24,7 +24,7 @@ export function DriverBottomNav() {
           <li key={tab.id}>
             <Link
               href={tab.href}
-              className="flex min-w-[4rem] flex-col items-center gap-0.5 rounded-lg px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 hover:text-amber-400"
+              className="flex min-w-[4rem] flex-col items-center gap-0.5 rounded-lg px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-prime-muted hover:text-prime-gold"
             >
               <span className="text-base leading-none" aria-hidden>
                 {tab.icon}

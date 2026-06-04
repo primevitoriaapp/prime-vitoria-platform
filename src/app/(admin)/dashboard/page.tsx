@@ -63,15 +63,15 @@ export default async function DashboardPage() {
         <section className="card mt-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">Auditoria recente</h2>
-            <Link href="/audit" className="text-sm font-medium text-amber-400 hover:underline">
+            <Link href="/audit" className="text-sm font-medium text-prime-gold hover:underline">
               Ver tudo
             </Link>
           </div>
-          <ul className="mt-3 divide-y divide-slate-800 text-sm">
+          <ul className="mt-3 divide-y divide-prime-input-border text-sm">
             {auditItems.map((row) => (
-              <li key={row.id} className="flex flex-wrap gap-2 py-2 text-slate-300">
-                <span className="font-mono text-xs text-slate-500">{formatBrDateTime(row.created_at)}</span>
-                <span className="font-medium text-amber-400">{row.action}</span>
+              <li key={row.id} className="flex flex-wrap gap-2 py-2 text-prime-text">
+                <span className="font-mono text-xs text-prime-muted">{formatBrDateTime(row.created_at)}</span>
+                <span className="font-medium text-prime-gold">{row.action}</span>
                 <span>
                   {row.entity_type}
                   {row.entity_id ? ` · ${row.entity_id.slice(0, 8)}…` : ""}

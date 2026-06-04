@@ -9,7 +9,9 @@ import {
 } from "@/lib/clients/client-pricing-config";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
-const inputClass = "rounded border border-slate-300 px-2 py-2 w-full text-sm";
+import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
+
+const inputClass = PRIME_INPUT_CLASS;
 
 type Props = {
   clientId: string;

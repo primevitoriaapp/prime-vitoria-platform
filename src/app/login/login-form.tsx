@@ -14,7 +14,7 @@ export function LoginForm({ defaultNext }: { defaultNext?: string }) {
   return (
     <section className="card" style={{ maxWidth: 420 }}>
       <h1>Entrar</h1>
-      <p style={{ fontSize: 14, color: "#475569" }}>Use a conta Supabase (email e senha).</p>
+      <p className="text-sm text-prime-muted">Use a conta Supabase (email e senha).</p>
       {isStagingSmokeHintsEnabled() ? (
         <p style={{ fontSize: 12, marginTop: 8 }}>
           <Link href="/p1-homologacao" style={{ color: "#6d28d9", textDecoration: "underline" }}>

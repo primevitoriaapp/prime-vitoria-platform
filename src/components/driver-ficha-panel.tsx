@@ -21,6 +21,7 @@ import {
   type ServiceRegionId
 } from "@/lib/drivers/driver-ficha-options";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 type LinkedVehicle = {
   link_id: string;
@@ -82,7 +83,7 @@ type FormFeedback = {
   hint?: string;
 };
 
-const inputClass = "rounded border border-slate-300 px-2 py-2 w-full text-sm";
+const inputClass = PRIME_INPUT_CLASS;
 
 async function parseApiResponse(res: Response) {
   const text = await res.text();
@@ -370,7 +371,8 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
 
     try {
       const url = `/api/drivers/${detail.id}`;
-      console.info("[DriverFicha] PATCH request", { url, driverId: detail.id, body: patchBody });
+      console.log("[DriverFicha] PATCH body enviado", patchBody);
+      console.log("[DriverFicha] PATCH URL", url, "driverId", detail.id);
 
       const res = await fetchWithSupabaseSession(
         url,
@@ -394,14 +396,10 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
         };
       }
 
-      console.info("[DriverFicha] PATCH response", {
-        status: res.status,
-        ok: res.ok,
-        body: json
-      });
+      console.log("[DriverFicha] PATCH response status", res.status, "body", json);
 
       if (!res.ok || !json.success) {
-        console.error("[DriverFicha] PATCH failed", json.error);
+        console.log("[DriverFicha] PATCH erro", json.error);
         setFeedback({
           kind: "error",
           code: json.error?.code,
@@ -582,7 +580,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           <label className="grid gap-1 text-sm">
             <span>Vencimento da CNH</span>
             <DateInput
-              className={`${inputClass} ${cnhAlert ? "border-red-500 bg-red-50" : ""}`}
+              className={`${inputClass} ${cnhAlert ? "border-prime-red ring-1 ring-prime-red/40" : ""}`}
               aria-invalid={cnhAlert}
               value={detail.cnh_expiry}
               onChange={(iso) => patchDetail("cnh_expiry", iso)}

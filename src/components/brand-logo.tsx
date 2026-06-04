@@ -8,7 +8,7 @@ export function BrandLogo({ subtitle = "EXECUTIVE TRANSPORT", compact, className
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       <span
-        className={`flex shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 shadow-sm shadow-amber-900/30 ${
+        className={`flex shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-prime-gold to-prime-gold-hover text-prime-bg shadow-sm shadow-black/40 ${
           compact ? "h-9 w-9 text-base" : "h-10 w-10 text-lg"
         }`}
         aria-hidden
@@ -17,7 +17,7 @@ export function BrandLogo({ subtitle = "EXECUTIVE TRANSPORT", compact, className
       </span>
       <div className="min-w-0 leading-tight">
         <p className="truncate font-semibold tracking-tight text-white">Prime Vitória</p>
-        <p className="truncate text-[10px] font-medium uppercase tracking-[0.2em] text-amber-500/80">
+        <p className="truncate text-[10px] font-medium uppercase tracking-[0.2em] text-prime-gold/80">
           {subtitle}
         </p>
       </div>

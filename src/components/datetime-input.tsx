@@ -6,6 +6,7 @@ import {
   maskBrDateTimeInput,
   parseBrDateTimeToIso
 } from "@/lib/dates/br-date";
+import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 type Props = {
   value: string | null | undefined;
@@ -16,7 +17,7 @@ type Props = {
   id?: string;
 };
 
-const defaultClass = "rounded border border-slate-300 px-2 py-2 w-full text-sm";
+const defaultClass = PRIME_INPUT_CLASS;
 
 export function DateTimeInput({
   value,

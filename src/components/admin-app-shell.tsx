@@ -29,9 +29,7 @@ type SessionPayload = { role: string; tenantId?: string | null };
 function navClass(active: boolean) {
   return [
     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-    active
-      ? "border border-amber-500/40 bg-amber-500/10 font-medium text-amber-300"
-      : "border border-transparent text-slate-400 hover:bg-slate-800/80 hover:text-slate-200"
+    active ? "prime-nav-active" : "prime-nav-item hover:bg-prime-sidebar-hover"
   ].join(" ");
 }
 
@@ -66,16 +64,16 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
       : NAV;
 
   return (
-    <div className="admin-theme min-h-screen bg-[#0a0c10] text-slate-100">
+    <div className="admin-theme min-h-screen bg-prime-bg text-prime-text">
       <div className="flex min-h-screen">
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-800/80 bg-[#0d1117] lg:flex">
-          <div className="border-b border-slate-800/80 px-4 py-5">
+        <aside className="hidden w-60 shrink-0 flex-col border-r border-prime-input-border bg-prime-sidebar lg:flex">
+          <div className="border-b border-prime-input-border px-4 py-5">
             <Link href="/dashboard">
               <BrandLogo />
             </Link>
           </div>
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Operação">
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-prime-muted">
               Operação
             </p>
             {visibleNav.map((item) => (
@@ -87,7 +85,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
-          <div className="space-y-1 border-t border-slate-800/80 px-3 py-4">
+          <div className="space-y-1 border-t border-prime-input-border px-3 py-4">
             {isAdmin
               ? ADMIN_EXTRA.map((item) => (
                   <Link key={item.href} href={item.href} className={navClass(pathname.startsWith(item.href))}>
@@ -98,7 +96,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             <form action={logoutAction} className="px-1 pt-2">
               <button
                 type="submit"
-                className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                className="w-full rounded-lg px-3 py-2 text-left text-sm text-prime-muted hover:bg-prime-sidebar-hover hover:text-prime-text"
               >
                 Sair
               </button>
@@ -107,7 +105,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#0a0c10]/95 backdrop-blur">
+          <header className="sticky top-0 z-40 border-b border-prime-input-border bg-prime-bg/95 backdrop-blur">
             <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
               <div className="flex items-center gap-3 lg:hidden">
                 <BrandLogo compact subtitle="OPERAÇÃO" />
@@ -118,7 +116,9 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     className={`shrink-0 rounded-md px-2 py-1 text-xs ${
-                      pathname.startsWith(item.href) ? "bg-amber-500/15 text-amber-300" : "text-slate-500"
+                      pathname.startsWith(item.href)
+                        ? "bg-prime-gold/15 text-prime-gold"
+                        : "text-prime-muted"
                     }`}
                   >
                     {item.label}
@@ -127,15 +127,15 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
               </nav>
               <div className="flex items-center gap-3">
                 {session?.tenantId ? (
-                  <span className="hidden text-xs text-slate-500 sm:inline" title="Tenant">
+                  <span className="hidden text-xs text-prime-muted sm:inline" title="Tenant">
                     {session.tenantId.slice(0, 8)}…
                   </span>
                 ) : null}
-                <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300">
+                <span className="rounded-full border border-prime-input-border bg-prime-card px-3 py-1 text-xs text-prime-text">
                   {session ? papelUsuarioPt(session.role) : "…"}
                 </span>
                 <span
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-sm font-semibold text-slate-950"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-prime-gold to-prime-gold-hover text-sm font-bold text-prime-bg"
                   aria-hidden
                 >
                   AM
