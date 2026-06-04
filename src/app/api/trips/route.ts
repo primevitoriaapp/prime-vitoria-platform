@@ -9,6 +9,12 @@ import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { enrichTripItemsWithVehicles } from "@/lib/trips/enrich-trip-vehicles";
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 
+const coordSchema = z.union([z.number(), z.string()]).optional().nullable().transform((v) => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+});
+
 const createTripSchema = z.object({
   client_id: z.string().uuid(),
   requester_id: z.string().uuid().optional(),
@@ -16,7 +22,11 @@ const createTripSchema = z.object({
   service_type: z.string().min(2),
   scheduled_at: z.string(),
   origin_text: z.string().min(3),
+  origin_lat: coordSchema,
+  origin_lng: coordSchema,
   destination_text: z.string().min(3),
+  destination_lat: coordSchema,
+  destination_lng: coordSchema,
   dispatch_mode: z.enum(["directed", "offer"]).default("directed"),
   passenger_name: z.string().optional(),
   passenger_phone: z.string().optional(),
@@ -65,7 +75,21 @@ export async function POST(request: Request) {
     const { data, error } = await db
       .from("trips")
       .insert({
-        ...body,
+        client_id: body.client_id,
+        requester_id: body.requester_id ?? null,
+        cost_center_id: body.cost_center_id ?? null,
+        service_type: body.service_type,
+        scheduled_at: body.scheduled_at,
+        origin_text: body.origin_text,
+        origin_lat: body.origin_lat,
+        origin_lng: body.origin_lng,
+        destination_text: body.destination_text,
+        destination_lat: body.destination_lat,
+        destination_lng: body.destination_lng,
+        dispatch_mode: body.dispatch_mode,
+        passenger_name: body.passenger_name ?? null,
+        passenger_phone: body.passenger_phone ?? null,
+        notes: body.notes ?? null,
         tenant_id: tenantId,
         created_by: session.userId,
         operational_status: "requested"
