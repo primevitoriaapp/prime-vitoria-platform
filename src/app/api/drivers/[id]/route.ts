@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { driverCadastroSchema, normalizeDriverBody } from "@/lib/drivers/driver-cadastro-schema";
+import { canonicalDriverPatchRow, driverRowToApiShape } from "@/lib/drivers/driver-supabase-row";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
@@ -55,7 +56,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const photo_url = await resolveDriverPhotoDisplayUrl(driver.photo_url as string | null);
 
     return ok({
-      ...withProfile,
+      ...driverRowToApiShape(withProfile as Record<string, unknown>),
       profile_phone: profilePhone,
       phone: driver.phone ?? profilePhone ?? null,
       photo_url,
@@ -79,15 +80,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const parsed = patchSchema.parse(rawBody);
     const { profile_name, profile_phone, cpf, ...driverFields } = parsed;
 
-    const updateRow = normalizeDriverBody(driverFields) as Record<string, unknown>;
-    console.log("[drivers PATCH] updateRow normalizado", { driverId: id, updateRow });
-
-    if (cpf !== undefined) updateRow.cpf = cpf.trim();
-    if (profile_name !== undefined) updateRow.full_name = profile_name.trim();
+    const normalized = normalizeDriverBody(driverFields) as Record<string, unknown>;
+    if (cpf !== undefined) normalized.cpf = cpf.trim();
+    if (profile_name !== undefined) normalized.full_name = profile_name.trim();
     if (profile_phone !== undefined) {
       const t = profile_phone?.trim();
-      updateRow.phone = t ? t : null;
+      normalized.phone = t ? t : null;
     }
+
+    const updateRow = canonicalDriverPatchRow(normalized);
+    console.log("[drivers PATCH] updateRow Supabase", { driverId: id, updateRow });
 
     if (
       Object.keys(updateRow).length === 0 &&
@@ -141,8 +143,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return fail("DRIVER_UPDATE_FAILED", error.message, 500, hint || undefined);
     }
 
-    const row = { ...data, id: existing.id, profile_id: existing.profile_id };
-    const [enriched] = await attachDefaultVehiclesToDrivers(await attachProfileNamesToDrivers([row]));
+    const row = driverRowToApiShape({ ...data, id: existing.id, profile_id: existing.profile_id } as Record<
+      string,
+      unknown
+    >);
+    const [enriched] = await attachDefaultVehiclesToDrivers(
+      await attachProfileNamesToDrivers([row as typeof data])
+    );
 
     await insertAuditEvent({
       tenantId,
@@ -154,7 +161,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       request
     });
 
-    return ok(enriched);
+    return ok(driverRowToApiShape(enriched as Record<string, unknown>));
   } catch (error) {
     console.log("[drivers PATCH] excepção", error);
     return mapApiError(error);

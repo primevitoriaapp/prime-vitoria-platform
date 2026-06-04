@@ -5,6 +5,7 @@ import { formatBrDateTime } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
+import { driverPrimaryActionLabel } from "@/lib/trips/driver-step-copy";
 import { StatusBadge } from "@/components/status-badge";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { buildDriverNavigationLinks } from "@/lib/trips/driver-nav-links";
@@ -275,11 +276,11 @@ function CompactActiveTripCard({
   return (
     <li
       data-driver-trip-id={trip.id}
-      className="rounded-lg border border-slate-700 bg-slate-950/50 p-3"
+      className="prime-driver-card p-3"
     >
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={trip.operational_status} />
-        <span className="text-sm text-white">{trip.passenger_name ?? "Passageiro"}</span>
+        <span className="text-sm font-medium text-prime-text">{trip.passenger_name ?? "Passageiro"}</span>
       </div>
       <DriverTripRouteCard originText={trip.origin_text ?? "—"} destinationText={trip.destination_text ?? "—"} />
       <DriverOperationalTimeline current={trip.operational_status} />
@@ -292,15 +293,15 @@ function CompactActiveTripCard({
               if (!confirmDriverStatusTransition(next)) return;
               onStatus(trip.id, next);
             }}
-            className="rounded-lg bg-amber-600/80 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="btn-primary rounded-lg px-3 py-2 text-sm disabled:opacity-50"
           >
-            {trip.operational_status === "dispatched" ? "Aceitar" : STATUS_CORRIDA_PT[next]}
+            {driverPrimaryActionLabel(trip.operational_status, next)}
           </button>
         ) : null}
         {nav ? (
           <a
             href={nav.href}
-            className="rounded-lg border border-sky-600/50 px-3 py-2 text-sm text-sky-300"
+            className="rounded-lg border border-prime-border bg-prime-card px-3 py-2 text-sm text-prime-text hover:border-prime-gold/50"
             target="_blank"
             rel="noopener noreferrer"
           >

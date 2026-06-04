@@ -7,7 +7,7 @@
 
 @layer base {
   :root {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
@@ -16,12 +16,8 @@
   }
 
   body.prime-theme {
-    background-color: #0f0f0f;
-    color: #f5f5f5;
-  }
-
-  body:not(.prime-theme) {
-    @apply bg-slate-100 text-slate-900;
+    background-color: #f8f6f1;
+    color: #1a1a1a;
   }
 
   main {
@@ -46,20 +42,20 @@
 
   .prime-theme .card,
   .admin-theme .card {
-    @apply rounded-prime-card border-prime-input-border bg-prime-card p-4 text-prime-text shadow-prime-card;
+    @apply rounded-prime-card border-prime-border bg-prime-card p-4 text-prime-text shadow-prime-card;
   }
 
   .btn-primary {
-    @apply rounded-prime bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-amber-400 disabled:opacity-50;
+    @apply rounded-prime bg-prime-gold px-4 py-2 text-sm font-bold text-prime-text hover:bg-prime-gold-hover disabled:opacity-50;
   }
 
   .prime-theme .btn-primary,
   .admin-theme .btn-primary {
-    @apply rounded-prime bg-prime-gold px-4 py-2 text-sm font-bold text-prime-bg hover:bg-prime-gold-hover disabled:opacity-50;
+    @apply rounded-prime bg-prime-gold px-4 py-2 text-sm font-bold text-prime-text hover:bg-prime-gold-hover disabled:opacity-50;
   }
 
   .btn-outline {
-    @apply rounded-prime border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:border-amber-500/50 hover:bg-slate-800;
+    @apply rounded-prime border border-prime-gold bg-transparent px-4 py-2 text-sm text-prime-gold hover:border-prime-gold-hover hover:bg-prime-gold/10;
   }
 
   .prime-theme .btn-outline,

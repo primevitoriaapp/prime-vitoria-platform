@@ -84,19 +84,19 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
               </select>
             </label>
           ) : (
-            <span className="rounded-full border border-slate-700 px-2 py-0.5 text-xs text-slate-400">PWA</span>
+            <span className="rounded-full border border-prime-border px-2 py-0.5 text-xs text-prime-muted">PWA</span>
           )}
         </div>
       </header>
 
       <main className="mx-auto max-w-lg space-y-6 px-4 py-6 pb-28 md:max-w-3xl md:pb-8 md:px-6 lg:max-w-5xl lg:px-8">
         {mode === "admin" && !selectedDriverId ? (
-          <p className="rounded-lg border border-amber-700/40 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
+          <p className="rounded-lg border border-prime-gold/30 bg-prime-gold/10 px-3 py-2 text-sm text-prime-text">
             Selecione um motorista cadastrado para simular o app e testar aceitar, iniciar, cheguei e finalizar.
           </p>
         ) : null}
 
-        <StagingSmokeHints variant="dark" />
+        <StagingSmokeHints variant="light" />
         <DriverPushStatusBanner
           driverId={mode === "admin" ? selectedDriverId : sessionDriverId}
           devFallbackRole={devRole}
@@ -112,9 +112,9 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           />
         </section>
 
-        <section className="rounded-xl border border-violet-900/40 bg-slate-900/40 p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-300/90">Ofertas da central</h2>
-          <p className="mt-1 text-xs text-slate-500">Aceite ofertas abertas como o motorista seleccionado.</p>
+        <section className="prime-driver-card p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-prime-gold">Ofertas da central</h2>
+          <p className="mt-1 text-xs text-prime-muted">Aceite ofertas abertas como o motorista seleccionado.</p>
           <div className="mt-3">
             <DriverOffersPanel
               key={`offers-${driverKey}`}
@@ -131,9 +131,9 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           devFallbackRole={devRole}
         />
 
-        <section id="carteira" className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Pagamentos</h2>
-          <div className="mt-3 [&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100">
+        <section id="carteira" className="prime-driver-card scroll-mt-6 p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-prime-muted">Pagamentos</h2>
+          <div className="mt-3">
             <DriverPayablesPanel
               tenantId={tenantId}
               driverIdFilter={mode === "admin" ? selectedDriverId : null}
@@ -143,18 +143,18 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         </section>
 
         {mode === "motorista" ? (
-          <section id="push-setup" className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Notificações push</h2>
-            <div className="mt-3 [&_.card]:border-0 [&_.card]:bg-transparent [&_.card]:p-0 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100">
-              <DriverPushRegister variant="dark" />
+          <section id="push-setup" className="prime-driver-card scroll-mt-6 p-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-prime-muted">Notificações push</h2>
+            <div className="mt-3">
+              <DriverPushRegister variant="light" />
             </div>
           </section>
         ) : null}
 
         {mode === "admin" ? (
-          <details className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-            <summary className="cursor-pointer text-sm font-medium text-slate-400">Ferramentas avançadas (staging)</summary>
-            <div className="mt-4 [&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100">
+          <details className="prime-driver-card p-4">
+            <summary className="cursor-pointer text-sm font-medium text-prime-muted">Ferramentas avançadas (staging)</summary>
+            <div className="mt-4">
               <DriverConsole />
             </div>
           </details>

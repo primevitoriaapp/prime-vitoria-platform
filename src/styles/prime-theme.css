@@ -1,28 +1,29 @@
 /**
- * Prime Vitória — identidade visual (preto profundo + dourado #C9A84C).
- * Aplicado via classe .prime-theme no <body>.
+ * Prime Vitória — tema claro executivo (marfim + sidebar escura + dourado).
  */
 .prime-theme,
 .admin-theme {
-  --prime-bg: #0f0f0f;
-  --prime-card-bg: #1a1a1a;
-  --prime-input-bg: #1e1e1e;
-  --prime-input-border: #2e2e2e;
+  --prime-bg: #f8f6f1;
+  --prime-card-bg: #ffffff;
+  --prime-input-bg: #ffffff;
+  --prime-input-border: #d4cfc4;
+  --prime-border: #e8e4dc;
   --prime-gold: #c9a84c;
-  --prime-gold-hover: #e2b95a;
-  --prime-text: #f5f5f5;
-  --prime-text-muted: #888888;
-  --prime-sidebar-bg: #111111;
-  --prime-sidebar-hover: #1f1f1f;
+  --prime-gold-hover: #b8943e;
+  --prime-text: #1a1a1a;
+  --prime-text-muted: #666666;
+  --prime-sidebar-bg: #1a1a1a;
+  --prime-sidebar-text: #888888;
+  --prime-sidebar-text-active: #c9a84c;
+  --prime-sidebar-hover: #252525;
   --prime-status-green: #2e7d32;
   --prime-status-red: #c62828;
-  --prime-status-amber: #f57f17;
+  --prime-status-amber: #e65100;
   --prime-radius-btn: 8px;
   --prime-radius-card: 12px;
-  --prime-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --prime-border-subtle: #2e2e2e;
+  --prime-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 
-  color-scheme: dark;
+  color-scheme: light;
   background-color: var(--prime-bg);
   color: var(--prime-text);
 }
@@ -39,7 +40,6 @@
   letter-spacing: 0.01em;
 }
 
-/* Inputs — nunca fundo branco */
 .prime-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
 .prime-theme select,
 .prime-theme textarea,
@@ -70,7 +70,7 @@
 }
 
 .prime-input:focus {
-  outline: 2px solid color-mix(in srgb, var(--prime-gold) 45%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--prime-gold) 35%, transparent);
   outline-offset: 1px;
   border-color: var(--prime-gold);
 }
@@ -78,7 +78,7 @@
 .prime-theme .card,
 .admin-theme .card {
   border-radius: var(--prime-radius-card);
-  border: 1px solid var(--prime-border-subtle);
+  border: 1px solid var(--prime-border);
   background-color: var(--prime-card-bg);
   color: var(--prime-text);
   box-shadow: var(--prime-card-shadow);
@@ -89,7 +89,7 @@
 .admin-theme .btn-primary {
   border-radius: var(--prime-radius-btn);
   background-color: var(--prime-gold);
-  color: var(--prime-bg);
+  color: var(--prime-text);
   font-weight: 700;
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
@@ -110,12 +110,12 @@
   background: transparent;
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .prime-theme .btn-outline:hover:not(:disabled),
 .admin-theme .btn-outline:hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--prime-gold) 12%, transparent);
+  background-color: color-mix(in srgb, var(--prime-gold) 10%, transparent);
   color: var(--prime-gold-hover);
   border-color: var(--prime-gold-hover);
 }
@@ -146,7 +146,7 @@
 .prime-theme .border-slate-300,
 .admin-theme .border-slate-200,
 .admin-theme .border-slate-300 {
-  border-color: var(--prime-border-subtle) !important;
+  border-color: var(--prime-border) !important;
 }
 
 .prime-theme table thead,
@@ -156,42 +156,79 @@
 
 .prime-theme table tbody tr,
 .admin-theme table tbody tr {
-  border-color: var(--prime-border-subtle);
+  border-color: var(--prime-border);
 }
 
 .prime-theme .divide-slate-100 > *,
 .admin-theme .divide-slate-100 > * {
-  border-color: var(--prime-border-subtle);
+  border-color: var(--prime-border);
 }
 
-.prime-nav-active {
-  border: 1px solid color-mix(in srgb, var(--prime-gold) 40%, transparent);
-  background: color-mix(in srgb, var(--prime-gold) 12%, transparent);
-  color: var(--prime-gold);
+/* Sidebar escura (só a barra lateral no backoffice) */
+.admin-theme aside.prime-sidebar,
+.prime-sidebar {
+  background-color: var(--prime-sidebar-bg);
+  border-color: color-mix(in srgb, var(--prime-sidebar-bg) 85%, white);
+  color: var(--prime-sidebar-text);
+}
+
+.admin-theme aside.prime-sidebar .prime-nav-active,
+.prime-sidebar .prime-nav-active {
+  border: 1px solid color-mix(in srgb, var(--prime-sidebar-text-active) 35%, transparent);
+  background: color-mix(in srgb, var(--prime-sidebar-text-active) 12%, transparent);
+  color: var(--prime-sidebar-text-active);
   font-weight: 600;
 }
 
-.prime-nav-item {
+.admin-theme aside.prime-sidebar .prime-nav-item,
+.prime-sidebar .prime-nav-item {
   border: 1px solid transparent;
-  color: var(--prime-text-muted);
+  color: var(--prime-sidebar-text);
 }
 
-.prime-nav-item:hover {
+.admin-theme aside.prime-sidebar .prime-nav-item:hover,
+.prime-sidebar .prime-nav-item:hover {
   background: var(--prime-sidebar-hover);
-  color: var(--prime-text);
+  color: #f5f5f5;
+}
+
+.admin-theme aside.prime-sidebar .text-prime-muted,
+.prime-sidebar .text-prime-muted {
+  color: var(--prime-sidebar-text);
+}
+
+.admin-theme aside.prime-sidebar button[type="submit"]:hover,
+.prime-sidebar button[type="submit"]:hover {
+  color: #f5f5f5;
 }
 
 .prime-badge-green {
-  background: color-mix(in srgb, var(--prime-status-green) 25%, transparent);
-  color: #a5d6a7;
+  background: color-mix(in srgb, var(--prime-status-green) 12%, white);
+  color: var(--prime-status-green);
 }
 
 .prime-badge-red {
-  background: color-mix(in srgb, var(--prime-status-red) 25%, transparent);
-  color: #ef9a9a;
+  background: color-mix(in srgb, var(--prime-status-red) 12%, white);
+  color: var(--prime-status-red);
 }
 
 .prime-badge-amber {
-  background: color-mix(in srgb, var(--prime-status-amber) 25%, transparent);
-  color: #ffe082;
+  background: color-mix(in srgb, var(--prime-status-amber) 12%, white);
+  color: var(--prime-status-amber);
+}
+
+/* Cartões do app motorista */
+.prime-driver-card {
+  border-radius: var(--prime-radius-card);
+  border: 1px solid var(--prime-border);
+  background: var(--prime-card-bg);
+  box-shadow: var(--prime-card-shadow);
+  color: var(--prime-text);
+}
+
+.prime-driver-hero {
+  border-radius: var(--prime-radius-card);
+  border: 2px solid color-mix(in srgb, var(--prime-gold) 45%, var(--prime-border));
+  background: linear-gradient(180deg, #ffffff 0%, #faf8f3 100%);
+  box-shadow: var(--prime-card-shadow);
 }

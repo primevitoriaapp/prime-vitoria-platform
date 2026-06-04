@@ -62,9 +62,10 @@ export function operationalCategoriesFromRow(row: {
 
 export function serviceRegionsFromRow(row: {
   service_regions?: unknown;
+  regions?: unknown;
   service_region?: string | null;
 }): ServiceRegionId[] {
-  const fromArray = parseStoredStringArray(row.service_regions);
+  const fromArray = parseStoredStringArray(row.service_regions ?? row.regions);
   const ids = new Set<ServiceRegionId>();
   for (const v of fromArray) {
     if (SERVICE_REGION_OPTIONS.some((o) => o.id === v)) ids.add(v as ServiceRegionId);

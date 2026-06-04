@@ -2,6 +2,15 @@ import type { TripOperationalStatus } from "../domain/types.ts";
 import { STATUS_CORRIDA_PT } from "../i18n/pt-br.ts";
 import { driverNextStatuses } from "./driver-next-status.ts";
 
+/** Rótulos dos botões de acção no app do motorista (não confundir com badges de estado). */
+export const DRIVER_TRIP_ACTION_PT: Partial<Record<TripOperationalStatus, string>> = {
+  accepted: "Aceitar corrida",
+  on_the_way: "A caminho do passageiro",
+  arrived: "Cheguei ao local",
+  in_progress: "Iniciar corrida",
+  completed: "Finalizar corrida"
+};
+
 /** Instrução curta do que o motorista deve fazer agora. */
 export function driverOperationalHint(status: TripOperationalStatus): string {
   switch (status) {
@@ -10,7 +19,7 @@ export function driverOperationalHint(status: TripOperationalStatus): string {
     case "accepted":
       return "Confirme que está a caminho do passageiro.";
     case "on_the_way":
-      return "Ao chegar ao local de embarque, marque Chegou ao local.";
+      return "Ao chegar ao local de embarque, marque Cheguei ao local.";
     case "arrived":
       return "Inicie a viagem ou registe não comparecimento.";
     case "in_progress":
@@ -27,8 +36,7 @@ export function driverPrimaryActionLabel(
   next: TripOperationalStatus | undefined
 ): string {
   if (!next) return "Sem acção pendente";
-  if (status === "dispatched" && next === "accepted") return "Aceitar corrida";
-  return STATUS_CORRIDA_PT[next];
+  return DRIVER_TRIP_ACTION_PT[next] ?? STATUS_CORRIDA_PT[next];
 }
 
 export function driverFlowChip(status: TripOperationalStatus): string {
@@ -61,5 +69,5 @@ export function pickPrimaryActiveTripId<T extends { id: string; operational_stat
 
 export function driverNextStatusLabel(status: TripOperationalStatus): string | null {
   const next = driverNextStatuses(status)[0];
-  return next ? STATUS_CORRIDA_PT[next] : null;
+  return next ? (DRIVER_TRIP_ACTION_PT[next] ?? STATUS_CORRIDA_PT[next]) : null;
 }

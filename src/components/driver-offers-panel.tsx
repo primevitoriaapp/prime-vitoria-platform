@@ -107,7 +107,7 @@ export function DriverOffersPanel({
           const trip = offer.trip;
           const accepted = offer.my_response?.status === "accepted";
           return (
-            <li key={offer.id} className="rounded-lg border border-violet-800/60 bg-slate-950/60 p-3 text-sm">
+            <li key={offer.id} className="prime-driver-card p-3 text-sm">
               {trip ? (
                 <>
                   <p className="font-medium text-white">

@@ -6,19 +6,22 @@ const config: Config = {
     extend: {
       colors: {
         prime: {
-          bg: "#0F0F0F",
-          card: "#1A1A1A",
-          input: "#1E1E1E",
-          "input-border": "#2E2E2E",
+          bg: "#F8F6F1",
+          card: "#FFFFFF",
+          input: "#FFFFFF",
+          "input-border": "#D4CFC4",
+          border: "#E8E4DC",
           gold: "#C9A84C",
-          "gold-hover": "#E2B95A",
-          text: "#F5F5F5",
-          muted: "#888888",
-          sidebar: "#111111",
-          "sidebar-hover": "#1F1F1F",
+          "gold-hover": "#B8943E",
+          text: "#1A1A1A",
+          muted: "#666666",
+          sidebar: "#1A1A1A",
+          "sidebar-text": "#888888",
+          "sidebar-active": "#C9A84C",
+          "sidebar-hover": "#252525",
           green: "#2E7D32",
           red: "#C62828",
-          amber: "#F57F17"
+          amber: "#E65100"
         }
       },
       borderRadius: {
@@ -26,7 +29,7 @@ const config: Config = {
         "prime-card": "12px"
       },
       boxShadow: {
-        "prime-card": "0 2px 8px rgba(0,0,0,0.4)"
+        "prime-card": "0 1px 4px rgba(0,0,0,0.08)"
       },
       fontFamily: {
         "prime-display": [

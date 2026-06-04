@@ -119,7 +119,7 @@ export function ClientAppShell({
           </p>
         ) : null}
 
-        <StagingSmokeHints variant="dark" />
+        <StagingSmokeHints variant="light" />
         {readOnly ? <ClientPortalReadonlyNotice readOnly /> : null}
 
         <section id="visao" className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -157,7 +157,7 @@ export function ClientAppShell({
             {!readOnly ? (
               <section id="solicitar" className="space-y-3">
                 <h2 className="font-serif text-xl text-white">Nova solicitação</h2>
-                <div className="[&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100 [&_input]:placeholder:text-slate-500">
+                <div>
                   <ClientRequestConsole
                     clientId={selectedClientId}
                     costCenters={costCenters}

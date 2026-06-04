@@ -580,7 +580,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           <label className="grid gap-1 text-sm">
             <span>Vencimento da CNH</span>
             <DateInput
-              className={`${inputClass} ${cnhAlert ? "border-prime-red ring-1 ring-prime-red/40" : ""}`}
+              className={`${inputClass} ${cnhAlert ? "border-prime-red bg-red-50 ring-1 ring-prime-red/30" : ""}`}
               aria-invalid={cnhAlert}
               value={detail.cnh_expiry}
               onChange={(iso) => patchDetail("cnh_expiry", iso)}

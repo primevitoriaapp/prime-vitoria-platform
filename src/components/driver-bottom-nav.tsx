@@ -16,7 +16,7 @@ export function DriverBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-prime-input-border bg-prime-bg/95 backdrop-blur md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-prime-border bg-prime-card/95 shadow-prime-card backdrop-blur md:hidden"
       aria-label="Navegação motorista"
     >
       <ul className="mx-auto flex max-w-lg justify-around px-2 py-2">

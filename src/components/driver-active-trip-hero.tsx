@@ -2,7 +2,6 @@
 
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
-import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 import { StatusBadge } from "@/components/status-badge";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
 import { DriverTripRouteCard } from "@/components/driver-trip-route-card";
@@ -40,24 +39,26 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
     <article
       data-driver-trip-id={trip.id}
       className={[
-        "rounded-2xl border-2 bg-gradient-to-b from-slate-900 to-slate-950 p-4 shadow-lg md:p-6",
-        highlighted ? "border-amber-400 ring-2 ring-amber-400/50" : "border-amber-500/60"
+        "prime-driver-hero p-4 md:p-6",
+        highlighted ? "ring-2 ring-prime-gold/40" : ""
       ].join(" ")}
     >
-      <p className="text-xs font-semibold uppercase tracking-widest text-amber-400">Corrida actual</p>
-      <p className="mt-1 text-sm text-amber-100/90">{driverOperationalHint(trip.operational_status)}</p>
-      <p className="mt-2 rounded-md bg-slate-800/60 px-2 py-1 text-xs text-slate-400">{driverFlowChip(trip.operational_status)}</p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-prime-gold">Corrida actual</p>
+      <p className="mt-1 text-sm text-prime-muted">{driverOperationalHint(trip.operational_status)}</p>
+      <p className="mt-2 rounded-md bg-prime-bg px-2 py-1 text-xs text-prime-muted">{driverFlowChip(trip.operational_status)}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <StatusBadge status={trip.operational_status} />
-        <span className="font-mono text-xs text-slate-500">{trip.id.slice(0, 8)}…</span>
+        <span className="font-mono text-xs text-prime-muted">{trip.id.slice(0, 8)}…</span>
       </div>
 
       <DriverOperationalTimeline current={trip.operational_status} variant="hero" />
 
-      <p className="mt-3 text-lg font-semibold text-white">
+      <p className="mt-3 text-lg font-semibold text-prime-text">
         {trip.passenger_name?.trim() || "Passageiro"}
-        {trip.service_type ? <span className="text-base font-normal text-slate-500"> · {trip.service_type}</span> : null}
+        {trip.service_type ? (
+          <span className="text-base font-normal text-prime-muted"> · {trip.service_type}</span>
+        ) : null}
       </p>
 
       <DriverTripRouteCard
@@ -72,7 +73,7 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
 
       {(() => {
         const km = formatTripKmLine(trip);
-        return km ? <p className="mt-2 text-xs text-slate-500">{km}</p> : null;
+        return km ? <p className="mt-2 text-xs text-prime-muted">{km}</p> : null;
       })()}
 
       {primaryNav ? (
@@ -80,12 +81,12 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
           href={primaryNav.href}
           target={primaryNav.id === "waze" ? undefined : "_blank"}
           rel={primaryNav.id === "waze" ? undefined : "noopener noreferrer"}
-          className="mt-4 flex min-h-[3.25rem] w-full items-center justify-center gap-2 rounded-xl border-2 border-sky-400 bg-sky-600/30 px-4 py-3 text-lg font-bold text-white hover:bg-sky-600/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300"
+          className="mt-4 flex min-h-[3.25rem] w-full items-center justify-center gap-2 rounded-xl border-2 border-prime-border bg-prime-bg px-4 py-3 text-lg font-bold text-prime-text hover:border-prime-gold/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-prime-gold"
         >
           <span aria-hidden>🧭</span> Navegar — {primaryNav.label}
         </a>
       ) : (
-        <p className="mt-4 text-sm text-amber-200/80">Sem coordenadas GPS — use o endereço no Maps manualmente.</p>
+        <p className="mt-4 text-sm text-prime-muted">Sem coordenadas GPS — use o endereço no Maps manualmente.</p>
       )}
 
       <div className="mt-4 flex flex-col gap-2">
@@ -98,7 +99,7 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
               if (!confirmDriverStatusTransition(primaryStep)) return;
               onStatus(trip.id, primaryStep);
             }}
-            className="min-h-[3.5rem] w-full rounded-xl bg-amber-500 px-4 py-3 text-xl font-bold text-slate-950 hover:bg-amber-400 disabled:opacity-60"
+            className="btn-primary min-h-[3.5rem] w-full rounded-xl px-4 py-3 text-xl disabled:opacity-60"
           >
             {isBusy ? "A processar…" : driverPrimaryActionLabel(trip.operational_status, primaryStep)}
           </button>
@@ -107,7 +108,7 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
           type="button"
           disabled={isBusy}
           onClick={() => onGps(trip)}
-          className="min-h-[2.75rem] w-full rounded-xl border border-slate-600 px-4 py-2.5 text-base text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+          className="btn-outline min-h-[2.75rem] w-full rounded-xl px-4 py-2.5 text-base disabled:opacity-50"
         >
           Enviar GPS agora
         </button>
@@ -122,9 +123,9 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
                   if (!confirmDriverStatusTransition(s)) return;
                   onStatus(trip.id, s);
                 }}
-                className="min-h-[2.5rem] rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                className="btn-outline min-h-[2.5rem] rounded-lg px-3 py-2 text-sm disabled:opacity-50"
               >
-                {STATUS_CORRIDA_PT[s]}
+                {driverPrimaryActionLabel(trip.operational_status, s)}
               </button>
             ))}
           </div>
@@ -132,12 +133,12 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
       </div>
 
       {navLinks.length > 1 ? (
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-prime-muted">
           Também:{" "}
           {navLinks.map((link, i) => (
             <span key={link.id}>
               {i > 0 ? " · " : null}
-              <a href={link.href} className="text-sky-400 hover:underline" target="_blank" rel="noopener noreferrer">
+              <a href={link.href} className="text-prime-gold hover:underline" target="_blank" rel="noopener noreferrer">
                 {link.label}
               </a>
             </span>

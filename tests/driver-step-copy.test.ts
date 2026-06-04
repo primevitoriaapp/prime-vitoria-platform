@@ -14,6 +14,13 @@ test("driverPrimaryActionLabel accept", () => {
   assert.equal(driverPrimaryActionLabel("dispatched", "accepted"), "Aceitar corrida");
 });
 
+test("driverPrimaryActionLabel full flow", () => {
+  assert.equal(driverPrimaryActionLabel("accepted", "on_the_way"), "A caminho do passageiro");
+  assert.equal(driverPrimaryActionLabel("on_the_way", "arrived"), "Cheguei ao local");
+  assert.equal(driverPrimaryActionLabel("arrived", "in_progress"), "Iniciar corrida");
+  assert.equal(driverPrimaryActionLabel("in_progress", "completed"), "Finalizar corrida");
+});
+
 test("pickPrimaryActiveTripId prefers in_progress", () => {
   const id = pickPrimaryActiveTripId([
     { id: "a", operational_status: "dispatched", scheduled_at: "2026-01-01T10:00:00Z" },
