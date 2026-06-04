@@ -23,6 +23,20 @@ Plataforma operacional de transporte executivo corporativo, com foco em agendame
 - `docs/ERP_INTEGRATION.md`: variaveis de ambiente e fluxo Conta Azul / Omie
 - `docs/architecture/`: arquitetura, segurança, RBAC, FSM, tenant e roadmap por fases
 
+## Homologação P1 (staging / preview)
+
+> **Não use** `https://prime-vitoria-web.vercel.app` para validar cadastro P1 — é produção (`main`).
+
+| | |
+|---|---|
+| **Começar amanhã** | [docs/AMANHA_P1.md](docs/AMANHA_P1.md) |
+| **URL P1** | [docs/P1_HOMOLOGACAO_URL_OFICIAL.md](docs/P1_HOMOLOGACAO_URL_OFICIAL.md) |
+| **Índice completo** | [docs/P1_INDEX.md](docs/P1_INDEX.md) |
+| **Relatório noite** | [docs/RELATORIO_NOITE_P1.md](docs/RELATORIO_NOITE_P1.md) |
+| **Verificar preview** | `npm run p1:check-preview` |
+
+P2 bloqueado até homologação operacional PASS (cliente, motorista, veículo, despacho).
+
 ## Rodar localmente (após instalar npm)
 
 ```bash

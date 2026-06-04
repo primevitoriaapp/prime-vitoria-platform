@@ -9,10 +9,14 @@ import {
 import type { DriverOperationalStatus } from "@/lib/domain/types";
 
 type Props = {
-  devFallbackRole?: "motorista";
+  driverId?: string | null;
+  devFallbackRole?: "motorista" | "admin";
 };
 
-export function DriverOperationalStatusPanel({ devFallbackRole = "motorista" }: Props) {
+export function DriverOperationalStatusPanel({
+  driverId = null,
+  devFallbackRole = "motorista"
+}: Props) {
   const [status, setStatus] = useState<DriverOperationalStatus>("offline");
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -20,7 +24,8 @@ export function DriverOperationalStatusPanel({ devFallbackRole = "motorista" }: 
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetchWithSupabaseSession("/api/drivers/operational-status", {}, devFallbackRole);
+    const qs = driverId ? `?driver_id=${encodeURIComponent(driverId)}` : "";
+    const res = await fetchWithSupabaseSession(`/api/drivers/operational-status${qs}`, {}, devFallbackRole);
     const json = (await res.json()) as {
       success?: boolean;
       data?: { status?: string; updated_at?: string | null };
@@ -34,7 +39,7 @@ export function DriverOperationalStatusPanel({ devFallbackRole = "motorista" }: 
     if (isDriverOperationalStatus(json.data.status)) setStatus(json.data.status);
     setUpdatedAt(json.data.updated_at ?? null);
     setMessage(null);
-  }, [devFallbackRole]);
+  }, [devFallbackRole, driverId]);
 
   useEffect(() => {
     void load();
@@ -44,7 +49,13 @@ export function DriverOperationalStatusPanel({ devFallbackRole = "motorista" }: 
     setLoading(true);
     const res = await fetchWithSupabaseSession(
       "/api/drivers/operational-status",
-      { method: "POST", body: JSON.stringify({ status: next }) },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          status: next,
+          ...(driverId ? { driver_id: driverId } : {})
+        })
+      },
       devFallbackRole
     );
     const json = (await res.json()) as {

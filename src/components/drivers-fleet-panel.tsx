@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { BackButton } from "@/components/back-button";
 
 type LinkedVehicle = {
   link_id: string;
@@ -30,6 +31,9 @@ type VehicleOption = { id: string; plate: string; model: string };
 type ProfileOption = { id: string; name: string; role: string; active?: boolean };
 
 type DriverDetail = DriverRow & {
+  cnh_category?: string | null;
+  cnh_expiry?: string | null;
+  photo_url?: string | null;
   city?: string | null;
   district?: string | null;
   address?: string | null;
@@ -55,6 +59,59 @@ type Props = {
 };
 
 const CATEGORY_OPTIONS = ["sedan", "SUV", "van", "executivo", "evento", "viagem", "bilíngue", "outro"];
+const CNH_CATEGORY_OPTIONS = ["A", "B", "AB", "C", "D", "E", "ACC"];
+
+type FormFeedback = {
+  kind: "success" | "error" | "info";
+  message: string;
+  code?: string;
+  hint?: string;
+};
+
+async function parseApiResponse(res: Response) {
+  const text = await res.text();
+  if (!text.trim()) {
+    return {
+      success: false as const,
+      error: { code: `HTTP_${res.status}`, message: `Resposta vazia (HTTP ${res.status}).` }
+    };
+  }
+  try {
+    return JSON.parse(text) as {
+      success?: boolean;
+      data?: unknown;
+      error?: { code?: string; message?: string; hint?: string };
+    };
+  } catch {
+    return {
+      success: false as const,
+      error: {
+        code: `HTTP_${res.status}`,
+        message: res.status === 401 ? "Sessão expirada. Inicie sessão novamente." : `Resposta inválida (HTTP ${res.status}).`
+      }
+    };
+  }
+}
+
+function FeedbackBanner({ feedback }: { feedback: FormFeedback | null }) {
+  if (!feedback) return null;
+  return (
+    <div
+      role="alert"
+      className={`mt-3 rounded-lg border px-3 py-3 text-sm ${
+        feedback.kind === "error"
+          ? "border-red-300 bg-red-50 text-red-950"
+          : feedback.kind === "success"
+            ? "border-emerald-300 bg-emerald-50 text-emerald-950"
+            : "border-amber-300 bg-amber-50 text-amber-950"
+      }`}
+    >
+      {feedback.code ? <p className="mb-1 font-mono text-xs opacity-80">Código: {feedback.code}</p> : null}
+      <p className="font-medium">{feedback.message}</p>
+      {feedback.hint ? <p className="mt-2 text-xs opacity-90">{feedback.hint}</p> : null}
+    </div>
+  );
+}
 
 export function DriversFleetPanel({ initialDrivers }: Props) {
   const router = useRouter();
@@ -63,8 +120,10 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DriverDetail | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<FormFeedback | null>(null);
   const [busy, setBusy] = useState(false);
+  const [includeInactive, setIncludeInactive] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const [createProfileId, setCreateProfileId] = useState("");
   const [createCpf, setCreateCpf] = useState("");
@@ -82,13 +141,14 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
   });
 
   const reloadDrivers = useCallback(async () => {
-    const res = await fetch("/api/drivers", { credentials: "include" });
-    const json = (await res.json()) as { success?: boolean; data?: DriverRow[] };
+    const qs = includeInactive ? "?include_inactive=1" : "";
+    const res = await fetch(`/api/drivers${qs}`, { credentials: "include" });
+    const json = await parseApiResponse(res);
     if (res.ok && json.success) {
-      setDrivers(json.data ?? []);
+      setDrivers((json.data as DriverRow[]) ?? []);
     }
     router.refresh();
-  }, [router]);
+  }, [router, includeInactive]);
 
   const loadDetail = useCallback(async (driverId: string) => {
     const res = await fetch(`/api/drivers/${driverId}`, { credentials: "include" });
@@ -116,11 +176,15 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
     })();
   }, []);
 
+  useEffect(() => {
+    void reloadDrivers();
+  }, [reloadDrivers]);
+
   async function createDriver(e: FormEvent) {
     e.preventDefault();
     if (!createProfileId || !createCpf.trim()) return;
     setCreating(true);
-    setMessage(null);
+    setFeedback(null);
     try {
       const res = await fetch("/api/drivers", {
         method: "POST",
@@ -132,19 +196,67 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
           cnh_number: createCnh.trim() || undefined
         })
       });
-      const json = (await res.json()) as { success?: boolean; data?: DriverRow; error?: { message?: string } };
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message ?? "Falha ao criar motorista");
+      const json = await parseApiResponse(res);
+      if (!res.ok || json.success !== true) {
+        setFeedback({
+          kind: "error",
+          code: json.error?.code,
+          message: json.error?.message ?? "Falha ao criar motorista.",
+          hint: json.error?.hint
+        });
+        return;
       }
-      setMessage("Motorista registado. Abra a ficha para completar dados e veículos.");
+      setFeedback({ kind: "success", message: "Motorista registado. Complete a ficha abaixo." });
       setCreateCpf("");
       setCreateCnh("");
       await reloadDrivers();
-      if (json.data?.id) await loadDetail(json.data.id);
+      const created = json.data as DriverRow | undefined;
+      if (created?.id) await loadDetail(created.id);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Erro inesperado.");
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Erro inesperado ao criar motorista."
+      });
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function uploadPhoto(file: File) {
+    if (!detail) return;
+    setPhotoBusy(true);
+    setFeedback(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/drivers/${detail.id}/photo/upload`, {
+        method: "POST",
+        credentials: "include",
+        body: form
+      });
+      const json = await parseApiResponse(res);
+      if (!res.ok || json.success !== true) {
+        setFeedback({
+          kind: "error",
+          code: json.error?.code,
+          message: json.error?.message ?? "Falha ao enviar foto.",
+          hint: json.error?.hint
+        });
+        return;
+      }
+      const data = json.data as { photo_url?: string; _warning?: string };
+      setFeedback({
+        kind: data._warning ? "info" : "success",
+        message: data._warning ?? "Foto actualizada."
+      });
+      await loadDetail(detail.id);
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Erro ao enviar foto."
+      });
+    } finally {
+      setPhotoBusy(false);
     }
   }
 
@@ -152,7 +264,8 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
     e.preventDefault();
     if (!detail) return;
     setBusy(true);
-    setMessage(null);
+    setFeedback(null);
+    const phoneValue = (detail.profile_phone ?? detail.phone ?? "").trim() || null;
     try {
       const res = await fetch(`/api/drivers/${detail.id}`, {
         method: "PATCH",
@@ -161,7 +274,9 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
         body: JSON.stringify({
           cpf: detail.cpf,
           cnh_number: detail.cnh_number,
-          phone: detail.phone,
+          cnh_category: detail.cnh_category,
+          cnh_expiry: detail.cnh_expiry || null,
+          phone: phoneValue,
           whatsapp: detail.whatsapp,
           email: detail.email,
           city: detail.city,
@@ -181,16 +296,31 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
           payee_name: detail.payee_name,
           payee_document: detail.payee_document,
           profile_name: detail.profile_name,
-          profile_phone: detail.profile_phone
+          profile_phone: phoneValue
         })
       });
-      const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
-      if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha ao guardar");
-      setMessage("Ficha do motorista actualizada.");
+      const json = await parseApiResponse(res);
+      if (!res.ok || json.success !== true) {
+        setFeedback({
+          kind: "error",
+          code: json.error?.code ?? `HTTP_${res.status}`,
+          message: json.error?.message ?? "Falha ao guardar ficha.",
+          hint: json.error?.hint
+        });
+        return;
+      }
+      const saved = json.data as { _warning?: string } | undefined;
+      setFeedback({
+        kind: saved?._warning ? "info" : "success",
+        message: saved?._warning ?? "Ficha do motorista guardada com sucesso."
+      });
       await reloadDrivers();
       await loadDetail(detail.id);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Erro inesperado.");
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Erro inesperado ao guardar."
+      });
     } finally {
       setBusy(false);
     }
@@ -206,14 +336,16 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
         credentials: "include",
         body: JSON.stringify({ vehicle_id: linkVehicleId, set_default: detail.linked_vehicles.length === 0 })
       });
-      const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
-      if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha ao vincular");
+      const json = await parseApiResponse(res);
+      if (!res.ok || json.success !== true) {
+        throw new Error(json.error?.message ?? "Falha ao vincular");
+      }
       setLinkVehicleId("");
       await loadDetail(detail.id);
       await reloadDrivers();
-      setMessage("Veículo vinculado.");
+      setFeedback({ kind: "success", message: "Veículo vinculado." });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Erro inesperado.");
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Erro inesperado." });
     } finally {
       setBusy(false);
     }
@@ -239,17 +371,19 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
           set_default: true
         })
       });
-      const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
-      if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha ao criar veículo");
+      const json = await parseApiResponse(res);
+      if (!res.ok || json.success !== true) {
+        throw new Error(json.error?.message ?? "Falha ao criar veículo");
+      }
       setNewVehicle({ plate: "", model: "", brand: "", category: "", color: "", capacity: "" });
       const vRes = await fetch("/api/vehicles", { credentials: "include" });
       const vJson = (await vRes.json()) as { success?: boolean; data?: VehicleOption[] };
       if (vRes.ok && vJson.success) setVehicles(vJson.data ?? []);
       await loadDetail(detail.id);
       await reloadDrivers();
-      setMessage("Veículo criado e vinculado.");
+      setFeedback({ kind: "success", message: "Veículo criado e vinculado." });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Erro inesperado.");
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Erro inesperado." });
     } finally {
       setBusy(false);
     }
@@ -265,12 +399,13 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
         credentials: "include",
         body: JSON.stringify({ vehicle_id: vehicleId, action: "set_default" })
       });
-      const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
-      if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha");
-      await loadDetail(detail.id);
-      await reloadDrivers();
+      const json = await parseApiResponse(res);
+      if (!res.ok || json.success !== true) {
+        throw new Error(json.error?.message ?? "Falha");
+      }
+      setFeedback({ kind: "success", message: "Veículo padrão actualizado." });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Erro inesperado.");
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Erro inesperado." });
     } finally {
       setBusy(false);
     }
@@ -323,11 +458,22 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
             </button>
           </div>
         </form>
+        <FeedbackBanner feedback={feedback} />
       </section>
 
       <section className="card mt-6">
-        <h2 className="text-lg font-semibold text-slate-900">Motoristas activos</h2>
-        {message ? <p className="mt-2 text-sm text-slate-700">{message}</p> : null}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-900">Motoristas</h2>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={includeInactive}
+              onChange={(e) => setIncludeInactive(e.target.checked)}
+            />
+            Incluir inactivos
+          </label>
+        </div>
+        <FeedbackBanner feedback={!detail ? feedback : null} />
         {drivers.length === 0 ? (
           <p className="mt-3 text-sm text-slate-500">Nenhum motorista registado.</p>
         ) : (
@@ -337,6 +483,9 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                 <div>
                   <p className="font-medium text-slate-900">
                     {driver.profile_name ?? "Motorista"} · CPF {driver.cpf}
+                    {driver.active === false ? (
+                      <span className="ml-2 rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-700">inactivo</span>
+                    ) : null}
                   </p>
                   <p className="text-xs text-slate-500">
                     CNH {driver.cnh_number ?? "—"}
@@ -365,10 +514,53 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
 
       {detail ? (
         <section className="card mt-6">
+          <div className="mb-4">
+            <BackButton
+              fallbackHref="/drivers"
+              onClick={() => {
+                setDetail(null);
+                setSelectedId(null);
+                setFeedback(null);
+              }}
+            />
+          </div>
           <h2 className="text-lg font-semibold text-slate-900">Ficha: {detail.profile_name ?? detail.cpf}</h2>
+          <FeedbackBanner feedback={feedback} />
           <form className="mt-4 space-y-6" onSubmit={(e) => void saveDetail(e)}>
             <fieldset className="grid gap-3 md:grid-cols-2">
-              <legend className="mb-2 text-sm font-semibold text-slate-800 md:col-span-2">Dados pessoais</legend>
+              <legend className="mb-2 text-sm font-semibold text-slate-800 md:col-span-2">Foto</legend>
+              <div className="flex flex-wrap items-center gap-4 md:col-span-2">
+                {detail.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={detail.photo_url}
+                    alt={`Foto de ${detail.profile_name ?? "motorista"}`}
+                    className="h-24 w-24 rounded-full border border-slate-200 object-cover"
+                  />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
+                    Sem foto
+                  </div>
+                )}
+                <label className="grid gap-1 text-sm">
+                  <span>Enviar foto (JPEG, PNG ou WebP — máx. 5 MB)</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={photoBusy || busy}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void uploadPhoto(file);
+                      e.target.value = "";
+                    }}
+                    className="text-sm"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset className="grid gap-3 md:grid-cols-2">
+              <legend className="mb-2 text-sm font-semibold text-slate-800 md:col-span-2">Dados pessoais e CNH</legend>
               <label className="grid gap-1 text-sm md:col-span-2">
                 <span>Nome completo</span>
                 <input
@@ -382,7 +574,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                 <input className={inputClass} value={detail.cpf} onChange={(e) => patchDetail("cpf", e.target.value)} />
               </label>
               <label className="grid gap-1 text-sm">
-                <span>CNH</span>
+                <span>Número da CNH</span>
                 <input
                   className={inputClass}
                   value={detail.cnh_number ?? ""}
@@ -390,11 +582,39 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                 />
               </label>
               <label className="grid gap-1 text-sm">
+                <span>Categoria da CNH</span>
+                <select
+                  className={inputClass}
+                  value={detail.cnh_category ?? ""}
+                  onChange={(e) => patchDetail("cnh_category", e.target.value)}
+                >
+                  <option value="">— seleccionar —</option>
+                  {CNH_CATEGORY_OPTIONS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Vencimento da CNH</span>
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={detail.cnh_expiry?.slice(0, 10) ?? ""}
+                  onChange={(e) => patchDetail("cnh_expiry", e.target.value || null)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
                 <span>Telefone</span>
                 <input
                   className={inputClass}
                   value={detail.profile_phone ?? detail.phone ?? ""}
-                  onChange={(e) => patchDetail("profile_phone", e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    patchDetail("profile_phone", v);
+                    patchDetail("phone", v);
+                  }}
                 />
               </label>
               <label className="grid gap-1 text-sm">
@@ -427,7 +647,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                 />
               </label>
               <label className="grid gap-1 text-sm md:col-span-2">
-                <span>Endereço</span>
+                <span>Endereço completo</span>
                 <input
                   className={inputClass}
                   value={detail.address ?? ""}
@@ -533,12 +753,16 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
               </label>
               <label className="grid gap-1 text-sm">
                 <span>Tipo de conta</span>
-                <input
+                <select
                   className={inputClass}
                   value={detail.bank_account_type ?? ""}
                   onChange={(e) => patchDetail("bank_account_type", e.target.value)}
-                  placeholder="corrente / poupança"
-                />
+                >
+                  <option value="">—</option>
+                  <option value="corrente">Corrente</option>
+                  <option value="poupanca">Poupança</option>
+                  <option value="pagamento">Pagamento</option>
+                </select>
               </label>
               <label className="grid gap-1 text-sm">
                 <span>Favorecido</span>

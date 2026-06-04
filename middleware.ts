@@ -7,6 +7,9 @@ import { trustHeaderAuth } from "@/lib/server/trust-header-auth";
 const protectedPrefixes: Array<{ prefix: string; allowedRoles: string[] }> = [
   { prefix: "/dashboard", allowedRoles: ["admin", "operador"] },
   { prefix: "/agenda", allowedRoles: ["admin", "operador"] },
+  { prefix: "/clients", allowedRoles: ["admin", "operador"] },
+  { prefix: "/drivers", allowedRoles: ["admin", "operador"] },
+  { prefix: "/vehicles", allowedRoles: ["admin", "operador"] },
   { prefix: "/dispatch", allowedRoles: ["admin", "operador"] },
   { prefix: "/users", allowedRoles: ["admin", "operador"] },
   { prefix: "/audit", allowedRoles: ["admin", "operador", "financeiro"] },
@@ -65,6 +68,9 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/agenda/:path*",
+    "/clients/:path*",
+    "/drivers/:path*",
+    "/vehicles/:path*",
     "/dispatch/:path*",
     "/users",
     "/users/:path*",

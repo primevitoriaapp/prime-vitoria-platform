@@ -1,11 +1,15 @@
+import { ZodError } from "zod";
 import { NextResponse } from "next/server";
 
 export function ok<T>(data: T, status = 200) {
   return NextResponse.json({ success: true, data, meta: { timestamp: new Date().toISOString() } }, { status });
 }
 
-export function fail(code: string, message: string, status = 400) {
-  return NextResponse.json({ success: false, error: { code, message } }, { status });
+export function fail(code: string, message: string, status = 400, hint?: string) {
+  return NextResponse.json(
+    { success: false, error: { code, message, ...(hint ? { hint } : {}) } },
+    { status }
+  );
 }
 
 /** Resposta JSON para excecoes de rota (ex.: `assertCapability` -> 403). */
@@ -34,6 +38,10 @@ export function mapApiError(error: unknown) {
   }
   if (message.includes("Tenant mismatch") || message.includes("tenant scope")) {
     return fail("TENANT_FORBIDDEN", "Recurso fora do âmbito da sua empresa.", 403);
+  }
+  if (error instanceof ZodError) {
+    const detail = error.errors.map((e) => `${e.path.join(".") || "campo"}: ${e.message}`).join(" · ");
+    return fail("VALIDATION_ERROR", `Dados inválidos — ${detail}`, 422);
   }
   return fail("INVALID_REQUEST", message, 400);
 }

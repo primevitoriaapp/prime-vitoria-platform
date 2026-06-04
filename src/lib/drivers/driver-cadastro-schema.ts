@@ -25,6 +25,7 @@ export const driverCadastroSchema = z.object({
   bank_account_type: z.string().optional().nullable(),
   payee_name: z.string().optional().nullable(),
   payee_document: z.string().optional().nullable(),
+  photo_url: z.string().url().optional().nullable().or(z.literal("")),
   profile_name: z.string().min(2).optional(),
   profile_phone: z.string().optional().nullable()
 });
@@ -65,6 +66,7 @@ export function normalizeDriverBody(body: DriverCadastroInput) {
   }
   if (body.payee_name !== undefined) out.payee_name = emptyToNull(body.payee_name ?? undefined);
   if (body.payee_document !== undefined) out.payee_document = emptyToNull(body.payee_document ?? undefined);
+  if (body.photo_url !== undefined) out.photo_url = emptyToNull(body.photo_url ?? undefined);
   return out;
 }
 

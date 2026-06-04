@@ -118,9 +118,35 @@ for (const [label, sql] of columnChecks) {
   }
 }
 
+const mig45 = run(
+  "migration 0045 no histórico",
+  "SELECT version FROM supabase_migrations.schema_migrations WHERE version = '0045';"
+);
+const mig45Version = firstCol(mig45);
+if (mig45Version === "0045") {
+  ok("migration 0045 registada em schema_migrations");
+} else {
+  fail("migration 0045 registada", "versão 0045 ausente (db:push ou apply-migration pode ser necessário)");
+}
+
+const columnChecks45 = [
+  ["drivers.photo_url", "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='drivers' AND column_name='photo_url';"],
+  ["storage bucket driver-photos", "SELECT id FROM storage.buckets WHERE id = 'driver-photos';"]
+];
+
+for (const [label, sql] of columnChecks45) {
+  const res = run(label, sql);
+  const col = firstCol(res);
+  if (col) {
+    ok(`${label}`);
+  } else {
+    fail(`${label}`, "ausente — aplicar 0045_driver_photo_url.sql");
+  }
+}
+
 console.log("");
 if (failed === 0) {
-  console.log("RESULTADO: PASS — migration 0044 pronta para validação P1 na UI");
+  console.log("RESULTADO: PASS — migrations 0044 e 0045 prontas para validação P1 na UI");
   process.exit(0);
 }
 console.log(`RESULTADO: FAIL — ${failed} verificação(ões) falharam`);

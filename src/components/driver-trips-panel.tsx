@@ -32,10 +32,15 @@ const FOCUS_EVENT = "pv-driver-focus-trip";
 
 type Props = {
   tenantId?: string | null;
-  devFallbackRole?: "motorista";
+  driverIdFilter?: string | null;
+  devFallbackRole?: "motorista" | "admin";
 };
 
-export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista" }: Props) {
+export function DriverTripsPanel({
+  tenantId = null,
+  driverIdFilter = null,
+  devFallbackRole = "motorista"
+}: Props) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -46,7 +51,9 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
-    const res = await fetchWithSupabaseSession("/api/trips?page=1&pageSize=30", {}, devFallbackRole);
+    const params = new URLSearchParams({ page: "1", pageSize: "30" });
+    if (driverIdFilter) params.set("driverId", driverIdFilter);
+    const res = await fetchWithSupabaseSession(`/api/trips?${params}`, {}, devFallbackRole);
     const json = (await res.json()) as { success?: boolean; data?: { items: Trip[] }; error?: { message?: string } };
     if (!res.ok || !json.success) {
       setTrips([]);
@@ -58,7 +65,7 @@ export function DriverTripsPanel({ tenantId = null, devFallbackRole = "motorista
     setMessage(null);
     setLastRefreshAt(new Date());
     setLoading(false);
-  }, [devFallbackRole]);
+  }, [devFallbackRole, driverIdFilter]);
 
   useEffect(() => {
     void load();

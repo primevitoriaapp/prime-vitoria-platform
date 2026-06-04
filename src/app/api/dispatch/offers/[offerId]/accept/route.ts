@@ -8,16 +8,24 @@ import { assertCapability } from "@/lib/security/rbac";
 import { dispatchOfferIsExpired } from "@/lib/dispatch/offer-expiration";
 
 const bodySchema = z.object({
-  eta_minutes: z.number().int().min(1).max(240).optional()
+  eta_minutes: z.number().int().min(1).max(240).optional(),
+  driver_id: z.string().uuid().optional()
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ offerId: string }> }) {
   try {
     const session = await getSessionContext();
-    assertCapability(session, "trip.accept");
-    if (!session.driverId) return fail("FORBIDDEN", "Motorista precisa de cadastro vinculado a sessao", 403);
+    const body = bodySchema.parse(await request.json().catch(() => ({})));
 
-    const body = bodySchema.parse(await request.json());
+    let driverId = session.driverId;
+    if (session.role === "admin" || session.role === "operador") {
+      assertCapability(session, "trip.write");
+      driverId = body.driver_id ?? driverId ?? undefined;
+    } else {
+      assertCapability(session, "trip.accept");
+    }
+
+    if (!driverId) return fail("FORBIDDEN", "Motorista precisa de cadastro vinculado a sessao", 403);
     const { offerId } = await params;
     const tenantId = assertTenantScope(session);
 
@@ -30,7 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
       .from("dispatch_offer_recipients")
       .select("id")
       .eq("offer_id", offerId)
-      .eq("driver_id", session.driverId)
+      .eq("driver_id", driverId)
       .maybeSingle();
     if (!recipient) {
       return fail("OFFER_NOT_ELIGIBLE", "Motorista nao esta na lista de candidatos desta oferta", 403);
@@ -38,7 +46,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
 
     const { error } = await db.from("dispatch_offer_responses").insert({
       offer_id: offerId,
-      driver_id: session.driverId,
+      driver_id: driverId,
       status: "accepted",
       eta_minutes: body.eta_minutes
     });

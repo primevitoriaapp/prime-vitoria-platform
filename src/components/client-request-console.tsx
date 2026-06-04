@@ -13,9 +13,14 @@ import {
 type Props = {
   clientId: string;
   costCenters?: { id: string; code: string | null; name: string }[];
+  devFallbackRole?: "cliente" | "admin";
 };
 
-export function ClientRequestConsole({ clientId, costCenters = [] }: Props) {
+export function ClientRequestConsole({
+  clientId,
+  costCenters = [],
+  devFallbackRole = "cliente"
+}: Props) {
   const router = useRouter();
   const [serviceType, setServiceType] = useState("Transfer executivo");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -79,7 +84,7 @@ export function ClientRequestConsole({ clientId, costCenters = [] }: Props) {
           dispatch_mode: "directed"
         })
       },
-      "cliente"
+      devFallbackRole
     );
 
     const body = await response.json();

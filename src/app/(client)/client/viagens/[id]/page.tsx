@@ -9,8 +9,10 @@ export default async function ClientTripDetailPage({ params }: { params: Promise
   const session = await getSessionContext();
   const { id } = await params;
   const valid = z.string().uuid().safeParse(id);
+  const isCliente = session.role === "cliente" && Boolean(session.clientId);
+  const isAdmin = session.role === "admin";
 
-  if (session.role !== "cliente" || !session.clientId) {
+  if (!isCliente && !isAdmin) {
     return (
       <div className="min-h-screen bg-slate-950 px-5 py-16 text-slate-100">
         <Link href="/login?next=/client" className="text-amber-400 hover:underline">
@@ -33,18 +35,27 @@ export default async function ClientTripDetailPage({ params }: { params: Promise
 
   const tenantId = session.tenantId ?? DEFAULT_TENANT_ID;
   let costCenters: { id: string; code: string | null; name: string }[] = [];
-  try {
-    const { data: cc } = await db
-      .from("cost_centers")
-      .select("id, code, name")
-      .eq("client_id", session.clientId)
-      .eq("tenant_id", tenantId)
-      .order("name")
-      .limit(50);
-    costCenters = cc ?? [];
-  } catch {
-    /* API-only fallback */
+
+  if (isCliente && session.clientId) {
+    try {
+      const { data: cc } = await db
+        .from("cost_centers")
+        .select("id, code, name")
+        .eq("client_id", session.clientId)
+        .eq("tenant_id", tenantId)
+        .order("name")
+        .limit(50);
+      costCenters = cc ?? [];
+    } catch {
+      /* API-only fallback */
+    }
   }
 
-  return <ClientTripDetailPanel tripId={id} costCenters={costCenters} />;
+  return (
+    <ClientTripDetailPanel
+      tripId={id}
+      costCenters={costCenters}
+      devFallbackRole={isAdmin ? "admin" : "cliente"}
+    />
+  );
 }

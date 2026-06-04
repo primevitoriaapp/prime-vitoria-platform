@@ -1,0 +1,56 @@
+# Aplica migration 0045 (foto motorista + bucket) no Postgres de staging — NÃO produção.
+# Secrets: STAGING_DATABASE_URL
+
+name: Staging migration 0045 (P1 foto motorista)
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_apply:
+        description: "Só validar (true) sem executar SQL"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  migration-0045:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar secret STAGING_DATABASE_URL
+        run: |
+          if [ -z "${{ secrets.STAGING_DATABASE_URL }}" ]; then
+            echo "::error::Defina o secret STAGING_DATABASE_URL (Settings → Secrets → Actions)."
+            exit 1
+          fi
+
+      - name: Instalar psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Aplicar migration 0045 (aditiva, idempotente)
+        if: inputs.skip_apply != 'true'
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          bash scripts/apply-migration.sh supabase/migrations/0045_driver_photo_url.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'EOSQL'
+          INSERT INTO supabase_migrations.schema_migrations (version, name, statements)
+          VALUES ('0045', 'driver_photo_url', ARRAY[]::text[])
+          ON CONFLICT (version) DO NOTHING;
+          EOSQL
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Validação read-only migrations 0044 + 0045
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npm run db:validate-operational-0044

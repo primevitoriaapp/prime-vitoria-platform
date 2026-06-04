@@ -43,6 +43,11 @@ export async function GET(request: Request) {
     }
     if (session.role === "motorista" && session.driverId) {
       query = query.eq("driver_id", session.driverId);
+    } else {
+      const driverIdParam = new URL(request.url).searchParams.get("driverId")?.trim();
+      if (driverIdParam) {
+        query = query.eq("driver_id", driverIdParam);
+      }
     }
 
     const { data, error, count } = await query;

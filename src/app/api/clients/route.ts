@@ -1,10 +1,12 @@
-import { db } from "@/lib/server/db";
+import { insertClientRow, updateClientRow } from "@/lib/clients/client-db";
 import { clientCadastroSchema, normalizeClientBody } from "@/lib/clients/client-cadastro-schema";
+import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { mapSupabaseError } from "@/lib/server/supabase-errors";
 
 export async function POST(request: Request) {
   try {
@@ -13,22 +15,28 @@ export async function POST(request: Request) {
     const tenantId = assertTenantScope(session);
     const parsed = clientCadastroSchema.parse(await request.json());
     const body = normalizeClientBody(parsed);
-    const { data, error } = await db
-      .from("clients")
-      .insert({ ...body, tenant_id: tenantId, active: body.active ?? true })
-      .select("*")
-      .single();
-    if (error) return fail("CLIENT_CREATE_FAILED", error.message, 500);
+
+    const { data, error, partialSave } = await insertClientRow(body, tenantId);
+    if (error || !data) {
+      const mapped = mapSupabaseError(error!, "cliente");
+      return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
+    }
+
     await insertAuditEvent({
       tenantId,
       actorUserId: session.userId,
       action: "client.create",
       entityType: "client",
-      entityId: data.id,
-      metadata: { name: body.name, type: body.type },
+      entityId: String(data.id),
+      metadata: { name: body.name, type: body.type, partialSave: partialSave ?? false },
       request
     });
-    return ok(data, 201);
+
+    const warning = partialSave
+      ? "Cliente guardado com dados básicos. Campos extra (WhatsApp, endereço, etc.) exigem migration 0044 no Supabase."
+      : undefined;
+
+    return ok({ ...data, ...(warning ? { _warning: warning } : {}) }, 201);
   } catch (error) {
     return mapApiError(error);
   }
@@ -46,7 +54,10 @@ export async function GET() {
       .eq("tenant_id", tenantId)
       .order("name")
       .limit(200);
-    if (error) return fail("CLIENT_LIST_FAILED", error.message, 500);
+    if (error) {
+      const mapped = mapSupabaseError(error, "listagem de clientes");
+      return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
+    }
     return ok(data ?? []);
   } catch (error) {
     return mapApiError(error);

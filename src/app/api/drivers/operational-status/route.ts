@@ -22,6 +22,9 @@ async function resolveDriverId(session: Awaited<ReturnType<typeof getSessionCont
     if (!session.driverId) return null;
     return session.driverId;
   }
+  if (session.role === "admin" || session.role === "operador") {
+    return requested ?? null;
+  }
   return requested ?? null;
 }
 

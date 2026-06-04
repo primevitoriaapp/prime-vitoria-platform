@@ -1,6 +1,8 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logoutAction } from "@/app/login/actions";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
@@ -11,7 +13,25 @@ type SessionPayload = {
   tenantId?: string | null;
 };
 
+const BACKOFFICE_LINKS = [
+  { href: "/dashboard", label: "Painel" },
+  { href: "/agenda", label: "Agenda" },
+  { href: "/clients", label: "Clientes" },
+  { href: "/drivers", label: "Motoristas" },
+  { href: "/vehicles", label: "Veículos" },
+  { href: "/dispatch", label: "Despacho" }
+] as const;
+
+function navLinkStyle(active: boolean): CSSProperties {
+  return {
+    fontWeight: active ? 600 : 400,
+    color: active ? "#b45309" : "#334155",
+    textDecoration: "none"
+  };
+}
+
 export function SiteHeader() {
+  const pathname = usePathname();
   const [session, setSession] = useState<SessionPayload | null | undefined>(undefined);
 
   useEffect(() => {
@@ -40,10 +60,14 @@ export function SiteHeader() {
 
   const role = session?.role;
   const isOperadorBackoffice = role === "admin" || role === "operador";
+  const isAdmin = role === "admin";
 
   return (
     <header
       style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -51,7 +75,8 @@ export function SiteHeader() {
         padding: "12px 20px",
         background: "#fff",
         borderBottom: "1px solid #e2e8f0",
-        flexWrap: "wrap"
+        flexWrap: "wrap",
+        boxShadow: "0 1px 2px rgba(15, 23, 42, 0.06)"
       }}
     >
       <Link href="/" style={{ fontWeight: 600, textDecoration: "none", color: "#0f172a" }}>
@@ -60,24 +85,49 @@ export function SiteHeader() {
       <nav style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, flexWrap: "wrap" }}>
         {isOperadorBackoffice ? (
           <>
-            <Link href="/dashboard">Painel</Link>
-            <Link href="/agenda">Agenda</Link>
-            <Link href="/clients">Clientes</Link>
-            <Link href="/drivers">Motoristas</Link>
-            <Link href="/vehicles">Veículos</Link>
-            {role === "admin" || role === "operador" ? <Link href="/users">Utilizadores</Link> : null}
-            <Link href="/dispatch">Despacho</Link>
-            {role === "admin" ? <Link href="/finance">Financeiro</Link> : null}
+            {BACKOFFICE_LINKS.map((item) => (
+              <Link key={item.href} href={item.href} style={navLinkStyle(pathname.startsWith(item.href))}>
+                {item.label}
+              </Link>
+            ))}
+            <Link href="/users" style={navLinkStyle(pathname.startsWith("/users"))}>
+              Utilizadores
+            </Link>
+          </>
+        ) : null}
+        {isAdmin ? (
+          <>
+            <Link href="/finance" style={navLinkStyle(pathname.startsWith("/finance"))}>
+              Financeiro
+            </Link>
+            <Link href="/driver" style={navLinkStyle(pathname.startsWith("/driver"))}>
+              App motorista
+            </Link>
+            <Link href="/client" style={navLinkStyle(pathname.startsWith("/client"))}>
+              Portal cliente
+            </Link>
           </>
         ) : null}
         {role === "financeiro" ? (
           <>
-            <Link href="/finance">Financeiro</Link>
-            <Link href="/audit">Auditoria</Link>
+            <Link href="/finance" style={navLinkStyle(pathname.startsWith("/finance"))}>
+              Financeiro
+            </Link>
+            <Link href="/audit" style={navLinkStyle(pathname.startsWith("/audit"))}>
+              Auditoria
+            </Link>
           </>
         ) : null}
-        {role === "motorista" ? <Link href="/driver">Motorista</Link> : null}
-        {role === "cliente" ? <Link href="/client">Cliente</Link> : null}
+        {role === "motorista" ? (
+          <Link href="/driver" style={navLinkStyle(pathname.startsWith("/driver"))}>
+            Motorista
+          </Link>
+        ) : null}
+        {role === "cliente" ? (
+          <Link href="/client" style={navLinkStyle(pathname.startsWith("/client"))}>
+            Cliente
+          </Link>
+        ) : null}
         {!session && (
           <>
             <Link href="/driver">Motorista</Link>

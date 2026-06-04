@@ -20,10 +20,15 @@ type OpenOffer = {
 
 type Props = {
   tenantId?: string | null;
-  devFallbackRole?: "motorista";
+  driverId?: string | null;
+  devFallbackRole?: "motorista" | "admin";
 };
 
-export function DriverOffersPanel({ tenantId = null, devFallbackRole = "motorista" }: Props) {
+export function DriverOffersPanel({
+  tenantId = null,
+  driverId = null,
+  devFallbackRole = "motorista"
+}: Props) {
   const [offers, setOffers] = useState<OpenOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -31,11 +36,12 @@ export function DriverOffersPanel({ tenantId = null, devFallbackRole = "motorist
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetchWithSupabaseSession("/api/dispatch/offers/open", {}, devFallbackRole);
+    const qs = driverId ? `?driver_id=${encodeURIComponent(driverId)}` : "";
+    const res = await fetchWithSupabaseSession(`/api/dispatch/offers/open${qs}`, {}, devFallbackRole);
     const json = (await res.json()) as { success?: boolean; data?: { items: OpenOffer[] } };
     setOffers(res.ok && json.success ? (json.data?.items ?? []) : []);
     setLoading(false);
-  }, [devFallbackRole]);
+  }, [devFallbackRole, driverId]);
 
   const docVisible = useDocumentVisible();
 
@@ -56,8 +62,9 @@ export function DriverOffersPanel({ tenantId = null, devFallbackRole = "motorist
   async function accept(offerId: string, etaMinutes?: number) {
     setBusyId(offerId);
     setMessage(null);
-    const body: Record<string, number> = {};
+    const body: Record<string, number | string> = {};
     if (etaMinutes != null) body.eta_minutes = etaMinutes;
+    if (driverId) body.driver_id = driverId;
 
     const res = await fetchWithSupabaseSession(
       `/api/dispatch/offers/${offerId}/accept`,

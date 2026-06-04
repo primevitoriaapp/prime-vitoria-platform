@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { LoginStagingAccounts } from "@/components/login-staging-accounts";
+import { isStagingSmokeHintsEnabled } from "@/lib/staging/smoke-hints";
 import { loginAction, type LoginState } from "./actions";
 
 const initial: LoginState = {};
@@ -13,6 +15,17 @@ export function LoginForm({ defaultNext }: { defaultNext?: string }) {
     <section className="card" style={{ maxWidth: 420 }}>
       <h1>Entrar</h1>
       <p style={{ fontSize: 14, color: "#475569" }}>Use a conta Supabase (email e senha).</p>
+      {isStagingSmokeHintsEnabled() ? (
+        <p style={{ fontSize: 12, marginTop: 8 }}>
+          <Link href="/p1-homologacao" style={{ color: "#6d28d9", textDecoration: "underline" }}>
+            Homologação P1 — URL oficial e passos
+          </Link>
+          {" · "}
+          <Link href="/staging-status" style={{ color: "#6d28d9", textDecoration: "underline" }}>
+            Status do ambiente
+          </Link>
+        </p>
+      ) : null}
       <form action={formAction} className="grid" style={{ gap: 12 }}>
         <input type="hidden" name="next" value={defaultNext ?? ""} />
         <label style={{ display: "grid", gap: 4 }}>

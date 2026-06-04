@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { BackButton } from "@/components/back-button";
 import { ClientCadastroForm, clientRowToForm } from "@/components/client-cadastro-form";
 import { ClientPricingRulesPanel } from "@/components/client-pricing-rules-panel";
 
@@ -71,7 +72,11 @@ export function ClientsFleetPanel({ initialClients }: Props) {
   return (
     <>
       {editingClient ? (
-        <ClientCadastroForm
+        <>
+          <div className="mb-3">
+            <BackButton fallbackHref="/clients" onClick={() => setEditingId(null)} />
+          </div>
+          <ClientCadastroForm
           title={`Editar: ${editingClient.name}`}
           clientId={editingClient.id}
           initial={clientRowToForm(editingClient)}
@@ -81,6 +86,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
           }}
           onCancel={() => setEditingId(null)}
         />
+        </>
       ) : (
         <ClientCadastroForm title="Novo cliente" onSuccess={() => void reload()} />
       )}
@@ -151,10 +157,15 @@ export function ClientsFleetPanel({ initialClients }: Props) {
         )}
       </section>
       {pricingClientId ? (
-        <ClientPricingRulesPanel
+        <>
+          <div className="mt-6 mb-3">
+            <BackButton fallbackHref="/clients" onClick={() => setPricingClientId(null)} />
+          </div>
+          <ClientPricingRulesPanel
           clientId={pricingClientId}
           clientName={clients.find((c) => c.id === pricingClientId)?.name ?? "Cliente"}
         />
+        </>
       ) : null}
     </>
   );

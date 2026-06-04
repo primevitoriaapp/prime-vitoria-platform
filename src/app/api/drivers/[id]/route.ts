@@ -1,16 +1,19 @@
 import { z } from "zod";
 import { db } from "@/lib/server/db";
+import { updateDriverRow } from "@/lib/drivers/driver-db";
 import { driverCadastroSchema, normalizeDriverBody } from "@/lib/drivers/driver-cadastro-schema";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { mapSupabaseError } from "@/lib/server/supabase-errors";
 import {
   attachDefaultVehiclesToDrivers,
   attachProfileNamesToDrivers,
   listLinkedVehiclesForDriver
 } from "@/lib/vehicles/driver-default-vehicle";
+import { resolveDriverPhotoDisplayUrl } from "@/lib/storage/driver-photo-upload";
 
 const patchSchema = driverCadastroSchema
   .omit({ profile_id: true })
@@ -30,8 +33,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .eq("id", id)
       .eq("tenant_id", tenantId)
       .maybeSingle();
-    if (error) return fail("DRIVER_GET_FAILED", error.message, 500);
-    if (!driver) return fail("DRIVER_NOT_FOUND", "Motorista nao encontrado", 404);
+    if (error) {
+      const mapped = mapSupabaseError(error, "motorista");
+      return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
+    }
+    if (!driver) return fail("DRIVER_NOT_FOUND", "Motorista não encontrado", 404);
 
     const [withProfile] = await attachProfileNamesToDrivers([driver]);
     const linked_vehicles = await listLinkedVehiclesForDriver(id);
@@ -43,7 +49,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .eq("id", driver.profile_id)
       .maybeSingle();
 
-    return ok({ ...withProfile, profile_phone: profile?.phone ?? null, default_vehicle, linked_vehicles });
+    const photo_url = await resolveDriverPhotoDisplayUrl(driver.photo_url as string | null);
+
+    return ok({
+      ...withProfile,
+      profile_phone: profile?.phone ?? null,
+      phone: driver.phone ?? profile?.phone ?? null,
+      photo_url,
+      default_vehicle,
+      linked_vehicles
+    });
   } catch (error) {
     return mapApiError(error);
   }
@@ -60,6 +75,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const updatePayload = normalizeDriverBody(driverFields);
     if (cpf !== undefined) updatePayload.cpf = cpf.trim();
 
+    if (profile_phone !== undefined) {
+      const t = profile_phone?.trim();
+      updatePayload.phone = t ? t : null;
+    }
+
     if (
       Object.keys(updatePayload).length === 0 &&
       profile_name === undefined &&
@@ -74,7 +94,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .eq("id", id)
       .eq("tenant_id", tenantId)
       .maybeSingle();
-    if (!existing) return fail("DRIVER_NOT_FOUND", "Motorista nao encontrado", 404);
+    if (!existing) return fail("DRIVER_NOT_FOUND", "Motorista não encontrado", 404);
 
     if (profile_name !== undefined || profile_phone !== undefined) {
       const profileUpdate: Record<string, string | null> = {};
@@ -83,23 +103,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const t = profile_phone?.trim();
         profileUpdate.phone = t ? t : null;
       }
-      await db.from("profiles").update(profileUpdate).eq("id", existing.profile_id);
+      const { error: profileErr } = await db.from("profiles").update(profileUpdate).eq("id", existing.profile_id);
+      if (profileErr) {
+        return fail("PROFILE_UPDATE_FAILED", profileErr.message, 500);
+      }
     }
 
-    let row = existing;
+    let row: { id: string; profile_id: string } & Record<string, unknown> = existing;
+    let partialSave = false;
+
     if (Object.keys(updatePayload).length > 0) {
-      const { data: updated, error } = await db
-        .from("drivers")
-        .update(updatePayload)
-        .eq("id", id)
-        .eq("tenant_id", tenantId)
-        .select("*")
-        .single();
-      if (error) return fail("DRIVER_UPDATE_FAILED", error.message, 500);
-      row = updated;
+      const result = await updateDriverRow(id, tenantId, updatePayload);
+      if (result.error || !result.data) {
+        const mapped = mapSupabaseError(result.error!, "motorista");
+        return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
+      }
+      row = { ...result.data, id: existing.id, profile_id: existing.profile_id };
+      partialSave = result.partialSave ?? false;
     } else {
       const { data: refreshed } = await db.from("drivers").select("*").eq("id", id).single();
-      if (refreshed) row = refreshed;
+      if (refreshed) row = { ...refreshed, id: existing.id, profile_id: existing.profile_id };
     }
 
     const [enriched] = await attachDefaultVehiclesToDrivers(await attachProfileNamesToDrivers([row]));
@@ -110,11 +133,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       action: parsed.active === false ? "driver.deactivate" : "driver.update",
       entityType: "driver",
       entityId: id,
-      metadata: { profile_id: existing.profile_id },
+      metadata: { profile_id: existing.profile_id, partialSave },
       request
     });
 
-    return ok(enriched);
+    const warning = partialSave
+      ? "Dados guardados parcialmente — campos extra exigem migration 0044; foto exige 0045."
+      : undefined;
+
+    return ok({ ...enriched, ...(warning ? { _warning: warning } : {}) });
   } catch (error) {
     return mapApiError(error);
   }

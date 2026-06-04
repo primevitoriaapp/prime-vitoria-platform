@@ -1,5 +1,7 @@
 # URL oficial de staging / preview (smoke humano)
 
+> **Homologação P1:** ver **[P1_HOMOLOGACAO_URL_OFICIAL.md](./P1_HOMOLOGACAO_URL_OFICIAL.md)** e **[AMANHA_P1.md](./AMANHA_P1.md)** (passos amanhã).
+
 > **Não usar** `https://prime-vitoria-web.vercel.app` para validar o ciclo `cursor/pricing-engine-mvp-cycle` — essa URL é **produção** (`main`).
 
 ## URL única (branch `cursor/pricing-engine-mvp-cycle`)

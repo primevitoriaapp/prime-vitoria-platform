@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
+import { isValidCpf } from "@/lib/integrations/cpf-public-lookup";
 
 export type ClientFormValues = {
   type: "PF" | "PJ";
@@ -38,6 +40,47 @@ const emptyForm = (): ClientFormValues => ({
 
 const inputClass = "rounded border border-slate-300 px-2 py-2 w-full";
 
+type FormFeedback = {
+  kind: "success" | "error" | "info";
+  message: string;
+  code?: string;
+  hint?: string;
+};
+
+async function parseApiResponse(res: Response): Promise<{
+  ok: boolean;
+  data?: unknown;
+  error?: { code?: string; message?: string; hint?: string };
+}> {
+  const text = await res.text();
+  if (!text.trim()) {
+    return { ok: false, error: { code: `HTTP_${res.status}`, message: `Resposta vazia do servidor (HTTP ${res.status}).` } };
+  }
+  try {
+    const parsed = JSON.parse(text) as {
+      success?: boolean;
+      data?: unknown;
+      error?: { code?: string; message?: string; hint?: string };
+    };
+    return {
+      ok: parsed.success === true,
+      data: parsed.data,
+      error: parsed.error
+    };
+  } catch {
+    return {
+      ok: false,
+      error: {
+        code: `HTTP_${res.status}`,
+        message:
+          res.status === 401
+            ? "Sessão expirada ou preview bloqueado. Inicie sessão novamente."
+            : `Resposta inválida do servidor (HTTP ${res.status}). Verifique se está no ambiente P1.`
+      }
+    };
+  }
+}
+
 type Props = {
   title: string;
   initial?: Partial<ClientFormValues>;
@@ -50,7 +93,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
   const [form, setForm] = useState<ClientFormValues>({ ...emptyForm(), ...initial });
   const [busy, setBusy] = useState(false);
   const [lookupBusy, setLookupBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<FormFeedback | null>(null);
 
   function set<K extends keyof ClientFormValues>(key: K, value: ClientFormValues[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -58,23 +101,40 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
 
   async function lookupCnpj() {
     if (form.type !== "PJ") {
-      setMessage("Consulta CNPJ disponível apenas para PJ.");
+      setFeedback({ kind: "info", message: "Consulta CNPJ disponível apenas para PJ." });
       return;
     }
     const digits = form.document.replace(/\D/g, "");
     if (digits.length !== 14) {
-      setMessage("Informe um CNPJ válido (14 dígitos) no campo Documento.");
+      setFeedback({ kind: "error", message: "Informe um CNPJ com 14 dígitos." });
+      return;
+    }
+    if (!isValidCnpj(digits)) {
+      setFeedback({
+        kind: "error",
+        code: "CNPJ_INVALID",
+        message: "CNPJ inválido — verifique os dígitos antes de consultar.",
+        hint: "Corrija o número ou preencha os dados manualmente."
+      });
       return;
     }
     setLookupBusy(true);
-    setMessage(null);
+    setFeedback(null);
     try {
       const res = await fetch(`/api/integrations/cnpj-lookup?cnpj=${encodeURIComponent(digits)}`, {
         credentials: "include"
       });
-      const json = (await res.json()) as {
-        success?: boolean;
-        data?: {
+      const json = await parseApiResponse(res);
+      if (!res.ok || !json.ok) {
+        setFeedback({
+          kind: "error",
+          code: json.error?.code ?? `HTTP_${res.status}`,
+          message: json.error?.message ?? "Não foi possível consultar o CNPJ.",
+          hint: json.error?.hint ?? "Preencha razão social e endereço manualmente."
+        });
+        return;
+      }
+      const d = json.data as {
           legal_name?: string | null;
           trade_name?: string | null;
           address_line?: string | null;
@@ -85,13 +145,14 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
           main_activity?: string | null;
           cnpj?: string;
         };
-        error?: { message?: string };
-      };
-      if (!res.ok || !json.success || !json.data) {
-        setMessage(json.error?.message ?? "Não foi possível consultar o CNPJ. Preencha manualmente.");
+      if (!d?.legal_name && !d?.trade_name) {
+        setFeedback({
+          kind: "error",
+          code: "CNPJ_NOT_FOUND",
+          message: "Consulta não devolveu razão social. Preencha manualmente."
+        });
         return;
       }
-      const d = json.data;
       setForm((f) => ({
         ...f,
         document: d.cnpj ?? digits,
@@ -104,9 +165,83 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         registry_status: d.registry_status ?? f.registry_status,
         notes: d.main_activity ? `CNAE: ${d.main_activity}` : f.notes
       }));
-      setMessage("Dados do CNPJ preenchidos. Revise antes de guardar.");
+      setFeedback({
+        kind: "success",
+        message: `Dados de «${d.legal_name ?? d.trade_name}» preenchidos. Revise antes de guardar.`
+      });
     } catch {
-      setMessage("Falha na consulta. Preencha manualmente.");
+      setFeedback({
+        kind: "error",
+        message: "Falha na consulta CNPJ (rede ou timeout). Preencha manualmente."
+      });
+    } finally {
+      setLookupBusy(false);
+    }
+  }
+
+  async function lookupCpf() {
+    const digits = form.document.replace(/\D/g, "");
+    if (digits.length !== 11) {
+      setFeedback({
+        kind: "error",
+        code: "CPF_INVALID",
+        message: "Informe um CPF com 11 dígitos antes de consultar."
+      });
+      return;
+    }
+    if (!isValidCpf(digits)) {
+      setFeedback({
+        kind: "error",
+        code: "CPF_INVALID",
+        message: "CPF inválido — verifique os dígitos antes de consultar.",
+        hint: "Corrija o número ou preencha o nome manualmente."
+      });
+      return;
+    }
+    setLookupBusy(true);
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/integrations/cpf-lookup?cpf=${encodeURIComponent(digits)}`, {
+        credentials: "include"
+      });
+      const json = await parseApiResponse(res);
+      if (!res.ok || !json.ok) {
+        setFeedback({
+          kind: "error",
+          code: json.error?.code ?? `HTTP_${res.status}`,
+          message: json.error?.message ?? "Não foi possível consultar o CPF.",
+          hint: json.error?.hint ?? "Preencha o nome completo manualmente."
+        });
+        return;
+      }
+      const d = json.data as {
+        cpf?: string;
+        full_name?: string | null;
+        registry_status?: string | null;
+      };
+      if (!d?.full_name) {
+        setFeedback({
+          kind: "error",
+          code: "CPF_NOT_FOUND",
+          message: "Consulta não devolveu nome completo. Preencha manualmente."
+        });
+        return;
+      }
+      setForm((f) => ({
+        ...f,
+        document: d.cpf ?? digits,
+        name: d.full_name ?? f.name,
+        registry_status: d.registry_status ?? f.registry_status
+      }));
+      setFeedback({
+        kind: "success",
+        message: `Nome «${d.full_name}» preenchido. Revise antes de guardar.`
+      });
+    } catch {
+      setFeedback({
+        kind: "error",
+        message: "Falha na consulta CPF (rede ou timeout). Preencha manualmente."
+      });
     } finally {
       setLookupBusy(false);
     }
@@ -115,7 +250,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setMessage(null);
+    setFeedback(null);
     try {
       const payload = {
         type: form.type,
@@ -140,15 +275,30 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         credentials: "include",
         body: JSON.stringify(payload)
       });
-      const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message ?? "Falha ao guardar cliente");
+      const json = await parseApiResponse(res);
+      if (!res.ok || !json.ok) {
+        setFeedback({
+          kind: "error",
+          code: json.error?.code ?? `HTTP_${res.status}`,
+          message: json.error?.message ?? "Falha ao guardar cliente.",
+          hint: json.error?.hint
+        });
+        return;
       }
-      setMessage(clientId ? "Cliente actualizado." : "Cliente registado.");
+
+      const saved = json.data as { _warning?: string } | undefined;
+      const successMsg = clientId ? "Cliente actualizado com sucesso." : "Cliente registado com sucesso.";
+      setFeedback({
+        kind: saved?._warning ? "info" : "success",
+        message: saved?._warning ? `${successMsg} ${saved._warning}` : successMsg
+      });
       if (!clientId) setForm(emptyForm());
       onSuccess?.();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Erro inesperado.");
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Erro inesperado ao guardar."
+      });
     } finally {
       setBusy(false);
     }
@@ -189,7 +339,16 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
               >
                 {lookupBusy ? "…" : "Consultar"}
               </button>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                disabled={lookupBusy}
+                onClick={() => void lookupCpf()}
+                className="shrink-0 rounded-lg border border-amber-700 px-3 py-2 text-sm text-amber-900 hover:bg-amber-50 disabled:opacity-50"
+              >
+                {lookupBusy ? "…" : "Consultar"}
+              </button>
+            )}
           </div>
         </label>
         <label className="grid gap-1 text-sm md:col-span-2">
@@ -278,7 +437,24 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
           ) : null}
         </div>
       </form>
-      {message ? <p className="mt-3 text-sm text-slate-700">{message}</p> : null}
+      {feedback ? (
+        <div
+          role="alert"
+          className={`mt-3 rounded-lg border px-3 py-3 text-sm ${
+            feedback.kind === "error"
+              ? "border-red-300 bg-red-50 text-red-950"
+              : feedback.kind === "success"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-950"
+                : "border-amber-300 bg-amber-50 text-amber-950"
+          }`}
+        >
+          {feedback.code ? (
+            <p className="mb-1 font-mono text-xs opacity-80">Código: {feedback.code}</p>
+          ) : null}
+          <p className="font-medium">{feedback.message}</p>
+          {feedback.hint ? <p className="mt-2 text-xs opacity-90">{feedback.hint}</p> : null}
+        </div>
+      ) : null}
     </section>
   );
 }

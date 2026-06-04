@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { z } from "zod";
+import { BackButton } from "@/components/back-button";
 import { AgendaDateRangeForm } from "@/components/agenda-date-range-form";
 import { OperationalHistoryPanel } from "@/components/operational-history-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
@@ -105,13 +105,12 @@ export default async function AgendaPage({
       {focusTripId ? (
         <div className="mt-8 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-slate-900">Detalhe da viagem selecionada</h2>
-            <Link
-              href={`/agenda?scheduledFrom=${encodeURIComponent(scheduledFrom)}&scheduledTo=${encodeURIComponent(scheduledTo)}`}
-              className="text-sm font-medium text-amber-700 hover:underline"
-            >
-              Fechar painel
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <BackButton
+                fallbackHref={`/agenda?scheduledFrom=${encodeURIComponent(scheduledFrom)}&scheduledTo=${encodeURIComponent(scheduledTo)}`}
+              />
+              <h2 className="text-lg font-semibold text-slate-900">Detalhe da viagem selecionada</h2>
+            </div>
           </div>
           {focusOutsideRange ? (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">

@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { BackButton } from "@/components/back-button";
 import { StatusBadge } from "@/components/status-badge";
 import { ClientOperationalTimeline } from "@/components/client-operational-timeline";
 import { ClientTrackingReadonly } from "@/components/client-tracking-readonly";
@@ -14,9 +14,14 @@ type CostCenter = { id: string; code: string | null; name: string };
 type Props = {
   tripId: string;
   costCenters?: CostCenter[];
+  devFallbackRole?: "cliente" | "admin";
 };
 
-export function ClientTripDetailPanel({ tripId, costCenters = [] }: Props) {
+export function ClientTripDetailPanel({
+  tripId,
+  costCenters = [],
+  devFallbackRole = "cliente"
+}: Props) {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +29,7 @@ export function ClientTripDetailPanel({ tripId, costCenters = [] }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await fetchWithSupabaseSession(`/api/trips/${tripId}`, {}, "cliente");
+    const res = await fetchWithSupabaseSession(`/api/trips/${tripId}`, {}, devFallbackRole);
     const json = (await res.json()) as { success?: boolean; data?: Trip; error?: { message?: string } };
     if (!res.ok || !json.success || !json.data) {
       setTrip(null);
@@ -34,7 +39,7 @@ export function ClientTripDetailPanel({ tripId, costCenters = [] }: Props) {
     }
     setTrip(json.data);
     setLoading(false);
-  }, [tripId]);
+  }, [tripId, devFallbackRole]);
 
   useEffect(() => {
     void load();
@@ -48,9 +53,10 @@ export function ClientTripDetailPanel({ tripId, costCenters = [] }: Props) {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800">
         <div className="mx-auto flex max-w-3xl items-center gap-4 px-5 py-4">
-          <Link href="/client#corridas" className="text-sm text-amber-400 hover:underline">
-            ← Voltar
-          </Link>
+          <BackButton
+            fallbackHref="/client#corridas"
+            className="text-sm text-amber-400 hover:underline border-0 bg-transparent px-0 py-0 font-normal rounded-none"
+          />
           <h1 className="text-lg font-semibold text-white">Detalhe da corrida</h1>
         </div>
       </header>

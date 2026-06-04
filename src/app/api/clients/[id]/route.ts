@@ -1,10 +1,12 @@
-import { db } from "@/lib/server/db";
+import { updateClientRow } from "@/lib/clients/client-db";
 import { clientCadastroSchema, normalizeClientPatch } from "@/lib/clients/client-cadastro-schema";
+import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { mapSupabaseError } from "@/lib/server/supabase-errors";
 
 const patchSchema = clientCadastroSchema.partial();
 
@@ -29,15 +31,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .maybeSingle();
     if (!existing) return fail("CLIENT_NOT_FOUND", "Cliente nao encontrado", 404);
 
-    const { data, error } = await db
-      .from("clients")
-      .update(updatePayload)
-      .eq("id", id)
-      .eq("tenant_id", tenantId)
-      .select("*")
-      .single();
-
-    if (error) return fail("CLIENT_UPDATE_FAILED", error.message, 500);
+    const { data, error, partialSave } = await updateClientRow(id, tenantId, updatePayload);
+    if (error || !data) {
+      const mapped = mapSupabaseError(error!, "cliente");
+      return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
+    }
 
     await insertAuditEvent({
       tenantId,
@@ -45,11 +43,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       action: parsed.active === false ? "client.deactivate" : "client.update",
       entityType: "client",
       entityId: id,
-      metadata: { name: data.name, type: data.type },
+      metadata: { name: data.name, type: data.type, partialSave: partialSave ?? false },
       request
     });
 
-    return ok(data);
+    const warning = partialSave
+      ? "Actualizado parcialmente — campos extra exigem migration 0044 no Supabase."
+      : undefined;
+
+    return ok({ ...data, ...(warning ? { _warning: warning } : {}) });
   } catch (error) {
     return mapApiError(error);
   }

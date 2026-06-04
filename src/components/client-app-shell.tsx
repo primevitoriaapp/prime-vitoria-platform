@@ -1,0 +1,178 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ClientRequestConsole } from "@/components/client-request-console";
+import { ClientTripsPanel } from "@/components/client-trips-panel";
+import { ClientPortalNav } from "@/components/client-portal-nav";
+import { ClientPortalReadonlyNotice } from "@/components/client-portal-readonly-notice";
+import { StagingSmokeHints } from "@/components/staging-smoke-hints";
+import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
+import { isClientPortalReadOnly } from "@/lib/client/portal-config";
+
+type ClientOption = { id: string; name: string; type?: string };
+
+type Props = {
+  tenantId: string;
+  mode: "cliente" | "admin";
+  sessionClientId?: string | null;
+  initialClients?: ClientOption[];
+  initialClientName?: string;
+  initialCostCenters?: { id: string; code: string | null; name: string }[];
+};
+
+export function ClientAppShell({
+  tenantId,
+  mode,
+  sessionClientId,
+  initialClients = [],
+  initialClientName = "Cliente",
+  initialCostCenters = []
+}: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [clients, setClients] = useState(initialClients);
+  const [costCenters, setCostCenters] = useState(initialCostCenters);
+  const [clientName, setClientName] = useState(initialClientName);
+
+  const selectedClientId = useMemo(() => {
+    if (mode === "cliente") return sessionClientId ?? null;
+    const fromUrl = searchParams.get("client_id")?.trim();
+    if (fromUrl) return fromUrl;
+    return clients[0]?.id ?? null;
+  }, [mode, sessionClientId, searchParams, clients]);
+
+  const reloadClients = useCallback(async () => {
+    if (mode !== "admin") return;
+    const res = await fetch("/api/clients", { credentials: "include" });
+    const json = (await res.json()) as { success?: boolean; data?: ClientOption[] };
+    if (res.ok && json.success) setClients(json.data ?? []);
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode === "admin" && initialClients.length === 0) void reloadClients();
+  }, [mode, initialClients.length, reloadClients]);
+
+  useEffect(() => {
+    if (!selectedClientId) return;
+    const hit = clients.find((c) => c.id === selectedClientId);
+    if (hit?.name) setClientName(hit.name);
+    void fetch(`/api/clients/${selectedClientId}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((body) => {
+        if (body?.success && body?.data?.name) setClientName(body.data.name as string);
+      })
+      .catch(() => undefined);
+  }, [selectedClientId, clients]);
+
+  function onClientChange(nextId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextId) params.set("client_id", nextId);
+    else params.delete("client_id");
+    router.replace(`/client?${params.toString()}`, { scroll: false });
+  }
+
+  const readOnly = mode === "admin" ? false : isClientPortalReadOnly();
+  const saudacao =
+    mode === "admin"
+      ? `Preview admin — portal da ${clientName}.`
+      : readOnly
+        ? `Visão consulta — operação executiva da ${clientName}.`
+        : `Olá — aqui está a visão da operação executiva da ${clientName}.`;
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <OperationalRealtimeBridge tenantId={tenantId} />
+      <header className="border-b border-slate-800">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-4">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-amber-500/90">Prime Vitória</p>
+            <h1 className="text-lg font-semibold text-white">
+              {mode === "admin" ? "Portal cliente (teste admin)" : "Portal corporativo"}
+            </h1>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            {mode === "admin" ? (
+              <label className="grid gap-1 text-xs text-slate-400">
+                <span>Cliente em preview</span>
+                <select
+                  className="min-w-[12rem] rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
+                  value={selectedClientId ?? ""}
+                  onChange={(e) => onClientChange(e.target.value)}
+                >
+                  {clients.length === 0 ? <option value="">— carregando —</option> : null}
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <ClientPortalNav readOnly={readOnly} />
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl space-y-10 px-5 py-8">
+        {mode === "admin" && !selectedClientId ? (
+          <p className="rounded-lg border border-amber-700/40 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
+            Selecione um cliente cadastrado para testar solicitações e acompanhamento de corridas.
+          </p>
+        ) : null}
+
+        <StagingSmokeHints variant="dark" />
+        {readOnly ? <ClientPortalReadonlyNotice readOnly /> : null}
+
+        <section id="visao" className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-xl">
+            <p className="font-serif text-2xl leading-snug text-white md:text-3xl">{saudacao}</p>
+            <p className="mt-3 text-sm text-slate-400">
+              {mode === "admin"
+                ? "Visualize e teste o portal como o cliente corporativo — solicitações, corridas e detalhes."
+                : readOnly
+                  ? "Consulte corridas, estados, centros de custo e passageiros."
+                  : "Solicite corridas, acompanhe status e centros de custo."}
+            </p>
+          </div>
+          {!readOnly && selectedClientId ? (
+            <Link
+              href="#solicitar"
+              className="inline-flex shrink-0 items-center justify-center rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-medium text-slate-950 hover:bg-amber-400"
+            >
+              + Nova solicitação
+            </Link>
+          ) : null}
+        </section>
+
+        {selectedClientId ? (
+          <>
+            <ClientTripsPanel
+              key={selectedClientId}
+              tenantId={tenantId}
+              costCenters={costCenters}
+              readOnly={readOnly}
+              clientIdOverride={mode === "admin" ? selectedClientId : undefined}
+              devFallbackRole={mode === "admin" ? "admin" : "cliente"}
+            />
+
+            {!readOnly ? (
+              <section id="solicitar" className="space-y-3">
+                <h2 className="font-serif text-xl text-white">Nova solicitação</h2>
+                <div className="[&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100 [&_input]:placeholder:text-slate-500">
+                  <ClientRequestConsole
+                    clientId={selectedClientId}
+                    costCenters={costCenters}
+                    devFallbackRole={mode === "admin" ? "admin" : "cliente"}
+                  />
+                </div>
+              </section>
+            ) : null}
+          </>
+        ) : null}
+      </main>
+    </div>
+  );
+}

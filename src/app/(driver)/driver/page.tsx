@@ -1,27 +1,27 @@
-import Link from "next/link";
 import { Suspense } from "react";
-import { DriverConsole } from "@/components/driver-console";
-import { DriverPushRegister } from "@/components/driver-push-register";
-import { DriverPushStatusBanner } from "@/components/driver-push-status-banner";
-import { DriverTripDeepLink } from "@/components/driver-trip-deep-link";
-import { StagingSmokeHints } from "@/components/staging-smoke-hints";
-import { DriverOffersPanel } from "@/components/driver-offers-panel";
-import { DriverOperationalStatusPanel } from "@/components/driver-operational-status-panel";
-import { DriverPayablesPanel } from "@/components/driver-payables-panel";
-import { DriverTripsPanel } from "@/components/driver-trips-panel";
-import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
+import { DriverAppShell } from "@/components/driver-app-shell";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
-import { papelUsuarioPt } from "@/lib/i18n/pt-br";
+import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
+import Link from "next/link";
+import { papelUsuarioPt } from "@/lib/i18n/pt-br";
+
+async function loadDriversForAdmin() {
+  const response = await fetchInternalApi("/api/drivers");
+  if (!response.ok) return [];
+  const payload = await response.json();
+  return (payload.data ?? []) as Array<{ id: string; cpf: string; profile_name?: string | null }>;
+}
 
 export default async function DriverPage() {
   const session = await getSessionContext();
   const isMotorista = session.role === "motorista";
+  const isAdminPreview = session.role === "admin";
   const isGuest = session.role === "guest" || session.userId === "anonymous";
   const tenantId =
     session.role === "guest" || session.userId === "anonymous" ? null : (session.tenantId ?? DEFAULT_TENANT_ID);
 
-  if (!isMotorista) {
+  if (!isMotorista && !isAdminPreview) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100">
         <main className="mx-auto max-w-lg px-5 py-16">
@@ -29,13 +29,12 @@ export default async function DriverPage() {
           <h1 className="mt-2 text-2xl font-semibold text-white">App motorista</h1>
           {isGuest ? (
             <p className="mt-4 text-sm text-slate-400">
-              Entre com <strong className="text-slate-200">staging-motorista@example.com</strong> (senha do seed
-              staging). Se o login falhar, execute o seed no Supabase deste ambiente.
+              Entre com conta motorista ou admin para testar o fluxo completo.
             </p>
           ) : (
             <p className="mt-4 text-sm text-amber-200/90">
               Sessão actual: <strong>{papelUsuarioPt(session.role)}</strong>. Esta área exige conta{" "}
-              <strong>motorista</strong>. Saia e entre com staging-motorista@example.com.
+              <strong>motorista</strong> ou <strong>admin</strong> (preview).
             </p>
           )}
           <div className="mt-8 flex flex-wrap gap-3">
@@ -43,11 +42,11 @@ export default async function DriverPage() {
               href="/login?next=/driver"
               className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-amber-400"
             >
-              {isGuest ? "Entrar como motorista" : "Trocar conta"}
+              {isGuest ? "Entrar" : "Trocar conta"}
             </Link>
             {!isGuest ? (
-              <Link href="/agenda" className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200">
-                Ir para agenda (operador)
+              <Link href="/dashboard" className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200">
+                Ir para painel
               </Link>
             ) : null}
           </div>
@@ -56,59 +55,16 @@ export default async function DriverPage() {
     );
   }
 
+  const initialDrivers = isAdminPreview ? await loadDriversForAdmin() : [];
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <OperationalRealtimeBridge tenantId={tenantId} />
-      <header className="border-b border-slate-800">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-4 px-4 py-4 md:max-w-3xl lg:max-w-5xl">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-amber-500/90">Prime Vitória</p>
-            <h1 className="text-lg font-semibold text-white">Motorista</h1>
-          </div>
-          <span className="rounded-full border border-slate-700 px-2 py-0.5 text-xs text-slate-400">PWA</span>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-lg space-y-6 px-4 py-6 pb-24 md:max-w-3xl md:px-6 lg:max-w-5xl lg:px-8">
-        <StagingSmokeHints variant="dark" />
-        <DriverPushStatusBanner />
-        <Suspense fallback={null}>
-          <DriverTripDeepLink />
-        </Suspense>
-
-        <DriverTripsPanel tenantId={tenantId} />
-
-        <section className="rounded-xl border border-violet-900/40 bg-slate-900/40 p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-300/90">Ofertas da central</h2>
-          <p className="mt-1 text-xs text-slate-500">Se não houver corrida actual acima, aceite aqui uma oferta aberta.</p>
-          <div className="mt-3">
-            <DriverOffersPanel tenantId={tenantId} />
-          </div>
-        </section>
-
-        <DriverOperationalStatusPanel />
-
-        <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Pagamentos</h2>
-          <div className="mt-3 [&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100">
-            <DriverPayablesPanel tenantId={tenantId} devFallbackRole="motorista" />
-          </div>
-        </section>
-
-        <section id="push-setup" className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Notificações push</h2>
-          <div className="mt-3 [&_.card]:border-0 [&_.card]:bg-transparent [&_.card]:p-0 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100">
-            <DriverPushRegister variant="dark" />
-          </div>
-        </section>
-
-        <details className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-          <summary className="cursor-pointer text-sm font-medium text-slate-400">Ferramentas avançadas (staging)</summary>
-          <div className="mt-4 [&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100">
-            <DriverConsole />
-          </div>
-        </details>
-      </main>
-    </div>
+    <Suspense fallback={<div className="min-h-screen bg-slate-950" />}>
+      <DriverAppShell
+        tenantId={tenantId}
+        mode={isAdminPreview ? "admin" : "motorista"}
+        sessionDriverId={session.driverId ?? null}
+        initialDrivers={initialDrivers}
+      />
+    </Suspense>
   );
 }

@@ -24,15 +24,22 @@ type CostCenter = { id: string; code: string | null; name: string };
 type Props = {
   tenantId: string;
   costCenters?: CostCenter[];
-  /** Fase segura: sem cancelar nem gerar tracking (POST). */
   readOnly?: boolean;
+  clientIdOverride?: string;
+  devFallbackRole?: "cliente" | "admin";
 };
 
 function inicioMesUtc(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
-export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false }: Props) {
+export function ClientTripsPanel({
+  tenantId,
+  costCenters = [],
+  readOnly = false,
+  clientIdOverride,
+  devFallbackRole = "cliente"
+}: Props) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -43,7 +50,9 @@ export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     setLoadError(null);
-    const res = await fetchWithSupabaseSession("/api/trips?page=1&pageSize=50", {}, "cliente");
+    const params = new URLSearchParams({ page: "1", pageSize: "50" });
+    if (clientIdOverride) params.set("clientId", clientIdOverride);
+    const res = await fetchWithSupabaseSession(`/api/trips?${params}`, {}, devFallbackRole);
     const json = (await res.json()) as {
       success?: boolean;
       data?: { items: Trip[]; total: number };
@@ -59,7 +68,7 @@ export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false 
     setTrips(json.data?.items ?? []);
     setTotal(json.data?.total ?? 0);
     setLoading(false);
-  }, []);
+  }, [clientIdOverride, devFallbackRole]);
 
   useEffect(() => {
     void load();
@@ -77,7 +86,7 @@ export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to_status: "cancelled" })
       },
-      "cliente"
+      devFallbackRole
     );
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     setCancellingId(null);
@@ -243,7 +252,7 @@ export function ClientTripsPanel({ tenantId, costCenters = [], readOnly = false 
                         Ver detalhe
                       </Link>
                       {!readOnly ? (
-                        <TripTrackingLinkButton tripId={trip.id} variant="dark" devFallbackRole="cliente" />
+                        <TripTrackingLinkButton tripId={trip.id} variant="dark" devFallbackRole={devFallbackRole} />
                       ) : null}
                       {!readOnly && clientMayCancelTrip(trip.operational_status) ? (
                         <button

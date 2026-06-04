@@ -18,10 +18,15 @@ type PayableRow = {
 
 type Props = {
   tenantId: string | null;
+  driverIdFilter?: string | null;
   devFallbackRole?: "financeiro" | "admin" | "motorista";
 };
 
-export function DriverPayablesPanel({ tenantId, devFallbackRole = "financeiro" }: Props) {
+export function DriverPayablesPanel({
+  tenantId,
+  driverIdFilter = null,
+  devFallbackRole = "financeiro"
+}: Props) {
   const financeStaff = devFallbackRole === "financeiro" || devFallbackRole === "admin";
   const [statusFilter, setStatusFilter] = useState<"" | "open" | "paid" | "cancelled">("open");
   const [items, setItems] = useState<PayableRow[]>([]);
@@ -35,6 +40,7 @@ export function DriverPayablesPanel({ tenantId, devFallbackRole = "financeiro" }
     setMessage(null);
     const qs = new URLSearchParams({ page: "1", pageSize: "40" });
     if (statusFilter) qs.set("status", statusFilter);
+    if (driverIdFilter) qs.set("driverId", driverIdFilter);
 
     const res = await fetchWithSupabaseSession(`/api/finance/driver-payables?${qs}`, {}, devFallbackRole);
     const json = (await res.json()) as {
@@ -52,7 +58,7 @@ export function DriverPayablesPanel({ tenantId, devFallbackRole = "financeiro" }
     setItems(json.data?.items ?? []);
     setTotal(json.data?.total ?? 0);
     setLoading(false);
-  }, [statusFilter, devFallbackRole]);
+  }, [statusFilter, devFallbackRole, driverIdFilter]);
 
   useEffect(() => {
     void load();
