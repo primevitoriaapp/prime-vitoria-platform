@@ -1,3 +1,4 @@
+import { AdminPageHeader } from "@/components/admin-page-header";
 import { DispatchAutomationSettings } from "@/components/dispatch-automation-settings";
 import { OperationalHistoryPanel } from "@/components/operational-history-panel";
 import { OperationalQueuePanel } from "@/components/operational-queue-panel";
@@ -26,14 +27,13 @@ export default async function DispatchPage() {
   const trips = await getTrips();
 
   return (
-    <main>
+    <>
       <OperationalRealtimeBridge tenantId={realtimeTenantId} />
-      <h1>Central de despacho</h1>
-      <p className="mb-4 max-w-3xl text-sm text-slate-600">
-        Aprovação, despacho direcionado, ofertas a motoristas e reatribuição. A tabela abaixo atualiza em tempo real
-        (Supabase Realtime) para o tenant da sessão.
-      </p>
-      <StagingSmokeHints variant="light" />
+      <AdminPageHeader
+        title="Central de despacho"
+        subtitle="Atribua, oferte e monitore corridas em tempo real"
+      />
+      <StagingSmokeHints variant="dark" />
       <TripTable
         trips={trips}
         operatorNotesHref={(id) => {
@@ -76,6 +76,6 @@ export default async function DispatchPage() {
         <h3 className="mt-6 font-semibold text-slate-800">Console UUID</h3>
         <DispatchConsole />
       </details>
-    </main>
+    </>
   );
 }

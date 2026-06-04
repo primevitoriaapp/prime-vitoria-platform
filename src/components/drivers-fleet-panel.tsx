@@ -33,7 +33,14 @@ type FormFeedback = {
   hint?: string;
 };
 
-const inputClass = "rounded border border-slate-300 px-2 py-2 w-full text-sm";
+const inputClass = "rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 w-full text-sm text-slate-100";
+
+function driverInitials(name: string | null | undefined): string {
+  const parts = (name ?? "M").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "M";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
 
 async function parseApiResponse(res: Response) {
   const text = await res.text();
@@ -161,7 +168,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
   return (
     <>
       <section className="card">
-        <h2 className="text-lg font-semibold text-slate-900">Cadastro rápido</h2>
+        <h2 className="text-lg font-semibold">Cadastro rápido</h2>
         <p className="mt-1 text-sm text-slate-600">
           Nome, CPF e CNH. Depois use <strong>Abrir ficha</strong> para foto, endereço, operacional, financeiro e veículos.
         </p>
@@ -193,7 +200,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
             <button
               type="submit"
               disabled={creating}
-              className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="btn-primary disabled:opacity-50"
             >
               {creating ? "A guardar…" : "Registar motorista"}
             </button>
@@ -204,7 +211,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
 
       <section className="card mt-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-slate-900">Motoristas</h2>
+          <h2 className="text-lg font-semibold">Frota de motoristas</h2>
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input
               type="checkbox"
@@ -217,41 +224,61 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
         {drivers.length === 0 ? (
           <p className="mt-3 text-sm text-slate-500">Nenhum motorista registado.</p>
         ) : (
-          <ul className="mt-3 divide-y divide-slate-100 text-sm">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {drivers.map((driver) => (
-              <li key={driver.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="font-medium text-slate-900">
-                    {driver.profile_name ?? "Motorista"} · CPF {driver.cpf}
-                    {driver.active === false ? (
-                      <span className="ml-2 rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-700">inactivo</span>
-                    ) : null}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    CNH {driver.cnh_number ?? "—"}
-                    {(driver.linked_vehicles?.length ?? 0) > 0 ? (
-                      <span className="ml-2 text-amber-800">
-                        · {driver.linked_vehicles!.length} veículo(s)
-                        {driver.default_vehicle ? ` · padrão ${driver.default_vehicle.plate}` : ""}
-                      </span>
-                    ) : (
-                      <span className="ml-2 text-slate-400">· sem veículos vinculados</span>
-                    )}
-                  </p>
+              <article
+                key={driver.id}
+                className={`rounded-xl border bg-slate-900/40 p-4 transition-colors ${
+                  fichaDriverId === driver.id ? "border-amber-500/50" : "border-slate-800 hover:border-slate-700"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-amber-400/90 to-amber-600 text-sm font-semibold text-slate-950">
+                      {driverInitials(driver.profile_name)}
+                    </span>
+                    <div>
+                      <p className="font-medium text-white">{driver.profile_name ?? "Motorista"}</p>
+                      <p className="text-xs text-slate-500">{driver.phone ?? `CPF ${driver.cpf}`}</p>
+                    </div>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                      driver.active === false
+                        ? "bg-slate-800 text-slate-500"
+                        : "bg-emerald-500/15 text-emerald-400"
+                    }`}
+                  >
+                    {driver.active === false ? "Inactivo" : "Disponível"}
+                  </span>
                 </div>
+                <dl className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-400">
+                  <div>
+                    <dt className="text-slate-500">Veículo</dt>
+                    <dd className="text-slate-300">{driver.default_vehicle?.model ?? "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Placa</dt>
+                    <dd className="text-slate-300">{driver.default_vehicle?.plate ?? "—"}</dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-slate-500">CNH</dt>
+                    <dd className="text-slate-300">{driver.cnh_number ?? "—"}</dd>
+                  </div>
+                </dl>
                 <button
                   type="button"
-                  className="rounded-lg border border-amber-700 px-3 py-1.5 text-sm text-amber-900 hover:bg-amber-50"
+                  className="mt-4 w-full text-right text-sm font-medium text-amber-400 hover:text-amber-300"
                   onClick={() => {
                     setFichaDriverId(driver.id);
                     setFeedback(null);
                   }}
                 >
-                  {fichaDriverId === driver.id ? "Ficha aberta" : "Abrir ficha"}
+                  {fichaDriverId === driver.id ? "Ficha aberta →" : "Ver perfil →"}
                 </button>
-              </li>
+              </article>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 

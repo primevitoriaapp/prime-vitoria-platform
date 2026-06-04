@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logoutAction } from "@/app/login/actions";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
+import { isBackofficePath } from "@/lib/ui/backoffice-paths";
 
 type SessionPayload = {
   userId: string;
@@ -61,6 +62,10 @@ export function SiteHeader() {
   const role = session?.role;
   const isOperadorBackoffice = role === "admin" || role === "operador";
   const isAdmin = role === "admin";
+
+  if (isBackofficePath(pathname)) {
+    return null;
+  }
 
   return (
     <header

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AdminPageHeader } from "@/components/admin-page-header";
 import { BackButton } from "@/components/back-button";
 import { AgendaDateRangeForm } from "@/components/agenda-date-range-form";
 import { OperationalHistoryPanel } from "@/components/operational-history-panel";
@@ -70,14 +71,13 @@ export default async function AgendaPage({
   }
 
   return (
-    <main>
+    <>
       <OperationalRealtimeBridge tenantId={realtimeTenantId} />
-      <h1>Agenda operacional</h1>
-      <p className="mb-4 max-w-3xl text-sm text-slate-600">
-        Viagens ordenadas por horário agendado. Use o intervalo para planear o período; em tempo real, as alterações de
-        estado aparecem na tabela quando o tenant da sessão corresponde.
-      </p>
-      <StagingSmokeHints variant="light" />
+      <AdminPageHeader
+        title="Agenda operacional"
+        subtitle="Timeline executiva de corridas programadas"
+      />
+      <StagingSmokeHints variant="dark" />
       {showClaimBar ? (
         <OperadorTripCreatePanel scheduledFrom={scheduledFrom} scheduledTo={scheduledTo} />
       ) : null}
@@ -136,6 +136,6 @@ export default async function AgendaPage({
           Clique em <strong>Abrir</strong> numa viagem para aprovar, despachar, assumir atendimento e registar notas.
         </p>
       )}
-    </main>
+    </>
   );
 }

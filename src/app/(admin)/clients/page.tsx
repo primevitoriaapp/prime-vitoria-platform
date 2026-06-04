@@ -1,3 +1,4 @@
+import { AdminPageHeader } from "@/components/admin-page-header";
 import { ClientsFleetPanel } from "@/components/clients-fleet-panel";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 
@@ -20,12 +21,12 @@ export default async function ClientsPage() {
   const clients = await getClients();
 
   return (
-    <main>
-      <h1>Clientes corporativos</h1>
-      <p className="mb-4 max-w-2xl text-sm text-slate-600">
-        Cadastro de empresas e pessoas do portal cliente. Desactivar impede novas solicitações com esse cliente.
-      </p>
+    <>
+      <AdminPageHeader
+        title="Clientes corporativos"
+        subtitle="Cadastro PF e PJ · centros de custo · faturamento"
+      />
       <ClientsFleetPanel initialClients={clients} />
-    </main>
+    </>
   );
 }

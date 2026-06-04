@@ -94,69 +94,73 @@ export function ClientsFleetPanel({ initialClients }: Props) {
       )}
 
       <section className="card mt-6">
-        <h2 className="text-lg font-semibold text-slate-900">Clientes activos</h2>
-        {message ? <p className="mt-2 text-sm text-slate-700">{message}</p> : null}
+        <h2 className="text-lg font-semibold">Clientes activos</h2>
+        {message ? <p className="mt-2 text-sm text-slate-400">{message}</p> : null}
         {clients.length === 0 ? (
           <p className="mt-3 text-sm text-slate-500">Nenhum cliente registado.</p>
         ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-slate-600">
-                  <th className="py-2 pr-3">Nome</th>
-                  <th className="py-2 pr-3">CNPJ / CPF</th>
-                  <th className="py-2 pr-3">Telefone</th>
-                  <th className="py-2 pr-3">Serviços</th>
-                  <th className="py-2">Acções</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clients.map((client) => (
-                  <tr key={client.id} className="border-b border-slate-100">
-                    <td className="py-2 pr-3 font-medium">
-                      {client.name}
-                      {client.trade_name ? (
-                        <span className="block text-xs font-normal text-slate-500">{client.trade_name}</span>
-                      ) : null}
-                    </td>
-                    <td className="py-2 pr-3 font-mono text-xs">{client.document ?? "—"}</td>
-                    <td className="py-2 pr-3 text-xs text-slate-600">
-                      {client.phone ?? client.whatsapp ?? "—"}
-                    </td>
-                    <td className="py-2 pr-3 text-xs text-slate-600">
-                      {client.type === "PJ" ? formatServiceTypesLabel(client.service_types) : "—"}
-                    </td>
-                    <td className="py-2">
-                      <button
-                        type="button"
-                        className="mr-3 text-amber-800"
-                        onClick={() => {
-                          setEditingId(client.id);
-                          setMessage(null);
-                        }}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="mr-3 text-slate-700"
-                        onClick={() => setPricingClientId(client.id)}
-                      >
-                        Precificação
-                      </button>
-                      <button
-                        type="button"
-                        className="text-red-700"
-                        disabled={busy}
-                        onClick={() => void deactivate(client)}
-                      >
-                        Desactivar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {clients.map((client) => (
+              <article
+                key={client.id}
+                className={`rounded-xl border bg-slate-900/40 p-4 ${
+                  editingId === client.id ? "border-amber-500/50" : "border-slate-800"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-2xl text-amber-500/80" aria-hidden>
+                    🏢
+                  </span>
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-400">
+                    {client.type}
+                  </span>
+                </div>
+                <p className="mt-3 font-medium text-white">{client.name}</p>
+                {client.trade_name ? <p className="text-xs text-slate-500">{client.trade_name}</p> : null}
+                <p className="mt-2 text-xs text-slate-500">
+                  {client.type === "PJ" ? "CNPJ" : "CPF"}: {client.document ?? "—"}
+                </p>
+                <p className="text-xs text-slate-500">{client.phone ?? client.email ?? "—"}</p>
+                <p className="mt-2 text-xs text-slate-400">{formatServiceTypesLabel(client.service_types)}</p>
+                <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                  <button
+                    type="button"
+                    className="text-amber-400 hover:text-amber-300"
+                    onClick={() => {
+                      setEditingId(client.id);
+                      setMessage(null);
+                    }}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    className="text-slate-400 hover:text-slate-200"
+                    onClick={() => setPricingClientId(client.id)}
+                  >
+                    Precificação
+                  </button>
+                  <button
+                    type="button"
+                    className="text-red-400 hover:text-red-300"
+                    disabled={busy}
+                    onClick={() => void deactivate(client)}
+                  >
+                    Desactivar
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="mt-3 w-full text-right text-sm font-medium text-amber-400 hover:text-amber-300"
+                  onClick={() => {
+                    setEditingId(client.id);
+                    setMessage(null);
+                  }}
+                >
+                  Ver detalhes →
+                </button>
+              </article>
+            ))}
           </div>
         )}
       </section>

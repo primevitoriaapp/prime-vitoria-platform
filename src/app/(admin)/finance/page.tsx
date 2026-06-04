@@ -1,3 +1,4 @@
+import { AdminPageHeader } from "@/components/admin-page-header";
 import { DriverPayablesPanel } from "@/components/driver-payables-panel";
 import { FinancialClosingsPanel } from "@/components/financial-closings-panel";
 import { FinanceConsole } from "@/components/finance-console";
@@ -15,10 +16,15 @@ export default async function FinancePage() {
     session.role === "guest" || session.userId === "anonymous" ? null : (session.tenantId ?? DEFAULT_TENANT_ID);
 
   return (
-    <main>
+    <>
       <OperationalRealtimeBridge tenantId={realtimeTenantId} />
-      <h1>Financeiro</h1>
-      <div className="card">Contas a receber, contas a pagar, margem operacional e fechamento mensal.</div>
+      <AdminPageHeader
+        title="Financeiro"
+        subtitle="Faturamento corporativo · payouts · margem operacional"
+      />
+      <div className="card mb-6 text-sm text-slate-400">
+        Contas a receber, contas a pagar, margem operacional e fechamento mensal.
+      </div>
       <FinanceConsole />
       {session.role === "admin" || session.role === "financeiro" ? (
         <InAppNotificationsPanel
@@ -52,6 +58,6 @@ export default async function FinancePage() {
           devFallbackRole={session.role === "financeiro" ? "financeiro" : "admin"}
         />
       ) : null}
-    </main>
+    </>
   );
 }

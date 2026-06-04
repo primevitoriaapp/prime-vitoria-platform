@@ -7,6 +7,7 @@ import { ClientRequestConsole } from "@/components/client-request-console";
 import { ClientTripsPanel } from "@/components/client-trips-panel";
 import { ClientPortalNav } from "@/components/client-portal-nav";
 import { ClientPortalReadonlyNotice } from "@/components/client-portal-readonly-notice";
+import { BrandLogo } from "@/components/brand-logo";
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { isClientPortalReadOnly } from "@/lib/client/portal-config";
@@ -86,12 +87,7 @@ export function ClientAppShell({
       <OperationalRealtimeBridge tenantId={tenantId} />
       <header className="border-b border-slate-800">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-4">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-amber-500/90">Prime Vitória</p>
-            <h1 className="text-lg font-semibold text-white">
-              {mode === "admin" ? "Portal cliente (teste admin)" : "Portal corporativo"}
-            </h1>
-          </div>
+          <BrandLogo subtitle="PORTAL CORPORATIVO" compact />
           <div className="flex flex-wrap items-center gap-4">
             {mode === "admin" ? (
               <label className="grid gap-1 text-xs text-slate-400">

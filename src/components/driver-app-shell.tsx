@@ -11,6 +11,8 @@ import { DriverPushStatusBanner } from "@/components/driver-push-status-banner";
 import { DriverTripDeepLink } from "@/components/driver-trip-deep-link";
 import { DriverTripsPanel } from "@/components/driver-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
+import { BrandLogo } from "@/components/brand-logo";
+import { DriverBottomNav } from "@/components/driver-bottom-nav";
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 
 type DriverOption = {
@@ -64,12 +66,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
       <OperationalRealtimeBridge tenantId={tenantId} />
       <header className="border-b border-slate-800">
         <div className="mx-auto flex max-w-lg flex-wrap items-center justify-between gap-4 px-4 py-4 md:max-w-3xl lg:max-w-5xl">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-amber-500/90">Prime Vitória</p>
-            <h1 className="text-lg font-semibold text-white">
-              {mode === "admin" ? "App motorista (teste admin)" : "Motorista"}
-            </h1>
-          </div>
+          <BrandLogo subtitle="MOTORISTA" compact />
           {mode === "admin" ? (
             <label className="grid gap-1 text-xs text-slate-400">
               <span>Motorista em preview</span>
@@ -92,7 +89,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         </div>
       </header>
 
-      <main className="mx-auto max-w-lg space-y-6 px-4 py-6 pb-24 md:max-w-3xl md:px-6 lg:max-w-5xl lg:px-8">
+      <main className="mx-auto max-w-lg space-y-6 px-4 py-6 pb-28 md:max-w-3xl md:pb-8 md:px-6 lg:max-w-5xl lg:px-8">
         {mode === "admin" && !selectedDriverId ? (
           <p className="rounded-lg border border-amber-700/40 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
             Selecione um motorista cadastrado para simular o app e testar aceitar, iniciar, cheguei e finalizar.
@@ -106,12 +103,14 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         />
         <DriverTripDeepLink />
 
-        <DriverTripsPanel
-          key={`trips-${driverKey}`}
-          tenantId={tenantId}
-          driverIdFilter={mode === "admin" ? selectedDriverId : null}
-          devFallbackRole={devRole}
-        />
+        <section id="corridas">
+          <DriverTripsPanel
+            key={`trips-${driverKey}`}
+            tenantId={tenantId}
+            driverIdFilter={mode === "admin" ? selectedDriverId : null}
+            devFallbackRole={devRole}
+          />
+        </section>
 
         <section className="rounded-xl border border-violet-900/40 bg-slate-900/40 p-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-300/90">Ofertas da central</h2>
@@ -132,7 +131,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           devFallbackRole={devRole}
         />
 
-        <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <section id="carteira" className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-6">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Pagamentos</h2>
           <div className="mt-3 [&_.card]:border-slate-700 [&_.card]:bg-slate-900 [&_input]:border-slate-600 [&_input]:bg-slate-800 [&_input]:text-slate-100">
             <DriverPayablesPanel
@@ -161,6 +160,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           </details>
         ) : null}
       </main>
+      {mode === "motorista" ? <DriverBottomNav /> : null}
     </div>
   );
 }

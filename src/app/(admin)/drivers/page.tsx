@@ -1,3 +1,4 @@
+import { AdminPageHeader } from "@/components/admin-page-header";
 import { DriversFleetPanel } from "@/components/drivers-fleet-panel";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 
@@ -17,12 +18,12 @@ export default async function DriversPage() {
   const drivers = await getDrivers();
 
   return (
-    <main>
-      <h1>Motoristas</h1>
-      <p className="mb-4 max-w-2xl text-sm text-slate-600">
-        Cadastro de parceiros e veículo padrão usado no despacho automático directo.
-      </p>
+    <>
+      <AdminPageHeader
+        title="Motoristas"
+        subtitle="Gestão da frota executiva e documentação"
+      />
       <DriversFleetPanel initialDrivers={drivers} />
-    </main>
+    </>
   );
 }

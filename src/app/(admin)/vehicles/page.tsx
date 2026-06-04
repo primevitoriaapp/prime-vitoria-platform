@@ -1,3 +1,4 @@
+import { AdminPageHeader } from "@/components/admin-page-header";
 import { VehiclesFleetPanel } from "@/components/vehicles-fleet-panel";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 
@@ -20,12 +21,12 @@ export default async function VehiclesPage() {
   const vehicles = await getVehicles();
 
   return (
-    <main>
-      <h1>Veículos</h1>
-      <p className="mb-4 max-w-2xl text-sm text-slate-600">
-        Cadastro da frota, edição e desactivação. Veículos padrão podem ser vinculados a motoristas na página Motoristas.
-      </p>
+    <>
+      <AdminPageHeader
+        title="Veículos"
+        subtitle="Frota corporativa · documentação e status operacional"
+      />
       <VehiclesFleetPanel initialVehicles={vehicles} />
-    </main>
+    </>
   );
 }
