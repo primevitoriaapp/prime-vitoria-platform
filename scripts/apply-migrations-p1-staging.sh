@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Aplica migrations P1 (0044–0049) no Postgres de staging.
+# Aplica migrations P1 (0044–0050) no Postgres de staging.
 #
 # Uso:
 #   export STAGING_DATABASE_URL="postgresql://..."
@@ -29,7 +29,8 @@ for ver file name in \
   "0046:0046_client_service_types.sql:client_service_types" \
   "0047:0047_driver_ficha_extend.sql:driver_ficha_extend" \
   "0048:0048_driver_without_profile.sql:driver_without_profile" \
-  "0049:0049_client_pricing_and_driver_payout.sql:client_pricing_and_driver_payout"; do
+  "0049:0049_client_pricing_and_driver_payout.sql:client_pricing_and_driver_payout" \
+  "0050:0050_drivers_state.sql:drivers_state"; do
   IFS=: read -r version sqlfile mig_name <<< "$ver"
   echo "=== Apply $version ($sqlfile) ==="
   bash "$ROOT/scripts/apply-migration.sh" "$ROOT/supabase/migrations/$sqlfile"

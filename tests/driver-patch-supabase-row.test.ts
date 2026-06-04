@@ -40,7 +40,8 @@ const NORMALIZED_FICHA = {
   payee_document: null,
   payout_price_per_km: null,
   payout_percent: null,
-  notes: null
+  notes: null,
+  state: "ES"
 };
 
 test("canonicalDriverPatchRow usa só colunas reais do Supabase", () => {
@@ -57,6 +58,7 @@ test("canonicalDriverPatchRow usa só colunas reais do Supabase", () => {
   assert.equal(row.postal_code, "29050620");
   assert.equal(row.address, "Rua Exemplo");
   assert.equal(row.city, "Vitória");
+  assert.equal(row.state, "ES");
 
   assert.equal("cnh_expiry" in row, false);
   assert.equal("address_number" in row, false);
@@ -65,7 +67,6 @@ test("canonicalDriverPatchRow usa só colunas reais do Supabase", () => {
   assert.equal("service_region" in row, false);
   assert.equal("operational_category" in row, false);
   assert.equal("cnh_categories" in row, false);
-  assert.equal("state" in row, false);
   assert.equal("payee_name" in row, false);
   assert.equal("operational_status" in row, false);
 });

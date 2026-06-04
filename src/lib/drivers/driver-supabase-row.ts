@@ -24,6 +24,7 @@ export const DRIVERS_TABLE_COLUMNS = new Set([
   "whatsapp",
   "email",
   "city",
+  "state",
   "address_line",
   "postal_code",
   "birth_date",
@@ -60,8 +61,7 @@ const PATCH_OMIT_KEYS = new Set([
   "operational_category",
   "cnh_categories",
   "payee_name",
-  "payee_document",
-  "state"
+  "payee_document"
 ]);
 
 /**
