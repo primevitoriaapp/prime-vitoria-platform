@@ -41,6 +41,7 @@
     "p1:night-unblock": "node scripts/p1-night-unblock.mjs",
     "db:apply-0044-staging": "bash scripts/apply-migration-0044-staging.sh",
     "db:apply-0045-staging": "bash scripts/apply-migration-0045-staging.sh",
+    "db:apply-p1-staging": "bash scripts/apply-migrations-p1-staging.sh",
     "bootstrap:prime": "node scripts/bootstrap-prime-vitoria.mjs",
     "vercel:preflight": "node scripts/vercel-preflight.mjs",
     "go-live:preflight": "node scripts/go-live-preflight.mjs",

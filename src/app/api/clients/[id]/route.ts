@@ -31,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .maybeSingle();
     if (!existing) return fail("CLIENT_NOT_FOUND", "Cliente nao encontrado", 404);
 
-    const { data, error, partialSave } = await updateClientRow(id, tenantId, updatePayload);
+    const { data, error, partialSave, warning } = await updateClientRow(id, tenantId, updatePayload);
     if (error || !data) {
       const mapped = mapSupabaseError(error!, "cliente");
       return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
@@ -47,11 +47,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       request
     });
 
-    const warning = partialSave
-      ? "Actualizado parcialmente — campos extra exigem migration 0044 no Supabase."
-      : undefined;
+    const apiWarning =
+      warning ??
+      (partialSave
+        ? "Actualizado parcialmente — aplique migrations 0044/0046 no Supabase para todos os campos."
+        : undefined);
 
-    return ok({ ...data, ...(warning ? { _warning: warning } : {}) });
+    return ok({ ...data, ...(apiWarning ? { _warning: apiWarning } : {}) });
   } catch (error) {
     return mapApiError(error);
   }

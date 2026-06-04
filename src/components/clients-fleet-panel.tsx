@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BackButton } from "@/components/back-button";
 import { ClientCadastroForm, clientRowToForm } from "@/components/client-cadastro-form";
 import { ClientPricingRulesPanel } from "@/components/client-pricing-rules-panel";
+import { formatServiceTypesLabel } from "@/lib/clients/client-service-types";
 
 export type ClientRow = {
   id: string;
@@ -22,6 +23,7 @@ export type ClientRow = {
   notes?: string | null;
   registry_status?: string | null;
   active: boolean;
+  service_types?: string[] | null;
 };
 
 type Props = {
@@ -102,9 +104,9 @@ export function ClientsFleetPanel({ initialClients }: Props) {
               <thead>
                 <tr className="border-b border-slate-200 text-left text-slate-600">
                   <th className="py-2 pr-3">Nome</th>
-                  <th className="py-2 pr-3">Tipo</th>
-                  <th className="py-2 pr-3">Documento</th>
-                  <th className="py-2 pr-3">Contacto</th>
+                  <th className="py-2 pr-3">CNPJ / CPF</th>
+                  <th className="py-2 pr-3">Telefone</th>
+                  <th className="py-2 pr-3">Serviços</th>
                   <th className="py-2">Acções</th>
                 </tr>
               </thead>
@@ -117,10 +119,12 @@ export function ClientsFleetPanel({ initialClients }: Props) {
                         <span className="block text-xs font-normal text-slate-500">{client.trade_name}</span>
                       ) : null}
                     </td>
-                    <td className="py-2 pr-3">{client.type}</td>
-                    <td className="py-2 pr-3">{client.document ?? "—"}</td>
+                    <td className="py-2 pr-3 font-mono text-xs">{client.document ?? "—"}</td>
                     <td className="py-2 pr-3 text-xs text-slate-600">
-                      {client.phone ?? client.whatsapp ?? client.email ?? "—"}
+                      {client.phone ?? client.whatsapp ?? "—"}
+                    </td>
+                    <td className="py-2 pr-3 text-xs text-slate-600">
+                      {client.type === "PJ" ? formatServiceTypesLabel(client.service_types) : "—"}
                     </td>
                     <td className="py-2">
                       <button

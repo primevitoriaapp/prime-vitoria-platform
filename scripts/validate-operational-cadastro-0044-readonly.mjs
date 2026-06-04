@@ -144,9 +144,29 @@ for (const [label, sql] of columnChecks45) {
   }
 }
 
+const mig46 = run(
+  "migration 0046 no histórico",
+  "SELECT version FROM supabase_migrations.schema_migrations WHERE version = '0046';"
+);
+if (firstCol(mig46) === "0046") {
+  ok("migration 0046 registada em schema_migrations");
+} else {
+  fail("migration 0046 registada", "versão 0046 ausente");
+}
+
+const res46 = run(
+  "clients.service_types",
+  "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='clients' AND column_name='service_types';"
+);
+if (firstCol(res46) === "service_types") {
+  ok("coluna clients.service_types");
+} else {
+  fail("coluna clients.service_types", "ausente — aplicar 0046_client_service_types.sql");
+}
+
 console.log("");
 if (failed === 0) {
-  console.log("RESULTADO: PASS — migrations 0044 e 0045 prontas para validação P1 na UI");
+  console.log("RESULTADO: PASS — migrations 0044, 0045 e 0046 prontas para validação P1 na UI");
   process.exit(0);
 }
 console.log(`RESULTADO: FAIL — ${failed} verificação(ões) falharam`);

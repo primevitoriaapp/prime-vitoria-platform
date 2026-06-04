@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeServiceTypes } from "@/lib/clients/client-service-types";
 
 export const clientCadastroSchema = z.object({
   type: z.enum(["PF", "PJ"]),
@@ -14,7 +15,8 @@ export const clientCadastroSchema = z.object({
   postal_code: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   registry_status: z.string().optional().nullable(),
-  active: z.boolean().optional()
+  active: z.boolean().optional(),
+  service_types: z.array(z.string()).optional()
 });
 
 export type ClientCadastroInput = z.infer<typeof clientCadastroSchema>;
@@ -25,6 +27,7 @@ const emptyToNull = (v: string | null | undefined) => {
 };
 
 export function normalizeClientBody(body: ClientCadastroInput) {
+  const service_types = body.type === "PJ" ? normalizeServiceTypes(body.service_types) : [];
   return {
     type: body.type,
     name: body.name.trim(),
@@ -39,7 +42,8 @@ export function normalizeClientBody(body: ClientCadastroInput) {
     postal_code: emptyToNull(body.postal_code ?? undefined),
     notes: emptyToNull(body.notes ?? undefined),
     registry_status: emptyToNull(body.registry_status ?? undefined),
-    active: body.active
+    active: body.active,
+    ...(body.type === "PJ" ? { service_types } : {})
   };
 }
 
@@ -60,6 +64,9 @@ export function normalizeClientPatch(body: Partial<ClientCadastroInput>) {
   if (body.notes !== undefined) out.notes = emptyToNull(body.notes ?? undefined);
   if (body.registry_status !== undefined) {
     out.registry_status = emptyToNull(body.registry_status ?? undefined);
+  }
+  if (body.service_types !== undefined) {
+    out.service_types = normalizeServiceTypes(body.service_types);
   }
   if (body.active !== undefined) out.active = body.active;
   return out;

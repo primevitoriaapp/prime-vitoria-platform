@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const parsed = clientCadastroSchema.parse(await request.json());
     const body = normalizeClientBody(parsed);
 
-    const { data, error, partialSave } = await insertClientRow(body, tenantId);
+    const { data, error, partialSave, warning } = await insertClientRow(body, tenantId);
     if (error || !data) {
       const mapped = mapSupabaseError(error!, "cliente");
       return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
@@ -32,11 +32,13 @@ export async function POST(request: Request) {
       request
     });
 
-    const warning = partialSave
-      ? "Cliente guardado com dados básicos. Campos extra (WhatsApp, endereço, etc.) exigem migration 0044 no Supabase."
-      : undefined;
+    const apiWarning =
+      warning ??
+      (partialSave
+        ? "Cliente guardado com dados essenciais. Aplique migrations 0044/0046 no Supabase para campos completos."
+        : undefined);
 
-    return ok({ ...data, ...(warning ? { _warning: warning } : {}) }, 201);
+    return ok({ ...data, ...(apiWarning ? { _warning: apiWarning } : {}) }, 201);
   } catch (error) {
     return mapApiError(error);
   }

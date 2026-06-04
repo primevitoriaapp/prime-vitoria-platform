@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
 import { isValidCpf } from "@/lib/integrations/cpf-public-lookup";
+import { CLIENT_SERVICE_TYPE_OPTIONS, type ClientServiceTypeId } from "@/lib/clients/client-service-types";
 
 export type ClientFormValues = {
   type: "PF" | "PJ";
@@ -19,6 +20,7 @@ export type ClientFormValues = {
   notes: string;
   registry_status: string;
   active: boolean;
+  service_types: ClientServiceTypeId[];
 };
 
 const emptyForm = (): ClientFormValues => ({
@@ -35,7 +37,8 @@ const emptyForm = (): ClientFormValues => ({
   postal_code: "",
   notes: "",
   registry_status: "",
-  active: true
+  active: true,
+  service_types: []
 });
 
 const inputClass = "rounded border border-slate-300 px-2 py-2 w-full";
@@ -97,6 +100,16 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
 
   function set<K extends keyof ClientFormValues>(key: K, value: ClientFormValues[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function toggleServiceType(id: ClientServiceTypeId) {
+    setForm((f) => {
+      const has = f.service_types.includes(id);
+      return {
+        ...f,
+        service_types: has ? f.service_types.filter((s) => s !== id) : [...f.service_types, id]
+      };
+    });
   }
 
   async function lookupCnpj() {
@@ -266,7 +279,8 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         postal_code: form.postal_code.trim() || null,
         notes: form.notes.trim() || null,
         registry_status: form.registry_status.trim() || null,
-        active: form.active
+        active: form.active,
+        ...(form.type === "PJ" ? { service_types: form.service_types } : {})
       };
       const url = clientId ? `/api/clients/${clientId}` : "/api/clients";
       const res = await fetch(url, {
@@ -287,7 +301,11 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
       }
 
       const saved = json.data as { _warning?: string } | undefined;
-      const successMsg = clientId ? "Cliente actualizado com sucesso." : "Cliente registado com sucesso.";
+      const successMsg = clientId
+        ? "Cliente actualizado com sucesso."
+        : form.type === "PJ"
+          ? "Cliente cadastrado com sucesso."
+          : "Cliente registado com sucesso.";
       setFeedback({
         kind: saved?._warning ? "info" : "success",
         message: saved?._warning ? `${successMsg} ${saved._warning}` : successMsg
@@ -360,6 +378,23 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
             <span>Nome fantasia</span>
             <input className={inputClass} value={form.trade_name} onChange={(e) => set("trade_name", e.target.value)} />
           </label>
+        ) : null}
+        {form.type === "PJ" ? (
+          <fieldset className="grid gap-2 md:col-span-2">
+            <legend className="text-sm font-medium text-slate-800">Tipos de serviço utilizados</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {CLIENT_SERVICE_TYPE_OPTIONS.map((opt) => (
+                <label key={opt.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.service_types.includes(opt.id)}
+                    onChange={() => toggleServiceType(opt.id)}
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
         ) : null}
         <label className="grid gap-1 text-sm">
           <span>E-mail</span>
@@ -474,6 +509,7 @@ export function clientRowToForm(row: {
   notes?: string | null;
   registry_status?: string | null;
   active?: boolean;
+  service_types?: string[] | null;
 }): ClientFormValues {
   return {
     type: row.type === "PF" ? "PF" : "PJ",
@@ -489,6 +525,9 @@ export function clientRowToForm(row: {
     postal_code: row.postal_code ?? "",
     notes: row.notes ?? "",
     registry_status: row.registry_status ?? "",
-    active: row.active !== false
+    active: row.active !== false,
+    service_types: (row.service_types ?? []).filter((id): id is ClientServiceTypeId =>
+      CLIENT_SERVICE_TYPE_OPTIONS.some((o) => o.id === id)
+    )
   };
 }
