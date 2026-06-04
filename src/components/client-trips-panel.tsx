@@ -8,6 +8,7 @@ import { TripTrackingLinkButton } from "@/components/trip-tracking-link-button";
 import { StatusBadge } from "@/components/status-badge";
 import { ClientPassengersPanel } from "@/components/client-passengers-panel";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
+import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { clientShowsAwaitingApproval } from "@/lib/client/trip-status-ui";
 import { clientMayCancelTrip } from "@/lib/domain/status";
@@ -229,7 +230,17 @@ export function ClientTripsPanel({
                       <p className="text-sm font-medium text-prime-text">
                         {trip.passenger_name?.trim() || "Passageiro a definir"}
                         {trip.service_type ? (
-                          <span className="font-normal text-prime-muted"> · {trip.service_type}</span>
+                          <span className="font-normal text-prime-muted">
+                            {" "}
+                            ·{" "}
+                            {primeServiceTypeLabel(trip.service_type, { audience: "client" })}
+                          </span>
+                        ) : null}
+                        {trip.passenger_count != null && trip.passenger_count > 1 ? (
+                          <span className="font-normal text-prime-muted">
+                            {" "}
+                            · {trip.passenger_count} passageiros
+                          </span>
                         ) : null}
                       </p>
                       <p className="text-sm text-prime-muted">

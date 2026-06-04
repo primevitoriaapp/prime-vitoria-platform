@@ -1,4 +1,9 @@
 import type { PrimeChargeType } from "@/lib/pricing/prime-price-estimate";
+import {
+  corporativoBandeiraOperatorLabel,
+  resolveCorporativoBandeiraKey,
+  type CorporativoBandeiraKey
+} from "@/lib/pricing/corporativo-bandeira";
 
 export type PrimeServiceIcon = "car" | "van" | "clock" | "building";
 
@@ -8,11 +13,12 @@ export type PrimeServiceCatalogEntry = {
   description: string;
   icon: PrimeServiceIcon;
   charge_type: PrimeChargeType;
-  /** Rótulo do valor cobrado do cliente */
   clientValueLabel: string;
-  /** Rótulo do repasse ao motorista */
   driverValueLabel: string;
   showMinKm: boolean;
+  /** Oculto em portal / dropdown cliente; só preços internos (ex.: bandeiras). */
+  pricingOnly?: boolean;
+  maxPassengers: number;
   defaults: {
     price_per_km?: number;
     min_km?: number;
@@ -23,8 +29,22 @@ export type PrimeServiceCatalogEntry = {
   };
 };
 
-/** Seis serviços operacionais padronizados Prime Vitória. */
-export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
+const CORPORATIVO_BANDEIRA_META: Record<
+  CorporativoBandeiraKey,
+  { label: string; description: string }
+> = {
+  corporativo_b1: {
+    label: "Corporativo — Bandeira 1 (06h00–18h59)",
+    description: "Preço por km · horário diurno"
+  },
+  corporativo_b2: {
+    label: "Corporativo — Bandeira 2 (19h00–05h59)",
+    description: "Preço por km · horário noturno"
+  }
+};
+
+/** Entradas de preço (inclui bandeiras; admin configura cada uma). */
+export const PRIME_SERVICE_CATALOG_PRICING: PrimeServiceCatalogEntry[] = [
   {
     id: "transfer_seda",
     label: "Transfer Executivo",
@@ -34,6 +54,7 @@ export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
     clientValueLabel: "Valor cliente (R$ fixo / faixa km)",
     driverValueLabel: "Valor motorista (R$)",
     showMinKm: true,
+    maxPassengers: 4,
     defaults: { fixed_price: 0, driver_fixed_price: 0, min_km: 20 }
   },
   {
@@ -45,6 +66,7 @@ export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
     clientValueLabel: "Valor cliente (R$ fixo / faixa km)",
     driverValueLabel: "Valor motorista (R$)",
     showMinKm: true,
+    maxPassengers: 15,
     defaults: { fixed_price: 0, driver_fixed_price: 0, min_km: 20 }
   },
   {
@@ -56,6 +78,7 @@ export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
     clientValueLabel: "Valor cliente (R$ diária)",
     driverValueLabel: "Valor motorista (R$ diária)",
     showMinKm: true,
+    maxPassengers: 4,
     defaults: { fixed_price: 850, driver_fixed_price: 550, min_km: 110 }
   },
   {
@@ -67,63 +90,103 @@ export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
     clientValueLabel: "Valor cliente (R$ diária)",
     driverValueLabel: "Valor motorista (R$ diária)",
     showMinKm: true,
+    maxPassengers: 15,
     defaults: { fixed_price: 1200, driver_fixed_price: 900, min_km: 110 }
   },
   {
     id: "corporativo_b1",
-    label: "Corporativo Diurno (06h-18h)",
-    description: "Transporte por km rodado",
+    label: CORPORATIVO_BANDEIRA_META.corporativo_b1.label,
+    description: CORPORATIVO_BANDEIRA_META.corporativo_b1.description,
     icon: "building",
     charge_type: "per_km",
     clientValueLabel: "Valor cliente (R$/km)",
     driverValueLabel: "Valor motorista (R$/km)",
     showMinKm: true,
+    pricingOnly: true,
+    maxPassengers: 4,
     defaults: { price_per_km: 0, driver_price_per_km: 0, min_km: 20 }
   },
   {
     id: "corporativo_b2",
-    label: "Corporativo Noturno (18h-06h)",
-    description: "Transporte por km rodado",
+    label: CORPORATIVO_BANDEIRA_META.corporativo_b2.label,
+    description: CORPORATIVO_BANDEIRA_META.corporativo_b2.description,
     icon: "building",
     charge_type: "per_km",
     clientValueLabel: "Valor cliente (R$/km)",
     driverValueLabel: "Valor motorista (R$/km)",
     showMinKm: true,
+    pricingOnly: true,
+    maxPassengers: 4,
     defaults: { price_per_km: 0, driver_price_per_km: 0, min_km: 20 }
   }
 ];
 
-export const PRIME_SERVICE_IDS = PRIME_SERVICE_CATALOG.map((s) => s.id);
-export type PrimeServiceTypeId = (typeof PRIME_SERVICE_CATALOG)[number]["id"];
+/** Serviço único Corporativo (portal + agenda — bandeira automática). */
+export const CORPORATIVO_UI_ENTRY: PrimeServiceCatalogEntry = {
+  id: "corporativo",
+  label: "Corporativo",
+  description: "Transporte por km rodado (tarifa conforme horário)",
+  icon: "building",
+  charge_type: "per_km",
+  clientValueLabel: "Valor cliente (R$/km)",
+  driverValueLabel: "Valor motorista (R$/km)",
+  showMinKm: true,
+  maxPassengers: 4,
+  defaults: { price_per_km: 0, driver_price_per_km: 0, min_km: 20 }
+};
 
-const CATALOG_BY_ID = new Map(PRIME_SERVICE_CATALOG.map((s) => [s.id, s]));
+/** Catálogo visível em portal, nova corrida e checkboxes cliente (5 serviços). */
+export const PRIME_SERVICE_CATALOG_UI: PrimeServiceCatalogEntry[] = [
+  ...PRIME_SERVICE_CATALOG_PRICING.filter((s) => !s.pricingOnly),
+  CORPORATIVO_UI_ENTRY
+];
 
-/** IDs legados (migrations / dados antigos) → serviço actual. */
+/** Retrocompat: export completo para ficha de preços admin. */
+export const PRIME_SERVICE_CATALOG = PRIME_SERVICE_CATALOG_PRICING;
+
+export const PRIME_SERVICE_IDS = PRIME_SERVICE_CATALOG_PRICING.map((s) => s.id);
+export type PrimeServiceTypeId =
+  | (typeof PRIME_SERVICE_CATALOG_PRICING)[number]["id"]
+  | "corporativo";
+
+const CATALOG_BY_ID = new Map(
+  [...PRIME_SERVICE_CATALOG_PRICING, CORPORATIVO_UI_ENTRY].map((s) => [s.id, s])
+);
+
+export const CORPORATIVO_PRICING_KEYS = ["corporativo_b1", "corporativo_b2"] as const;
+
 const LEGACY_SERVICE_MAP: Record<string, PrimeServiceTypeId> = {
   transfer_executivo: "transfer_seda",
   transfer_aeroporto: "transfer_seda",
   diaria: "diaria_seda",
   van_grupo: "transfer_van",
-  corporativo: "corporativo_b1",
+  corporativo: "corporativo",
+  corporativo_diurno: "corporativo",
+  corporativo_noturno: "corporativo",
   evento: "transfer_seda",
   turismo: "transfer_seda"
 };
 
-/** Rótulos antigos (dados já gravados) → id actual. */
 const LEGACY_LABEL_ALIASES: Record<string, PrimeServiceTypeId> = {
   "transfer sedã": "transfer_seda",
+  "transfer executivo": "transfer_seda",
   "transfer van": "transfer_van",
+  "transfer van executiva": "transfer_van",
   "diária sedã": "diaria_seda",
+  "diária executiva": "diaria_seda",
   "diária van": "diaria_van",
-  "corporativo bandeira 1 (06h–18h)": "corporativo_b1",
-  "corporativo bandeira 1 (06h-18h)": "corporativo_b1",
-  "corporativo bandeira 2 (18h–06h)": "corporativo_b2",
-  "corporativo bandeira 2 (18h-06h)": "corporativo_b2"
+  corporativo: "corporativo",
+  "corporativo diurno (06h-18h)": "corporativo",
+  "corporativo noturno (18h-06h)": "corporativo",
+  "corporativo bandeira 1 (06h–18h)": "corporativo",
+  "corporativo bandeira 1 (06h-18h)": "corporativo",
+  "corporativo bandeira 2 (18h–06h)": "corporativo",
+  "corporativo bandeira 2 (18h-06h)": "corporativo"
 };
 
 const BY_LABEL = new Map<string, PrimeServiceTypeId>(
   [
-    ...PRIME_SERVICE_CATALOG.flatMap((s) => [
+    ...PRIME_SERVICE_CATALOG_UI.flatMap((s) => [
       [s.label.toLowerCase(), s.id] as const,
       [s.id.replace(/_/g, " ").toLowerCase(), s.id] as const
     ]),
@@ -136,9 +199,16 @@ export function getPrimeServiceCatalogEntry(id: string): PrimeServiceCatalogEntr
   return CATALOG_BY_ID.get(key);
 }
 
+export function getPrimeServiceCatalogPricingEntry(
+  id: string
+): PrimeServiceCatalogEntry | undefined {
+  return CATALOG_BY_ID.get(id as PrimeServiceTypeId);
+}
+
 export function normalizePrimeServiceType(input: string): PrimeServiceTypeId {
   const t = input.trim();
   if (!t) return "transfer_seda";
+  if (t === "corporativo_b1" || t === "corporativo_b2") return t;
   if (CATALOG_BY_ID.has(t)) return t as PrimeServiceTypeId;
   const legacy = LEGACY_SERVICE_MAP[t];
   if (legacy) return legacy;
@@ -147,13 +217,40 @@ export function normalizePrimeServiceType(input: string): PrimeServiceTypeId {
   return "transfer_seda";
 }
 
-export function primeServiceTypeLabel(serviceType: string): string {
+/** Rótulo para cliente (nunca expõe bandeira). */
+export function primeServiceTypeLabel(
+  serviceType: string,
+  opts?: { audience?: "client" | "operator"; scheduledAt?: string | Date | null }
+): string {
+  const audience = opts?.audience ?? "operator";
   const key = normalizePrimeServiceType(serviceType);
+
+  if (audience === "client" && (key === "corporativo" || key === "corporativo_b1" || key === "corporativo_b2")) {
+    return "Corporativo";
+  }
+
+  if (key === "corporativo" && opts?.scheduledAt) {
+    const band = resolveCorporativoBandeiraKey(opts.scheduledAt);
+    return `Corporativo (${corporativoBandeiraOperatorLabel(band)})`;
+  }
+
+  if (key === "corporativo_b1" || key === "corporativo_b2") {
+    return `Corporativo (${corporativoBandeiraOperatorLabel(key)})`;
+  }
+
   return CATALOG_BY_ID.get(key)?.label ?? serviceType;
 }
 
-/** Lista para dropdowns (id + label). */
-export const PRIME_SERVICE_TYPES = PRIME_SERVICE_CATALOG.map((s) => ({
+export function maxPassengersForService(serviceType: string): number {
+  const key = normalizePrimeServiceType(serviceType);
+  if (key === "corporativo") return CORPORATIVO_UI_ENTRY.maxPassengers;
+  return CATALOG_BY_ID.get(key)?.maxPassengers ?? 4;
+}
+
+/** Dropdowns agenda / operador (sem bandeiras separadas). */
+export const PRIME_SERVICE_TYPES = PRIME_SERVICE_CATALOG_UI.map((s) => ({
   id: s.id,
   label: s.label
 }));
+
+export { resolveCorporativoBandeiraKey, corporativoBandeiraOperatorLabel };

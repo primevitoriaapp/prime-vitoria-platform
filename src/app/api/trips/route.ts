@@ -6,7 +6,11 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
-import { normalizePrimeServiceType } from "@/lib/pricing/prime-service-types";
+import { resolvePricingServiceType } from "@/lib/pricing/corporativo-bandeira";
+import {
+  maxPassengersForService,
+  normalizePrimeServiceType
+} from "@/lib/pricing/prime-service-types";
 import {
   firstLegScheduledAtIso,
   legScheduledAtRange,
@@ -38,6 +42,7 @@ const createTripSchema = z.object({
   dispatch_mode: z.enum(["directed", "offer"]).default("directed"),
   passenger_name: z.string().optional(),
   passenger_phone: z.string().optional(),
+  passenger_count: z.coerce.number().int().min(1).optional(),
   notes: z.string().optional(),
   client_amount: z.coerce.number().nonnegative().optional(),
   driver_amount: z.coerce.number().nonnegative().optional(),
@@ -103,7 +108,7 @@ export async function POST(request: Request) {
       return fail("FORBIDDEN", "Cliente nao pertence a esta organizacao", 403);
     }
 
-    const serviceType = normalizePrimeServiceType(body.service_type);
+    const uiServiceType = normalizePrimeServiceType(body.service_type);
     const legs = body.trip_legs;
     const legTotals = legs?.length ? sumLegAmounts(legs) : null;
     const legScheduleIso = legs?.length ? firstLegScheduledAtIso(legs) : null;
@@ -113,6 +118,17 @@ export async function POST(request: Request) {
         const d = new Date(body.scheduled_at);
         return Number.isFinite(d.getTime()) ? d.toISOString() : body.scheduled_at;
       })();
+
+    const serviceType = resolvePricingServiceType(uiServiceType, scheduledAt);
+    const maxPassengers = maxPassengersForService(uiServiceType);
+    const passengerCount = body.passenger_count ?? 1;
+    if (passengerCount > maxPassengers) {
+      return fail(
+        "INVALID_PASSENGER_COUNT",
+        `Número de passageiros excede o máximo (${maxPassengers}) para este serviço`,
+        400
+      );
+    }
 
     const clientAmount =
       legTotals?.client_amount ?? body.client_amount ?? null;
@@ -155,6 +171,7 @@ export async function POST(request: Request) {
         dispatch_mode: body.dispatch_mode,
         passenger_name: body.passenger_name ?? null,
         passenger_phone: body.passenger_phone ?? null,
+        passenger_count: passengerCount,
         notes: body.notes ?? null,
         client_amount: clientAmount,
         driver_amount: driverAmount,

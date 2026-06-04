@@ -9,6 +9,7 @@ import { ClientOperationalTimeline } from "@/components/client-operational-timel
 import { ClientTrackingReadonly } from "@/components/client-tracking-readonly";
 import { CopyTextButton } from "@/components/copy-text-button";
 import type { Trip } from "@/lib/domain/types";
+import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 
 type CostCenter = { id: string; code: string | null; name: string };
 
@@ -85,8 +86,18 @@ export function ClientTripDetailPanel({
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3 text-sm">
               <p className="text-white font-medium">
                 {trip.passenger_name?.trim() || "Passageiro"}
-                {trip.service_type ? <span className="text-slate-500"> · {trip.service_type}</span> : null}
+                {trip.service_type ? (
+                  <span className="text-slate-500">
+                    {" "}
+                    · {primeServiceTypeLabel(trip.service_type, { audience: "client" })}
+                  </span>
+                ) : null}
               </p>
+              {trip.passenger_count != null && trip.passenger_count > 0 ? (
+                <p className="text-slate-500">
+                  Passageiros: <span className="text-slate-300">{trip.passenger_count}</span>
+                </p>
+              ) : null}
               <p className="text-slate-400">
                 {trip.origin_text} → {trip.destination_text}
               </p>

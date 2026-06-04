@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PrimeChargeType } from "@/lib/pricing/prime-price-estimate";
 import {
-  PRIME_SERVICE_TYPES,
+  PRIME_SERVICE_CATALOG_PRICING,
   normalizePrimeServiceType,
   primeServiceTypeLabel
 } from "@/lib/pricing/prime-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
+
+const PAYOUT_SERVICE_ROWS = PRIME_SERVICE_CATALOG_PRICING.map((s) => ({ id: s.id, label: s.label }));
 
 const CHARGE_OPTIONS: { id: PrimeChargeType; label: string }[] = [
   { id: "per_km", label: "Por km (R$/km)" },
@@ -40,7 +42,7 @@ type Props = {
 };
 
 export function DriverPayoutTableSection({ driverId, disabled }: Props) {
-  const [rows, setRows] = useState<RowState[]>(() => PRIME_SERVICE_TYPES.map((s) => emptyRow(s.id)));
+  const [rows, setRows] = useState<RowState[]>(() => PAYOUT_SERVICE_ROWS.map((s) => emptyRow(s.id)));
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -62,7 +64,7 @@ export function DriverPayoutTableSection({ driverId, disabled }: Props) {
       (json.data ?? []).map((r) => [normalizePrimeServiceType(r.service_type), r])
     );
     setRows(
-      PRIME_SERVICE_TYPES.map((s) => {
+      PAYOUT_SERVICE_ROWS.map((s) => {
         const saved = byType.get(s.id);
         if (!saved) return emptyRow(s.id);
         return {

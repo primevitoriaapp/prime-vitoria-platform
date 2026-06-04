@@ -2,11 +2,12 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { DateTimeInput } from "@/components/datetime-input";
 import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
 import type { EnabledServiceDto } from "@/app/api/clients/[id]/enabled-services/route";
 import type { PrimeServiceIcon } from "@/lib/pricing/prime-service-catalog";
-import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
+import { maxPassengersForService, primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import {
@@ -73,8 +74,13 @@ export function ClientRequestConsole({
     return d.toISOString();
   });
   const [origin, setOrigin] = useState("");
+  const [originLat, setOriginLat] = useState<number | null>(null);
+  const [originLng, setOriginLng] = useState<number | null>(null);
   const [destination, setDestination] = useState("");
+  const [destinationLat, setDestinationLat] = useState<number | null>(null);
+  const [destinationLng, setDestinationLng] = useState<number | null>(null);
   const [passengerName, setPassengerName] = useState("");
+  const [passengerCount, setPassengerCount] = useState(1);
   const [notes, setNotes] = useState("");
   const [costCenterId, setCostCenterId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -139,9 +145,12 @@ export function ClientRequestConsole({
 
   function pickService(id: string) {
     setServiceType(id);
+    setPassengerCount((c) => Math.min(c, maxPassengersForService(id)));
     setStep("form");
     setMessage(null);
   }
+
+  const maxPassengers = serviceType ? maxPassengersForService(serviceType) : 4;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -157,8 +166,13 @@ export function ClientRequestConsole({
           service_type: serviceType,
           scheduled_at: parseBrDateTimeToIso(scheduledAt) ?? new Date(scheduledAt).toISOString(),
           origin_text: origin,
+          origin_lat: originLat,
+          origin_lng: originLng,
           destination_text: destination,
+          destination_lat: destinationLat,
+          destination_lng: destinationLng,
           passenger_name: passengerName || undefined,
+          passenger_count: passengerCount,
           notes: notes || undefined,
           dispatch_mode: "directed"
         })
@@ -301,22 +315,58 @@ export function ClientRequestConsole({
         ) : (
           <span />
         )}
-        <input
-          className={PRIME_INPUT_CLASS}
+        <AddressAutocompleteInput
+          className="sm:col-span-2"
+          label="Origem"
+          required
+          placeholder="Ex.: Aeroporto de Vitória ES"
           value={origin}
-          onChange={(e) => setOrigin(e.target.value)}
-          placeholder="Origem"
-          required
+          hasCoords={originLat != null && originLng != null}
+          onChange={setOrigin}
+          onPlaceSelect={(place) => {
+            setOrigin(place.displayName);
+            setOriginLat(place.lat);
+            setOriginLng(place.lng);
+          }}
+          onCoordsClear={() => {
+            setOriginLat(null);
+            setOriginLng(null);
+          }}
         />
+        <AddressAutocompleteInput
+          className="sm:col-span-2"
+          label="Destino"
+          required
+          placeholder="Ex.: Shopping Vitória ES"
+          value={destination}
+          hasCoords={destinationLat != null && destinationLng != null}
+          onChange={setDestination}
+          onPlaceSelect={(place) => {
+            setDestination(place.displayName);
+            setDestinationLat(place.lat);
+            setDestinationLng(place.lng);
+          }}
+          onCoordsClear={() => {
+            setDestinationLat(null);
+            setDestinationLng(null);
+          }}
+        />
+        <label className="grid gap-1 text-sm">
+          <span>Número de passageiros</span>
+          <input
+            type="number"
+            min={1}
+            max={maxPassengers}
+            required
+            className={PRIME_INPUT_CLASS}
+            value={passengerCount}
+            onChange={(e) =>
+              setPassengerCount(Math.min(maxPassengers, Math.max(1, Number(e.target.value) || 1)))
+            }
+          />
+        </label>
         <input
           className={PRIME_INPUT_CLASS}
-          value={destination}
-          onChange={(e) => setDestination(e.target.value)}
-          placeholder="Destino"
-          required
-        />
-        <input
-          className={`sm:col-span-2 ${PRIME_INPUT_CLASS}`}
           value={passengerName}
           onChange={(e) => setPassengerName(e.target.value)}
           placeholder="Nome do passageiro"

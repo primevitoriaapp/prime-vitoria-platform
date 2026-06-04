@@ -7,7 +7,11 @@ import { AddressAutocompleteInput } from "@/components/address-autocomplete-inpu
 import { DateTimeInput } from "@/components/datetime-input";
 import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
 import { primeMarginFromAmounts } from "@/lib/pricing/prime-price-estimate";
-import { PRIME_SERVICE_TYPES } from "@/lib/pricing/prime-service-types";
+import {
+  maxPassengersForService,
+  PRIME_SERVICE_TYPES,
+  primeServiceTypeLabel
+} from "@/lib/pricing/prime-service-types";
 import {
   buildAgendaTripHref,
   buildAgendaTripHrefFromScheduleRange
@@ -65,6 +69,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   const [loading, setLoading] = useState(false);
   const [estimateBusy, setEstimateBusy] = useState(false);
   const [hasPricingRule, setHasPricingRule] = useState<boolean | null>(null);
+  const [corporativoBandeira, setCorporativoBandeira] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [multiLeg, setMultiLeg] = useState(false);
   const [legs, setLegs] = useState<LegForm[]>([emptyLeg()]);
@@ -79,6 +84,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     destination_lat: null as number | null,
     destination_lng: null as number | null,
     passenger_name: "",
+    passenger_count: 1,
     dispatch_mode: "directed" as "directed" | "offer",
     planned_km: null as number | null,
     client_amount: "",
@@ -115,6 +121,8 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     if (!form.client_id || multiLeg) return;
     setEstimateBusy(true);
     try {
+      const scheduledIso =
+        parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString();
       const res = await fetchWithSupabaseSession(
         "/api/pricing/estimate-trip",
         {
@@ -122,6 +130,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
           body: JSON.stringify({
             client_id: form.client_id,
             service_type: form.service_type,
+            scheduled_at: scheduledIso,
             origin_lat: form.origin_lat,
             origin_lng: form.origin_lng,
             destination_lat: form.destination_lat,
@@ -134,6 +143,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
         success?: boolean;
         data?: {
           has_rule?: boolean;
+          corporativo_bandeira?: string | null;
           estimate: {
             planned_km: number | null;
             client_amount: number;
@@ -150,6 +160,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
       }
       const hasRule = json.data?.has_rule !== false && json.data?.estimate != null;
       setHasPricingRule(hasRule);
+      setCorporativoBandeira(json.data?.corporativo_bandeira ?? null);
       if (hasRule && json.data?.estimate) {
         const e = json.data.estimate;
         setForm((f) => ({
@@ -177,6 +188,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   }, [
     form.client_id,
     form.service_type,
+    form.scheduled_at,
     form.origin_lat,
     form.origin_lng,
     form.destination_lat,
@@ -262,6 +274,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             origin_text: legs[0].origin_text,
             destination_text: legs[legs.length - 1].destination_text,
             passenger_name: form.passenger_name || undefined,
+            passenger_count: form.passenger_count,
             dispatch_mode: form.dispatch_mode,
             client_amount,
             driver_amount,
@@ -279,6 +292,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             destination_lat: form.destination_lat,
             destination_lng: form.destination_lng,
             passenger_name: form.passenger_name || undefined,
+            passenger_count: form.passenger_count,
             dispatch_mode: form.dispatch_mode,
             client_amount,
             driver_amount,
@@ -345,7 +359,15 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             required
             className={PRIME_INPUT_CLASS}
             value={form.service_type}
-            onChange={(e) => setForm((f) => ({ ...f, service_type: e.target.value }))}
+            onChange={(e) => {
+              const service_type = e.target.value;
+              setForm((f) => ({
+                ...f,
+                service_type,
+                passenger_count: Math.min(f.passenger_count, maxPassengersForService(service_type))
+              }));
+              setCorporativoBandeira(null);
+            }}
           >
             {PRIME_SERVICE_TYPES.map((s) => (
               <option key={s.id} value={s.id}>
@@ -536,6 +558,26 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
           />
         </label>
         <label className="grid gap-1 text-sm">
+          <span>Número de passageiros</span>
+          <input
+            type="number"
+            min={1}
+            max={maxPassengersForService(form.service_type)}
+            required
+            className={PRIME_INPUT_CLASS}
+            value={form.passenger_count}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                passenger_count: Math.min(
+                  maxPassengersForService(f.service_type),
+                  Math.max(1, Number(e.target.value) || 1)
+                )
+              }))
+            }
+          />
+        </label>
+        <label className="grid gap-1 text-sm">
           <span>Modo despacho</span>
           <select
             className={PRIME_INPUT_CLASS}
@@ -555,6 +597,18 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             {hasPricingRule === false ? (
               <p className="mt-1 text-xs text-amber-800">
                 Cliente sem tabela para este serviço — preencha os valores manualmente.
+              </p>
+            ) : null}
+            {corporativoBandeira ? (
+              <p className="mt-1 text-xs text-prime-muted">
+                Tarifa aplicada: <strong>{corporativoBandeira}</strong>
+              </p>
+            ) : form.service_type === "corporativo" ? (
+              <p className="mt-1 text-xs text-prime-muted">
+                {primeServiceTypeLabel("corporativo", {
+                  audience: "operator",
+                  scheduledAt: form.scheduled_at
+                })}
               </p>
             ) : null}
             {estimateBusy ? (

@@ -3,10 +3,14 @@
 import { StatusBadge } from "@/components/status-badge";
 import { CopyTextButton } from "@/components/copy-text-button";
 import type { TripOperationalStatus } from "@/lib/domain/types";
+import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 
 type Props = {
   tripId: string;
   operationalStatus: TripOperationalStatus;
+  serviceType?: string | null;
+  scheduledAt?: string | null;
+  passengerCount?: number | null;
   clientAmount?: number | null;
   driverAmount?: number | null;
   margin?: number | null;
@@ -20,12 +24,18 @@ function fmtMoney(n: number | null | undefined) {
 export function TripFocusHeader({
   tripId,
   operationalStatus,
+  serviceType,
+  scheduledAt,
+  passengerCount,
   clientAmount,
   driverAmount,
   margin
 }: Props) {
   const hasFinance =
     clientAmount != null || driverAmount != null || margin != null;
+  const serviceLabel = serviceType
+    ? primeServiceTypeLabel(serviceType, { audience: "operator", scheduledAt })
+    : null;
 
   return (
     <div
@@ -35,6 +45,18 @@ export function TripFocusHeader({
       <StatusBadge status={operationalStatus} />
       <span className="font-mono text-sm text-prime-text">{tripId}</span>
       <CopyTextButton text={tripId} label="Copiar ID" className="border-prime-border text-prime-text" />
+      {serviceLabel ? (
+        <span className="text-sm text-prime-text">
+          <span className="text-prime-muted">Serviço: </span>
+          {serviceLabel}
+        </span>
+      ) : null}
+      {passengerCount != null && passengerCount > 0 ? (
+        <span className="text-sm text-prime-text">
+          <span className="text-prime-muted">Passageiros: </span>
+          <strong>{passengerCount}</strong>
+        </span>
+      ) : null}
       {hasFinance ? (
         <div className="ml-auto flex flex-wrap gap-4 text-sm">
           <span>

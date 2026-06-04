@@ -2,6 +2,7 @@
 
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
+import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { StatusBadge } from "@/components/status-badge";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
 import { DriverTripRouteCard } from "@/components/driver-trip-route-card";
@@ -57,7 +58,13 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
       <p className="mt-3 text-lg font-semibold text-prime-text">
         {trip.passenger_name?.trim() || "Passageiro"}
         {trip.service_type ? (
-          <span className="text-base font-normal text-prime-muted"> · {trip.service_type}</span>
+          <span className="text-base font-normal text-prime-muted">
+            {" "}
+            · {primeServiceTypeLabel(trip.service_type, { audience: "operator", scheduledAt: trip.scheduled_at })}
+          </span>
+        ) : null}
+        {trip.passenger_count != null && trip.passenger_count > 0 ? (
+          <span className="text-base font-normal text-prime-muted"> · {trip.passenger_count} passageiros</span>
         ) : null}
       </p>
 

@@ -2,7 +2,11 @@ import { z } from "zod";
 import { getClientPricingRule } from "@/lib/clients/client-pricing-rules";
 import { getDriverPayoutRule } from "@/lib/drivers/driver-payout-rules";
 import { estimatePrimeTripAmounts, primeMarginFromAmounts } from "@/lib/pricing/prime-price-estimate";
-import { normalizePrimeServiceType } from "@/lib/pricing/prime-service-types";
+import { resolvePricingServiceType } from "@/lib/pricing/corporativo-bandeira";
+import {
+  corporativoBandeiraOperatorLabel,
+  normalizePrimeServiceType
+} from "@/lib/pricing/prime-service-types";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
@@ -12,6 +16,7 @@ const bodySchema = z.object({
   client_id: z.string().uuid(),
   driver_id: z.string().uuid().optional().nullable(),
   service_type: z.string().min(1),
+  scheduled_at: z.string().optional(),
   origin_lat: z.coerce.number().optional().nullable(),
   origin_lng: z.coerce.number().optional().nullable(),
   destination_lat: z.coerce.number().optional().nullable(),
@@ -24,12 +29,18 @@ export async function POST(request: Request) {
     assertCapability(session, "trip.write");
     const tenantId = assertTenantScope(session);
     const body = bodySchema.parse(await request.json());
-    const serviceType = normalizePrimeServiceType(body.service_type);
+    const uiServiceType = normalizePrimeServiceType(body.service_type);
+    const pricingServiceType = resolvePricingServiceType(uiServiceType, body.scheduled_at ?? null);
 
-    const clientRule = await getClientPricingRule(body.client_id, tenantId, serviceType);
+    const clientRule = await getClientPricingRule(body.client_id, tenantId, pricingServiceType);
     if (!clientRule) {
       return ok({
-        service_type: serviceType,
+        service_type: uiServiceType,
+        pricing_service_type: pricingServiceType,
+        corporativo_bandeira:
+          uiServiceType === "corporativo" || pricingServiceType.startsWith("corporativo_")
+            ? corporativoBandeiraOperatorLabel(pricingServiceType)
+            : null,
         has_rule: false,
         rule: null,
         estimate: null,
@@ -42,7 +53,7 @@ export async function POST(request: Request) {
     let driver_fixed_price = clientRule.driver_fixed_price;
 
     if (body.driver_id) {
-      const driverRule = await getDriverPayoutRule(body.driver_id, tenantId, serviceType);
+      const driverRule = await getDriverPayoutRule(body.driver_id, tenantId, pricingServiceType);
       if (driverRule) {
         if (driverRule.charge_type === "per_km") {
           driver_price_per_km = driverRule.price_per_km;
@@ -72,7 +83,12 @@ export async function POST(request: Request) {
     );
 
     return ok({
-      service_type: serviceType,
+      service_type: uiServiceType,
+      pricing_service_type: pricingServiceType,
+      corporativo_bandeira:
+        uiServiceType === "corporativo" || pricingServiceType.startsWith("corporativo_")
+          ? corporativoBandeiraOperatorLabel(pricingServiceType)
+          : null,
       has_rule: true,
       rule: clientRule,
       estimate,

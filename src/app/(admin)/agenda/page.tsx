@@ -120,6 +120,9 @@ export default async function AgendaPage({
           <TripFocusHeader
             tripId={focusTripId}
             operationalStatus={focusTrip?.operational_status ?? "requested"}
+            serviceType={focusTrip?.service_type}
+            scheduledAt={focusTrip?.scheduled_at}
+            passengerCount={focusTrip?.passenger_count}
             clientAmount={focusTrip?.client_amount}
             driverAmount={focusTrip?.driver_amount}
             margin={focusTrip?.margin}
