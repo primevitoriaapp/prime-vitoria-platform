@@ -11,6 +11,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { isClientPortalReadOnly } from "@/lib/client/portal-config";
+import { scrollToSolicitar } from "@/lib/client/scroll-to-solicitar";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 type ClientOption = { id: string; name: string; type?: string };
@@ -55,6 +56,13 @@ export function ClientAppShell({
   useEffect(() => {
     if (mode === "admin" && initialClients.length === 0) void reloadClients();
   }, [mode, initialClients.length, reloadClients]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash === "#solicitar") {
+      window.requestAnimationFrame(() => scrollToSolicitar());
+    }
+  }, [selectedClientId]);
 
   useEffect(() => {
     if (!selectedClientId) return;
@@ -135,17 +143,29 @@ export function ClientAppShell({
             </p>
           </div>
           {!readOnly && selectedClientId ? (
-            <Link
-              href="#solicitar"
+            <button
+              type="button"
               className="btn-primary inline-flex shrink-0 items-center justify-center px-5 py-2.5 text-sm"
+              onClick={scrollToSolicitar}
             >
               + Nova solicitação
-            </Link>
+            </button>
           ) : null}
         </section>
 
         {selectedClientId ? (
           <>
+            {!readOnly ? (
+              <section id="solicitar" className="scroll-mt-6 space-y-3">
+                <h2 className="font-serif text-xl text-prime-text">Nova solicitação</h2>
+                <ClientRequestConsole
+                  clientId={selectedClientId}
+                  costCenters={costCenters}
+                  devFallbackRole={mode === "admin" ? "admin" : "cliente"}
+                />
+              </section>
+            ) : null}
+
             <ClientTripsPanel
               key={selectedClientId}
               tenantId={tenantId}
@@ -154,19 +174,6 @@ export function ClientAppShell({
               clientIdOverride={mode === "admin" ? selectedClientId : undefined}
               devFallbackRole={mode === "admin" ? "admin" : "cliente"}
             />
-
-            {!readOnly ? (
-              <section id="solicitar" className="space-y-3">
-                <h2 className="font-serif text-xl text-prime-text">Nova solicitação</h2>
-                <div>
-                  <ClientRequestConsole
-                    clientId={selectedClientId}
-                    costCenters={costCenters}
-                    devFallbackRole={mode === "admin" ? "admin" : "cliente"}
-                  />
-                </div>
-              </section>
-            ) : null}
           </>
         ) : null}
       </main>

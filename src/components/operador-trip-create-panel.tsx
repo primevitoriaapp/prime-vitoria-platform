@@ -8,13 +8,18 @@ import { DateTimeInput } from "@/components/datetime-input";
 import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
 import { primeMarginFromAmounts } from "@/lib/pricing/prime-price-estimate";
 import { PRIME_SERVICE_TYPES } from "@/lib/pricing/prime-service-types";
-import { buildAgendaTripHref } from "@/lib/operations/agenda-trip-href";
+import {
+  buildAgendaTripHref,
+  buildAgendaTripHrefFromScheduleRange
+} from "@/lib/operations/agenda-trip-href";
+import { legScheduledAtRange } from "@/lib/trips/trip-legs";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 type ClientRow = { id: string; name: string };
 
 type LegForm = {
+  scheduled_at: string;
   origin_text: string;
   origin_lat: number | null;
   origin_lng: number | null;
@@ -36,8 +41,9 @@ function defaultScheduledIso(): string {
   return d.toISOString();
 }
 
-function emptyLeg(): LegForm {
+function emptyLeg(scheduledAt?: string): LegForm {
   return {
+    scheduled_at: scheduledAt ?? defaultScheduledIso(),
     origin_text: "",
     origin_lat: null,
     origin_lng: null,
@@ -187,7 +193,10 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   }
 
   function addLeg() {
-    setLegs((prev) => [...prev, emptyLeg()]);
+    setLegs((prev) => {
+      const last = prev[prev.length - 1];
+      return [...prev, emptyLeg(last?.scheduled_at ?? form.scheduled_at)];
+    });
   }
 
   function removeLeg(index: number) {
@@ -201,14 +210,49 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
       return;
     }
 
+    if (multiLeg) {
+      for (let i = 0; i < legs.length; i++) {
+        const iso =
+          i === 0
+            ? parseBrDateTimeToIso(form.scheduled_at) ?? form.scheduled_at
+            : parseBrDateTimeToIso(legs[i].scheduled_at) ?? legs[i].scheduled_at;
+        if (!iso || !Number.isFinite(new Date(iso).getTime())) {
+          setMessage(`Informe data e hora válidas no trecho ${i + 1}.`);
+          return;
+        }
+      }
+    }
+
     setLoading(true);
     setMessage(null);
     try {
-      const scheduled_at =
-        parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString();
+      const scheduled_at = multiLeg
+        ? (parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString())
+        : (parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString());
       const client_amount = totals.client;
       const driver_amount = totals.driver;
       const margin = totals.margin;
+
+      const tripLegsPayload = multiLeg
+        ? legs.map((l, idx) => {
+            const legSchedule =
+              idx === 0
+                ? scheduled_at
+                : (parseBrDateTimeToIso(l.scheduled_at) ??
+                  new Date(l.scheduled_at).toISOString());
+            return {
+              origin_text: l.origin_text,
+              destination_text: l.destination_text,
+              scheduled_at: legSchedule,
+              origin_lat: l.origin_lat,
+              origin_lng: l.origin_lng,
+              destination_lat: l.destination_lat,
+              destination_lng: l.destination_lng,
+              client_amount: Number(l.client_amount) || 0,
+              driver_amount: Number(l.driver_amount) || 0
+            };
+          })
+        : undefined;
 
       const body = multiLeg
         ? {
@@ -222,16 +266,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             client_amount,
             driver_amount,
             margin,
-            trip_legs: legs.map((l) => ({
-              origin_text: l.origin_text,
-              destination_text: l.destination_text,
-              origin_lat: l.origin_lat,
-              origin_lng: l.origin_lng,
-              destination_lat: l.destination_lat,
-              destination_lng: l.destination_lng,
-              client_amount: Number(l.client_amount) || 0,
-              driver_amount: Number(l.driver_amount) || 0
-            }))
+            trip_legs: tripLegsPayload
           }
         : {
             client_id: form.client_id,
@@ -262,7 +297,16 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
       setMessage("Corrida criada. A abrir na agenda…");
       void scheduledFrom;
       void scheduledTo;
-      router.push(buildAgendaTripHref(json.data.id, scheduled_at) as Route);
+      const href =
+        multiLeg && tripLegsPayload?.length
+          ? (() => {
+              const range = legScheduledAtRange(tripLegsPayload);
+              return range
+                ? buildAgendaTripHrefFromScheduleRange(json.data.id, range.from, range.to)
+                : buildAgendaTripHref(json.data.id, scheduled_at);
+            })()
+          : buildAgendaTripHref(json.data.id, scheduled_at);
+      router.push(href as Route);
       router.refresh();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Erro ao criar corrida.");
@@ -310,26 +354,42 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm">
-          <span>Data e hora</span>
-          <DateTimeInput
-            required
-            className={PRIME_INPUT_CLASS}
-            value={form.scheduled_at}
-            onChange={(iso) => setForm((f) => ({ ...f, scheduled_at: iso ?? defaultScheduledIso() }))}
-          />
-        </label>
+        {!multiLeg ? (
+          <label className="grid gap-1 text-sm">
+            <span>Data e hora</span>
+            <DateTimeInput
+              required
+              className={PRIME_INPUT_CLASS}
+              value={form.scheduled_at}
+              onChange={(iso) => setForm((f) => ({ ...f, scheduled_at: iso ?? defaultScheduledIso() }))}
+            />
+          </label>
+        ) : (
+          <label className="grid gap-1 text-sm md:col-span-2">
+            <span>Data e hora — trecho 1</span>
+            <DateTimeInput
+              required
+              className={PRIME_INPUT_CLASS}
+              value={form.scheduled_at}
+              onChange={(iso) => {
+                const next = iso ?? defaultScheduledIso();
+                setForm((f) => ({ ...f, scheduled_at: next }));
+                patchLeg(0, { scheduled_at: next });
+              }}
+            />
+          </label>
+        )}
 
-        <label className="flex items-center gap-2 text-sm md:col-span-2">
+        <label className={`flex items-center gap-2 text-sm ${multiLeg ? "md:col-span-2" : ""}`}>
           <input
             type="checkbox"
             checked={multiLeg}
             onChange={(e) => {
               setMultiLeg(e.target.checked);
-              if (e.target.checked && legs.length === 1 && form.origin_text) {
+              if (e.target.checked) {
                 setLegs([
                   {
-                    ...emptyLeg(),
+                    ...emptyLeg(form.scheduled_at),
                     origin_text: form.origin_text,
                     origin_lat: form.origin_lat,
                     origin_lng: form.origin_lng,
@@ -407,6 +467,19 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
                   ) : null}
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
+                  {idx > 0 ? (
+                    <label className="grid gap-1 text-sm md:col-span-2">
+                      <span>Data e hora do trecho</span>
+                      <DateTimeInput
+                        required
+                        className={PRIME_INPUT_CLASS}
+                        value={leg.scheduled_at}
+                        onChange={(iso) =>
+                          patchLeg(idx, { scheduled_at: iso ?? defaultScheduledIso() })
+                        }
+                      />
+                    </label>
+                  ) : null}
                   <input
                     className={PRIME_INPUT_CLASS}
                     required

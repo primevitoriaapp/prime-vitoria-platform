@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { scrollToSolicitar } from "@/lib/client/scroll-to-solicitar";
 
 type Props = {
   readOnly?: boolean;
@@ -6,25 +9,25 @@ type Props = {
 
 export function ClientPortalNav({ readOnly = true }: Props) {
   return (
-    <nav className="flex flex-wrap gap-3 text-sm text-slate-400" aria-label="Portal cliente">
-      <Link href="/client#visao" className="hover:text-amber-400">
+    <nav className="flex flex-wrap gap-3 text-sm text-prime-muted" aria-label="Portal cliente">
+      <Link href="/client#visao" className="hover:text-prime-gold">
         Início
       </Link>
-      <Link href="/client#corridas" className="hover:text-amber-400">
+      <Link href="/client#corridas" className="hover:text-prime-gold">
         Corridas
       </Link>
-      <Link href="/client#centros" className="hover:text-amber-400">
+      <Link href="/client#centros" className="hover:text-prime-gold">
         Centros de custo
       </Link>
-      <Link href="/client#passageiros" className="hover:text-amber-400">
+      <Link href="/client#passageiros" className="hover:text-prime-gold">
         Passageiros
       </Link>
       {!readOnly ? (
-        <Link href="/client#solicitar" className="hover:text-amber-400">
+        <button type="button" onClick={scrollToSolicitar} className="hover:text-prime-gold">
           Nova solicitação
-        </Link>
+        </button>
       ) : (
-        <span className="rounded-full border border-slate-700 px-2 py-0.5 text-xs text-slate-500">
+        <span className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs text-prime-muted">
           Modo consulta
         </span>
       )}

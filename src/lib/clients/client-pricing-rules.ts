@@ -31,13 +31,16 @@ export type ClientPricingRuleInput = {
   active?: boolean;
 };
 
+const PRICING_RULE_COLUMNS =
+  "id, client_id, tenant_id, service_type, charge_type, price_per_km, min_km, fixed_price, driver_price_per_km, driver_min_km, driver_fixed_price, wait_tolerance_minutes, wait_price_per_hour, active, created_at, updated_at";
+
 export async function listClientPricingRules(
   clientId: string,
   tenantId: string
 ): Promise<ClientPricingRuleRow[]> {
   const { data, error } = await db
     .from("client_pricing_rules")
-    .select("*")
+    .select(PRICING_RULE_COLUMNS)
     .eq("client_id", clientId)
     .eq("tenant_id", tenantId)
     .order("service_type");
@@ -54,7 +57,7 @@ export async function getClientPricingRule(
   const key = normalizePrimeServiceType(serviceType);
   const { data, error } = await db
     .from("client_pricing_rules")
-    .select("*")
+    .select(PRICING_RULE_COLUMNS)
     .eq("client_id", clientId)
     .eq("tenant_id", tenantId)
     .eq("service_type", key)
@@ -97,7 +100,7 @@ export async function upsertClientPricingRule(
   const { data, error } = await db
     .from("client_pricing_rules")
     .upsert(row, { onConflict: "client_id,service_type" })
-    .select("*")
+    .select(PRICING_RULE_COLUMNS)
     .single();
 
   if (error) return { data: null, error: new Error(error.message) };
@@ -113,7 +116,7 @@ export async function upsertClientPricingRulesBatch(
   const { data, error } = await db
     .from("client_pricing_rules")
     .upsert(rows, { onConflict: "client_id,service_type" })
-    .select("*");
+    .select(PRICING_RULE_COLUMNS);
 
   if (error) return { data: [], error: new Error(error.message) };
   return { data: (data ?? []) as ClientPricingRuleRow[], error: null };

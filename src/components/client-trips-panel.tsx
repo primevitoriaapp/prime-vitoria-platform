@@ -11,6 +11,7 @@ import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { clientShowsAwaitingApproval } from "@/lib/client/trip-status-ui";
 import { clientMayCancelTrip } from "@/lib/domain/status";
+import { PRIME_SURFACE_CARD } from "@/lib/ui/prime-surface-card";
 
 const EM_ANDAMENTO: TripOperationalStatus[] = [
   "dispatched",
@@ -130,29 +131,29 @@ export function ClientTripsPanel({
         {loading && trips.length === 0 ? (
           <>
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="animate-pulse rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                <div className="h-3 w-24 rounded bg-slate-700" />
-                <div className="mt-3 h-8 w-16 rounded bg-slate-700" />
+              <div key={i} className={`animate-pulse ${PRIME_SURFACE_CARD}`}>
+                <div className="h-3 w-24 rounded bg-gray-200" />
+                <div className="mt-3 h-8 w-16 rounded bg-gray-200" />
               </div>
             ))}
           </>
         ) : (
           <>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Corridas (mês)</p>
-          <p className="mt-1 font-serif text-3xl text-amber-400">{corridasMes}</p>
+        <div className={PRIME_SURFACE_CARD}>
+          <p className="text-xs uppercase tracking-wide text-prime-muted">Corridas (mês)</p>
+          <p className="mt-1 font-serif text-3xl text-prime-gold">{corridasMes}</p>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Em andamento</p>
-          <p className="mt-1 font-serif text-3xl text-amber-400">{emAndamento}</p>
+        <div className={PRIME_SURFACE_CARD}>
+          <p className="text-xs uppercase tracking-wide text-prime-muted">Em andamento</p>
+          <p className="mt-1 font-serif text-3xl text-prime-gold">{emAndamento}</p>
         </div>
-        <div className="rounded-xl border border-amber-900/50 bg-amber-950/30 p-4">
-          <p className="text-xs uppercase tracking-wide text-amber-200/70">Aguarda aprovação</p>
-          <p className="mt-1 font-serif text-3xl text-amber-400">{aguardandoAprovacao}</p>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <p className="text-xs uppercase tracking-wide text-amber-900/80">Aguarda aprovação</p>
+          <p className="mt-1 font-serif text-3xl text-prime-gold">{aguardandoAprovacao}</p>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Centros de custo</p>
-          <p className="mt-1 font-serif text-3xl text-amber-400">{costCenters.length}</p>
+        <div className={PRIME_SURFACE_CARD}>
+          <p className="text-xs uppercase tracking-wide text-prime-muted">Centros de custo</p>
+          <p className="mt-1 font-serif text-3xl text-prime-gold">{costCenters.length}</p>
         </div>
           </>
         )}
@@ -161,22 +162,22 @@ export function ClientTripsPanel({
       <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
         <section id="corridas" className="space-y-4">
           <div className="flex flex-wrap items-baseline justify-between gap-4">
-            <h2 className="font-serif text-xl text-white">
+            <h2 className="font-serif text-xl text-prime-text">
               Minhas corridas
-              {total > 0 ? <span className="ml-2 text-sm font-normal text-slate-500">({total})</span> : null}
+              {total > 0 ? <span className="ml-2 text-sm font-normal text-prime-muted">({total})</span> : null}
             </h2>
             <div className="flex items-center gap-2 text-sm">
               <button
                 type="button"
                 onClick={() => setFilter("all")}
-                className={`rounded-lg px-3 py-1 ${filter === "all" ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white"}`}
+                className={`rounded-lg px-3 py-1 ${filter === "all" ? "bg-prime-gold font-medium text-prime-text" : "text-prime-muted hover:text-prime-text"}`}
               >
                 Todas
               </button>
               <button
                 type="button"
                 onClick={() => setFilter("active")}
-                className={`rounded-lg px-3 py-1 ${filter === "active" ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white"}`}
+                className={`rounded-lg px-3 py-1 ${filter === "active" ? "bg-prime-gold font-medium text-prime-text" : "text-prime-muted hover:text-prime-text"}`}
               >
                 Em andamento
               </button>
@@ -184,78 +185,74 @@ export function ClientTripsPanel({
                 type="button"
                 onClick={() => void load()}
                 disabled={loading}
-                className="rounded-lg border border-slate-700 px-3 py-1 text-slate-400 hover:text-white disabled:opacity-50"
+                className="btn-outline px-3 py-1 text-sm disabled:opacity-50"
               >
                 Actualizar
               </button>
             </div>
           </div>
-          <div className="overflow-hidden rounded-xl border border-slate-800">
+          <div className={`overflow-hidden ${PRIME_SURFACE_CARD} p-0`}>
             {loadError ? (
               <div className="space-y-3 p-6">
-                <p className="text-sm text-red-300">{loadError}</p>
-                <button
-                  type="button"
-                  onClick={() => void load()}
-                  className="rounded-lg border border-amber-600/50 bg-amber-950/30 px-3 py-2 text-sm font-medium text-amber-200 hover:bg-amber-900/40"
-                >
+                <p className="text-sm text-red-700">{loadError}</p>
+                <button type="button" onClick={() => void load()} className="btn-outline text-sm">
                   Tentar novamente
                 </button>
               </div>
             ) : loading && visible.length === 0 ? (
-              <p className="p-6 text-sm text-slate-400">A carregar corridas…</p>
+              <p className="p-6 text-sm text-prime-muted">A carregar corridas…</p>
             ) : visible.length === 0 ? (
-              <p className="p-6 text-sm text-slate-400">
+              <p className="p-6 text-sm text-prime-muted">
                 {filter === "active"
                   ? "Nenhuma corrida em andamento."
                   : readOnly
                     ? "Nenhuma corrida no histórico."
-                    : "Nenhuma corrida. Faça uma solicitação abaixo."}
+                    : "Nenhuma corrida. Faça uma solicitação acima."}
               </p>
             ) : (
-              <ul className="divide-y divide-slate-800">
+              <ul className="divide-y divide-gray-200">
                 {visible.map((trip) => (
                   <li
                     key={trip.id}
-                    className="flex flex-col gap-2 p-4 hover:bg-slate-900/40 sm:flex-row sm:items-start sm:justify-between"
+                    className="flex flex-col gap-2 p-4 hover:bg-gray-50 sm:flex-row sm:items-start sm:justify-between"
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge status={trip.operational_status} />
-                        <span className="font-mono text-xs text-amber-500/90">{trip.id.slice(0, 8)}…</span>
+                        <span className="font-mono text-xs text-prime-gold">{trip.id.slice(0, 8)}…</span>
                         {clientShowsAwaitingApproval(trip.operational_status) ? (
-                          <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-300">
+                          <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">
                             Aguarda aprovação
                           </span>
                         ) : null}
                       </div>
-                      <p className="text-sm font-medium text-white">
+                      <p className="text-sm font-medium text-prime-text">
                         {trip.passenger_name?.trim() || "Passageiro a definir"}
                         {trip.service_type ? (
-                          <span className="font-normal text-slate-500"> · {trip.service_type}</span>
+                          <span className="font-normal text-prime-muted"> · {trip.service_type}</span>
                         ) : null}
                       </p>
-                      <p className="text-sm text-slate-400">
+                      <p className="text-sm text-prime-muted">
                         {trip.origin_text} → {trip.destination_text}
                       </p>
-                      <p className="text-xs text-slate-500">{formatBrDateTime(trip.scheduled_at)}</p>
+                      <p className="text-xs text-prime-muted">{formatBrDateTime(trip.scheduled_at)}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-stretch gap-2 pt-1 sm:items-end sm:pt-0">
                       <Link
                         href={`/client/viagens/${trip.id}`}
-                        className="rounded-lg border border-amber-600/50 bg-amber-950/30 px-3 py-2 text-center text-xs font-medium text-amber-200 hover:bg-amber-900/40"
+                        className="btn-outline px-3 py-2 text-center text-xs"
                       >
                         Ver detalhe
                       </Link>
                       {!readOnly ? (
-                        <TripTrackingLinkButton tripId={trip.id} variant="dark" devFallbackRole={devFallbackRole} />
+                        <TripTrackingLinkButton tripId={trip.id} devFallbackRole={devFallbackRole} />
                       ) : null}
                       {!readOnly && clientMayCancelTrip(trip.operational_status) ? (
                         <button
                           type="button"
                           disabled={cancellingId === trip.id}
                           onClick={() => void cancelTrip(trip.id)}
-                          className="rounded-lg border border-red-900/60 px-3 py-1.5 text-xs text-red-300 hover:bg-red-950/40 disabled:opacity-50"
+                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
                         >
                           {cancellingId === trip.id ? "A cancelar…" : "Cancelar solicitação"}
                         </button>
@@ -269,28 +266,28 @@ export function ClientTripsPanel({
         </section>
 
         <aside id="centros" className="space-y-4">
-          <h2 className="font-serif text-lg text-white">Centros de custo</h2>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <h2 className="font-serif text-lg text-prime-text">Centros de custo</h2>
+          <div className={PRIME_SURFACE_CARD}>
             {costCenters.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhum centro de custo cadastrado.</p>
+              <p className="text-sm text-prime-muted">Nenhum centro de custo cadastrado.</p>
             ) : (
               <ul className="space-y-3 text-sm">
                 {costCenters.map((cc) => (
                   <li
                     key={cc.id}
-                    className="flex justify-between gap-2 border-b border-slate-800/80 pb-2 last:border-0 last:pb-0"
+                    className="flex justify-between gap-2 border-b border-gray-200 pb-2 last:border-0 last:pb-0"
                   >
-                    <span className="truncate text-slate-300">
+                    <span className="truncate text-prime-text">
                       {cc.code ? `${cc.code} · ` : ""}
                       {cc.name}
                     </span>
-                    <span className="shrink-0 text-amber-500/90">{porCentro.get(cc.id) ?? 0}</span>
+                    <span className="shrink-0 text-prime-gold">{porCentro.get(cc.id) ?? 0}</span>
                   </li>
                 ))}
               </ul>
             )}
           </div>
-          <p className="text-xs text-slate-600">Lista actualiza em tempo real quando o estado da corrida muda.</p>
+          <p className="text-xs text-prime-muted">Lista actualiza em tempo real quando o estado da corrida muda.</p>
         </aside>
       </div>
 

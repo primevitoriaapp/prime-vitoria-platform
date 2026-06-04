@@ -7,7 +7,12 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { normalizePrimeServiceType } from "@/lib/pricing/prime-service-types";
-import { sumLegAmounts, tripLegsSchema } from "@/lib/trips/trip-legs";
+import {
+  firstLegScheduledAtIso,
+  legScheduledAtRange,
+  sumLegAmounts,
+  tripLegsSchema
+} from "@/lib/trips/trip-legs";
 import { enrichTripItemsWithVehicles } from "@/lib/trips/enrich-trip-vehicles";
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 
@@ -54,7 +59,26 @@ export async function POST(request: Request) {
     const session = await getSessionContext();
     assertCapability(session, session.role === "cliente" ? "trip.request" : "trip.write");
 
-    const body = createTripSchema.parse(await request.json());
+    const raw = (await request.json()) as Record<string, unknown>;
+    if (Array.isArray(raw.trip_legs) && raw.trip_legs.length > 0) {
+      const legs = raw.trip_legs as Array<Record<string, unknown>>;
+      const first = legs[0];
+      const last = legs[legs.length - 1];
+      if (typeof first?.origin_text === "string" && first.origin_text.length >= 2) {
+        raw.origin_text = first.origin_text;
+      }
+      if (typeof last?.destination_text === "string" && last.destination_text.length >= 2) {
+        raw.destination_text = last.destination_text;
+      }
+      const legSchedule =
+        typeof first?.scheduled_at === "string" && first.scheduled_at.trim()
+          ? first.scheduled_at
+          : null;
+      if (legSchedule) {
+        raw.scheduled_at = legSchedule;
+      }
+    }
+    const body = createTripSchema.parse(raw);
     const tenantId = assertTenantScope(session);
 
     if (session.role === "cliente") {
@@ -81,6 +105,13 @@ export async function POST(request: Request) {
     const serviceType = normalizePrimeServiceType(body.service_type);
     const legs = body.trip_legs;
     const legTotals = legs?.length ? sumLegAmounts(legs) : null;
+    const legScheduleIso = legs?.length ? firstLegScheduledAtIso(legs) : null;
+    const scheduledAt =
+      legScheduleIso ??
+      (() => {
+        const d = new Date(body.scheduled_at);
+        return Number.isFinite(d.getTime()) ? d.toISOString() : body.scheduled_at;
+      })();
 
     const clientAmount =
       legTotals?.client_amount ?? body.client_amount ?? null;
@@ -112,7 +143,7 @@ export async function POST(request: Request) {
         requester_id: body.requester_id ?? null,
         cost_center_id: body.cost_center_id ?? null,
         service_type: serviceType,
-        scheduled_at: body.scheduled_at,
+        scheduled_at: scheduledAt,
         origin_text: originText,
         origin_lat: originLat,
         origin_lng: originLng,

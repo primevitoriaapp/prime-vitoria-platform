@@ -18,7 +18,7 @@ function defaultRangeUtc(): { fromIso: string; toIso: string } {
   const start = new Date();
   start.setUTCHours(0, 0, 0, 0);
   const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 14);
+  end.setUTCDate(end.getUTCDate() + 90);
   end.setUTCHours(23, 59, 59, 999);
   return { fromIso: start.toISOString(), toIso: end.toISOString() };
 }
