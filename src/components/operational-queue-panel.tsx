@@ -17,8 +17,14 @@ type QueueItem = {
   passenger_name: string | null;
   origin_text: string;
   destination_text: string;
+  client_amount: number | null;
   claim: { operator_profile_id: string; claimed_at: string; operator_name?: string | null } | null;
 };
+
+function fmtMoney(n: number | null | undefined) {
+  if (n == null || Number.isNaN(Number(n))) return null;
+  return Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 type ClientRow = { id: string; name: string };
 
@@ -161,6 +167,9 @@ export function OperationalQueuePanel({ tenantId, devFallbackRole = "operador" }
                 )}
                 <p className="text-xs text-slate-500">
                   {row.origin_text} → {row.destination_text}
+                  {fmtMoney(row.client_amount) ? (
+                    <span className="ml-2 font-medium text-prime-gold">{fmtMoney(row.client_amount)}</span>
+                  ) : null}
                 </p>
               </div>
               <Link

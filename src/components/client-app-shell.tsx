@@ -11,6 +11,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { isClientPortalReadOnly } from "@/lib/client/portal-config";
+import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 type ClientOption = { id: string; name: string; type?: string };
 
@@ -85,15 +86,15 @@ export function ClientAppShell({
   return (
     <div className="prime-theme min-h-screen bg-prime-bg text-prime-text">
       <OperationalRealtimeBridge tenantId={tenantId} />
-      <header className="border-b border-slate-800">
+      <header className="border-b border-prime-border bg-white shadow-prime-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-4">
           <BrandLogo subtitle="PORTAL CORPORATIVO" compact />
           <div className="flex flex-wrap items-center gap-4">
             {mode === "admin" ? (
-              <label className="grid gap-1 text-xs text-slate-400">
+              <label className="grid gap-1 text-xs text-prime-muted">
                 <span>Cliente em preview</span>
                 <select
-                  className="min-w-[12rem] rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
+                  className={`min-w-[12rem] ${PRIME_INPUT_CLASS} py-1.5`}
                   value={selectedClientId ?? ""}
                   onChange={(e) => onClientChange(e.target.value)}
                 >
@@ -114,7 +115,7 @@ export function ClientAppShell({
 
       <main className="mx-auto max-w-6xl space-y-10 px-5 py-8">
         {mode === "admin" && !selectedClientId ? (
-          <p className="rounded-lg border border-amber-700/40 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             Selecione um cliente cadastrado para testar solicitações e acompanhamento de corridas.
           </p>
         ) : null}
@@ -124,8 +125,8 @@ export function ClientAppShell({
 
         <section id="visao" className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-xl">
-            <p className="font-serif text-2xl leading-snug text-white md:text-3xl">{saudacao}</p>
-            <p className="mt-3 text-sm text-slate-400">
+            <p className="font-serif text-2xl leading-snug text-prime-text md:text-3xl">{saudacao}</p>
+            <p className="mt-3 text-sm text-prime-muted">
               {mode === "admin"
                 ? "Visualize e teste o portal como o cliente corporativo — solicitações, corridas e detalhes."
                 : readOnly
@@ -136,7 +137,7 @@ export function ClientAppShell({
           {!readOnly && selectedClientId ? (
             <Link
               href="#solicitar"
-              className="inline-flex shrink-0 items-center justify-center rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-medium text-slate-950 hover:bg-amber-400"
+              className="btn-primary inline-flex shrink-0 items-center justify-center px-5 py-2.5 text-sm"
             >
               + Nova solicitação
             </Link>
@@ -156,7 +157,7 @@ export function ClientAppShell({
 
             {!readOnly ? (
               <section id="solicitar" className="space-y-3">
-                <h2 className="font-serif text-xl text-white">Nova solicitação</h2>
+                <h2 className="font-serif text-xl text-prime-text">Nova solicitação</h2>
                 <div>
                   <ClientRequestConsole
                     clientId={selectedClientId}

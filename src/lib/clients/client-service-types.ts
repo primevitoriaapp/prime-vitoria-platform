@@ -1,13 +1,10 @@
-/** Tipos de serviço corporativo (perfil cliente PJ). */
-export const CLIENT_SERVICE_TYPE_OPTIONS = [
-  { id: "transfer_executivo", label: "Transfer executivo" },
-  { id: "diaria", label: "Diária" },
-  { id: "transfer_aeroporto", label: "Transfer aeroporto" },
-  { id: "evento", label: "Evento" },
-  { id: "van_grupo", label: "Van/grupo" },
-  { id: "turismo", label: "Turismo" },
-  { id: "corporativo", label: "Corporativo" }
-] as const;
+import { PRIME_SERVICE_CATALOG } from "@/lib/pricing/prime-service-catalog";
+
+/** Tipos de serviço corporativo (perfil cliente PJ) — alinhado ao catálogo operacional. */
+export const CLIENT_SERVICE_TYPE_OPTIONS = PRIME_SERVICE_CATALOG.map((s) => ({
+  id: s.id,
+  label: s.label
+}));
 
 export type ClientServiceTypeId = (typeof CLIENT_SERVICE_TYPE_OPTIONS)[number]["id"];
 

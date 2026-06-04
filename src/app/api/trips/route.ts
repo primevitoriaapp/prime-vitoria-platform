@@ -7,6 +7,7 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { normalizePrimeServiceType } from "@/lib/pricing/prime-service-types";
+import { sumLegAmounts, tripLegsSchema } from "@/lib/trips/trip-legs";
 import { enrichTripItemsWithVehicles } from "@/lib/trips/enrich-trip-vehicles";
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 
@@ -34,7 +35,8 @@ const createTripSchema = z.object({
   notes: z.string().optional(),
   client_amount: z.coerce.number().nonnegative().optional(),
   driver_amount: z.coerce.number().nonnegative().optional(),
-  margin: z.coerce.number().optional()
+  margin: z.coerce.number().optional(),
+  trip_legs: tripLegsSchema.optional()
 });
 
 function mapTripError(error: unknown) {
@@ -77,14 +79,31 @@ export async function POST(request: Request) {
     }
 
     const serviceType = normalizePrimeServiceType(body.service_type);
-    const clientAmount = body.client_amount ?? null;
-    const driverAmount = body.driver_amount ?? null;
+    const legs = body.trip_legs;
+    const legTotals = legs?.length ? sumLegAmounts(legs) : null;
+
+    const clientAmount =
+      legTotals?.client_amount ?? body.client_amount ?? null;
+    const driverAmount =
+      legTotals?.driver_amount ?? body.driver_amount ?? null;
     const margin =
-      body.margin != null
+      legTotals?.margin ??
+      (body.margin != null
         ? body.margin
         : clientAmount != null && driverAmount != null
           ? Math.round((clientAmount - driverAmount) * 100) / 100
-          : null;
+          : null);
+
+    const originText = legs?.length ? legs[0].origin_text : body.origin_text;
+    const destinationText = legs?.length ? legs[legs.length - 1].destination_text : body.destination_text;
+    const originLat = legs?.length ? (legs[0].origin_lat ?? null) : body.origin_lat;
+    const originLng = legs?.length ? (legs[0].origin_lng ?? null) : body.origin_lng;
+    const destLat = legs?.length
+      ? (legs[legs.length - 1].destination_lat ?? null)
+      : body.destination_lat;
+    const destLng = legs?.length
+      ? (legs[legs.length - 1].destination_lng ?? null)
+      : body.destination_lng;
 
     const { data, error } = await db
       .from("trips")
@@ -94,12 +113,13 @@ export async function POST(request: Request) {
         cost_center_id: body.cost_center_id ?? null,
         service_type: serviceType,
         scheduled_at: body.scheduled_at,
-        origin_text: body.origin_text,
-        origin_lat: body.origin_lat,
-        origin_lng: body.origin_lng,
-        destination_text: body.destination_text,
-        destination_lat: body.destination_lat,
-        destination_lng: body.destination_lng,
+        origin_text: originText,
+        origin_lat: originLat,
+        origin_lng: originLng,
+        destination_text: destinationText,
+        destination_lat: destLat,
+        destination_lng: destLng,
+        trip_legs: legs?.length ? legs : null,
         dispatch_mode: body.dispatch_mode,
         passenger_name: body.passenger_name ?? null,
         passenger_phone: body.passenger_phone ?? null,

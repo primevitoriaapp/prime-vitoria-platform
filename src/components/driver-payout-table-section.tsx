@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { PrimeChargeType } from "@/lib/pricing/prime-price-estimate";
-import { PRIME_SERVICE_TYPES, primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
+import {
+  PRIME_SERVICE_TYPES,
+  normalizePrimeServiceType,
+  primeServiceTypeLabel
+} from "@/lib/pricing/prime-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
@@ -54,7 +58,9 @@ export function DriverPayoutTableSection({ driverId, disabled }: Props) {
         fixed_price: number | null;
       }>;
     };
-    const byType = new Map((json.data ?? []).map((r) => [r.service_type, r]));
+    const byType = new Map(
+      (json.data ?? []).map((r) => [normalizePrimeServiceType(r.service_type), r])
+    );
     setRows(
       PRIME_SERVICE_TYPES.map((s) => {
         const saved = byType.get(s.id);

@@ -28,11 +28,13 @@ export async function POST(request: Request) {
 
     const clientRule = await getClientPricingRule(body.client_id, tenantId, serviceType);
     if (!clientRule) {
-      return fail(
-        "PRICING_RULE_NOT_FOUND",
-        `Sem tabela de preços para «${serviceType}» neste cliente.`,
-        404
-      );
+      return ok({
+        service_type: serviceType,
+        has_rule: false,
+        rule: null,
+        estimate: null,
+        margin: null
+      });
     }
 
     let driver_price_per_km = clientRule.driver_price_per_km;
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
 
     return ok({
       service_type: serviceType,
+      has_rule: true,
       rule: clientRule,
       estimate,
       margin: primeMarginFromAmounts(estimate.client_amount, estimate.driver_amount)

@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
-import { ClientPricingTableSection } from "@/components/client-pricing-table-section";
+import { ClientPricingServicesSection } from "@/components/client-pricing-services-section";
 import { CLIENT_SERVICE_TYPE_OPTIONS, type ClientServiceTypeId } from "@/lib/clients/client-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
@@ -415,7 +415,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
           <span>Cliente activo</span>
         </label>
         {clientId && form.type === "PJ" ? (
-          <ClientPricingTableSection clientId={clientId} disabled={busy} />
+          <ClientPricingServicesSection clientId={clientId} disabled={busy} />
         ) : null}
         <div className="flex flex-wrap gap-2 md:col-span-2">
           <button

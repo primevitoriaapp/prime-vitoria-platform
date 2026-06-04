@@ -14,6 +14,17 @@ import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 type ClientRow = { id: string; name: string };
 
+type LegForm = {
+  origin_text: string;
+  origin_lat: number | null;
+  origin_lng: number | null;
+  destination_text: string;
+  destination_lat: number | null;
+  destination_lng: number | null;
+  client_amount: string;
+  driver_amount: string;
+};
+
 type Props = {
   scheduledFrom: string;
   scheduledTo: string;
@@ -25,6 +36,19 @@ function defaultScheduledIso(): string {
   return d.toISOString();
 }
 
+function emptyLeg(): LegForm {
+  return {
+    origin_text: "",
+    origin_lat: null,
+    origin_lng: null,
+    destination_text: "",
+    destination_lat: null,
+    destination_lng: null,
+    client_amount: "",
+    driver_amount: ""
+  };
+}
+
 function fmtMoney(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -34,10 +58,13 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [estimateBusy, setEstimateBusy] = useState(false);
+  const [hasPricingRule, setHasPricingRule] = useState<boolean | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [multiLeg, setMultiLeg] = useState(false);
+  const [legs, setLegs] = useState<LegForm[]>([emptyLeg()]);
   const [form, setForm] = useState({
     client_id: "",
-    service_type: "transfer_executivo",
+    service_type: "transfer_seda",
     scheduled_at: defaultScheduledIso(),
     origin_text: "",
     origin_lat: null as number | null,
@@ -49,15 +76,19 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     dispatch_mode: "directed" as "directed" | "offer",
     planned_km: null as number | null,
     client_amount: "",
-    driver_amount: "",
-    margin: ""
+    driver_amount: ""
   });
 
-  const marginDisplay = useMemo(() => {
-    const c = Number(form.client_amount) || 0;
-    const d = Number(form.driver_amount) || 0;
-    return primeMarginFromAmounts(c, d);
-  }, [form.client_amount, form.driver_amount]);
+  const totals = useMemo(() => {
+    if (multiLeg) {
+      const client = legs.reduce((s, l) => s + (Number(l.client_amount) || 0), 0);
+      const driver = legs.reduce((s, l) => s + (Number(l.driver_amount) || 0), 0);
+      return { client, driver, margin: primeMarginFromAmounts(client, driver) };
+    }
+    const client = Number(form.client_amount) || 0;
+    const driver = Number(form.driver_amount) || 0;
+    return { client, driver, margin: primeMarginFromAmounts(client, driver) };
+  }, [multiLeg, legs, form.client_amount, form.driver_amount]);
 
   useEffect(() => {
     void (async () => {
@@ -75,7 +106,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   }, []);
 
   async function refreshEstimate() {
-    if (!form.client_id) return;
+    if (!form.client_id || multiLeg) return;
     setEstimateBusy(true);
     try {
       const res = await fetchWithSupabaseSession(
@@ -96,28 +127,34 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
       const json = (await res.json()) as {
         success?: boolean;
         data?: {
+          has_rule?: boolean;
           estimate: {
             planned_km: number | null;
             client_amount: number;
             driver_amount: number;
             margin: number;
-            charge_type: string;
-          };
+          } | null;
         };
         error?: { message?: string };
       };
-      if (!res.ok || !json.success || !json.data?.estimate) {
+      if (!res.ok || !json.success) {
         setMessage(json.error?.message ?? "Não foi possível estimar o valor.");
+        setHasPricingRule(null);
         return;
       }
-      const e = json.data.estimate;
-      setForm((f) => ({
-        ...f,
-        planned_km: e.planned_km,
-        client_amount: String(e.client_amount),
-        driver_amount: String(e.driver_amount),
-        margin: String(e.margin)
-      }));
+      const hasRule = json.data?.has_rule !== false && json.data?.estimate != null;
+      setHasPricingRule(hasRule);
+      if (hasRule && json.data?.estimate) {
+        const e = json.data.estimate;
+        setForm((f) => ({
+          ...f,
+          planned_km: e.planned_km,
+          client_amount: String(e.client_amount),
+          driver_amount: String(e.driver_amount)
+        }));
+      } else {
+        setForm((f) => ({ ...f, planned_km: null, client_amount: "", driver_amount: "" }));
+      }
       setMessage(null);
     } catch {
       setMessage("Erro ao calcular estimativa.");
@@ -127,7 +164,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   }
 
   useEffect(() => {
-    if (!form.client_id) return;
+    if (!form.client_id || multiLeg) return;
     const t = setTimeout(() => void refreshEstimate(), 400);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce estimate
@@ -137,33 +174,66 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     form.origin_lat,
     form.origin_lng,
     form.destination_lat,
-    form.destination_lng
+    form.destination_lng,
+    multiLeg
   ]);
 
   function onAmountChange(field: "client_amount" | "driver_amount", value: string) {
-    setForm((f) => {
-      const next = { ...f, [field]: value };
-      const margin = primeMarginFromAmounts(Number(next.client_amount) || 0, Number(next.driver_amount) || 0);
-      return { ...next, margin: String(margin) };
-    });
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function patchLeg(index: number, patch: Partial<LegForm>) {
+    setLegs((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
+  }
+
+  function addLeg() {
+    setLegs((prev) => [...prev, emptyLeg()]);
+  }
+
+  function removeLeg(index: number) {
+    setLegs((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (totals.client <= 0 || totals.driver < 0) {
+      setMessage("Preencha valor cliente e valor motorista (obrigatórios).");
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
     try {
       const scheduled_at =
         parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString();
-      const client_amount = Number(form.client_amount) || 0;
-      const driver_amount = Number(form.driver_amount) || 0;
-      const margin = primeMarginFromAmounts(client_amount, driver_amount);
+      const client_amount = totals.client;
+      const driver_amount = totals.driver;
+      const margin = totals.margin;
 
-      const res = await fetchWithSupabaseSession(
-        "/api/trips",
-        {
-          method: "POST",
-          body: JSON.stringify({
+      const body = multiLeg
+        ? {
+            client_id: form.client_id,
+            service_type: form.service_type,
+            scheduled_at,
+            origin_text: legs[0].origin_text,
+            destination_text: legs[legs.length - 1].destination_text,
+            passenger_name: form.passenger_name || undefined,
+            dispatch_mode: form.dispatch_mode,
+            client_amount,
+            driver_amount,
+            margin,
+            trip_legs: legs.map((l) => ({
+              origin_text: l.origin_text,
+              destination_text: l.destination_text,
+              origin_lat: l.origin_lat,
+              origin_lng: l.origin_lng,
+              destination_lat: l.destination_lat,
+              destination_lng: l.destination_lng,
+              client_amount: Number(l.client_amount) || 0,
+              driver_amount: Number(l.driver_amount) || 0
+            }))
+          }
+        : {
             client_id: form.client_id,
             service_type: form.service_type,
             scheduled_at,
@@ -178,8 +248,11 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             client_amount,
             driver_amount,
             margin
-          })
-        },
+          };
+
+      const res = await fetchWithSupabaseSession(
+        "/api/trips",
+        { method: "POST", body: JSON.stringify(body) },
         "admin"
       );
       const json = (await res.json()) as { success?: boolean; data?: { id: string }; error?: { message?: string } };
@@ -202,7 +275,8 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     <section className="card mb-6 border-prime-border">
       <h2 className="text-lg font-semibold text-prime-text">Nova corrida</h2>
       <p className="mt-1 text-sm text-prime-muted">
-        Crie a viagem com estimativa de valor (tabela do cliente + repasse). Depois assuma e despache na agenda.
+        Valores da tabela do cliente são sugeridos automaticamente e podem ser editados. Sem tabela, preencha
+        manualmente.
       </p>
       <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={(e) => void onSubmit(e)}>
         <label className="grid gap-1 text-sm md:col-span-2">
@@ -245,42 +319,141 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             onChange={(iso) => setForm((f) => ({ ...f, scheduled_at: iso ?? defaultScheduledIso() }))}
           />
         </label>
-        <AddressAutocompleteInput
-          className="md:col-span-2"
-          label="Origem"
-          required
-          placeholder="Ex.: Aeroporto de Vitória ES"
-          value={form.origin_text}
-          hasCoords={form.origin_lat != null && form.origin_lng != null}
-          onChange={(origin_text) => setForm((f) => ({ ...f, origin_text }))}
-          onPlaceSelect={(place) =>
-            setForm((f) => ({
-              ...f,
-              origin_text: place.displayName,
-              origin_lat: place.lat,
-              origin_lng: place.lng
-            }))
-          }
-          onCoordsClear={() => setForm((f) => ({ ...f, origin_lat: null, origin_lng: null }))}
-        />
-        <AddressAutocompleteInput
-          className="md:col-span-2"
-          label="Destino"
-          required
-          placeholder="Ex.: Shopping Vitória ES"
-          value={form.destination_text}
-          hasCoords={form.destination_lat != null && form.destination_lng != null}
-          onChange={(destination_text) => setForm((f) => ({ ...f, destination_text }))}
-          onPlaceSelect={(place) =>
-            setForm((f) => ({
-              ...f,
-              destination_text: place.displayName,
-              destination_lat: place.lat,
-              destination_lng: place.lng
-            }))
-          }
-          onCoordsClear={() => setForm((f) => ({ ...f, destination_lat: null, destination_lng: null }))}
-        />
+
+        <label className="flex items-center gap-2 text-sm md:col-span-2">
+          <input
+            type="checkbox"
+            checked={multiLeg}
+            onChange={(e) => {
+              setMultiLeg(e.target.checked);
+              if (e.target.checked && legs.length === 1 && form.origin_text) {
+                setLegs([
+                  {
+                    ...emptyLeg(),
+                    origin_text: form.origin_text,
+                    origin_lat: form.origin_lat,
+                    origin_lng: form.origin_lng,
+                    destination_text: form.destination_text,
+                    destination_lat: form.destination_lat,
+                    destination_lng: form.destination_lng,
+                    client_amount: form.client_amount,
+                    driver_amount: form.driver_amount
+                  }
+                ]);
+              }
+            }}
+          />
+          <span>Corrida com múltiplos trechos (ida + disponível + retorno, etc.)</span>
+        </label>
+
+        {!multiLeg ? (
+          <>
+            <AddressAutocompleteInput
+              className="md:col-span-2"
+              label="Origem"
+              required
+              placeholder="Ex.: Aeroporto de Vitória ES"
+              value={form.origin_text}
+              hasCoords={form.origin_lat != null && form.origin_lng != null}
+              onChange={(origin_text) => setForm((f) => ({ ...f, origin_text }))}
+              onPlaceSelect={(place) =>
+                setForm((f) => ({
+                  ...f,
+                  origin_text: place.displayName,
+                  origin_lat: place.lat,
+                  origin_lng: place.lng
+                }))
+              }
+              onCoordsClear={() => setForm((f) => ({ ...f, origin_lat: null, origin_lng: null }))}
+            />
+            <AddressAutocompleteInput
+              className="md:col-span-2"
+              label="Destino"
+              required
+              placeholder="Ex.: Shopping Vitória ES"
+              value={form.destination_text}
+              hasCoords={form.destination_lat != null && form.destination_lng != null}
+              onChange={(destination_text) => setForm((f) => ({ ...f, destination_text }))}
+              onPlaceSelect={(place) =>
+                setForm((f) => ({
+                  ...f,
+                  destination_text: place.displayName,
+                  destination_lat: place.lat,
+                  destination_lng: place.lng
+                }))
+              }
+              onCoordsClear={() =>
+                setForm((f) => ({ ...f, destination_lat: null, destination_lng: null }))
+              }
+            />
+          </>
+        ) : (
+          <div className="md:col-span-2 space-y-4">
+            {legs.map((leg, idx) => (
+              <div
+                key={idx}
+                className="rounded-lg border border-prime-border bg-white p-4 shadow-prime-card"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-prime-text">Trecho {idx + 1}</h4>
+                  {legs.length > 1 ? (
+                    <button
+                      type="button"
+                      className="text-xs text-red-700 hover:underline"
+                      onClick={() => removeLeg(idx)}
+                    >
+                      Remover
+                    </button>
+                  ) : null}
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input
+                    className={PRIME_INPUT_CLASS}
+                    required
+                    placeholder="Origem do trecho"
+                    value={leg.origin_text}
+                    onChange={(e) => patchLeg(idx, { origin_text: e.target.value })}
+                  />
+                  <input
+                    className={PRIME_INPUT_CLASS}
+                    required
+                    placeholder="Destino do trecho"
+                    value={leg.destination_text}
+                    onChange={(e) => patchLeg(idx, { destination_text: e.target.value })}
+                  />
+                  <label className="grid gap-1 text-sm">
+                    <span>Valor cliente (R$)</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      className={PRIME_INPUT_CLASS}
+                      value={leg.client_amount}
+                      onChange={(e) => patchLeg(idx, { client_amount: e.target.value })}
+                    />
+                  </label>
+                  <label className="grid gap-1 text-sm">
+                    <span>Valor motorista (R$)</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      className={PRIME_INPUT_CLASS}
+                      value={leg.driver_amount}
+                      onChange={(e) => patchLeg(idx, { driver_amount: e.target.value })}
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
+            <button type="button" className="btn-outline text-sm" onClick={addLeg}>
+              + Adicionar trecho
+            </button>
+          </div>
+        )}
+
         <label className="grid gap-1 text-sm">
           <span>Passageiro</span>
           <input
@@ -303,55 +476,78 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
           </select>
         </label>
 
-        <div className="md:col-span-2 rounded-prime-card border border-prime-border bg-prime-bg/80 p-4">
-          <h3 className="text-sm font-semibold text-prime-text">Estimativa financeira</h3>
-          {estimateBusy ? (
-            <p className="mt-2 text-xs text-prime-muted">A calcular…</p>
-          ) : (
-            <p className="mt-1 text-xs text-prime-muted">
-              {form.planned_km != null
-                ? `Distância estimada: ${form.planned_km.toLocaleString("pt-BR")} km (haversine / OpenStreetMap coords)`
-                : "Informe origem e destino com coordenadas para calcular km."}
-            </p>
-          )}
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <label className="grid gap-1 text-sm">
-              <span>Valor cliente (R$)</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className={PRIME_INPUT_CLASS}
-                value={form.client_amount}
-                onChange={(e) => onAmountChange("client_amount", e.target.value)}
-              />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span>Valor motorista (R$)</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className={PRIME_INPUT_CLASS}
-                value={form.driver_amount}
-                onChange={(e) => onAmountChange("driver_amount", e.target.value)}
-              />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span>Margem estimada</span>
-              <p className="mt-2 text-lg font-semibold text-prime-gold">{fmtMoney(marginDisplay)}</p>
-              <input type="hidden" value={form.margin} readOnly />
-            </label>
+        {!multiLeg ? (
+          <div className="md:col-span-2 rounded-prime-card border border-prime-border bg-white p-4 shadow-prime-card">
+            <h3 className="text-sm font-semibold text-prime-text">Valores da corrida</h3>
+            {hasPricingRule === false ? (
+              <p className="mt-1 text-xs text-amber-800">
+                Cliente sem tabela para este serviço — preencha os valores manualmente.
+              </p>
+            ) : null}
+            {estimateBusy ? (
+              <p className="mt-2 text-xs text-prime-muted">A calcular…</p>
+            ) : (
+              <p className="mt-1 text-xs text-prime-muted">
+                {form.planned_km != null
+                  ? `Distância estimada: ${form.planned_km.toLocaleString("pt-BR")} km`
+                  : "Informe origem e destino com coordenadas para estimar km."}
+              </p>
+            )}
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <label className="grid gap-1 text-sm">
+                <span>Valor cliente (R$) *</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  className={PRIME_INPUT_CLASS}
+                  value={form.client_amount}
+                  onChange={(e) => onAmountChange("client_amount", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Valor motorista (R$) *</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  className={PRIME_INPUT_CLASS}
+                  value={form.driver_amount}
+                  onChange={(e) => onAmountChange("driver_amount", e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Margem</span>
+                <p className="mt-2 text-lg font-semibold text-prime-gold">{fmtMoney(totals.margin)}</p>
+              </label>
+            </div>
+            <button
+              type="button"
+              className="btn-outline mt-3 text-sm"
+              disabled={estimateBusy || !form.client_id}
+              onClick={() => void refreshEstimate()}
+            >
+              Recalcular da tabela
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn-outline mt-3 text-sm"
-            disabled={estimateBusy || !form.client_id}
-            onClick={() => void refreshEstimate()}
-          >
-            Recalcular estimativa
-          </button>
-        </div>
+        ) : (
+          <div className="md:col-span-2 rounded-prime-card border border-prime-border bg-white p-4 shadow-prime-card">
+            <h3 className="text-sm font-semibold text-prime-text">Totais (todos os trechos)</h3>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3 text-sm">
+              <span>
+                Cliente: <strong>{fmtMoney(totals.client)}</strong>
+              </span>
+              <span>
+                Motorista: <strong>{fmtMoney(totals.driver)}</strong>
+              </span>
+              <span>
+                Margem: <strong className="text-prime-gold">{fmtMoney(totals.margin)}</strong>
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-3 md:col-span-2">
           <button type="submit" disabled={loading || clients.length === 0} className="btn-primary">
@@ -359,7 +555,11 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
           </button>
           {clients.length === 0 ? (
             <span className="text-sm text-prime-amber">
-              Cadastre um cliente em <a href="/clients" className="underline text-prime-gold">Clientes</a> primeiro.
+              Cadastre um cliente em{" "}
+              <a href="/clients" className="underline text-prime-gold">
+                Clientes
+              </a>{" "}
+              primeiro.
             </span>
           ) : null}
         </div>

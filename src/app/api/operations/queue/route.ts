@@ -18,7 +18,7 @@ function buildTripQuery(
   let tripQuery = db
     .from("trips")
     .select(
-      "id, scheduled_at, operational_status, client_id, driver_id, passenger_name, origin_text, destination_text, planned_km, actual_km",
+      "id, scheduled_at, operational_status, client_id, driver_id, passenger_name, origin_text, destination_text, planned_km, actual_km, client_amount",
       { count: "exact" }
     )
     .eq("tenant_id", tenantId)

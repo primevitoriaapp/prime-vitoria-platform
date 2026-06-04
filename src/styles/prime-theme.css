@@ -232,3 +232,74 @@
   background: linear-gradient(180deg, #ffffff 0%, #faf8f3 100%);
   box-shadow: var(--prime-card-shadow);
 }
+
+/* App motorista — fundo escuro, cards internos claros no cinza */
+.driver-theme {
+  --driver-bg: #1a1a1a;
+  --driver-card: #2a2a2e;
+  --driver-text: #f5f5f5;
+  --driver-muted: #aaaaaa;
+  --driver-gold: #c9a84c;
+  --driver-border: #3a3a3e;
+  color-scheme: dark;
+  background-color: var(--driver-bg);
+  color: var(--driver-text);
+}
+
+.driver-theme .driver-card,
+.driver-theme .prime-driver-card {
+  border-radius: var(--prime-radius-card);
+  border: 1px solid var(--driver-border);
+  background: var(--driver-card);
+  color: var(--driver-text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.driver-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+.driver-theme select,
+.driver-theme textarea {
+  background-color: var(--driver-card) !important;
+  color: var(--driver-text) !important;
+  border-color: var(--driver-border) !important;
+}
+
+.driver-theme .btn-primary {
+  background-color: var(--driver-gold);
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+.driver-theme .text-prime-muted,
+.driver-theme .text-slate-400,
+.driver-theme .text-slate-500 {
+  color: var(--driver-muted) !important;
+}
+
+/* Admin / portal: neutralizar cards escuros herdados */
+.prime-theme .bg-slate-900,
+.prime-theme .bg-slate-800,
+.admin-theme .bg-slate-900,
+.admin-theme .bg-slate-800 {
+  background-color: var(--prime-card-bg) !important;
+  color: var(--prime-text) !important;
+}
+
+.prime-theme .border-slate-600,
+.prime-theme .border-slate-700,
+.prime-theme .border-slate-800,
+.admin-theme .border-slate-600,
+.admin-theme .border-slate-700,
+.admin-theme .border-slate-800 {
+  border-color: var(--prime-border) !important;
+}
+
+.prime-theme .text-slate-100,
+.prime-theme .text-white,
+.admin-theme .text-slate-100 {
+  color: var(--prime-text) !important;
+}
+
+.prime-theme .text-slate-400,
+.admin-theme .text-slate-400 {
+  color: var(--prime-text-muted) !important;
+}

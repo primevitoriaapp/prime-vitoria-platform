@@ -77,7 +77,7 @@ export default async function AgendaPage({
         title="Agenda operacional"
         subtitle="Timeline executiva de corridas programadas"
       />
-      <StagingSmokeHints variant="dark" />
+      <StagingSmokeHints variant="light" />
       {showClaimBar ? (
         <OperadorTripCreatePanel scheduledFrom={scheduledFrom} scheduledTo={scheduledTo} />
       ) : null}
@@ -117,7 +117,13 @@ export default async function AgendaPage({
               Esta viagem está fora do intervalo de datas filtrado — acções abaixo usam dados actualizados da API.
             </p>
           ) : null}
-          <TripFocusHeader tripId={focusTripId} operationalStatus={focusTrip?.operational_status ?? "requested"} />
+          <TripFocusHeader
+            tripId={focusTripId}
+            operationalStatus={focusTrip?.operational_status ?? "requested"}
+            clientAmount={focusTrip?.client_amount}
+            driverAmount={focusTrip?.driver_amount}
+            margin={focusTrip?.margin}
+          />
           <TripAgendaFocusPanel
             tripId={focusTripId}
             operationalStatus={focusTrip?.operational_status ?? "requested"}

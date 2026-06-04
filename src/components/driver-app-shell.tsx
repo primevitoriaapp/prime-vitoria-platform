@@ -62,9 +62,9 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   const driverKey = selectedDriverId ?? "none";
 
   return (
-    <div className="prime-theme min-h-screen bg-prime-bg text-prime-text">
+    <div className="driver-theme min-h-screen bg-[#1A1A1A] text-[#F5F5F5]">
       <OperationalRealtimeBridge tenantId={tenantId} />
-      <header className="border-b border-prime-input-border bg-prime-bg">
+      <header className="border-b border-[#3A3A3E] bg-[#1A1A1A]">
         <div className="mx-auto flex max-w-lg flex-wrap items-center justify-between gap-4 px-4 py-4 md:max-w-3xl lg:max-w-5xl">
           <BrandLogo subtitle="MOTORISTA" compact />
           {mode === "admin" ? (
@@ -112,9 +112,9 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           />
         </section>
 
-        <section className="prime-driver-card p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-prime-gold">Ofertas da central</h2>
-          <p className="mt-1 text-xs text-prime-muted">Aceite ofertas abertas como o motorista seleccionado.</p>
+        <section className="driver-card p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#C9A84C]">Ofertas da central</h2>
+          <p className="mt-1 text-xs text-[#AAAAAA]">Aceite ofertas abertas como o motorista seleccionado.</p>
           <div className="mt-3">
             <DriverOffersPanel
               key={`offers-${driverKey}`}
@@ -131,8 +131,8 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           devFallbackRole={devRole}
         />
 
-        <section id="carteira" className="prime-driver-card scroll-mt-6 p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-prime-muted">Pagamentos</h2>
+        <section id="carteira" className="driver-card scroll-mt-6 p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#AAAAAA]">Pagamentos</h2>
           <div className="mt-3">
             <DriverPayablesPanel
               tenantId={tenantId}
@@ -143,8 +143,8 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         </section>
 
         {mode === "motorista" ? (
-          <section id="push-setup" className="prime-driver-card scroll-mt-6 p-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-prime-muted">Notificações push</h2>
+          <section id="push-setup" className="driver-card scroll-mt-6 p-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[#AAAAAA]">Notificações push</h2>
             <div className="mt-3">
               <DriverPushRegister variant="light" />
             </div>
@@ -152,8 +152,8 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         ) : null}
 
         {mode === "admin" ? (
-          <details className="prime-driver-card p-4">
-            <summary className="cursor-pointer text-sm font-medium text-prime-muted">Ferramentas avançadas (staging)</summary>
+          <details className="driver-card p-4">
+            <summary className="cursor-pointer text-sm font-medium text-[#AAAAAA]">Ferramentas avançadas (staging)</summary>
             <div className="mt-4">
               <DriverConsole />
             </div>
