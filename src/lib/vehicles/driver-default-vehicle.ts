@@ -88,18 +88,26 @@ export async function listLinkedVehiclesForDriver(driverId: string): Promise<Lin
   return out;
 }
 
-export async function attachProfileNamesToDrivers<T extends { profile_id: string }>(
-  drivers: T[]
-): Promise<Array<T & { profile_name: string | null }>> {
+export async function attachProfileNamesToDrivers<
+  T extends { profile_id?: string | null; full_name?: string | null }
+>(drivers: T[]): Promise<Array<T & { profile_name: string | null }>> {
   if (!drivers.length) return [];
 
-  const profileIds = drivers.map((d) => d.profile_id);
-  const { data: profiles } = await db.from("profiles").select("id, name").in("id", profileIds);
-  const byId = new Map((profiles ?? []).map((p) => [p.id, p.name]));
+  const profileIds = drivers.map((d) => d.profile_id).filter((id): id is string => Boolean(id));
+  const byId = new Map<string, string>();
+  if (profileIds.length > 0) {
+    const { data: profiles } = await db.from("profiles").select("id, name").in("id", profileIds);
+    for (const p of profiles ?? []) {
+      byId.set(p.id, p.name);
+    }
+  }
 
   return drivers.map((driver) => ({
     ...driver,
-    profile_name: byId.get(driver.profile_id) ?? null
+    profile_name:
+      (driver.full_name as string | null | undefined)?.trim() ||
+      (driver.profile_id ? byId.get(driver.profile_id) : null) ||
+      null
   }));
 }
 

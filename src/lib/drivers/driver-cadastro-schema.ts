@@ -6,7 +6,8 @@ import {
 } from "@/lib/drivers/driver-ficha-options";
 
 export const driverCadastroSchema = z.object({
-  profile_id: z.string().uuid().optional(),
+  profile_id: z.string().uuid().optional().nullable(),
+  full_name: z.string().min(2).optional(),
   cpf: z.string().min(11).optional(),
   cnh_number: z.string().optional().nullable(),
   cnh_category: z.string().optional().nullable(),
@@ -52,6 +53,7 @@ const emptyToNull = (v: string | null | undefined) => {
 
 export function normalizeDriverBody(body: DriverCadastroInput) {
   const out: Record<string, unknown> = {};
+  if (body.full_name !== undefined) out.full_name = body.full_name.trim();
   if (body.cpf !== undefined) out.cpf = body.cpf.trim();
   if (body.cnh_number !== undefined) out.cnh_number = emptyToNull(body.cnh_number ?? undefined);
   if (body.cnh_expiry !== undefined) out.cnh_expiry = emptyToNull(body.cnh_expiry ?? undefined);
@@ -123,14 +125,22 @@ export function normalizeDriverBody(body: DriverCadastroInput) {
 
 export const driverCreateSchema = z
   .object({
-    profile_id: z.string().uuid().optional(),
+    profile_id: z.string().uuid().optional().nullable(),
+    full_name: z.string().min(2).optional(),
     profile_name: z.string().min(2).optional(),
     cpf: z.string().min(11),
     cnh_number: z.string().optional()
   })
-  .refine((b) => Boolean(b.profile_id) || Boolean(b.profile_name?.trim()), {
-    message: "Informe o nome ou seleccione um perfil motorista."
+  .refine((b) => Boolean(b.full_name?.trim()) || Boolean(b.profile_name?.trim()) || Boolean(b.profile_id), {
+    message: "Informe o nome completo do motorista."
   });
+
+export function resolveDriverDisplayName(body: {
+  full_name?: string;
+  profile_name?: string;
+}): string {
+  return (body.full_name ?? body.profile_name ?? "").trim();
+}
 
 export const vehicleCadastroSchema = z.object({
   model: z.string().min(2),

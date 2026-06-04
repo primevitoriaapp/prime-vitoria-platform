@@ -124,7 +124,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
         {
           method: "POST",
           body: JSON.stringify({
-            profile_name: createName.trim(),
+            full_name: createName.trim(),
             cpf: createCpf.trim(),
             cnh_number: createCnh.trim() || undefined
           })

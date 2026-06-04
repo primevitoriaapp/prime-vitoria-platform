@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { buildAgendaTripHref } from "@/lib/operations/agenda-trip-href";
+import { PlacesAutocompleteInput } from "@/components/places-autocomplete-input";
+import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
 type ClientRow = { id: string; name: string };
 
@@ -29,7 +31,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
 
   useEffect(() => {
     void (async () => {
-      const res = await fetch("/api/clients", { credentials: "include" });
+      const res = await fetchWithSupabaseSession("/api/clients", {}, "admin");
       const json = (await res.json()) as { success?: boolean; data?: ClientRow[] };
       if (res.ok && json.success) {
         const list = json.data ?? [];
@@ -48,10 +50,10 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     setMessage(null);
     try {
       const scheduled_at = new Date(form.scheduled_at).toISOString();
-      const res = await fetch("/api/trips", {
+      const res = await fetchWithSupabaseSession(
+        "/api/trips",
+        {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           client_id: form.client_id,
           service_type: form.service_type,
@@ -61,7 +63,9 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
           passenger_name: form.passenger_name || undefined,
           dispatch_mode: form.dispatch_mode
         })
-      });
+        },
+        "admin"
+      );
       const json = (await res.json()) as { success?: boolean; data?: { id: string }; error?: { message?: string } };
       if (!res.ok || !json.success || !json.data?.id) {
         throw new Error(json.error?.message ?? "Não foi possível criar a corrida.");
@@ -127,24 +131,22 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             onChange={(e) => setForm((f) => ({ ...f, scheduled_at: e.target.value }))}
           />
         </label>
-        <label className="grid gap-1 text-sm md:col-span-2">
-          <span>Origem</span>
-          <input
-            required
-            className="rounded border border-slate-300 px-2 py-2"
-            value={form.origin_text}
-            onChange={(e) => setForm((f) => ({ ...f, origin_text: e.target.value }))}
-          />
-        </label>
-        <label className="grid gap-1 text-sm md:col-span-2">
-          <span>Destino</span>
-          <input
-            required
-            className="rounded border border-slate-300 px-2 py-2"
-            value={form.destination_text}
-            onChange={(e) => setForm((f) => ({ ...f, destination_text: e.target.value }))}
-          />
-        </label>
+        <PlacesAutocompleteInput
+          className="md:col-span-2"
+          label="Origem"
+          required
+          placeholder="Aeroporto, hotel, endereço…"
+          value={form.origin_text}
+          onChange={(origin_text) => setForm((f) => ({ ...f, origin_text }))}
+        />
+        <PlacesAutocompleteInput
+          className="md:col-span-2"
+          label="Destino"
+          required
+          placeholder="Aeroporto, hotel, endereço…"
+          value={form.destination_text}
+          onChange={(destination_text) => setForm((f) => ({ ...f, destination_text }))}
+        />
         <label className="grid gap-1 text-sm">
           <span>Passageiro</span>
           <input

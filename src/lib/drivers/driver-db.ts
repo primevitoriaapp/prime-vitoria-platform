@@ -2,9 +2,8 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import { db } from "@/lib/server/db";
 import { isMissingColumnError } from "@/lib/server/supabase-errors";
 
-/** Campos base (0001) + photo_url (0045). */
+/** Campos base (0001) + photo_url (0045). profile_id opcional (0048). */
 const CORE_DRIVER_KEYS = [
-  "profile_id",
   "cpf",
   "cnh_number",
   "cnh_category",
@@ -14,7 +13,9 @@ const CORE_DRIVER_KEYS = [
   "notes",
   "active",
   "tenant_id",
-  "photo_url"
+  "photo_url",
+  "profile_id",
+  "full_name"
 ] as const;
 
 /** Campos migration 0044. */
@@ -140,12 +141,22 @@ export async function updateDriverRow(
   }
 }
 
+function buildInsertCoreRow(fullRow: DriverRowInput, tenantId: string): DriverRowInput {
+  const coreRow = pickKeys(fullRow, CORE_DRIVER_KEYS);
+  coreRow.tenant_id = tenantId;
+  coreRow.active = fullRow.active ?? true;
+  if (coreRow.profile_id == null || coreRow.profile_id === "") {
+    delete coreRow.profile_id;
+  }
+  return coreRow;
+}
+
 export async function insertDriverRow(
   row: DriverRowInput,
   tenantId: string
 ): Promise<{ data: Record<string, unknown> | null; error: PostgrestError | null; partialSave?: boolean; warning?: string }> {
   const fullRow: DriverRowInput = { ...row, tenant_id: tenantId, active: row.active ?? true };
-  const coreRow = pickKeys(fullRow, CORE_DRIVER_KEYS);
+  const coreRow = buildInsertCoreRow(fullRow, tenantId);
   const optionalRow = pickKeys(fullRow, ALL_OPTIONAL_KEYS);
 
   const inserted = await db.from("drivers").insert(coreRow).select("*").single();

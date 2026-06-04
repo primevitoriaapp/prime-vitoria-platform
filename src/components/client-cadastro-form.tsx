@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
-import { isValidCpf } from "@/lib/integrations/cpf-public-lookup";
 import { CLIENT_SERVICE_TYPE_OPTIONS, type ClientServiceTypeId } from "@/lib/clients/client-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
@@ -193,74 +192,6 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
     }
   }
 
-  async function lookupCpf() {
-    const digits = form.document.replace(/\D/g, "");
-    if (digits.length !== 11) {
-      setFeedback({
-        kind: "error",
-        code: "CPF_INVALID",
-        message: "Informe um CPF com 11 dígitos antes de consultar."
-      });
-      return;
-    }
-    if (!isValidCpf(digits)) {
-      setFeedback({
-        kind: "error",
-        code: "CPF_INVALID",
-        message: "CPF inválido — verifique os dígitos antes de consultar.",
-        hint: "Corrija o número ou preencha o nome manualmente."
-      });
-      return;
-    }
-    setLookupBusy(true);
-    setFeedback(null);
-    try {
-      const res = await fetch(`/api/integrations/cpf-lookup?cpf=${encodeURIComponent(digits)}`, {
-        credentials: "include"
-      });
-      const json = await parseApiResponse(res);
-      if (!res.ok || !json.ok) {
-        setFeedback({
-          kind: "error",
-          code: json.error?.code ?? `HTTP_${res.status}`,
-          message: json.error?.message ?? "Não foi possível consultar o CPF.",
-          hint: json.error?.hint ?? "Preencha o nome completo manualmente."
-        });
-        return;
-      }
-      const d = json.data as {
-        cpf?: string;
-        full_name?: string | null;
-        registry_status?: string | null;
-      };
-      if (!d?.full_name) {
-        setFeedback({
-          kind: "error",
-          code: "CPF_NOT_FOUND",
-          message: "Consulta não devolveu nome completo. Preencha manualmente."
-        });
-        return;
-      }
-      setForm((f) => ({
-        ...f,
-        document: d.cpf ?? digits,
-        name: d.full_name ?? f.name,
-        registry_status: d.registry_status ?? f.registry_status
-      }));
-      setFeedback({
-        kind: "success",
-        message: `Nome «${d.full_name}» preenchido. Revise antes de guardar.`
-      });
-    } catch {
-      setFeedback({
-        kind: "error",
-        message: "Falha na consulta CPF (rede ou timeout). Preencha manualmente."
-      });
-    } finally {
-      setLookupBusy(false);
-    }
-  }
-
   function validateBeforeSave(): string | null {
     if (!form.name.trim()) {
       return form.type === "PJ" ? "Informe a razão social." : "Informe o nome completo.";
@@ -360,14 +291,14 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         </label>
         <label className="grid gap-1 text-sm">
           <span>{docLabel}</span>
-          <div className="flex gap-2">
-            <input
-              className={inputClass}
-              value={form.document}
-              onChange={(e) => set("document", e.target.value)}
-              placeholder={form.type === "PJ" ? "00.000.000/0000-00" : "000.000.000-00"}
-            />
-            {form.type === "PJ" ? (
+          {form.type === "PJ" ? (
+            <div className="flex gap-2">
+              <input
+                className={inputClass}
+                value={form.document}
+                onChange={(e) => set("document", e.target.value)}
+                placeholder="00.000.000/0000-00"
+              />
               <button
                 type="button"
                 disabled={lookupBusy}
@@ -376,17 +307,15 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
               >
                 {lookupBusy ? "…" : "Consultar"}
               </button>
-            ) : (
-              <button
-                type="button"
-                disabled={lookupBusy}
-                onClick={() => void lookupCpf()}
-                className="shrink-0 rounded-lg border border-amber-700 px-3 py-2 text-sm text-amber-900 hover:bg-amber-50 disabled:opacity-50"
-              >
-                {lookupBusy ? "…" : "Consultar"}
-              </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <input
+              className={inputClass}
+              value={form.document}
+              onChange={(e) => set("document", e.target.value)}
+              placeholder="000.000.000-00"
+            />
+          )}
         </label>
         <label className="grid gap-1 text-sm md:col-span-2">
           <span>{form.type === "PJ" ? "Razão social" : "Nome completo"}</span>

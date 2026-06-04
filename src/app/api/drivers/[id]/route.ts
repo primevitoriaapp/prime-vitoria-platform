@@ -43,18 +43,22 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const linked_vehicles = await listLinkedVehiclesForDriver(id);
     const default_vehicle = linked_vehicles.find((v) => v.is_default) ?? linked_vehicles[0] ?? null;
 
-    const { data: profile } = await db
-      .from("profiles")
-      .select("phone")
-      .eq("id", driver.profile_id)
-      .maybeSingle();
+    let profilePhone: string | null = null;
+    if (driver.profile_id) {
+      const { data: profile } = await db
+        .from("profiles")
+        .select("phone")
+        .eq("id", driver.profile_id)
+        .maybeSingle();
+      profilePhone = profile?.phone ?? null;
+    }
 
     const photo_url = await resolveDriverPhotoDisplayUrl(driver.photo_url as string | null);
 
     return ok({
       ...withProfile,
-      profile_phone: profile?.phone ?? null,
-      phone: driver.phone ?? profile?.phone ?? null,
+      profile_phone: profilePhone,
+      phone: driver.phone ?? profilePhone ?? null,
       photo_url,
       default_vehicle,
       linked_vehicles
@@ -96,20 +100,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .maybeSingle();
     if (!existing) return fail("DRIVER_NOT_FOUND", "Motorista não encontrado", 404);
 
-    if (profile_name !== undefined || profile_phone !== undefined) {
+    if (profile_name !== undefined) {
+      updatePayload.full_name = profile_name.trim();
+    }
+
+    if (existing.profile_id && (profile_name !== undefined || profile_phone !== undefined)) {
       const profileUpdate: Record<string, string | null> = {};
       if (profile_name !== undefined) profileUpdate.name = profile_name.trim();
       if (profile_phone !== undefined) {
         const t = profile_phone?.trim();
         profileUpdate.phone = t ? t : null;
       }
-      const { error: profileErr } = await db.from("profiles").update(profileUpdate).eq("id", existing.profile_id);
+      const { error: profileErr } = await db
+        .from("profiles")
+        .update(profileUpdate)
+        .eq("id", existing.profile_id);
       if (profileErr) {
         return fail("PROFILE_UPDATE_FAILED", profileErr.message, 500);
       }
     }
 
-    let row: { id: string; profile_id: string } & Record<string, unknown> = existing;
+    let row: { id: string; profile_id?: string | null } & Record<string, unknown> = existing;
     let partialSave = false;
 
     if (Object.keys(updatePayload).length > 0) {

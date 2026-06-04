@@ -1,6 +1,10 @@
 import { db } from "@/lib/server/db";
 import { insertDriverRow } from "@/lib/drivers/driver-db";
-import { driverCreateSchema, normalizeDriverBody } from "@/lib/drivers/driver-cadastro-schema";
+import {
+  driverCreateSchema,
+  normalizeDriverBody,
+  resolveDriverDisplayName
+} from "@/lib/drivers/driver-cadastro-schema";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
@@ -19,50 +23,48 @@ export async function POST(request: Request) {
     assertCapability(session, "trip.write");
     const tenantId = assertTenantScope(session);
     const parsed = driverCreateSchema.parse(await request.json());
-    const { profile_name, profile_id: bodyProfileId, cpf: _cpf, cnh_number, ...rest } = parsed;
-    const body = normalizeDriverBody({ ...rest, cnh_number });
+    const displayName = resolveDriverDisplayName(parsed);
+    const { profile_id: bodyProfileId, cpf: _cpf, cnh_number, full_name: _fn, profile_name: _pn, ...rest } = parsed;
+    const body = normalizeDriverBody({ ...rest, cnh_number, full_name: displayName });
 
-    let profileId = bodyProfileId;
-    if (!profileId) {
-      const { data: motoristaProfiles } = await db
+    const insertRow: Record<string, unknown> = {
+      ...body,
+      cpf: parsed.cpf.trim(),
+      full_name: displayName
+    };
+
+    if (bodyProfileId) {
+      const { data: prof, error: pe } = await db
         .from("profiles")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("role", "motorista")
-        .eq("active", true)
-        .limit(100);
-      const { data: linked } = await db.from("drivers").select("profile_id").eq("tenant_id", tenantId);
-      const linkedSet = new Set((linked ?? []).map((r) => r.profile_id));
-      const free = (motoristaProfiles ?? []).find((p) => !linkedSet.has(p.id));
-      if (!free) {
-        return fail(
-          "NO_DRIVER_PROFILE",
-          "Não há perfil motorista livre para vincular.",
-          409,
-          "Crie um utilizador com perfil motorista em Utilizadores ou informe profile_id."
-        );
+        .select("tenant_id")
+        .eq("id", bodyProfileId)
+        .maybeSingle();
+      if (pe || !prof || prof.tenant_id !== tenantId) {
+        return fail("FORBIDDEN", "Perfil inválido ou de outra organização", 403);
       }
-      profileId = free.id;
+      insertRow.profile_id = bodyProfileId;
+      await db.from("profiles").update({ name: displayName }).eq("id", bodyProfileId);
     }
 
-    const insertRow = { ...body, profile_id: profileId, cpf: parsed.cpf.trim() };
-
-    const { data: prof, error: pe } = await db
-      .from("profiles")
-      .select("tenant_id")
-      .eq("id", profileId)
-      .maybeSingle();
-    if (pe || !prof || prof.tenant_id !== tenantId) {
-      return fail("FORBIDDEN", "Perfil inválido ou de outra organização", 403);
-    }
-
-    const { data, error, partialSave } = await insertDriverRow(insertRow, tenantId);
+    const { data, error, partialSave, warning } = await insertDriverRow(insertRow, tenantId);
 
     if (error || !data) {
       if (error && isPostgresUniqueViolation(error)) {
+        const msg = error.message ?? "";
+        if (/cpf/i.test(msg)) {
+          return fail("DRIVER_CPF_CONFLICT", "Já existe motorista com este CPF", 409);
+        }
         return fail("DRIVER_PROFILE_CONFLICT", "Já existe motorista vinculado a este perfil", 409);
       }
       const mapped = mapSupabaseError(error!, "motorista");
+      if (/profile_id|null/i.test(mapped.message)) {
+        return fail(
+          "DRIVER_SCHEMA_OUTDATED",
+          "Cadastro sem perfil exige migration 0048 no Supabase.",
+          503,
+          "Execute npm run db:apply-p1-staging com STAGING_DATABASE_URL."
+        );
+      }
       return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
     }
 
@@ -72,25 +74,26 @@ export async function POST(request: Request) {
       action: "driver.create",
       entityType: "driver",
       entityId: String(data.id),
-      metadata: { profile_id: profileId, partialSave: partialSave ?? false },
+      metadata: {
+        profile_id: (data as Record<string, unknown>).profile_id ?? null,
+        full_name: displayName,
+        partialSave: partialSave ?? false
+      },
       request
     });
 
-    if (profile_name !== undefined) {
-      await db.from("profiles").update({ name: profile_name.trim() }).eq("id", profileId);
-    }
-
     const driverRow = {
       ...(data as Record<string, unknown>),
-      id: String((data as Record<string, unknown>).id),
-      profile_id: profileId
-    } as { id: string; profile_id: string };
+      id: String((data as Record<string, unknown>).id)
+    } as { id: string; profile_id?: string | null; full_name?: string | null };
     const [enriched] = await attachDefaultVehiclesToDrivers(await attachProfileNamesToDrivers([driverRow]));
-    const warning = partialSave
-      ? "Motorista criado com dados básicos. Complete a ficha após migration 0044."
-      : undefined;
+    const apiWarning =
+      warning ??
+      (partialSave
+        ? "Motorista criado com dados essenciais. Aplique migrations 0044–0048 no Supabase para a ficha completa."
+        : undefined);
 
-    return ok({ ...enriched, ...(warning ? { _warning: warning } : {}) }, 201);
+    return ok({ ...enriched, ...(apiWarning ? { _warning: apiWarning } : {}) }, 201);
   } catch (error) {
     return mapApiError(error);
   }
