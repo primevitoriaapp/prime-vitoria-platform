@@ -326,26 +326,37 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       return t ? t : null;
     };
 
+    const cnhCats = cnhCategoriesFromRow(detail);
+    const opCats = operationalCategoriesFromRow(detail);
+    const regions = serviceRegionsFromRow(detail);
+    const flags = activeFlagsFromOperationalStatus(status);
+
     const patchBody = {
+      full_name: detail.profile_name?.trim(),
+      profile_name: detail.profile_name?.trim(),
+      profile_phone: phoneValue,
       cpf: detail.cpf?.trim(),
-      cnh_number: trim(detail.cnh_number),
-      cnh_categories: cnhCategoriesFromRow(detail),
-      cnh_expiry: normalizeDateFieldForStorage(detail.cnh_expiry),
-      birth_date: normalizeDateFieldForStorage(detail.birth_date),
       phone: phoneValue,
       whatsapp: trim(detail.whatsapp),
       email: trim(detail.email),
+      birth_date: normalizeDateFieldForStorage(detail.birth_date),
+      cnh_number: trim(detail.cnh_number),
+      cnh_category: cnhCats.length ? cnhCats.join(",") : null,
+      cnh_categories: cnhCats,
+      cnh_expiry: normalizeDateFieldForStorage(detail.cnh_expiry),
       postal_code: trim(detail.postal_code),
       address: trim(detail.address),
       address_number: trim(detail.address_number),
       district: trim(detail.district),
       city: trim(detail.city),
       state: trim(detail.state)?.toUpperCase() ?? null,
-      notes: trim(detail.notes),
       operational_status: status,
-      operational_categories: operationalCategoriesFromRow(detail),
-      service_regions: serviceRegionsFromRow(detail),
+      operational_category: opCats[0] ?? null,
+      operational_categories: opCats,
+      service_regions: regions,
       operational_notes: trim(detail.operational_notes),
+      active: flags.active,
+      available: flags.available,
       pix_key: trim(detail.pix_key),
       bank_name: trim(detail.bank_name),
       bank_branch: trim(detail.bank_branch),
@@ -355,8 +366,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       payee_document: trim(detail.payee_document),
       payout_price_per_km: detail.payout_price_per_km ?? null,
       payout_percent: detail.payout_percent ?? null,
-      profile_name: detail.profile_name?.trim(),
-      profile_phone: phoneValue
+      notes: trim(detail.notes)
     };
 
     try {
@@ -378,10 +388,9 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
         });
         return;
       }
-      const saved = json.data as { _warning?: string } | undefined;
       setFeedback({
-        kind: saved?._warning ? "info" : "success",
-        message: saved?._warning ?? "Ficha do motorista guardada com sucesso."
+        kind: "success",
+        message: "Ficha do motorista guardada com sucesso."
       });
       await loadDetail();
       onSaved();
