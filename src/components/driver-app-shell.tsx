@@ -100,7 +100,10 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         ) : null}
 
         <StagingSmokeHints variant="dark" />
-        <DriverPushStatusBanner />
+        <DriverPushStatusBanner
+          driverId={mode === "admin" ? selectedDriverId : sessionDriverId}
+          devFallbackRole={devRole}
+        />
         <DriverTripDeepLink />
 
         <DriverTripsPanel

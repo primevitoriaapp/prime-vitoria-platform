@@ -6,7 +6,7 @@ export const clientCadastroSchema = z.object({
   name: z.string().min(2),
   trade_name: z.string().optional().nullable(),
   document: z.string().optional().nullable(),
-  email: z.string().email().optional().nullable().or(z.literal("")),
+  email: z.union([z.string().email(), z.literal(""), z.null()]).optional(),
   phone: z.string().optional().nullable(),
   whatsapp: z.string().optional().nullable(),
   address_line: z.string().optional().nullable(),

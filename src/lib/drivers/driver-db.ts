@@ -18,7 +18,7 @@ const CORE_DRIVER_KEYS = [
 ] as const;
 
 /** Campos migration 0044. */
-const EXTENDED_DRIVER_KEYS = [
+const EXTENDED_0044_KEYS = [
   "phone",
   "whatsapp",
   "email",
@@ -36,6 +36,20 @@ const EXTENDED_DRIVER_KEYS = [
   "available"
 ] as const;
 
+/** Campos migration 0047. */
+const EXTENDED_0047_KEYS = [
+  "birth_date",
+  "postal_code",
+  "address_number",
+  "state",
+  "operational_status",
+  "cnh_categories",
+  "operational_categories",
+  "service_regions"
+] as const;
+
+const ALL_OPTIONAL_KEYS = [...EXTENDED_0044_KEYS, ...EXTENDED_0047_KEYS] as const;
+
 export type DriverRowInput = Record<string, unknown>;
 
 function pickKeys(row: DriverRowInput, keys: readonly string[]): DriverRowInput {
@@ -46,80 +60,115 @@ function pickKeys(row: DriverRowInput, keys: readonly string[]): DriverRowInput 
   return out;
 }
 
-function stripExtended(row: DriverRowInput): DriverRowInput {
-  const extended = new Set<string>(EXTENDED_DRIVER_KEYS);
-  return Object.fromEntries(Object.entries(row).filter(([key]) => !extended.has(key)));
+async function applyOptionalFields(
+  id: string,
+  tenantId: string,
+  optionalRow: DriverRowInput
+): Promise<{ partialSave: boolean; warning?: string }> {
+  if (Object.keys(optionalRow).length === 0) {
+    return { partialSave: false };
+  }
+
+  const { error } = await db
+    .from("drivers")
+    .update(optionalRow)
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
+
+  if (!error) {
+    return { partialSave: false };
+  }
+
+  if (!isMissingColumnError(error)) {
+    throw error;
+  }
+
+  const only0044 = pickKeys(optionalRow, EXTENDED_0044_KEYS);
+  if (Object.keys(only0044).length > 0) {
+    const { error: err44 } = await db
+      .from("drivers")
+      .update(only0044)
+      .eq("id", id)
+      .eq("tenant_id", tenantId);
+    if (err44 && !isMissingColumnError(err44)) {
+      throw err44;
+    }
+  }
+
+  return {
+    partialSave: true,
+    warning:
+      "Ficha guardada parcialmente. Aplique migrations 0044, 0045 e 0047 no Supabase de staging para todos os campos."
+  };
 }
 
 export async function updateDriverRow(
   id: string,
   tenantId: string,
   updatePayload: DriverRowInput
-): Promise<{ data: Record<string, unknown> | null; error: PostgrestError | null; partialSave?: boolean }> {
-  const first = await db
-    .from("drivers")
-    .update(updatePayload)
-    .eq("id", id)
-    .eq("tenant_id", tenantId)
-    .select("*")
-    .single();
+): Promise<{ data: Record<string, unknown> | null; error: PostgrestError | null; partialSave?: boolean; warning?: string }> {
+  const corePayload = pickKeys(updatePayload, CORE_DRIVER_KEYS);
+  const optionalPayload = pickKeys(updatePayload, ALL_OPTIONAL_KEYS);
 
-  if (!first.error) {
-    return { data: first.data as Record<string, unknown>, error: null };
+  if (Object.keys(corePayload).length > 0) {
+    const coreUpdate = await db
+      .from("drivers")
+      .update(corePayload)
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .select("*")
+      .single();
+    if (coreUpdate.error) {
+      return { data: null, error: coreUpdate.error };
+    }
   }
 
-  if (!isMissingColumnError(first.error)) {
-    return { data: null, error: first.error };
+  try {
+    const extra = await applyOptionalFields(id, tenantId, optionalPayload);
+    const { data: refreshed, error } = await db.from("drivers").select("*").eq("id", id).eq("tenant_id", tenantId).single();
+    if (error) {
+      return { data: null, error };
+    }
+    return {
+      data: refreshed as Record<string, unknown>,
+      error: null,
+      partialSave: extra.partialSave,
+      warning: extra.warning
+    };
+  } catch (err) {
+    return { data: null, error: err as PostgrestError };
   }
-
-  const corePayload = stripExtended(updatePayload);
-  if (Object.keys(corePayload).length === 0) {
-    return { data: null, error: first.error };
-  }
-
-  const fallback = await db
-    .from("drivers")
-    .update(corePayload)
-    .eq("id", id)
-    .eq("tenant_id", tenantId)
-    .select("*")
-    .single();
-
-  if (fallback.error) {
-    return { data: null, error: fallback.error };
-  }
-
-  return {
-    data: fallback.data as Record<string, unknown>,
-    error: null,
-    partialSave: true
-  };
 }
 
 export async function insertDriverRow(
   row: DriverRowInput,
   tenantId: string
-): Promise<{ data: Record<string, unknown> | null; error: PostgrestError | null; partialSave?: boolean }> {
-  const fullRow = { ...row, tenant_id: tenantId };
-
-  const first = await db.from("drivers").insert(fullRow).select("*").single();
-  if (!first.error) {
-    return { data: first.data as Record<string, unknown>, error: null };
-  }
-
-  if (!isMissingColumnError(first.error)) {
-    return { data: null, error: first.error };
-  }
-
+): Promise<{ data: Record<string, unknown> | null; error: PostgrestError | null; partialSave?: boolean; warning?: string }> {
+  const fullRow: DriverRowInput = { ...row, tenant_id: tenantId, active: row.active ?? true };
   const coreRow = pickKeys(fullRow, CORE_DRIVER_KEYS);
-  const fallback = await db.from("drivers").insert(coreRow).select("*").single();
-  if (fallback.error) {
-    return { data: null, error: fallback.error };
+  const optionalRow = pickKeys(fullRow, ALL_OPTIONAL_KEYS);
+
+  const inserted = await db.from("drivers").insert(coreRow).select("*").single();
+  if (inserted.error || !inserted.data) {
+    return { data: null, error: inserted.error };
   }
 
-  return {
-    data: fallback.data as Record<string, unknown>,
-    error: null,
-    partialSave: true
-  };
+  const id = String((inserted.data as Record<string, unknown>).id);
+
+  try {
+    const extra = await applyOptionalFields(id, tenantId, optionalRow);
+    const { data: refreshed } = await db.from("drivers").select("*").eq("id", id).single();
+    return {
+      data: (refreshed ?? inserted.data) as Record<string, unknown>,
+      error: null,
+      partialSave: extra.partialSave,
+      warning: extra.warning
+    };
+  } catch (err) {
+    return {
+      data: inserted.data as Record<string, unknown>,
+      error: err as PostgrestError,
+      partialSave: true
+    };
+  }
 }

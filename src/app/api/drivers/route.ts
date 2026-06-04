@@ -19,14 +19,38 @@ export async function POST(request: Request) {
     assertCapability(session, "trip.write");
     const tenantId = assertTenantScope(session);
     const parsed = driverCreateSchema.parse(await request.json());
-    const { profile_name, profile_phone, ...rest } = parsed;
-    const body = normalizeDriverBody(rest);
-    const insertRow = { ...body, profile_id: parsed.profile_id, cpf: parsed.cpf.trim() };
+    const { profile_name, profile_id: bodyProfileId, cpf: _cpf, cnh_number, ...rest } = parsed;
+    const body = normalizeDriverBody({ ...rest, cnh_number });
+
+    let profileId = bodyProfileId;
+    if (!profileId) {
+      const { data: motoristaProfiles } = await db
+        .from("profiles")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("role", "motorista")
+        .eq("active", true)
+        .limit(100);
+      const { data: linked } = await db.from("drivers").select("profile_id").eq("tenant_id", tenantId);
+      const linkedSet = new Set((linked ?? []).map((r) => r.profile_id));
+      const free = (motoristaProfiles ?? []).find((p) => !linkedSet.has(p.id));
+      if (!free) {
+        return fail(
+          "NO_DRIVER_PROFILE",
+          "Não há perfil motorista livre para vincular.",
+          409,
+          "Crie um utilizador com perfil motorista em Utilizadores ou informe profile_id."
+        );
+      }
+      profileId = free.id;
+    }
+
+    const insertRow = { ...body, profile_id: profileId, cpf: parsed.cpf.trim() };
 
     const { data: prof, error: pe } = await db
       .from("profiles")
       .select("tenant_id")
-      .eq("id", parsed.profile_id)
+      .eq("id", profileId)
       .maybeSingle();
     if (pe || !prof || prof.tenant_id !== tenantId) {
       return fail("FORBIDDEN", "Perfil inválido ou de outra organização", 403);
@@ -48,25 +72,19 @@ export async function POST(request: Request) {
       action: "driver.create",
       entityType: "driver",
       entityId: String(data.id),
-      metadata: { profile_id: parsed.profile_id, partialSave: partialSave ?? false },
+      metadata: { profile_id: profileId, partialSave: partialSave ?? false },
       request
     });
 
-    if (profile_name !== undefined || profile_phone !== undefined) {
-      const profileUpdate: Record<string, string | null> = {};
-      if (profile_name !== undefined) profileUpdate.name = profile_name.trim();
-      if (profile_phone !== undefined) {
-        const t = profile_phone?.trim();
-        profileUpdate.phone = t ? t : null;
-      }
-      await db.from("profiles").update(profileUpdate).eq("id", parsed.profile_id);
+    if (profile_name !== undefined) {
+      await db.from("profiles").update({ name: profile_name.trim() }).eq("id", profileId);
     }
 
     const driverRow = {
-      ...data,
-      id: String(data.id),
-      profile_id: parsed.profile_id
-    };
+      ...(data as Record<string, unknown>),
+      id: String((data as Record<string, unknown>).id),
+      profile_id: profileId
+    } as { id: string; profile_id: string };
     const [enriched] = await attachDefaultVehiclesToDrivers(await attachProfileNamesToDrivers([driverRow]));
     const warning = partialSave
       ? "Motorista criado com dados básicos. Complete a ficha após migration 0044."

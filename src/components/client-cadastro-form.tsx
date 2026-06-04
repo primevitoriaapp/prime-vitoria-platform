@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
 import { isValidCpf } from "@/lib/integrations/cpf-public-lookup";
 import { CLIENT_SERVICE_TYPE_OPTIONS, type ClientServiceTypeId } from "@/lib/clients/client-service-types";
+import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
 export type ClientFormValues = {
   type: "PF" | "PJ";
@@ -126,8 +127,8 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
       setFeedback({
         kind: "error",
         code: "CNPJ_INVALID",
-        message: "CNPJ inválido — verifique os dígitos antes de consultar.",
-        hint: "Corrija o número ou preencha os dados manualmente."
+        message: "CNPJ inválido — verifique os dígitos verificadores.",
+        hint: "Ex.: Comexport é 43.633.296/0001-90. Corrija o número ou preencha manualmente."
       });
       return;
     }
@@ -260,8 +261,24 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
     }
   }
 
+  function validateBeforeSave(): string | null {
+    if (!form.name.trim()) {
+      return form.type === "PJ" ? "Informe a razão social." : "Informe o nome completo.";
+    }
+    const email = form.email.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return "E-mail inválido — corrija ou deixe em branco.";
+    }
+    return null;
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    const validationError = validateBeforeSave();
+    if (validationError) {
+      setFeedback({ kind: "error", message: validationError });
+      return;
+    }
     setBusy(true);
     setFeedback(null);
     try {
@@ -283,12 +300,14 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         ...(form.type === "PJ" ? { service_types: form.service_types } : {})
       };
       const url = clientId ? `/api/clients/${clientId}` : "/api/clients";
-      const res = await fetch(url, {
-        method: clientId ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload)
-      });
+      const res = await fetchWithSupabaseSession(
+        url,
+        {
+          method: clientId ? "PATCH" : "POST",
+          body: JSON.stringify(payload)
+        },
+        "admin"
+      );
       const json = await parseApiResponse(res);
       if (!res.ok || !json.ok) {
         setFeedback({
@@ -327,7 +346,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
   return (
     <section className="card">
       <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-      <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={(e) => void onSubmit(e)}>
+      <form className="mt-4 grid gap-3 md:grid-cols-2" noValidate onSubmit={(e) => void onSubmit(e)}>
         <label className="grid gap-1 text-sm">
           <span>Tipo</span>
           <select
@@ -398,7 +417,14 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         ) : null}
         <label className="grid gap-1 text-sm">
           <span>E-mail</span>
-          <input type="email" className={inputClass} value={form.email} onChange={(e) => set("email", e.target.value)} />
+          <input
+            type="text"
+            inputMode="email"
+            autoComplete="email"
+            className={inputClass}
+            value={form.email}
+            onChange={(e) => set("email", e.target.value)}
+          />
         </label>
         <label className="grid gap-1 text-sm">
           <span>Telefone</span>

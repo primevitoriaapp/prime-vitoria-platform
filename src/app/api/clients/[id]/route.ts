@@ -10,6 +10,32 @@ import { mapSupabaseError } from "@/lib/server/supabase-errors";
 
 const patchSchema = clientCadastroSchema.partial();
 
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await getSessionContext();
+    assertCapability(session, "client.read");
+    const tenantId = assertTenantScope(session);
+    const { id } = await params;
+
+    const { data, error } = await db
+      .from("clients")
+      .select("*")
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (error) {
+      const mapped = mapSupabaseError(error, "cliente");
+      return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
+    }
+    if (!data) return fail("CLIENT_NOT_FOUND", "Cliente nao encontrado", 404);
+
+    return ok(data);
+  } catch (error) {
+    return mapApiError(error);
+  }
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSessionContext();

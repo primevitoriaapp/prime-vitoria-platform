@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BackButton } from "@/components/back-button";
 import { ClientCadastroForm, clientRowToForm } from "@/components/client-cadastro-form";
+import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { ClientPricingRulesPanel } from "@/components/client-pricing-rules-panel";
 import { formatServiceTypesLabel } from "@/lib/clients/client-service-types";
 
@@ -51,12 +52,11 @@ export function ClientsFleetPanel({ initialClients }: Props) {
     if (!window.confirm(`Desactivar ${client.name}?`)) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/clients/${client.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ active: false })
-      });
+      const res = await fetchWithSupabaseSession(
+        `/api/clients/${client.id}`,
+        { method: "PATCH", body: JSON.stringify({ active: false }) },
+        "admin"
+      );
       const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
       if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha");
       setMessage(`${client.name} desactivado.`);

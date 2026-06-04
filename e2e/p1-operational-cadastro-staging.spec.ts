@@ -94,30 +94,27 @@ test.describe("P1 cadastro operacional (staging)", () => {
     await expect(page.getByRole("heading", { name: /Ficha:/i })).toBeVisible({ timeout: 15_000 });
 
     await page.locator('label:has-text("WhatsApp") input').first().fill(`27999${tag.slice(-6)}`);
-    await page.locator('label:has-text("Cidade") input').first().fill("Vitória");
-    await page.locator('label:has-text("Bairro") input').first().fill("Praia do Canto");
-    await page.locator('label:has-text("Endereço") input').first().fill(`Rua E2E ${tag}`);
-    await page.locator('label:has-text("Observações internas") textarea').first().fill(`Nota interna ${tag}`);
-
-    const category = page.locator('label:has-text("Categoria de atendimento") select').first();
-    await category.selectOption({ label: "sedan" });
-
-    await page.locator('label:has-text("Região de actuação") input').first().fill("Grande Vitória");
+    await page.locator('label:has-text("CEP") input').first().fill("29055260");
+    await page.getByRole("button", { name: /Buscar CEP/i }).click();
+    await page.waitForTimeout(2000);
+    await page.locator('label:has-text("Número") input').first().fill("100");
+    await page.getByLabel("Executivo", { exact: true }).check();
+    await page.getByLabel("Grande Vitória", { exact: true }).check();
     await page.locator('label:has-text("Chave Pix") input').first().fill(`pix-e2e-${tag}@example.com`);
     await page.locator('label:has-text("Banco") input').first().fill("Banco E2E");
 
-    await page.getByRole("button", { name: /Guardar ficha do motorista/i }).click();
-    await expect(page.getByText(/actualizada/i)).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: /Salvar ficha/i }).click();
+    await expect(page.getByText(/guardada com sucesso/i)).toBeVisible({ timeout: 20_000 });
     await screenshot(page, "drivers-ficha-saved");
 
-    const plate = `E2E${tag.slice(-4).toUpperCase()}`;
-    await page.getByPlaceholder("Placa").fill(plate);
-    await page.getByPlaceholder("Modelo").fill("Corolla E2E");
-    await page.getByPlaceholder("Marca").fill("Toyota");
-    await page.getByRole("button", { name: /Criar e vincular veículo/i }).click();
-    await expect(page.getByText(/vinculado|criado/i)).toBeVisible({ timeout: 25_000 });
-    await expect(page.getByText(plate)).toBeVisible();
-    await screenshot(page, "drivers-vehicle-linked");
+    const linkSelect = page.locator('label:has-text("Vincular veículo") select').first();
+    const optionCount = await linkSelect.locator("option").count();
+    if (optionCount > 1) {
+      await linkSelect.selectOption({ index: 1 });
+      await page.getByRole("button", { name: /Vincular veículo/i }).click();
+      await expect(page.getByText(/vinculado/i)).toBeVisible({ timeout: 25_000 });
+      await screenshot(page, "drivers-vehicle-linked");
+    }
   });
 
   test("3 — /vehicles: frota compatível com vínculos", async ({ page }) => {

@@ -12,16 +12,23 @@ type Readiness = {
   tokenRegistered: boolean;
 };
 
+type Props = {
+  /** Preview admin: consulta push do motorista seleccionado. */
+  driverId?: string | null;
+  devFallbackRole?: "motorista" | "admin" | "operador";
+};
+
 /**
  * Banner compacto: push activo, fallback realtime, ou passos para activar FCM.
  */
-export function DriverPushStatusBanner() {
+export function DriverPushStatusBanner({ driverId, devFallbackRole = "motorista" }: Props) {
   const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetchWithSupabaseSession("/api/drivers/push-readiness", {}, "motorista");
+    const qs = driverId ? `?driver_id=${encodeURIComponent(driverId)}` : "";
+    const res = await fetchWithSupabaseSession(`/api/drivers/push-readiness${qs}`, {}, devFallbackRole);
     const json = (await res.json()) as { success?: boolean; data?: Readiness };
     if (res.ok && json.success && json.data) {
       setReadiness(json.data);
@@ -35,7 +42,7 @@ export function DriverPushStatusBanner() {
       });
     }
     setLoading(false);
-  }, []);
+  }, [driverId, devFallbackRole]);
 
   useEffect(() => {
     void load();
