@@ -95,7 +95,7 @@ export function normalizeDriverBody(body: DriverCadastroInput) {
 
   if (body.operational_status !== undefined) {
     const status = body.operational_status as OperationalStatusId;
-    out.operational_status = status;
+    // Coluna drivers.operational_status (0039) é GPS (online/offline) — não gravar ativo/inativo/ferias aqui.
     const flags = activeFlagsFromOperationalStatus(status);
     out.active = flags.active;
     out.available = flags.available;

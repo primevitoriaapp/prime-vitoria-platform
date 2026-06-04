@@ -350,7 +350,6 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       district: trim(detail.district),
       city: trim(detail.city),
       state: trim(detail.state)?.toUpperCase() ?? null,
-      operational_status: status,
       operational_category: opCats[0] ?? null,
       operational_categories: opCats,
       service_regions: regions,
@@ -370,16 +369,39 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
     };
 
     try {
+      const url = `/api/drivers/${detail.id}`;
+      console.info("[DriverFicha] PATCH request", { url, driverId: detail.id, body: patchBody });
+
       const res = await fetchWithSupabaseSession(
-        `/api/drivers/${detail.id}`,
+        url,
         {
           method: "PATCH",
           body: JSON.stringify(patchBody)
         },
         "admin"
       );
-      const json = await parseApiResponse(res);
+      const responseText = await res.clone().text();
+      let json: Awaited<ReturnType<typeof parseApiResponse>>;
+      try {
+        json = JSON.parse(responseText) as Awaited<ReturnType<typeof parseApiResponse>>;
+      } catch {
+        json = {
+          success: false as const,
+          error: {
+            code: `HTTP_${res.status}`,
+            message: responseText || `Resposta inválida (HTTP ${res.status}).`
+          }
+        };
+      }
+
+      console.info("[DriverFicha] PATCH response", {
+        status: res.status,
+        ok: res.ok,
+        body: json
+      });
+
       if (!res.ok || !json.success) {
+        console.error("[DriverFicha] PATCH failed", json.error);
         setFeedback({
           kind: "error",
           code: json.error?.code,
