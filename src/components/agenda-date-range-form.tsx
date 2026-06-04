@@ -3,28 +3,28 @@
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { DateInput } from "@/components/date-input";
+import {
+  brDateToEndOfDayIso,
+  brDateToStartOfDayIso,
+  normalizeDateFieldForStorage
+} from "@/lib/dates/br-date";
 
 type Props = {
   initialFromIso: string;
   initialToIso: string;
 };
 
-function toInputDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 export function AgendaDateRangeForm({ initialFromIso, initialToIso }: Props) {
   const router = useRouter();
-  const [from, setFrom] = useState(() => toInputDate(initialFromIso));
-  const [to, setTo] = useState(() => toInputDate(initialToIso));
+  const [from, setFrom] = useState<string | null>(() => normalizeDateFieldForStorage(initialFromIso));
+  const [to, setTo] = useState<string | null>(() => normalizeDateFieldForStorage(initialToIso));
 
   const defaults = useMemo(
-    () => ({ from: toInputDate(initialFromIso), to: toInputDate(initialToIso) }),
+    () => ({
+      from: normalizeDateFieldForStorage(initialFromIso),
+      to: normalizeDateFieldForStorage(initialToIso)
+    }),
     [initialFromIso, initialToIso]
   );
 
@@ -32,12 +32,12 @@ export function AgendaDateRangeForm({ initialFromIso, initialToIso }: Props) {
     e.preventDefault();
     const params = new URLSearchParams();
     if (from) {
-      const start = new Date(`${from}T00:00:00`);
-      params.set("scheduledFrom", start.toISOString());
+      const start = brDateToStartOfDayIso(from);
+      if (start) params.set("scheduledFrom", start);
     }
     if (to) {
-      const end = new Date(`${to}T23:59:59.999`);
-      params.set("scheduledTo", end.toISOString());
+      const end = brDateToEndOfDayIso(to);
+      if (end) params.set("scheduledTo", end);
     }
     params.set("page", "1");
     params.set("pageSize", "100");
@@ -57,20 +57,18 @@ export function AgendaDateRangeForm({ initialFromIso, initialToIso }: Props) {
     <form onSubmit={applyRange} className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
       <label className="text-sm text-slate-700">
         <span className="mb-1 block text-slate-500">De</span>
-        <input
-          type="date"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
+        <DateInput
           className="rounded border border-slate-300 px-2 py-1.5 text-slate-900"
+          value={from}
+          onChange={setFrom}
         />
       </label>
       <label className="text-sm text-slate-700">
         <span className="mb-1 block text-slate-500">Até</span>
-        <input
-          type="date"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
+        <DateInput
           className="rounded border border-slate-300 px-2 py-1.5 text-slate-900"
+          value={to}
+          onChange={setTo}
         />
       </label>
       <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">

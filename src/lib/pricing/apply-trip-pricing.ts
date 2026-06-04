@@ -2,8 +2,13 @@ import { db } from "@/lib/server/db";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { financialTitleBlocksRegeneration } from "@/lib/finance/financial-regeneration";
 import { calculateTripPricing } from "@/lib/pricing/calculate";
+import {
+  loadActivePricingRule,
+  loadDriverPayoutOverride,
+  mergeDriverPayoutIntoRule
+} from "@/lib/pricing/load-active-pricing";
 import { buildPricingCalculationMetadata } from "@/lib/pricing/pricing-audit-meta";
-import type { PricingRuleRow, PricingTripInput } from "@/lib/pricing/types";
+import type { PricingTripInput } from "@/lib/pricing/types";
 
 export type ApplyTripPricingInput = {
   tripId: string;
@@ -32,31 +37,14 @@ function durationHours(scheduledAt: string | null | undefined, completedAt: stri
   return Math.round((ms / 3_600_000) * 100) / 100;
 }
 
-export async function loadActivePricingRule(
-  tenantId: string,
-  clientId: string
-): Promise<PricingRuleRow | null> {
-  const { data, error } = await db
-    .from("pricing_rules")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId)
-    .eq("active", true)
-    .order("priority", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) return null;
-  return data as PricingRuleRow;
-}
+export { loadActivePricingRule } from "@/lib/pricing/load-active-pricing";
 
 /** Aplica regra de precificação do cliente e grava `trip_financials` + metadados na viagem. */
 export async function applyTripPricingOnCompletion(
   input: ApplyTripPricingInput
 ): Promise<ApplyTripPricingResult> {
-  const rule = await loadActivePricingRule(input.tenantId, input.clientId);
-  if (!rule) {
+  const baseRule = await loadActivePricingRule(input.tenantId, input.clientId);
+  if (!baseRule) {
     return { applied: false, skipped_reason: "no_active_pricing_rule" };
   }
 
@@ -82,6 +70,9 @@ export async function applyTripPricingOnCompletion(
   if (financialTitleBlocksRegeneration(payableRes.data?.status as string | undefined)) {
     return { applied: false, skipped_reason: "payable_locked" };
   }
+
+  const driverPayout = await loadDriverPayoutOverride(tripDriver.data?.driver_id as string | undefined);
+  const rule = mergeDriverPayoutIntoRule(baseRule, driverPayout);
 
   const pricingInput: PricingTripInput = {
     km_real: input.kmReal,

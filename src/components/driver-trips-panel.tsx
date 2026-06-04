@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
@@ -241,7 +242,7 @@ export function DriverTripsPanel({
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={trip.operational_status} />
                   <span className="text-xs text-slate-500">
-                    {new Date(trip.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    {formatBrDateTime(trip.scheduled_at)}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-slate-400">

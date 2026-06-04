@@ -1,5 +1,6 @@
 "use client";
 
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 import { StatusBadge } from "@/components/status-badge";
@@ -33,10 +34,7 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
   const next = driverNextStatuses(trip.operational_status);
   const primaryStep = next[0];
   const extraSteps = next.slice(1);
-  const scheduledLabel = new Date(trip.scheduled_at).toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short"
-  });
+  const scheduledLabel = formatBrDateTime(trip.scheduled_at);
 
   return (
     <article

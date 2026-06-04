@@ -7,6 +7,10 @@ test("endOfUtcDayIsoFromDateInput returns end of UTC day", () => {
   assert.equal(iso, "2026-03-15T23:59:59.999Z");
 });
 
+test("endOfUtcDayIsoFromDateInput aceita DD/MM/AAAA", () => {
+  assert.equal(endOfUtcDayIsoFromDateInput("15/03/2026"), "2026-03-15T23:59:59.999Z");
+});
+
 test("endOfUtcDayIsoFromDateInput rejects invalid", () => {
   assert.equal(endOfUtcDayIsoFromDateInput("15-03-2026"), null);
   assert.equal(endOfUtcDayIsoFromDateInput("2026-3-15"), null);

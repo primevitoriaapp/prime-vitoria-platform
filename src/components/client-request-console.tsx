@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DateTimeInput } from "@/components/datetime-input";
+import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import {
   loadTripPresets,
@@ -23,7 +25,11 @@ export function ClientRequestConsole({
 }: Props) {
   const router = useRouter();
   const [serviceType, setServiceType] = useState("Transfer executivo");
-  const [scheduledAt, setScheduledAt] = useState("");
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    const d = new Date(Date.now() + 24 * 3600_000);
+    d.setMinutes(0, 0, 0);
+    return d.toISOString();
+  });
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [passengerName, setPassengerName] = useState("");
@@ -77,7 +83,7 @@ export function ClientRequestConsole({
           client_id: clientId,
           cost_center_id: costCenterId || undefined,
           service_type: serviceType,
-          scheduled_at: new Date(scheduledAt).toISOString(),
+          scheduled_at: parseBrDateTimeToIso(scheduledAt) ?? new Date(scheduledAt).toISOString(),
           origin_text: origin,
           destination_text: destination,
           passenger_name: passengerName || undefined,
@@ -139,10 +145,10 @@ export function ClientRequestConsole({
           required
           className="sm:col-span-2"
         />
-        <input
-          type="datetime-local"
+        <DateTimeInput
+          className="sm:col-span-2 rounded border border-slate-600 bg-slate-800 px-2 py-2 text-slate-100"
           value={scheduledAt}
-          onChange={(e) => setScheduledAt(e.target.value)}
+          onChange={(iso) => setScheduledAt(iso ?? "")}
           required
         />
         {costCenters.length > 0 ? (

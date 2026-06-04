@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeDateFieldForStorage } from "@/lib/dates/br-date";
 import {
   activeFlagsFromOperationalStatus,
   normalizeStringArray,
@@ -39,6 +40,8 @@ export const driverCadastroSchema = z.object({
   bank_account_type: z.string().optional().nullable(),
   payee_name: z.string().optional().nullable(),
   payee_document: z.string().optional().nullable(),
+  payout_price_per_km: z.coerce.number().nonnegative().optional().nullable(),
+  payout_percent: z.coerce.number().min(0).max(100).optional().nullable(),
   photo_url: z.string().url().optional().nullable().or(z.literal("")),
   profile_name: z.string().min(2).optional(),
   profile_phone: z.string().optional().nullable()
@@ -56,8 +59,12 @@ export function normalizeDriverBody(body: DriverCadastroInput) {
   if (body.full_name !== undefined) out.full_name = body.full_name.trim();
   if (body.cpf !== undefined) out.cpf = body.cpf.trim();
   if (body.cnh_number !== undefined) out.cnh_number = emptyToNull(body.cnh_number ?? undefined);
-  if (body.cnh_expiry !== undefined) out.cnh_expiry = emptyToNull(body.cnh_expiry ?? undefined);
-  if (body.birth_date !== undefined) out.birth_date = emptyToNull(body.birth_date ?? undefined);
+  if (body.cnh_expiry !== undefined) {
+    out.cnh_expiry = normalizeDateFieldForStorage(body.cnh_expiry ?? undefined);
+  }
+  if (body.birth_date !== undefined) {
+    out.birth_date = normalizeDateFieldForStorage(body.birth_date ?? undefined);
+  }
   if (body.phone !== undefined) out.phone = emptyToNull(body.phone ?? undefined);
   if (body.whatsapp !== undefined) out.whatsapp = emptyToNull(body.whatsapp ?? undefined);
   if (body.email !== undefined) out.email = emptyToNull(body.email ?? undefined);
@@ -77,6 +84,12 @@ export function normalizeDriverBody(body: DriverCadastroInput) {
   }
   if (body.payee_name !== undefined) out.payee_name = emptyToNull(body.payee_name ?? undefined);
   if (body.payee_document !== undefined) out.payee_document = emptyToNull(body.payee_document ?? undefined);
+  if (body.payout_price_per_km !== undefined) {
+    out.payout_price_per_km = body.payout_price_per_km ?? null;
+  }
+  if (body.payout_percent !== undefined) {
+    out.payout_percent = body.payout_percent ?? null;
+  }
   if (body.photo_url !== undefined) out.photo_url = emptyToNull(body.photo_url ?? undefined);
   if (body.operational_notes !== undefined) out.operational_notes = emptyToNull(body.operational_notes ?? undefined);
 

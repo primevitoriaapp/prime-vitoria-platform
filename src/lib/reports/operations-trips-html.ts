@@ -1,3 +1,5 @@
+import { formatBrDateTime } from "@/lib/dates/br-date";
+
 type TripReportRow = {
   id: string;
   scheduled_at: string;
@@ -17,7 +19,7 @@ export function operationsTripsReportHtml(items: TripReportRow[], generatedAt: D
   const rows = items
     .map(
       (t) => `<tr>
-<td>${escapeHtml(t.scheduled_at)}</td>
+<td>${escapeHtml(formatBrDateTime(t.scheduled_at))}</td>
 <td>${escapeHtml(t.operational_status)}</td>
 <td class="mono">${escapeHtml(t.id)}</td>
 <td>${escapeHtml(t.origin_text)}</td>
@@ -48,7 +50,7 @@ export function operationsTripsReportHtml(items: TripReportRow[], generatedAt: D
 </head>
 <body>
 <h1>Relatório operacional — viagens</h1>
-<p class="meta">Gerado em ${escapeHtml(generatedAt.toLocaleString("pt-BR"))} · ${items.length} registo(s)</p>
+<p class="meta">Gerado em ${escapeHtml(formatBrDateTime(generatedAt.toISOString()))} · ${items.length} registo(s)</p>
 <table>
 <thead>
 <tr>

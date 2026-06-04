@@ -49,7 +49,14 @@ const EXTENDED_0047_KEYS = [
   "service_regions"
 ] as const;
 
-const ALL_OPTIONAL_KEYS = [...EXTENDED_0044_KEYS, ...EXTENDED_0047_KEYS] as const;
+/** Campos migration 0049 — repasse motorista. */
+const EXTENDED_0049_PAYOUT_KEYS = ["payout_price_per_km", "payout_percent"] as const;
+
+const OPTIONAL_BATCHES = [
+  EXTENDED_0044_KEYS,
+  EXTENDED_0047_KEYS,
+  EXTENDED_0049_PAYOUT_KEYS
+] as const;
 
 export type DriverRowInput = Record<string, unknown>;
 
@@ -61,46 +68,45 @@ function pickKeys(row: DriverRowInput, keys: readonly string[]): DriverRowInput 
   return out;
 }
 
+async function applyOptionalBatch(
+  id: string,
+  tenantId: string,
+  batch: DriverRowInput
+): Promise<boolean> {
+  if (Object.keys(batch).length === 0) return false;
+
+  const { error } = await db
+    .from("drivers")
+    .update(batch)
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
+
+  if (!error) return false;
+  if (isMissingColumnError(error)) return true;
+  throw error;
+}
+
 async function applyOptionalFields(
   id: string,
   tenantId: string,
   optionalRow: DriverRowInput
 ): Promise<{ partialSave: boolean; warning?: string }> {
-  if (Object.keys(optionalRow).length === 0) {
-    return { partialSave: false };
+  let partialSave = false;
+
+  for (const keySet of OPTIONAL_BATCHES) {
+    const batch = pickKeys(optionalRow, keySet);
+    const skipped = await applyOptionalBatch(id, tenantId, batch);
+    if (skipped) partialSave = true;
   }
 
-  const { error } = await db
-    .from("drivers")
-    .update(optionalRow)
-    .eq("id", id)
-    .eq("tenant_id", tenantId);
-
-  if (!error) {
-    return { partialSave: false };
+  if (partialSave) {
+    return {
+      partialSave: true,
+      warning:
+        "Ficha guardada parcialmente. Aplique migrations 0044, 0047 e 0049 no Supabase de staging para todos os campos."
+    };
   }
-
-  if (!isMissingColumnError(error)) {
-    throw error;
-  }
-
-  const only0044 = pickKeys(optionalRow, EXTENDED_0044_KEYS);
-  if (Object.keys(only0044).length > 0) {
-    const { error: err44 } = await db
-      .from("drivers")
-      .update(only0044)
-      .eq("id", id)
-      .eq("tenant_id", tenantId);
-    if (err44 && !isMissingColumnError(err44)) {
-      throw err44;
-    }
-  }
-
-  return {
-    partialSave: true,
-    warning:
-      "Ficha guardada parcialmente. Aplique migrations 0044, 0045 e 0047 no Supabase de staging para todos os campos."
-  };
+  return { partialSave: false };
 }
 
 export async function updateDriverRow(
@@ -109,7 +115,10 @@ export async function updateDriverRow(
   updatePayload: DriverRowInput
 ): Promise<{ data: Record<string, unknown> | null; error: PostgrestError | null; partialSave?: boolean; warning?: string }> {
   const corePayload = pickKeys(updatePayload, CORE_DRIVER_KEYS);
-  const optionalPayload = pickKeys(updatePayload, ALL_OPTIONAL_KEYS);
+  const optionalPayload: DriverRowInput = {};
+  for (const keySet of OPTIONAL_BATCHES) {
+    Object.assign(optionalPayload, pickKeys(updatePayload, keySet));
+  }
 
   if (Object.keys(corePayload).length > 0) {
     const coreUpdate = await db
@@ -157,7 +166,10 @@ export async function insertDriverRow(
 ): Promise<{ data: Record<string, unknown> | null; error: PostgrestError | null; partialSave?: boolean; warning?: string }> {
   const fullRow: DriverRowInput = { ...row, tenant_id: tenantId, active: row.active ?? true };
   const coreRow = buildInsertCoreRow(fullRow, tenantId);
-  const optionalRow = pickKeys(fullRow, ALL_OPTIONAL_KEYS);
+  const optionalRow: DriverRowInput = {};
+  for (const keySet of OPTIONAL_BATCHES) {
+    Object.assign(optionalRow, pickKeys(fullRow, keySet));
+  }
 
   const inserted = await db.from("drivers").insert(coreRow).select("*").single();
   if (inserted.error || !inserted.data) {

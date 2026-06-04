@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { DateInput } from "@/components/date-input";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 
@@ -252,19 +253,17 @@ export function FinancialClosingsPanel({ tenantId = null, devFallbackRole = "fin
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <label className="text-sm">
           Início
-          <input
-            type="date"
+          <DateInput
             value={periodStart}
-            onChange={(e) => setPeriodStart(e.target.value)}
+            onChange={(iso) => setPeriodStart(iso ?? "")}
             className="mt-1 block rounded border border-slate-300 px-2 py-1"
           />
         </label>
         <label className="text-sm">
           Fim
-          <input
-            type="date"
+          <DateInput
             value={periodEnd}
-            onChange={(e) => setPeriodEnd(e.target.value)}
+            onChange={(iso) => setPeriodEnd(iso ?? "")}
             className="mt-1 block rounded border border-slate-300 px-2 py-1"
           />
         </label>

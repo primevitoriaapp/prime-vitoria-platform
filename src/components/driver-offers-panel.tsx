@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
@@ -111,10 +112,7 @@ export function DriverOffersPanel({
                 <>
                   <p className="font-medium text-white">
                     {trip.passenger_name?.trim() || "Passageiro"} ·{" "}
-                    {new Date(trip.scheduled_at).toLocaleString("pt-BR", {
-                      dateStyle: "short",
-                      timeStyle: "short"
-                    })}
+                    {formatBrDateTime(trip.scheduled_at)}
                   </p>
                   <p className="mt-1 text-slate-400">
                     {trip.origin_text} → {trip.destination_text}
@@ -123,7 +121,7 @@ export function DriverOffersPanel({
               ) : null}
               <p className="mt-1 text-xs text-violet-300/80">
                 Expira{" "}
-                {new Date(offer.expires_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                {formatBrDateTime(offer.expires_at)}
               </p>
               {accepted ? (
                 <p className="mt-2 text-xs text-green-400">Aceite registado — aguarde confirmação.</p>

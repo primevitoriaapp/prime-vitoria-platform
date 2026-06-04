@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
+import { DateTimeInput } from "@/components/datetime-input";
+import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
 import { buildAgendaTripHref } from "@/lib/operations/agenda-trip-href";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
@@ -14,6 +16,12 @@ type Props = {
   scheduledTo: string;
 };
 
+function defaultScheduledIso(): string {
+  const d = new Date(Date.now() + 24 * 3600_000);
+  d.setMinutes(0, 0, 0);
+  return d.toISOString();
+}
+
 export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   const router = useRouter();
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -22,7 +30,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   const [form, setForm] = useState({
     client_id: "",
     service_type: "Transfer executivo",
-    scheduled_at: "",
+    scheduled_at: defaultScheduledIso(),
     origin_text: "",
     origin_lat: null as number | null,
     origin_lng: null as number | null,
@@ -53,7 +61,8 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     setLoading(true);
     setMessage(null);
     try {
-      const scheduled_at = new Date(form.scheduled_at).toISOString();
+      const scheduled_at =
+        parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString();
       const res = await fetchWithSupabaseSession(
         "/api/trips",
         {
@@ -90,13 +99,6 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     }
   }
 
-  const defaultDt = () => {
-    const d = new Date(Date.now() + 24 * 3600_000);
-    d.setMinutes(0, 0, 0);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-
   return (
     <section className="card mb-6 border border-emerald-200 bg-emerald-50/50">
       <h2 className="text-lg font-semibold text-slate-900">Nova corrida</h2>
@@ -131,12 +133,11 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
         </label>
         <label className="grid gap-1 text-sm">
           <span>Data e hora</span>
-          <input
+          <DateTimeInput
             required
-            type="datetime-local"
             className="rounded border border-slate-300 px-2 py-2"
-            value={form.scheduled_at || defaultDt()}
-            onChange={(e) => setForm((f) => ({ ...f, scheduled_at: e.target.value }))}
+            value={form.scheduled_at}
+            onChange={(iso) => setForm((f) => ({ ...f, scheduled_at: iso ?? defaultScheduledIso() }))}
           />
         </label>
         <AddressAutocompleteInput

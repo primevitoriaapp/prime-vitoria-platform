@@ -7,6 +7,7 @@ import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
 import type { TripOperationalStatus } from "@/lib/domain/types";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { buildAgendaTripHref } from "@/lib/operations/agenda-trip-href";
 
 type QueueItem = {
@@ -148,7 +149,7 @@ export function OperationalQueuePanel({ tenantId, devFallbackRole = "operador" }
             <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
               <div>
                 <span className="font-medium text-slate-900">
-                  {new Date(row.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  {formatBrDateTime(row.scheduled_at)}
                 </span>
                 <span className="ml-2 text-slate-600">{STATUS_CORRIDA_PT[row.operational_status]}</span>
                 {row.claim ? (

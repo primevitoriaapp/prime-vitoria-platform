@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { BackButton } from "@/components/back-button";
 import { StatusBadge } from "@/components/status-badge";
@@ -91,7 +92,7 @@ export function ClientTripDetailPanel({
               </p>
               <p className="text-slate-500">
                 Agendada:{" "}
-                {new Date(trip.scheduled_at).toLocaleString("pt-BR", { dateStyle: "full", timeStyle: "short" })}
+                {formatBrDateTime(trip.scheduled_at)}
               </p>
               {cc ? (
                 <p className="text-slate-500">

@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { StatusBadge } from "@/components/status-badge";
 import { TripTrackingLinkButton } from "@/components/trip-tracking-link-button";
 import type { DispatchMode } from "@/lib/domain/types";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { MODO_DESPACHO_PT } from "@/lib/i18n/pt-br";
 
 export interface TripRow {
@@ -50,7 +51,7 @@ export function TripTable({ trips, operatorNotesHref }: TripTableProps) {
           ) : null}
           {trips.map((trip) => (
             <tr key={trip.id}>
-              <td>{new Date(trip.scheduled_at).toLocaleString("pt-BR")}</td>
+              <td>{formatBrDateTime(trip.scheduled_at)}</td>
               <td>{trip.origin_text}</td>
               <td>{trip.destination_text}</td>
               <td>{labelModoDespacho(trip.dispatch_mode)}</td>

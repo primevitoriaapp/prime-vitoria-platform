@@ -2,6 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { BackButton } from "@/components/back-button";
+import { DateInput } from "@/components/date-input";
+import { normalizeDateFieldForStorage } from "@/lib/dates/br-date";
 import {
   CNH_CATEGORY_OPTIONS,
   OPERATIONAL_CATEGORY_OPTIONS,
@@ -65,6 +67,8 @@ export type DriverDetail = {
   bank_account_type?: string | null;
   payee_name?: string | null;
   payee_document?: string | null;
+  payout_price_per_km?: number | null;
+  payout_percent?: number | null;
   profile_phone?: string | null;
   linked_vehicles: LinkedVehicle[];
 };
@@ -317,42 +321,50 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
     setFeedback(null);
     const phoneValue = (detail.profile_phone ?? detail.phone ?? "").trim() || null;
     const status = operationalStatusFromRow(detail) as OperationalStatusId;
+    const trim = (v: string | null | undefined) => {
+      const t = v?.trim();
+      return t ? t : null;
+    };
+
+    const patchBody = {
+      cpf: detail.cpf?.trim(),
+      cnh_number: trim(detail.cnh_number),
+      cnh_categories: cnhCategoriesFromRow(detail),
+      cnh_expiry: normalizeDateFieldForStorage(detail.cnh_expiry),
+      birth_date: normalizeDateFieldForStorage(detail.birth_date),
+      phone: phoneValue,
+      whatsapp: trim(detail.whatsapp),
+      email: trim(detail.email),
+      postal_code: trim(detail.postal_code),
+      address: trim(detail.address),
+      address_number: trim(detail.address_number),
+      district: trim(detail.district),
+      city: trim(detail.city),
+      state: trim(detail.state)?.toUpperCase() ?? null,
+      notes: trim(detail.notes),
+      operational_status: status,
+      operational_categories: operationalCategoriesFromRow(detail),
+      service_regions: serviceRegionsFromRow(detail),
+      operational_notes: trim(detail.operational_notes),
+      pix_key: trim(detail.pix_key),
+      bank_name: trim(detail.bank_name),
+      bank_branch: trim(detail.bank_branch),
+      bank_account: trim(detail.bank_account),
+      bank_account_type: trim(detail.bank_account_type),
+      payee_name: trim(detail.payee_name),
+      payee_document: trim(detail.payee_document),
+      payout_price_per_km: detail.payout_price_per_km ?? null,
+      payout_percent: detail.payout_percent ?? null,
+      profile_name: detail.profile_name?.trim(),
+      profile_phone: phoneValue
+    };
 
     try {
       const res = await fetchWithSupabaseSession(
         `/api/drivers/${detail.id}`,
         {
           method: "PATCH",
-          body: JSON.stringify({
-            cpf: detail.cpf,
-            cnh_number: detail.cnh_number,
-            cnh_categories: cnhCategoriesFromRow(detail),
-            cnh_expiry: detail.cnh_expiry || null,
-            birth_date: detail.birth_date || null,
-            phone: phoneValue,
-            whatsapp: detail.whatsapp,
-            email: detail.email,
-            postal_code: detail.postal_code,
-            address_number: detail.address_number,
-            city: detail.city,
-            district: detail.district,
-            state: detail.state,
-            address: detail.address,
-            notes: detail.notes,
-            operational_status: status,
-            operational_categories: operationalCategoriesFromRow(detail),
-            service_regions: serviceRegionsFromRow(detail),
-            operational_notes: detail.operational_notes,
-            pix_key: detail.pix_key,
-            bank_name: detail.bank_name,
-            bank_branch: detail.bank_branch,
-            bank_account: detail.bank_account,
-            bank_account_type: detail.bank_account_type,
-            payee_name: detail.payee_name,
-            payee_document: detail.payee_document,
-            profile_name: detail.profile_name,
-            profile_phone: phoneValue
-          })
+          body: JSON.stringify(patchBody)
         },
         "admin"
       );
@@ -518,11 +530,10 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           </label>
           <label className="grid gap-1 text-sm">
             <span>Data de nascimento</span>
-            <input
-              type="date"
+            <DateInput
               className={inputClass}
-              value={detail.birth_date?.slice(0, 10) ?? ""}
-              onChange={(e) => patchDetail("birth_date", e.target.value || null)}
+              value={detail.birth_date}
+              onChange={(iso) => patchDetail("birth_date", iso)}
             />
           </label>
         </fieldset>
@@ -539,11 +550,11 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           </label>
           <label className="grid gap-1 text-sm">
             <span>Vencimento da CNH</span>
-            <input
-              type="date"
+            <DateInput
               className={`${inputClass} ${cnhAlert ? "border-red-500 bg-red-50" : ""}`}
-              value={detail.cnh_expiry?.slice(0, 10) ?? ""}
-              onChange={(e) => patchDetail("cnh_expiry", e.target.value || null)}
+              aria-invalid={cnhAlert}
+              value={detail.cnh_expiry}
+              onChange={(iso) => patchDetail("cnh_expiry", iso)}
             />
             {cnhAlert ? (
               <p className="text-xs font-medium text-red-700" role="alert">
@@ -750,6 +761,41 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           <label className="grid gap-1 text-sm md:col-span-2">
             <span>Pix</span>
             <input className={inputClass} value={detail.pix_key ?? ""} onChange={(e) => patchDetail("pix_key", e.target.value)} />
+          </label>
+        </fieldset>
+
+        <fieldset className="grid gap-3 md:grid-cols-2">
+          <legend className="mb-2 text-sm font-semibold text-slate-800 md:col-span-2">Repasse financeiro</legend>
+          <p className="text-xs text-slate-600 md:col-span-2">
+            Usado pelo motor de precificação no repasse ao motorista. Se informar valor por km, ele tem prioridade sobre o
+            percentual.
+          </p>
+          <label className="grid gap-1 text-sm">
+            <span>Valor por km repassado ao motorista (R$)</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className={inputClass}
+              value={detail.payout_price_per_km ?? ""}
+              onChange={(e) =>
+                patchDetail("payout_price_per_km", e.target.value === "" ? null : Number(e.target.value))
+              }
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span>Percentual de repasse por corrida (%)</span>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              className={inputClass}
+              value={detail.payout_percent ?? ""}
+              onChange={(e) =>
+                patchDetail("payout_percent", e.target.value === "" ? null : Number(e.target.value))
+              }
+            />
           </label>
         </fieldset>
 

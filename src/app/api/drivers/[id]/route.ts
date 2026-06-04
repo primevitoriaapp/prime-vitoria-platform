@@ -149,7 +149,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
 
     const warning = partialSave
-      ? "Dados guardados parcialmente — aplique migrations 0044, 0045 e 0047 no Supabase de staging."
+      ? "Dados guardados parcialmente — aplique migrations 0044, 0047 e 0049 no Supabase de staging."
       : undefined;
 
     return ok({ ...enriched, ...(warning ? { _warning: warning } : {}) });

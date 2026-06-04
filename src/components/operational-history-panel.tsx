@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { DateInput } from "@/components/date-input";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { endOfUtcDayIsoFromDateInput } from "@/lib/datetime/end-of-utc-day";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
@@ -39,8 +41,8 @@ export function OperationalHistoryPanel({ devFallbackRole = "operador", days = 1
   const [statusFilter, setStatusFilter] = useState<"" | TripOperationalStatus>("");
   const [clientId, setClientId] = useState("");
   const [driverId, setDriverId] = useState("");
-  /** Limite superior de `scheduled_at` (YYYY-MM-DD, fim do dia UTC). */
-  const [untilDate, setUntilDate] = useState("");
+  /** Limite superior de `scheduled_at` (ISO date YYYY-MM-DD, fim do dia UTC). */
+  const [untilDate, setUntilDate] = useState<string | null>(null);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [drivers, setDrivers] = useState<DriverRow[]>([]);
 
@@ -193,10 +195,9 @@ export function OperationalHistoryPanel({ devFallbackRole = "operador", days = 1
           </select>
           <label className="flex items-center gap-1 text-xs text-slate-600">
             Até
-            <input
-              type="date"
+            <DateInput
               value={untilDate}
-              onChange={(e) => setUntilDate(e.target.value)}
+              onChange={setUntilDate}
               className="rounded border border-slate-300 px-1 py-1 text-sm"
             />
           </label>
@@ -223,7 +224,7 @@ export function OperationalHistoryPanel({ devFallbackRole = "operador", days = 1
               <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div>
                   <span className="font-medium text-slate-900">
-                    {new Date(row.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    {formatBrDateTime(row.scheduled_at)}
                   </span>
                   <span className="ml-2 text-slate-600">{STATUS_CORRIDA_PT[row.operational_status]}</span>
                   {row.driver_name ? <span className="ml-2 text-xs text-slate-500">· {row.driver_name}</span> : null}

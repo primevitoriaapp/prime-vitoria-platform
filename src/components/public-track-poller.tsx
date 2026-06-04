@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PublicTrackMap } from "@/components/public-track-map";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { isPublicTrackTerminalStatus } from "@/lib/public/track-revision";
 
 type TrackPayload = {
@@ -146,7 +147,7 @@ export function PublicTrackPoller({ token, initial }: Props) {
         ) : null}
         <p className="mt-1 text-xs text-slate-500">
           Agendada:{" "}
-          {new Date(data.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+          {formatBrDateTime(data.scheduled_at)}
         </p>
         {data.planned_km != null || data.actual_km != null ? (
           <p className="mt-1 text-xs text-slate-500">
@@ -157,7 +158,7 @@ export function PublicTrackPoller({ token, initial }: Props) {
         {data.km_updated_at ? (
           <p className="mt-1 text-xs text-slate-600">
             KM actualizado:{" "}
-            {new Date(data.km_updated_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+            {formatBrDateTime(data.km_updated_at)}
           </p>
         ) : null}
         <p className="mt-3 text-xs text-slate-600">
@@ -169,7 +170,7 @@ export function PublicTrackPoller({ token, initial }: Props) {
       {data.location ? (
         <p className="text-xs text-slate-500">
           GPS: {data.location.lat.toFixed(5)}, {data.location.lng.toFixed(5)} ·{" "}
-          {new Date(data.location.recorded_at).toLocaleString("pt-BR", { timeStyle: "short" })}
+          {formatBrDateTime(data.location.recorded_at)}
         </p>
       ) : (
         <p className="text-sm text-slate-500">Ainda nao ha posicao GPS associada a esta corrida.</p>

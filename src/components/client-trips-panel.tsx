@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { TripTrackingLinkButton } from "@/components/trip-tracking-link-button";
 import { StatusBadge } from "@/components/status-badge";
@@ -237,12 +238,7 @@ export function ClientTripsPanel({
                       <p className="text-sm text-slate-400">
                         {trip.origin_text} → {trip.destination_text}
                       </p>
-                      <p className="text-xs text-slate-500">
-                        {new Date(trip.scheduled_at).toLocaleString("pt-BR", {
-                          dateStyle: "short",
-                          timeStyle: "short"
-                        })}
-                      </p>
+                      <p className="text-xs text-slate-500">{formatBrDateTime(trip.scheduled_at)}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-stretch gap-2 pt-1 sm:items-end sm:pt-0">
                       <Link

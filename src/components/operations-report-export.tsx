@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { DateTimeInput } from "@/components/datetime-input";
+import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
 type Props = {
@@ -15,8 +17,14 @@ export function OperationsReportExport({ devFallbackRole = "admin" }: Props) {
 
   function reportQuery(format: "csv" | "html") {
     const qs = new URLSearchParams({ format, page: "1", pageSize: "500" });
-    if (from) qs.set("scheduledFrom", new Date(from).toISOString());
-    if (to) qs.set("scheduledTo", new Date(to).toISOString());
+    if (from) {
+      const iso = parseBrDateTimeToIso(from) ?? new Date(from).toISOString();
+      qs.set("scheduledFrom", iso);
+    }
+    if (to) {
+      const iso = parseBrDateTimeToIso(to) ?? new Date(to).toISOString();
+      qs.set("scheduledTo", iso);
+    }
     return qs;
   }
 
@@ -79,19 +87,17 @@ export function OperationsReportExport({ devFallbackRole = "admin" }: Props) {
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <label className="text-sm">
           De
-          <input
-            type="datetime-local"
+          <DateTimeInput
             value={from}
-            onChange={(e) => setFrom(e.target.value)}
+            onChange={(iso) => setFrom(iso ?? "")}
             className="mt-1 block rounded border border-slate-300 px-2 py-1"
           />
         </label>
         <label className="text-sm">
           Até
-          <input
-            type="datetime-local"
+          <DateTimeInput
             value={to}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={(iso) => setTo(iso ?? "")}
             className="mt-1 block rounded border border-slate-300 px-2 py-1"
           />
         </label>
