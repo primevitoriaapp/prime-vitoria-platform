@@ -27,7 +27,7 @@ export type PrimeServiceCatalogEntry = {
 export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
   {
     id: "transfer_seda",
-    label: "Transfer sedã",
+    label: "Transfer Executivo",
     description: "Veículo executivo para até 4 passageiros",
     icon: "car",
     charge_type: "fixed",
@@ -38,7 +38,7 @@ export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
   },
   {
     id: "transfer_van",
-    label: "Transfer van",
+    label: "Transfer Van Executiva",
     description: "Van executiva para até 15 passageiros",
     icon: "van",
     charge_type: "fixed",
@@ -49,7 +49,7 @@ export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
   },
   {
     id: "diaria_seda",
-    label: "Diária sedã",
+    label: "Diária Executiva",
     description: "Veículo à disposição por 10h / 110km",
     icon: "clock",
     charge_type: "daily",
@@ -60,7 +60,7 @@ export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
   },
   {
     id: "diaria_van",
-    label: "Diária van",
+    label: "Diária Van",
     description: "Van à disposição por 10h / 110km",
     icon: "clock",
     charge_type: "daily",
@@ -71,7 +71,7 @@ export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
   },
   {
     id: "corporativo_b1",
-    label: "Corporativo bandeira 1 (06h–18h)",
+    label: "Corporativo Diurno (06h-18h)",
     description: "Transporte por km rodado",
     icon: "building",
     charge_type: "per_km",
@@ -82,7 +82,7 @@ export const PRIME_SERVICE_CATALOG: PrimeServiceCatalogEntry[] = [
   },
   {
     id: "corporativo_b2",
-    label: "Corporativo bandeira 2 (18h–06h)",
+    label: "Corporativo Noturno (18h-06h)",
     description: "Transporte por km rodado",
     icon: "building",
     charge_type: "per_km",
@@ -109,11 +109,26 @@ const LEGACY_SERVICE_MAP: Record<string, PrimeServiceTypeId> = {
   turismo: "transfer_seda"
 };
 
-const BY_LABEL = new Map(
-  PRIME_SERVICE_CATALOG.flatMap((s) => [
-    [s.label.toLowerCase(), s.id],
-    [s.id.replace(/_/g, " ").toLowerCase(), s.id]
-  ])
+/** Rótulos antigos (dados já gravados) → id actual. */
+const LEGACY_LABEL_ALIASES: Record<string, PrimeServiceTypeId> = {
+  "transfer sedã": "transfer_seda",
+  "transfer van": "transfer_van",
+  "diária sedã": "diaria_seda",
+  "diária van": "diaria_van",
+  "corporativo bandeira 1 (06h–18h)": "corporativo_b1",
+  "corporativo bandeira 1 (06h-18h)": "corporativo_b1",
+  "corporativo bandeira 2 (18h–06h)": "corporativo_b2",
+  "corporativo bandeira 2 (18h-06h)": "corporativo_b2"
+};
+
+const BY_LABEL = new Map<string, PrimeServiceTypeId>(
+  [
+    ...PRIME_SERVICE_CATALOG.flatMap((s) => [
+      [s.label.toLowerCase(), s.id] as const,
+      [s.id.replace(/_/g, " ").toLowerCase(), s.id] as const
+    ]),
+    ...Object.entries(LEGACY_LABEL_ALIASES)
+  ]
 );
 
 export function getPrimeServiceCatalogEntry(id: string): PrimeServiceCatalogEntry | undefined {
