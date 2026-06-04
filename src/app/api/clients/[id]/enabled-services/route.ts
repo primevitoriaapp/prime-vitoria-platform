@@ -1,3 +1,4 @@
+import { getClientTenantId } from "@/lib/clients/client-tenant";
 import { listClientPricingRules } from "@/lib/clients/client-pricing-rules";
 import {
   PRIME_SERVICE_CATALOG,
@@ -44,7 +45,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const denied = await assertClientAccess(session, id, tenantId);
     if (denied) return denied;
 
-    const rules = await listClientPricingRules(id, tenantId);
+    const clientTenantId = await getClientTenantId(id, tenantId);
+    const rules = await listClientPricingRules(id, clientTenantId);
     const activeIds = new Set(
       rules
         .filter((r) => r.active)

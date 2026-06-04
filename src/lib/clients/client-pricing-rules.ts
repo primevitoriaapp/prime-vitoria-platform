@@ -1,3 +1,4 @@
+import { getClientTenantId } from "@/lib/clients/client-tenant";
 import { db } from "@/lib/server/db";
 import type { PrimeChargeType } from "@/lib/pricing/prime-price-estimate";
 import { normalizePrimeServiceType } from "@/lib/pricing/prime-service-types";
@@ -36,13 +37,14 @@ const PRICING_RULE_COLUMNS =
 
 export async function listClientPricingRules(
   clientId: string,
-  tenantId: string
+  sessionTenantId: string
 ): Promise<ClientPricingRuleRow[]> {
+  const tenantId = await getClientTenantId(clientId, sessionTenantId);
   const { data, error } = await db
     .from("client_pricing_rules")
     .select(PRICING_RULE_COLUMNS)
     .eq("client_id", clientId)
-    .eq("tenant_id", tenantId)
+    .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
     .order("service_type");
 
   if (error || !data) return [];
@@ -51,15 +53,16 @@ export async function listClientPricingRules(
 
 export async function getClientPricingRule(
   clientId: string,
-  tenantId: string,
+  sessionTenantId: string,
   serviceType: string
 ): Promise<ClientPricingRuleRow | null> {
+  const tenantId = await getClientTenantId(clientId, sessionTenantId);
   const key = normalizePrimeServiceType(serviceType);
   const { data, error } = await db
     .from("client_pricing_rules")
     .select(PRICING_RULE_COLUMNS)
     .eq("client_id", clientId)
-    .eq("tenant_id", tenantId)
+    .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
     .eq("service_type", key)
     .eq("active", true)
     .maybeSingle();
@@ -93,9 +96,10 @@ function rowFromInput(clientId: string, tenantId: string, body: ClientPricingRul
 
 export async function upsertClientPricingRule(
   clientId: string,
-  tenantId: string,
+  sessionTenantId: string,
   body: ClientPricingRuleInput
 ): Promise<{ data: ClientPricingRuleRow | null; error: Error | null }> {
+  const tenantId = await getClientTenantId(clientId, sessionTenantId);
   const row = rowFromInput(clientId, tenantId, body);
   const { data, error } = await db
     .from("client_pricing_rules")
@@ -109,9 +113,10 @@ export async function upsertClientPricingRule(
 
 export async function upsertClientPricingRulesBatch(
   clientId: string,
-  tenantId: string,
+  sessionTenantId: string,
   rules: ClientPricingRuleInput[]
 ): Promise<{ data: ClientPricingRuleRow[]; error: Error | null }> {
+  const tenantId = await getClientTenantId(clientId, sessionTenantId);
   const rows = rules.map((r) => rowFromInput(clientId, tenantId, r));
   const { data, error } = await db
     .from("client_pricing_rules")

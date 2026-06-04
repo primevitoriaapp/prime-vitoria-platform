@@ -13,6 +13,7 @@ import {
   sumLegAmounts,
   tripLegsSchema
 } from "@/lib/trips/trip-legs";
+import { resolveDriverIdForUser } from "@/lib/drivers/resolve-driver-for-session";
 import { enrichTripItemsWithVehicles } from "@/lib/trips/enrich-trip-vehicles";
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 
@@ -238,16 +239,39 @@ export async function GET(request: Request) {
       if (query.status) req = req.eq("operational_status", query.status);
     } else if (can(session, "trip.read.assigned")) {
       assertCapability(session, "trip.read.assigned");
-      if (!session.driverId) {
-        return fail("FORBIDDEN", "Motorista precisa de cadastro de motorista vinculado a sessao", 403);
+      let driverId =
+        session.driverId ??
+        (await resolveDriverIdForUser({ userId: session.userId, tenantId }));
+
+      if (query.driverId) {
+        if (driverId && query.driverId !== driverId) {
+          return fail("FORBIDDEN", "Nao e possivel listar viagens de outro motorista", 403);
+        }
+        if (!driverId) {
+          const { data: driverRow } = await db
+            .from("drivers")
+            .select("id, profile_id")
+            .eq("id", query.driverId)
+            .eq("tenant_id", tenantId)
+            .maybeSingle();
+          if (!driverRow || driverRow.profile_id !== session.userId) {
+            return fail("FORBIDDEN", "Nao e possivel listar viagens de outro motorista", 403);
+          }
+          driverId = query.driverId;
+        }
       }
-      if (query.driverId && query.driverId !== session.driverId) {
-        return fail("FORBIDDEN", "Nao e possivel listar viagens de outro motorista", 403);
+
+      if (!driverId) {
+        return fail(
+          "FORBIDDEN",
+          "Motorista precisa de cadastro vinculado (profile_id ou e-mail na ficha)",
+          403
+        );
       }
       if (query.clientId) {
         return fail("FORBIDDEN", "Filtro nao permitido para este perfil", 403);
       }
-      req = req.eq("driver_id", session.driverId);
+      req = req.eq("driver_id", driverId);
       if (query.status) req = req.eq("operational_status", query.status);
     } else {
       assertCapability(session, "trip.read");

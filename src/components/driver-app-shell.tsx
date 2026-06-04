@@ -107,7 +107,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           <DriverTripsPanel
             key={`trips-${driverKey}`}
             tenantId={tenantId}
-            driverIdFilter={mode === "admin" ? selectedDriverId : null}
+            driverIdFilter={selectedDriverId ?? sessionDriverId ?? null}
             devFallbackRole={devRole}
           />
         </section>

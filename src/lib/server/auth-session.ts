@@ -5,6 +5,7 @@ import { asUserRole, roleFromJwtClaims } from "../auth/role-from-claims";
 import type { SessionContext, UserRole } from "../domain/types";
 import { DEFAULT_TENANT_ID } from "../tenant/default-tenant";
 import { createSupabaseRouteClient } from "../supabase/server";
+import { resolveDriverIdForUser } from "@/lib/drivers/resolve-driver-for-session";
 import { db } from "./db";
 import { trustHeaderAuth } from "./trust-header-auth";
 
@@ -23,16 +24,20 @@ async function sessionContextFromUser(user: User): Promise<SessionContext> {
 
   const roleFromJwt = asUserRole(profile?.role) ?? roleFromJwtClaims(user);
 
+  const tenantId = (profile?.tenant_id as string | undefined) ?? DEFAULT_TENANT_ID;
   let driverId = h.get("x-driver-id") ?? undefined;
   if (roleFromJwt === "motorista" && !driverId) {
-    const { data: driverRow } = await db.from("drivers").select("id").eq("profile_id", user.id).maybeSingle();
-    driverId = driverRow?.id ?? undefined;
+    driverId = await resolveDriverIdForUser({
+      userId: user.id,
+      tenantId,
+      email: user.email
+    });
   }
 
   return {
     userId: user.id,
     role: roleFromJwt,
-    tenantId: (profile?.tenant_id as string | undefined) ?? DEFAULT_TENANT_ID,
+    tenantId,
     clientId: h.get("x-client-id") ?? (profile?.client_id as string | undefined) ?? undefined,
     driverId
   };

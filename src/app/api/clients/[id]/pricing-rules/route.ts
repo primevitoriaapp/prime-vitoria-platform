@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getClientTenantId } from "@/lib/clients/client-tenant";
 import {
   listClientPricingRules,
   upsertClientPricingRulesBatch,
@@ -40,7 +41,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     if (!(await assertClient(id, tenantId))) {
       return fail("CLIENT_NOT_FOUND", "Cliente não encontrado", 404);
     }
-    const rules = await listClientPricingRules(id, tenantId);
+    const clientTenantId = await getClientTenantId(id, tenantId);
+    const rules = await listClientPricingRules(id, clientTenantId);
     return ok(rules);
   } catch (error) {
     return mapApiError(error);
@@ -58,7 +60,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const { rules } = putSchema.parse(await request.json());
-    const { data, error } = await upsertClientPricingRulesBatch(id, tenantId, rules as ClientPricingRuleInput[]);
+    const clientTenantId = await getClientTenantId(id, tenantId);
+    const { data, error } = await upsertClientPricingRulesBatch(
+      id,
+      clientTenantId,
+      rules as ClientPricingRuleInput[]
+    );
     if (error) {
       if (/client_pricing_rules|driver_/i.test(error.message)) {
         return fail(
