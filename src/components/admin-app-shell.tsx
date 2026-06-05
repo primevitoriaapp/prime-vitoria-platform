@@ -64,9 +64,9 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
       : NAV;
 
   return (
-    <div className="admin-theme min-h-screen bg-prime-bg text-prime-text">
-      <div className="flex min-h-screen">
-        <aside className="prime-sidebar hidden w-60 shrink-0 flex-col border-r border-white/10 bg-prime-sidebar lg:flex">
+    <div className="admin-theme flex h-dvh flex-col overflow-hidden bg-prime-bg text-prime-text">
+      <div className="flex min-h-0 flex-1">
+        <aside className="prime-sidebar hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-prime-sidebar lg:flex">
           <div className="border-b border-white/10 px-4 py-5">
             <Link href="/dashboard">
               <BrandLogo variant="dark" />
@@ -104,8 +104,8 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-40 border-b border-prime-border bg-prime-card/95 backdrop-blur">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="z-40 shrink-0 border-b border-prime-border bg-prime-card/95 backdrop-blur">
             <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
               <div className="flex items-center gap-3 lg:hidden">
                 <BrandLogo compact subtitle="OPERAÇÃO" variant="light" />
@@ -144,7 +144,9 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <div className="flex-1 px-4 py-6 lg:px-8 lg:py-8">{children}</div>
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 lg:px-8 lg:py-8">
+            {children}
+          </main>
         </div>
       </div>
     </div>

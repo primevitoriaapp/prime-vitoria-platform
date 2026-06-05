@@ -9,6 +9,7 @@ import { insertAuditEvent } from "@/lib/server/audit-log";
 import { runDispatchOfferRpcAndNotify } from "@/lib/dispatch/run-offer-creation";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 import { dispatchConflict } from "@/lib/dispatch/conflicts";
+import { shouldBlockOfflineDriverForTrip } from "@/lib/dispatch/driver-offline-dispatch";
 
 const createOfferSchema = z.object({
   trip_id: z.string().uuid(),
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
         body.trip_id
       );
       if (conflict) {
-        return fail("DISPATCH_CONFLICT", `Motorista ${driverId} tem conflito com a viagem ${conflict.tripId}`, 409);
+        return fail("DISPATCH_CONFLICT", "Motorista tem conflito de agenda neste horário", 409);
       }
     }
 

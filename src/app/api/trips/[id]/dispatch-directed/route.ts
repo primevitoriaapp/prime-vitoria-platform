@@ -12,6 +12,7 @@ import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-a
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 import { runBestEffort } from "@/lib/server/best-effort";
+import { shouldBlockOfflineDriverForTrip } from "@/lib/dispatch/driver-offline-dispatch";
 
 const bodySchema = z.object({
   driver_id: z.string().uuid(),
@@ -72,7 +73,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       id
     );
     if (conflict) {
-      return fail("DISPATCH_CONFLICT", `Motorista tem conflito com a viagem ${conflict.tripId}`, 409);
+      return fail("DISPATCH_CONFLICT", "Motorista tem conflito de agenda neste horário", 409);
     }
 
     const { data, error } = await db

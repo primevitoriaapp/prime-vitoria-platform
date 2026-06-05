@@ -12,6 +12,7 @@ import { driverDispatchedPushPayload } from "@/lib/notifications/driver-status-e
 import { dispatchConflict } from "@/lib/dispatch/conflicts";
 import { runBestEffort } from "@/lib/server/best-effort";
 import { planOperationalTransition } from "@/lib/domain/status";
+import { shouldBlockOfflineDriverForTrip } from "@/lib/dispatch/driver-offline-dispatch";
 
 const bodySchema = z.object({
   new_driver_id: z.string().uuid(),
@@ -52,8 +53,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (!driver?.active) return fail("DRIVER_NOT_AVAILABLE", "Motorista inativo ou fora do tenant", 409);
-    if (driver.operational_status === "offline") {
-      return fail("DRIVER_OFFLINE", "Motorista está offline e não pode receber reatribuição", 409);
+    if (shouldBlockOfflineDriverForTrip(driver.operational_status, trip.scheduled_at)) {
+      return fail(
+        "DRIVER_OFFLINE",
+        "Motorista está offline — reatribuição imediata exige parceiro online",
+        409
+      );
     }
 
     const { data: schedule } = await db
@@ -73,7 +78,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       id
     );
     if (conflict) {
-      return fail("DISPATCH_CONFLICT", `Motorista tem conflito com a viagem ${conflict.tripId}`, 409);
+      return fail("DISPATCH_CONFLICT", "Motorista tem conflito de agenda neste horário", 409);
     }
 
     const plan = planOperationalTransition(trip.operational_status, "dispatched");

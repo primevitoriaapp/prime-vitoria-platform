@@ -1,8 +1,8 @@
 "use client";
 
 import { StatusBadge } from "@/components/status-badge";
-import { CopyTextButton } from "@/components/copy-text-button";
 import type { TripOperationalStatus } from "@/lib/domain/types";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 
 type Props = {
@@ -47,8 +47,12 @@ export function TripFocusHeader({
       aria-label="Resumo da viagem seleccionada"
     >
       <StatusBadge status={operationalStatus} />
-      <span className="font-mono text-sm text-prime-text">{tripId}</span>
-      <CopyTextButton text={tripId} label="Copiar ID" className="border-prime-border text-prime-text" />
+      {scheduledAt ? (
+        <span className="text-sm text-prime-text">
+          <span className="text-prime-muted">Horário: </span>
+          {formatBrDateTime(scheduledAt)}
+        </span>
+      ) : null}
       {serviceLabel ? (
         <span className="text-sm text-prime-text">
           <span className="text-prime-muted">Serviço: </span>
