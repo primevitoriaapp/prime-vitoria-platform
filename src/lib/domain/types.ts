@@ -25,6 +25,8 @@ export interface SessionContext {
   role: UserRole;
   /** E-mail do login Supabase (motorista sem profile_id). */
   email?: string;
+  /** CPF do user_metadata (vínculo alternativo com drivers.cpf). */
+  cpf?: string;
   /** Organizacao (SaaS). Ausente em `guest`; fallback em API via tenant padrao. */
   tenantId?: string;
   clientId?: string;

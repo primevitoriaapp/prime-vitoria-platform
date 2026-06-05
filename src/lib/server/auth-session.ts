@@ -5,7 +5,7 @@ import { asUserRole, roleFromJwtClaims } from "../auth/role-from-claims";
 import type { SessionContext, UserRole } from "../domain/types";
 import { DEFAULT_TENANT_ID } from "../tenant/default-tenant";
 import { createSupabaseRouteClient } from "../supabase/server";
-import { resolveDriverIdForUser } from "@/lib/drivers/resolve-driver-for-session";
+import { resolveDriverIdForUser, withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { db } from "./db";
 import { trustHeaderAuth } from "./trust-header-auth";
 
@@ -18,6 +18,13 @@ function parseTenantHeader(h: Headers): string | undefined {
   return v;
 }
 
+function cpfFromUserMetadata(user: User): string | undefined {
+  const meta = user.user_metadata ?? {};
+  const raw = meta.cpf ?? meta.document ?? meta.cpf_cnpj;
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  return undefined;
+}
+
 async function sessionContextFromUser(user: User): Promise<SessionContext> {
   const h = await headers();
   const { data: profile } = await db.from("profiles").select("role, tenant_id, client_id").eq("id", user.id).maybeSingle();
@@ -25,12 +32,14 @@ async function sessionContextFromUser(user: User): Promise<SessionContext> {
   const roleFromJwt = asUserRole(profile?.role) ?? roleFromJwtClaims(user);
 
   const tenantId = (profile?.tenant_id as string | undefined) ?? DEFAULT_TENANT_ID;
+  const cpf = cpfFromUserMetadata(user);
   let driverId = h.get("x-driver-id") ?? undefined;
   if (roleFromJwt === "motorista" && !driverId) {
     driverId = await resolveDriverIdForUser({
       userId: user.id,
       tenantId,
-      email: user.email
+      email: user.email,
+      cpf
     });
   }
 
@@ -38,10 +47,16 @@ async function sessionContextFromUser(user: User): Promise<SessionContext> {
     userId: user.id,
     role: roleFromJwt,
     email: user.email ?? undefined,
+    cpf,
     tenantId,
     clientId: h.get("x-client-id") ?? (profile?.client_id as string | undefined) ?? undefined,
     driverId
   };
+}
+
+async function finalizeSession(session: SessionContext): Promise<SessionContext> {
+  if (session.role !== "motorista") return session;
+  return withResolvedDriverId(session);
 }
 
 async function trySessionFromCookies(): Promise<SessionContext | null> {
@@ -77,13 +92,13 @@ export async function getSessionContext(): Promise<SessionContext> {
 
     const { data, error } = await authClient.auth.getUser(bearer);
     if (!error && data.user) {
-      return sessionContextFromUser(data.user);
+      return finalizeSession(await sessionContextFromUser(data.user));
     }
   }
 
   const fromCookies = await trySessionFromCookies();
   if (fromCookies) {
-    return fromCookies;
+    return finalizeSession(fromCookies);
   }
 
   if (!allowHeaders) {

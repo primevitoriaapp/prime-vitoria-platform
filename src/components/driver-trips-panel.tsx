@@ -80,10 +80,9 @@ export function DriverTripsPanel({
 
   useEffect(() => {
     if (!docVisible) return;
-    const intervalMs = active.length > 0 ? 12_000 : 20_000;
-    const timer = setInterval(() => void load({ silent: true }), intervalMs);
+    const timer = setInterval(() => void load({ silent: true }), 15_000);
     return () => clearInterval(timer);
-  }, [load, docVisible, active.length]);
+  }, [load, docVisible]);
 
   useTenantTableRefresh(tenantId, ["trips", "dispatch_offers"], () => void load({ silent: active.length > 0 }));
 
