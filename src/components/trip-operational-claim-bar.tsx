@@ -5,18 +5,26 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { OPERATIONAL_CLAIM_CHANGED } from "@/lib/client/operational-claim-events";
 
-type Props = { tripId: string; devFallbackRole?: "operador" | "admin" };
+type Props = {
+  tripId: string;
+  devFallbackRole?: "operador" | "admin";
+  variant?: "default" | "minimal";
+};
 
-export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }: Props) {
+export function TripOperationalClaimBar({
+  tripId,
+  devFallbackRole = "operador",
+  variant = "default"
+}: Props) {
   const router = useRouter();
   const [active, setActive] = useState<
-    {
-      operator_profile_id: string;
-      claimed_at: string;
-      operator_name?: string | null;
-      age_minutes?: number;
-      stale?: boolean;
-    } | null | undefined
+    | {
+        operator_profile_id: string;
+        claimed_at: string;
+        operator_name?: string | null;
+      }
+    | null
+    | undefined
   >(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +39,7 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
     };
     if (!res.ok || !json.success) {
       setActive(null);
-      setError(json.error?.message ?? "Sem acesso à reivindicação.");
+      setError(json.error?.message ?? "Sem acesso.");
       return;
     }
     setActive(json.data?.active ?? null);
@@ -68,28 +76,41 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
     router.refresh();
   }
 
-  async function release() {
-    setBusy(true);
-    setError(null);
-    const res = await fetchWithSupabaseSession(
-      `/api/trips/${tripId}/operational-claim`,
-      { method: "DELETE" },
-      devFallbackRole
-    );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
-    setBusy(false);
-    if (!res.ok || !json.success) {
-      setError(json.error?.message ?? "Não foi possível libertar.");
-      return;
-    }
-    await load();
-    router.refresh();
-  }
-
   if (active === undefined) {
-    return (
+    return variant === "minimal" ? (
+      <div className="h-10 animate-pulse rounded-lg bg-prime-bg" aria-busy="true" />
+    ) : (
       <div className="animate-pulse rounded-lg border border-amber-100 bg-amber-50/50 px-4 py-3" aria-busy="true">
         <div className="h-4 w-48 rounded bg-amber-100" />
+      </div>
+    );
+  }
+
+  if (variant === "minimal") {
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        {active ? (
+          <p className="text-sm text-prime-muted">
+            Em atendimento por{" "}
+            <span className="font-medium text-prime-text">
+              {active.operator_name?.trim() || "operador"}
+            </span>
+          </p>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void claim()}
+            className="btn-primary min-h-[2.75rem] px-5 disabled:opacity-50"
+          >
+            {busy ? "A assumir…" : "Assumir atendimento"}
+          </button>
+        )}
+        {error ? (
+          <p className="text-sm text-red-700" role="alert">
+            {error}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -99,43 +120,26 @@ export function TripOperationalClaimBar({ tripId, devFallbackRole = "operador" }
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <span className="font-semibold text-amber-900">Multiatendimento</span>
-          <p className="mt-0.5 text-xs text-amber-800/90">Assuma o atendimento antes de aprovar ou despachar.</p>
           {active ? (
-            <span className="ml-2 text-slate-700">
+            <p className="mt-0.5 text-slate-700">
               Em atendimento por{" "}
-              <span className="font-medium">{active.operator_name?.trim() || active.operator_profile_id.slice(0, 8)}</span>
-              {" · "}
-              {new Date(active.claimed_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-              {active.age_minutes != null ? ` · ha ${active.age_minutes} min` : ""}
-            </span>
+              <span className="font-medium">{active.operator_name?.trim() || "operador"}</span>
+            </p>
           ) : (
-            <span className="ml-2 text-slate-600">Ninguém assumiu o atendimento desta viagem.</span>
+            <p className="mt-0.5 text-slate-600">Ninguém assumiu esta viagem.</p>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        {!active ? (
           <button
             type="button"
-            disabled={busy || Boolean(active)}
+            disabled={busy}
             onClick={() => void claim()}
             className="min-h-[2.5rem] rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
           >
-            Assumir atendimento
+            {busy ? "A assumir…" : "Assumir atendimento"}
           </button>
-          <button
-            type="button"
-            disabled={busy || !active}
-            onClick={() => void release()}
-            className="min-h-[2.5rem] rounded-lg border border-slate-400 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Libertar
-          </button>
-        </div>
+        ) : null}
       </div>
-      {active?.stale ? (
-        <p className="mt-2 text-xs font-medium text-amber-900">
-          Atendimento parado há mais de 45 min. Se necessário, contacte admin para libertar.
-        </p>
-      ) : null}
       {error ? (
         <p className="mt-2 text-xs text-red-700" role="alert">
           {error}

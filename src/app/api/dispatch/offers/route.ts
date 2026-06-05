@@ -10,6 +10,7 @@ import { runDispatchOfferRpcAndNotify } from "@/lib/dispatch/run-offer-creation"
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 import { dispatchConflict } from "@/lib/dispatch/conflicts";
 import { shouldBlockOfflineDriverForTrip } from "@/lib/dispatch/driver-offline-dispatch";
+import { driverDisplayNameByIds } from "@/lib/dispatch/driver-error-labels";
 
 const createOfferSchema = z.object({
   trip_id: z.string().uuid(),
@@ -52,17 +53,27 @@ export async function POST(request: Request) {
 
     const { data: drivers } = await db
       .from("drivers")
-      .select("id, active, operational_status")
+      .select("id, cpf, profile_id, active, operational_status")
       .eq("tenant_id", tenantId)
       .in("id", body.candidate_driver_ids);
     const driverById = new Map((drivers ?? []).map((driver) => [driver.id as string, driver]));
+    const nameById = await driverDisplayNameByIds(drivers ?? []);
+
     const unavailableDriverId = body.candidate_driver_ids.find((driverId) => !driverById.get(driverId)?.active);
     if (unavailableDriverId) {
-      return fail("DRIVER_NOT_AVAILABLE", `Motorista indisponível para oferta: ${unavailableDriverId}`, 409);
+      const label = nameById.get(unavailableDriverId) ?? "Motorista";
+      return fail("DRIVER_NOT_AVAILABLE", `${label} está indisponível para oferta`, 409);
     }
-    const offlineDriverId = body.candidate_driver_ids.find((driverId) => driverById.get(driverId)?.operational_status === "offline");
-    if (offlineDriverId) {
-      return fail("DRIVER_OFFLINE", `Motorista offline não pode receber oferta: ${offlineDriverId}`, 409);
+    const offlineImmediateId = body.candidate_driver_ids.find((driverId) =>
+      shouldBlockOfflineDriverForTrip(driverById.get(driverId)?.operational_status, trip.scheduled_at)
+    );
+    if (offlineImmediateId) {
+      const label = nameById.get(offlineImmediateId) ?? "Motorista";
+      return fail(
+        "DRIVER_OFFLINE",
+        `${label} está offline — oferta imediata (menos de 30 min) exige parceiro online`,
+        409
+      );
     }
 
     const { data: candidateSchedules } = await db

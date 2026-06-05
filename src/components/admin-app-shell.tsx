@@ -66,7 +66,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="admin-theme flex h-dvh flex-col overflow-hidden bg-prime-bg text-prime-text">
       <div className="flex min-h-0 flex-1">
-        <aside className="prime-sidebar hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-prime-sidebar lg:flex">
+        <aside className="prime-sidebar hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-prime-sidebar md:flex">
           <div className="border-b border-white/10 px-4 py-5">
             <Link href="/dashboard">
               <BrandLogo variant="dark" />

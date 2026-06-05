@@ -1,10 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { TripAgendaOperationalStack } from "@/components/trip-agenda-operational-stack";
-import { TripOperationalClaimBar } from "@/components/trip-operational-claim-bar";
-import { TripAgendaQuickActions } from "@/components/trip-agenda-quick-actions";
-import { TripAgendaDispatchPanel } from "@/components/trip-agenda-dispatch-panel";
+import { TripOperationalWorkflowPanel } from "@/components/trip-operational-workflow-panel";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 
 type Props = {
@@ -30,30 +27,19 @@ export function TripAgendaFocusPanel({
   showErpEnqueue,
   financeDevRole = "operador"
 }: Props) {
-  const router = useRouter();
   const dispatchRole = showFinanceWrite ? "admin" : "operador";
 
   return (
     <div className="space-y-4">
-      {showClaimBar ? <TripOperationalClaimBar tripId={tripId} /> : null}
-      <TripAgendaQuickActions
-        tripId={tripId}
-        operationalStatus={operationalStatus}
-        devFallbackRole={dispatchRole}
-        onDone={() => router.refresh()}
-      />
       {showClaimBar ? (
-        <>
-          <TripAgendaDispatchPanel
-            tripId={tripId}
-            operationalStatus={operationalStatus}
-            scheduledAt={scheduledAt}
-            assignedDriverId={assignedDriverId}
-            assignedVehicle={assignedVehicle}
-            devFallbackRole={dispatchRole}
-            onDone={() => router.refresh()}
-          />
-        </>
+        <TripOperationalWorkflowPanel
+          tripId={tripId}
+          operationalStatus={operationalStatus}
+          scheduledAt={scheduledAt}
+          assignedDriverId={assignedDriverId}
+          assignedVehicle={assignedVehicle}
+          devFallbackRole={dispatchRole}
+        />
       ) : null}
       <TripAgendaOperationalStack
         tripId={tripId}

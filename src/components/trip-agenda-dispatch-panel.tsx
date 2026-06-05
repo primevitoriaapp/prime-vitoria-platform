@@ -45,8 +45,20 @@ type Props = {
   assignedDriverId?: string | null;
   assignedVehicle?: { id: string; plate: string; model: string } | null;
   devFallbackRole?: "operador" | "admin";
+  /** Sem card exterior (dentro do painel de workflow). */
+  embedded?: boolean;
   onDone?: () => void;
 };
+
+const UUID_IN_MESSAGE =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi;
+
+function humanizeApiMessage(message: string, drivers: DriverOption[]): string {
+  return message.replace(UUID_IN_MESSAGE, (uuid) => {
+    const d = drivers.find((x) => x.id.toLowerCase() === uuid.toLowerCase());
+    return d ? driverLabel(d) : "motorista";
+  });
+}
 
 const DISPATCHABLE: TripOperationalStatus[] = ["approved", "reassigned"];
 const REASSIGNABLE: TripOperationalStatus[] = ["dispatched", "accepted", "on_the_way"];
@@ -65,6 +77,7 @@ export function TripAgendaDispatchPanel({
   assignedDriverId,
   assignedVehicle,
   devFallbackRole = "operador",
+  embedded = false,
   onDone
 }: Props) {
   const [mode, setMode] = useState<DispatchMode>("directed");
@@ -161,10 +174,11 @@ export function TripAgendaDispatchPanel({
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     setLoading(false);
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha no despacho.");
+      const raw = json.error?.message ?? "Falha no despacho.";
+      setMessage(humanizeApiMessage(raw, drivers));
       return;
     }
-    setMessage("Corrida despachada ao motorista.");
+    setMessage("Corrida despachada.");
     notifyOperationalClaimChanged(tripId);
     onDone?.();
   }
@@ -191,7 +205,8 @@ export function TripAgendaDispatchPanel({
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     setLoading(false);
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha ao enviar oferta.");
+      const raw = json.error?.message ?? "Falha ao enviar oferta.";
+      setMessage(humanizeApiMessage(raw, drivers));
       return;
     }
     setMessage("Oferta enviada aos motoristas seleccionados.");
@@ -211,7 +226,8 @@ export function TripAgendaDispatchPanel({
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     setLoading(false);
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha ao confirmar parceiro.");
+      const raw = json.error?.message ?? "Falha ao confirmar parceiro.";
+      setMessage(humanizeApiMessage(raw, drivers));
       return;
     }
     setMessage("Parceiro confirmado — corrida despachada.");
@@ -258,32 +274,49 @@ export function TripAgendaDispatchPanel({
   const acceptedResponses = openOffer?.responses.filter((r) => r.status === "accepted") ?? [];
   const canCreateDispatch = DISPATCHABLE.includes(operationalStatus);
 
+  function selectAllDrivers() {
+    setSelected(new Set(drivers.map((d) => d.id)));
+  }
+
+  function onModeChange(next: DispatchMode) {
+    setMode(next);
+    if (next === "offer" && selected.size === 0 && drivers.length > 0) {
+      selectAllDrivers();
+    }
+  }
+
+  const shellClass = embedded
+    ? ""
+    : "rounded-lg border border-prime-border bg-white px-4 py-4 shadow-prime-card";
+
   if (canCreateDispatch) {
     return (
-      <div className="rounded-lg border border-prime-border bg-white px-4 py-4 shadow-prime-card">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-base font-semibold text-prime-text">Despacho</h3>
-          <div
-            className="inline-flex rounded-lg border border-prime-border p-0.5 text-sm"
-            role="group"
-            aria-label="Modo de despacho"
-          >
-            <button
-              type="button"
-              className={`rounded-md px-3 py-1.5 ${mode === "directed" ? "bg-prime-gold/20 font-medium text-prime-text" : "text-prime-muted"}`}
-              onClick={() => setMode("directed")}
-            >
-              Direcionado
-            </button>
-            <button
-              type="button"
-              className={`rounded-md px-3 py-1.5 ${mode === "offer" ? "bg-prime-gold/20 font-medium text-prime-text" : "text-prime-muted"}`}
-              onClick={() => setMode("offer")}
-            >
-              Por oferta
-            </button>
+      <div className={shellClass}>
+        {!embedded ? <h3 className="mb-3 text-base font-semibold text-prime-text">Despacho</h3> : null}
+
+        <fieldset className="space-y-3">
+          <legend className="sr-only">Modo de despacho</legend>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name={`dispatch-mode-${tripId}`}
+                checked={mode === "directed"}
+                onChange={() => onModeChange("directed")}
+              />
+              <span className="font-medium text-prime-text">Direcionado</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name={`dispatch-mode-${tripId}`}
+                checked={mode === "offer"}
+                onChange={() => onModeChange("offer")}
+              />
+              <span className="font-medium text-prime-text">Por oferta</span>
+            </label>
           </div>
-        </div>
+        </fieldset>
 
         {!immediateTrip ? (
           <p className="mt-2 text-xs text-prime-muted">
@@ -332,9 +365,9 @@ export function TripAgendaDispatchPanel({
               type="button"
               disabled={loading || !driverId}
               onClick={() => void dispatchDirected()}
-              className="btn-primary sm:col-span-2 disabled:opacity-50"
+              className="btn-primary min-h-[2.75rem] sm:col-span-2 disabled:opacity-50"
             >
-              {loading ? "A despachar…" : "Despachar"}
+              {loading ? "A despachar…" : "Despachar corrida"}
             </button>
           </div>
         ) : openOffer ? (
@@ -377,7 +410,17 @@ export function TripAgendaDispatchPanel({
           </div>
         ) : (
           <div className="mt-4">
-            <p className="mb-2 text-sm text-prime-muted">Seleccione os motoristas que receberão a oferta:</p>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-prime-muted">Motoristas que receberão a oferta:</p>
+              <button
+                type="button"
+                className="text-xs font-medium text-prime-gold hover:underline"
+                onClick={selectAllDrivers}
+                disabled={loading || drivers.length === 0}
+              >
+                Selecionar todos
+              </button>
+            </div>
             <div className="max-h-48 overflow-y-auto rounded-lg border border-prime-border bg-prime-bg/30 p-2">
               {drivers.length === 0 ? (
                 <p className="text-sm text-prime-muted">Sem motoristas activos.</p>
@@ -429,7 +472,7 @@ export function TripAgendaDispatchPanel({
         : "—";
 
     return (
-      <div className="rounded-lg border border-prime-border bg-white px-4 py-3 text-sm shadow-prime-card">
+      <div className={embedded ? "text-sm" : "rounded-lg border border-prime-border bg-white px-4 py-3 text-sm shadow-prime-card"}>
         <p className="font-medium text-prime-text">Atribuição</p>
         <p className="mt-1 text-prime-text">
           Motorista: <span className="font-medium">{driverLabelText}</span>
