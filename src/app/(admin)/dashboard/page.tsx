@@ -12,9 +12,15 @@ import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
 
+function fmtMoney(n: number) {
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 async function getData() {
   const response = await fetchInternalApi("/api/reports/operations");
-  if (!response.ok) return { totalTrips: 0, completedTrips: 0, activeDrivers: 0 };
+  if (!response.ok) {
+    return { totalTrips: 0, completedTrips: 0, activeDrivers: 0, monthRevenue: 0, receivable: 0 };
+  }
   const payload = await response.json();
   return payload.data;
 }
@@ -47,10 +53,12 @@ export default async function DashboardPage() {
     <>
       <OperationalRealtimeBridge tenantId={realtimeTenantId} />
       <AdminPageHeader title="Visão geral" subtitle="Painel operacional em tempo real" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard label="Corridas" value={data.totalTrips} />
         <KpiCard label="Finalizadas" value={data.completedTrips} />
         <KpiCard label="Motoristas ativos" value={data.activeDrivers} />
+        <KpiCard label="Receita do mês" value={fmtMoney(data.monthRevenue ?? 0)} hint="Corridas finalizadas no mês" />
+        <KpiCard label="A receber" value={fmtMoney(data.receivable ?? 0)} hint="Finalizadas com cobrança pendente" />
       </div>
       {session.role === "admin" || session.role === "financeiro" ? (
         <InAppNotificationsPanel

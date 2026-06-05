@@ -13,6 +13,12 @@ export interface TripRow {
   dispatch_mode: string;
   client_name?: string | null;
   driver_name?: string | null;
+  client_amount?: number | null;
+}
+
+function fmtMoney(n: number | null | undefined) {
+  if (n == null || !Number.isFinite(n)) return null;
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 type TripTableProps = {
@@ -80,6 +86,9 @@ export function TripTable({ trips, operatorNotesHref }: TripTableProps) {
               <span className="text-slate-300"> · </span>
               {labelModoDespacho(trip.dispatch_mode)}
             </p>
+            {fmtMoney(trip.client_amount) ? (
+              <p className="text-sm font-semibold text-amber-800">{fmtMoney(trip.client_amount)}</p>
+            ) : null}
           </div>
 
           {showOpen ? (

@@ -17,6 +17,7 @@ import { formatTripKmLine } from "@/lib/trips/format-km";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
 import { DriverActiveTripHero } from "@/components/driver-active-trip-hero";
+import { DriverNewTripBanner } from "@/components/driver-new-trip-banner";
 import { TripLegLabelBadge } from "@/components/trip-leg-label-badge";
 import { DriverTripRouteCard } from "@/components/driver-trip-route-card";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
@@ -52,6 +53,7 @@ export function DriverTripsPanel({
   const [busyTrip, setBusyTrip] = useState<string | null>(null);
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
   const [highlightTripId, setHighlightTripId] = useState<string | null>(null);
+  const [newTripBanner, setNewTripBanner] = useState<{ origin: string; destination: string } | null>(null);
   const [waitBusy, setWaitBusy] = useState(false);
   const [waitTick, setWaitTick] = useState(0);
   const docVisible = useDocumentVisible();
@@ -75,6 +77,11 @@ export function DriverTripsPanel({
       (t) => !knownTripIdsRef.current.has(t.id) && ALERT_STATUSES.includes(t.operational_status)
     );
     if (tripsInitializedRef.current && newAssignments.length > 0) {
+      const first = newAssignments[0]!;
+      setNewTripBanner({
+        origin: first.origin_text?.trim() || "Origem",
+        destination: first.destination_text?.trim() || "Destino"
+      });
       notifyDriverNewAssignment("trip");
     }
     knownTripIdsRef.current = new Set(items.map((t) => t.id));
@@ -239,6 +246,13 @@ export function DriverTripsPanel({
 
   return (
     <>
+      {newTripBanner ? (
+        <DriverNewTripBanner
+          origin={newTripBanner.origin}
+          destination={newTripBanner.destination}
+          onDismiss={() => setNewTripBanner(null)}
+        />
+      ) : null}
       <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-white md:text-xl">Corridas</h2>
