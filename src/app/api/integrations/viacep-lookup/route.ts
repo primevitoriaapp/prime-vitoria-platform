@@ -7,7 +7,11 @@ import { assertCapability, can } from "@/lib/security/rbac";
 export async function GET(request: Request) {
   try {
     const session = await getSessionContext();
-    if (!can(session, "client.read") && !can(session, "driver.read")) {
+    if (
+      !can(session, "client.read") &&
+      !can(session, "driver.read") &&
+      !can(session, "trip.request")
+    ) {
       assertCapability(session, "driver.read");
     }
 

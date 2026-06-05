@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ClientRequestConsole } from "@/components/client-request-console";
+import { ClientTeamPortalSection } from "@/components/client-team-portal-section";
 import { ClientTripsPanel } from "@/components/client-trips-panel";
 import { ClientPortalNav } from "@/components/client-portal-nav";
 import { ClientPortalReadonlyNotice } from "@/components/client-portal-readonly-notice";
@@ -23,6 +24,7 @@ type Props = {
   initialClients?: ClientOption[];
   initialClientName?: string;
   initialCostCenters?: { id: string; code: string | null; name: string }[];
+  canManageTeam?: boolean;
 };
 
 export function ClientAppShell({
@@ -31,7 +33,8 @@ export function ClientAppShell({
   sessionClientId,
   initialClients = [],
   initialClientName = "Cliente",
-  initialCostCenters = []
+  initialCostCenters = [],
+  canManageTeam = false
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -166,10 +169,15 @@ export function ClientAppShell({
               </section>
             ) : null}
 
+            <ClientTeamPortalSection
+              clientId={selectedClientId}
+              canManage={mode === "admin" ? true : canManageTeam}
+              devFallbackRole={mode === "admin" ? "admin" : "cliente"}
+            />
+
             <ClientTripsPanel
               key={selectedClientId}
               tenantId={tenantId}
-              costCenters={costCenters}
               readOnly={readOnly}
               clientIdOverride={mode === "admin" ? selectedClientId : undefined}
               devFallbackRole={mode === "admin" ? "admin" : "cliente"}

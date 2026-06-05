@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { canManageClientTeam } from "@/lib/clients/client-portal-team-access";
 import { createCostCenter, listCostCenters } from "@/lib/clients/client-cost-centers";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
@@ -52,9 +53,20 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSessionContext();
-    assertCapability(session, "client.write");
     const tenantId = assertTenantScope(session);
     const { id } = await params;
+
+    if (session.role === "cliente") {
+      if (!session.clientId || session.clientId !== id) {
+        return fail("FORBIDDEN", "Acesso restrito", 403);
+      }
+      if (!(await canManageClientTeam(session, id))) {
+        return fail("FORBIDDEN", "Apenas administradores do cliente podem editar centros de custo", 403);
+      }
+    } else {
+      assertCapability(session, "client.write");
+    }
+
     const client = await assertClient(id, tenantId);
     if (!client) return fail("CLIENT_NOT_FOUND", "Cliente não encontrado", 404);
 

@@ -6,7 +6,6 @@ import { formatBrDateTime } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { TripTrackingLinkButton } from "@/components/trip-tracking-link-button";
 import { StatusBadge } from "@/components/status-badge";
-import { ClientPassengersPanel } from "@/components/client-passengers-panel";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
@@ -22,11 +21,8 @@ const EM_ANDAMENTO: TripOperationalStatus[] = [
   "in_progress"
 ];
 
-type CostCenter = { id: string; code: string | null; name: string };
-
 type Props = {
   tenantId: string;
-  costCenters?: CostCenter[];
   readOnly?: boolean;
   clientIdOverride?: string;
   devFallbackRole?: "cliente" | "admin";
@@ -38,7 +34,6 @@ function inicioMesUtc(d: Date) {
 
 export function ClientTripsPanel({
   tenantId,
-  costCenters = [],
   readOnly = false,
   clientIdOverride,
   devFallbackRole = "cliente"
@@ -116,16 +111,6 @@ export function ClientTripsPanel({
     return sorted;
   }, [trips, filter]);
 
-  const porCentro = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const t of trips) {
-      if (t.cost_center_id) {
-        m.set(t.cost_center_id, (m.get(t.cost_center_id) ?? 0) + 1);
-      }
-    }
-    return m;
-  }, [trips]);
-
   return (
     <>
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-busy={loading}>
@@ -153,15 +138,14 @@ export function ClientTripsPanel({
           <p className="mt-1 font-serif text-3xl text-prime-gold">{aguardandoAprovacao}</p>
         </div>
         <div className={PRIME_SURFACE_CARD}>
-          <p className="text-xs uppercase tracking-wide text-prime-muted">Centros de custo</p>
-          <p className="mt-1 font-serif text-3xl text-prime-gold">{costCenters.length}</p>
+          <p className="text-xs uppercase tracking-wide text-prime-muted">Total no histórico</p>
+          <p className="mt-1 font-serif text-3xl text-prime-gold">{total}</p>
         </div>
           </>
         )}
       </section>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
-        <section id="corridas" className="space-y-4">
+      <section id="corridas" className="space-y-4">
           <div className="flex flex-wrap items-baseline justify-between gap-4">
             <h2 className="font-serif text-xl text-prime-text">
               Minhas corridas
@@ -274,35 +258,7 @@ export function ClientTripsPanel({
               </ul>
             )}
           </div>
-        </section>
-
-        <aside id="centros" className="space-y-4">
-          <h2 className="font-serif text-lg text-prime-text">Centros de custo</h2>
-          <div className={PRIME_SURFACE_CARD}>
-            {costCenters.length === 0 ? (
-              <p className="text-sm text-prime-muted">Nenhum centro de custo cadastrado.</p>
-            ) : (
-              <ul className="space-y-3 text-sm">
-                {costCenters.map((cc) => (
-                  <li
-                    key={cc.id}
-                    className="flex justify-between gap-2 border-b border-gray-200 pb-2 last:border-0 last:pb-0"
-                  >
-                    <span className="truncate text-prime-text">
-                      {cc.code ? `${cc.code} · ` : ""}
-                      {cc.name}
-                    </span>
-                    <span className="shrink-0 text-prime-gold">{porCentro.get(cc.id) ?? 0}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <p className="text-xs text-prime-muted">Lista actualiza em tempo real quando o estado da corrida muda.</p>
-        </aside>
-      </div>
-
-      <ClientPassengersPanel trips={trips} />
+      </section>
     </>
   );
 }

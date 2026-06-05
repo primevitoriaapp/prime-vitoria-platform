@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { canManageClientTeam } from "@/lib/clients/client-portal-team-access";
 import { getClientTenantId } from "@/lib/clients/client-tenant";
 import {
   createClientPassenger,
@@ -29,7 +30,9 @@ async function assertClientAccess(
     if (!session.clientId || session.clientId !== clientId) {
       return fail("FORBIDDEN", "Acesso restrito ao seu cliente", 403);
     }
-    if (write) return fail("FORBIDDEN", "Cliente não pode editar funcionários", 403);
+    if (write && !(await canManageClientTeam(session, clientId))) {
+      return fail("FORBIDDEN", "Apenas administradores do cliente podem editar a equipe", 403);
+    }
   } else {
     assertCapability(session, write ? "client.write" : "client.read");
   }
@@ -47,9 +50,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const denied = await assertClientAccess(session, id, tenantId);
     if (denied) return denied;
 
+    const includeInactive = new URL(request.url).searchParams.get("include_inactive") === "1";
+    const canManage =
+      session.role !== "cliente" ? can(session, "client.write") : await canManageClientTeam(session, id);
     const q = new URL(request.url).searchParams.get("q") ?? undefined;
     const clientTenantId = await getClientTenantId(id, tenantId);
-    const rows = await listClientPassengers(id, clientTenantId, { q, activeOnly: true });
+    const rows = await listClientPassengers(id, clientTenantId, {
+      q,
+      activeOnly: !(includeInactive && canManage)
+    });
     return ok(rows);
   } catch (error) {
     return mapApiError(error);
@@ -59,7 +68,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSessionContext();
-    assertCapability(session, "client.write");
     const tenantId = assertTenantScope(session);
     const { id } = await params;
     const denied = await assertClientAccess(session, id, tenantId, true);

@@ -4,6 +4,7 @@ import { ClientAppShell } from "@/components/client-app-shell";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { db } from "@/lib/server/db";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
+import { canManageClientTeam } from "@/lib/clients/client-portal-team-access";
 import { getSessionContext } from "@/lib/server/session";
 
 async function loadClientsForAdmin() {
@@ -63,6 +64,9 @@ export default async function ClientPage() {
 
   const initialClients = isAdminPreview ? await loadClientsForAdmin() : [];
 
+  const canManageTeam =
+    isAdminPreview || (isCliente && clientId ? await canManageClientTeam(session, clientId) : false);
+
   return (
     <Suspense fallback={<div className="min-h-screen bg-prime-bg" />}>
       <ClientAppShell
@@ -72,6 +76,7 @@ export default async function ClientPage() {
         initialClients={initialClients}
         initialClientName={nomeCliente}
         initialCostCenters={costCenters}
+        canManageTeam={canManageTeam}
       />
     </Suspense>
   );

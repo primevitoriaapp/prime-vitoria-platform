@@ -16,11 +16,8 @@ export function ClientPortalNav({ readOnly = true }: Props) {
       <Link href="/client#corridas" className="hover:text-prime-gold">
         Corridas
       </Link>
-      <Link href="/client#centros" className="hover:text-prime-gold">
-        Centros de custo
-      </Link>
-      <Link href="/client#passageiros" className="hover:text-prime-gold">
-        Passageiros
+      <Link href="/client#equipe" className="hover:text-prime-gold">
+        Minha equipe
       </Link>
       {!readOnly ? (
         <button type="button" onClick={scrollToSolicitar} className="hover:text-prime-gold">

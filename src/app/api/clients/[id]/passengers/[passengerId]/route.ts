@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { canManageClientTeam } from "@/lib/clients/client-portal-team-access";
 import { getClientTenantId } from "@/lib/clients/client-tenant";
 import { updateClientPassenger } from "@/lib/clients/client-passengers";
 import { fail, mapApiError, ok } from "@/lib/server/http";
@@ -22,9 +23,19 @@ export async function PATCH(
 ) {
   try {
     const session = await getSessionContext();
-    assertCapability(session, "client.write");
     const tenantId = assertTenantScope(session);
     const { id, passengerId } = await params;
+
+    if (session.role === "cliente") {
+      if (!session.clientId || session.clientId !== id) {
+        return fail("FORBIDDEN", "Acesso restrito", 403);
+      }
+      if (!(await canManageClientTeam(session, id))) {
+        return fail("FORBIDDEN", "Apenas administradores do cliente podem editar a equipe", 403);
+      }
+    } else {
+      assertCapability(session, "client.write");
+    }
 
     const { data: clientRow } = await db
       .from("clients")
