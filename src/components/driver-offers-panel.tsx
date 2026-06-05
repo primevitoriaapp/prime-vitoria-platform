@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatBrDateTime } from "@/lib/dates/br-date";
+import { notifyDriverNewAssignment } from "@/lib/client/driver-alert-notify";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
@@ -34,13 +35,22 @@ export function DriverOffersPanel({
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const knownOfferIdsRef = useRef<Set<string>>(new Set());
+  const offersInitializedRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     const qs = driverId ? `?driver_id=${encodeURIComponent(driverId)}` : "";
     const res = await fetchWithSupabaseSession(`/api/dispatch/offers/open${qs}`, {}, devFallbackRole);
     const json = (await res.json()) as { success?: boolean; data?: { items: OpenOffer[] } };
-    setOffers(res.ok && json.success ? (json.data?.items ?? []) : []);
+    const items = res.ok && json.success ? (json.data?.items ?? []) : [];
+    const newOffers = items.filter((o) => !knownOfferIdsRef.current.has(o.id));
+    if (offersInitializedRef.current && newOffers.length > 0) {
+      notifyDriverNewAssignment("offer");
+    }
+    knownOfferIdsRef.current = new Set(items.map((o) => o.id));
+    offersInitializedRef.current = true;
+    setOffers(items);
     setLoading(false);
   }, [devFallbackRole, driverId]);
 
@@ -58,7 +68,7 @@ export function DriverOffersPanel({
 
   useTenantTableRefresh(tenantId, ["dispatch_offers", "trips"], () => void load());
 
-  useDriverPushRefresh(() => void load());
+  useDriverPushRefresh(() => void load(), () => notifyDriverNewAssignment("offer"));
 
   async function accept(offerId: string, etaMinutes?: number) {
     setBusyId(offerId);

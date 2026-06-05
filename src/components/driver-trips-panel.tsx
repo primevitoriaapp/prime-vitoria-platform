@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatBrDateTime } from "@/lib/dates/br-date";
+import { clearDriverTabAlertBadge, notifyDriverNewAssignment } from "@/lib/client/driver-alert-notify";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
@@ -31,6 +32,7 @@ const ACTIVE: TripOperationalStatus[] = [
 const HISTORY: TripOperationalStatus[] = ["completed", "cancelled", "no_show", "rejected"];
 
 const FOCUS_EVENT = "pv-driver-focus-trip";
+const ALERT_STATUSES: TripOperationalStatus[] = ["dispatched", "accepted", "approved"];
 
 type Props = {
   tenantId?: string | null;
@@ -50,6 +52,8 @@ export function DriverTripsPanel({
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
   const [highlightTripId, setHighlightTripId] = useState<string | null>(null);
   const docVisible = useDocumentVisible();
+  const knownTripIdsRef = useRef<Set<string>>(new Set());
+  const tripsInitializedRef = useRef(false);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -63,7 +67,16 @@ export function DriverTripsPanel({
       setLoading(false);
       return;
     }
-    setTrips(json.data?.items ?? []);
+    const items = json.data?.items ?? [];
+    const newAssignments = items.filter(
+      (t) => !knownTripIdsRef.current.has(t.id) && ALERT_STATUSES.includes(t.operational_status)
+    );
+    if (tripsInitializedRef.current && newAssignments.length > 0) {
+      notifyDriverNewAssignment("trip");
+    }
+    knownTripIdsRef.current = new Set(items.map((t) => t.id));
+    tripsInitializedRef.current = true;
+    setTrips(items);
     setMessage(null);
     setLastRefreshAt(new Date());
     setLoading(false);
@@ -79,6 +92,10 @@ export function DriverTripsPanel({
   const otherActive = active.filter((t) => t.id !== primaryId);
 
   useEffect(() => {
+    if (docVisible) clearDriverTabAlertBadge();
+  }, [docVisible]);
+
+  useEffect(() => {
     if (!docVisible) return;
     const timer = setInterval(() => void load({ silent: true }), 15_000);
     return () => clearInterval(timer);
@@ -88,9 +105,8 @@ export function DriverTripsPanel({
 
   useDriverPushRefresh(
     () => void load({ silent: trips.length > 0 }),
-    (detail) => {
-      const label = detail.title ?? detail.body ?? "Nova actualização";
-      setMessage(label);
+    () => {
+      notifyDriverNewAssignment("trip");
     }
   );
 
