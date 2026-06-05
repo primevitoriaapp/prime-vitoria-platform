@@ -19,13 +19,19 @@ type Props = {
   tenantId?: string | null;
   devFallbackRole?: "financeiro" | "admin" | "operador";
   compact?: boolean;
+  /** Agenda: bloco recolhível; por defeito só badge com quantidade. */
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
 };
 
 export function InAppNotificationsPanel({
   tenantId = null,
   devFallbackRole = "financeiro",
-  compact = false
+  compact = false,
+  collapsible = false,
+  defaultCollapsed = false
 }: Props) {
+  const [expanded, setExpanded] = useState(!defaultCollapsed);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -91,76 +97,121 @@ export function InAppNotificationsPanel({
     await load();
   }
 
+  const badgeCount = unreadCount > 0 ? unreadCount : total > 0 ? total : 0;
+  const collapsed = collapsible && !expanded;
+
   return (
-    <section className={`card ${compact ? "mt-4" : "mt-6"}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Notificações
-          {unreadCount > 0 ? (
-            <span className="ml-2 rounded-full bg-amber-600 px-2 py-0.5 text-xs font-medium text-white">
-              {unreadCount}
+    <section className={`rounded-xl border border-slate-200 bg-white shadow-sm ${compact ? "mt-4" : "mt-6"}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            aria-expanded={expanded}
+          >
+            <span className="text-slate-500" aria-hidden>
+              {expanded ? "▾" : "▸"}
             </span>
-          ) : null}
-        </h2>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <label className="flex items-center gap-1 text-slate-600">
-            <input
-              type="checkbox"
-              checked={unreadOnly}
-              onChange={(e) => setUnreadOnly(e.target.checked)}
-            />
-            Só não lidas
-          </label>
-          {unreadCount > 0 ? (
-            <button type="button" className="btn-secondary text-sm" onClick={() => void markAllRead()}>
-              Marcar todas lidas
-            </button>
-          ) : null}
-        </div>
+            <h2 className="text-lg font-semibold text-slate-900">Notificações</h2>
+            {badgeCount > 0 ? (
+              <span className="rounded-full bg-amber-600 px-2 py-0.5 text-xs font-medium text-white">
+                {badgeCount}
+              </span>
+            ) : null}
+          </button>
+        ) : (
+          <h2 className="text-lg font-semibold text-slate-900">
+            Notificações
+            {unreadCount > 0 ? (
+              <span className="ml-2 rounded-full bg-amber-600 px-2 py-0.5 text-xs font-medium text-white">
+                {unreadCount}
+              </span>
+            ) : null}
+          </h2>
+        )}
+        {!collapsed ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <label className="flex items-center gap-1 text-slate-600">
+              <input
+                type="checkbox"
+                checked={unreadOnly}
+                onChange={(e) => setUnreadOnly(e.target.checked)}
+              />
+              Só não lidas
+            </label>
+            {unreadCount > 0 ? (
+              <button type="button" className="btn-secondary text-sm" onClick={() => void markAllRead()}>
+                Marcar todas lidas
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
-      {message ? <p className="mt-2 text-sm text-red-600">{message}</p> : null}
-      {loading ? <p className="mt-3 text-sm text-slate-500">A carregar…</p> : null}
+      {collapsed ? (
+        <p className="px-4 py-2 text-xs text-slate-500">
+          {loading
+            ? "A carregar…"
+            : badgeCount > 0
+              ? `${badgeCount} notificação${badgeCount === 1 ? "" : "ões"} — expandir para ver`
+              : "Sem notificações"}
+        </p>
+      ) : (
+        <div className="px-4 pb-4">
+          {message ? <p className="mt-2 text-sm text-red-600">{message}</p> : null}
+          {loading ? <p className="mt-3 text-sm text-slate-500">A carregar…</p> : null}
 
-      {!loading && items.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">Sem notificações{unreadOnly ? " não lidas" : ""}.</p>
-      ) : null}
+          {!loading && items.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500">Sem notificações{unreadOnly ? " não lidas" : ""}.</p>
+          ) : null}
 
-      <ul className="mt-3 divide-y divide-slate-200">
-        {items.map((item) => (
-          <li
-            key={item.id}
-            className={`py-3 text-sm ${item.unread ? "bg-amber-50/50 -mx-2 px-2 rounded" : ""}`}
-          >
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="font-medium text-slate-900">{item.title}</p>
-                <p className="text-slate-600">{item.body}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {new Date(item.createdAt).toLocaleString("pt-BR", {
-                    dateStyle: "short",
-                    timeStyle: "short"
-                  })}
-                </p>
-                {item.tripId ? (
-                  <Link href={`/agenda?trip=${item.tripId}`} className="mt-1 inline-block text-xs text-amber-700 hover:underline">
-                    Ver corrida
-                  </Link>
-                ) : null}
-              </div>
-              {item.unread ? (
-                <button type="button" className="btn-secondary shrink-0 text-xs" onClick={() => void markRead(item.id)}>
-                  Marcar lida
-                </button>
-              ) : null}
-            </div>
-          </li>
-        ))}
-      </ul>
+          <ul className="mt-3 divide-y divide-slate-200">
+            {items.map((item) => (
+              <li
+                key={item.id}
+                className={`py-3 text-sm ${item.unread ? "rounded bg-amber-50/50 px-2" : ""}`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-slate-900">{item.title}</p>
+                    <p className="line-clamp-2 text-slate-600">{item.body}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {new Date(item.createdAt).toLocaleString("pt-BR", {
+                        dateStyle: "short",
+                        timeStyle: "short"
+                      })}
+                    </p>
+                    {item.tripId ? (
+                      <Link
+                        href={`/agenda?trip=${item.tripId}`}
+                        className="mt-1 inline-block text-xs text-amber-700 hover:underline"
+                      >
+                        Ver corrida
+                      </Link>
+                    ) : null}
+                  </div>
+                  {item.unread ? (
+                    <button
+                      type="button"
+                      className="btn-secondary shrink-0 text-xs"
+                      onClick={() => void markRead(item.id)}
+                    >
+                      Marcar lida
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
 
-      {!compact && total > items.length ? (
-        <p className="mt-2 text-xs text-slate-500">A mostrar {items.length} de {total}.</p>
-      ) : null}
+          {!compact && total > items.length ? (
+            <p className="mt-2 text-xs text-slate-500">
+              A mostrar {items.length} de {total}.
+            </p>
+          ) : null}
+        </div>
+      )}
     </section>
   );
 }

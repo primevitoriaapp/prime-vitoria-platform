@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { StatusBadge } from "@/components/status-badge";
 import type { DispatchMode, TripOperationalStatus } from "@/lib/domain/types";
 import { MODO_DESPACHO_PT } from "@/lib/i18n/pt-br";
+import { formatRouteShort } from "@/lib/trips/format-place-label";
 
 export interface TripRow {
   id: string;
@@ -42,11 +43,6 @@ function labelModoDespacho(mode: string): string {
   return mode in MODO_DESPACHO_PT ? MODO_DESPACHO_PT[mode as DispatchMode] : mode;
 }
 
-function routeLine(origin: string, destination: string): string {
-  const o = origin.trim() || "—";
-  const d = destination.trim() || "—";
-  return `${o} → ${d}`;
-}
 
 export function TripTable({ trips, operatorNotesHref }: TripTableProps) {
   const showOpen = typeof operatorNotesHref === "function";
@@ -75,8 +71,11 @@ export function TripTable({ trips, operatorNotesHref }: TripTableProps) {
               <StatusBadge status={trip.operational_status} />
             </div>
 
-            <p className="truncate text-sm text-slate-800" title={routeLine(trip.origin_text, trip.destination_text)}>
-              {routeLine(trip.origin_text, trip.destination_text)}
+            <p
+              className="text-sm text-slate-800"
+              title={`${trip.origin_text} → ${trip.destination_text}`}
+            >
+              {formatRouteShort(trip.origin_text, trip.destination_text)}
             </p>
 
             <p className="truncate text-xs text-slate-500">

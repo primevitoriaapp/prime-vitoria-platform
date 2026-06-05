@@ -6,7 +6,7 @@ import { OperationalHistoryPanel } from "@/components/operational-history-panel"
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { TripAgendaFocusPanel } from "@/components/trip-agenda-focus-panel";
-import { TripTable } from "@/components/trip-table";
+import { AgendaTripsList } from "@/components/agenda-trips-list";
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { OperadorTripCreatePanel } from "@/components/operador-trip-create-panel";
 import { TripFocusHeader } from "@/components/trip-focus-header";
@@ -85,23 +85,33 @@ export default async function AgendaPage({
       {showClaimBar ? (
         <OperationalHistoryPanel devFallbackRole={session.role === "operador" ? "operador" : "admin"} days={7} />
       ) : null}
+
       {showClaimBar ? (
         <InAppNotificationsPanel
           tenantId={realtimeTenantId}
           devFallbackRole={session.role === "operador" ? "operador" : "admin"}
           compact
+          collapsible
+          defaultCollapsed
         />
       ) : null}
-      <TripTable
-        trips={trips}
-        operatorNotesHref={(id) => {
-          const p = new URLSearchParams();
-          p.set("trip", id);
-          p.set("scheduledFrom", scheduledFrom);
-          p.set("scheduledTo", scheduledTo);
-          return `/agenda?${p.toString()}`;
-        }}
-      />
+
+      <section className="mt-8 space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-xl font-semibold text-slate-900">Corridas</h2>
+          <p className="text-sm text-slate-500">{trips.length} no período</p>
+        </div>
+        <AgendaTripsList
+          trips={trips}
+          operatorNotesHref={(id) => {
+            const p = new URLSearchParams();
+            p.set("trip", id);
+            p.set("scheduledFrom", scheduledFrom);
+            p.set("scheduledTo", scheduledTo);
+            return `/agenda?${p.toString()}`;
+          }}
+        />
+      </section>
       {focusTripId ? (
         <div className="mt-8 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -144,8 +154,8 @@ export default async function AgendaPage({
       ) : focusRaw ? (
         <p className="mt-6 text-sm text-red-700">Identificador de viagem inválido na URL.</p>
       ) : (
-        <p className="mt-6 text-sm text-slate-500">
-          Clique em <strong>Abrir</strong> numa viagem para aprovar, despachar, assumir atendimento e registar notas.
+        <p className="mt-8 text-sm text-slate-500">
+          Clique em <strong>Abrir</strong> numa corrida para aprovar, despachar, assumir atendimento e registar notas.
         </p>
       )}
     </>
