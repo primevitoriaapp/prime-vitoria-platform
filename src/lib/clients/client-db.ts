@@ -20,7 +20,10 @@ const EXTENDED_CLIENT_KEYS = [
 /** 0046_client_service_types.sql */
 const SERVICE_TYPES_KEY = "service_types";
 
-const ALL_OPTIONAL_KEYS = [...EXTENDED_CLIENT_KEYS, SERVICE_TYPES_KEY] as const;
+/** 0058_client_contract_storage.sql */
+const CONTRACT_PATH_KEY = "contract_storage_path";
+
+const ALL_OPTIONAL_KEYS = [...EXTENDED_CLIENT_KEYS, SERVICE_TYPES_KEY, CONTRACT_PATH_KEY] as const;
 
 export type ClientRowInput = Record<string, unknown>;
 

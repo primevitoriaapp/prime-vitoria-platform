@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ClientRequestConsole } from "@/components/client-request-console";
 import { ClientTeamPortalSection } from "@/components/client-team-portal-section";
 import { ClientTripsPanel } from "@/components/client-trips-panel";
+import { ClientContractPortalButton } from "@/components/client-contract-portal-button";
 import { ClientPortalNav } from "@/components/client-portal-nav";
 import { ClientPortalReadonlyNotice } from "@/components/client-portal-readonly-notice";
 import { BrandLogo } from "@/components/brand-logo";
@@ -118,8 +119,19 @@ export function ClientAppShell({
                 </select>
               </label>
             ) : (
-              <ClientPortalNav readOnly={readOnly} />
+              <>
+                <ClientPortalNav readOnly={readOnly} />
+                {selectedClientId ? (
+                  <ClientContractPortalButton
+                    clientId={selectedClientId}
+                    devFallbackRole="cliente"
+                  />
+                ) : null}
+              </>
             )}
+            {mode === "admin" && selectedClientId ? (
+              <ClientContractPortalButton clientId={selectedClientId} devFallbackRole="admin" />
+            ) : null}
           </div>
         </div>
       </header>
