@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
+import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { DateTimeInput } from "@/components/datetime-input";
 import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
 import { primeMarginFromAmounts } from "@/lib/pricing/prime-price-estimate";
@@ -552,14 +553,28 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
           </div>
         )}
 
-        <label className="grid gap-1 text-sm">
-          <span>Passageiro</span>
-          <input
-            className={PRIME_INPUT_CLASS}
-            value={form.passenger_name}
-            onChange={(e) => setForm((f) => ({ ...f, passenger_name: e.target.value }))}
-          />
-        </label>
+        <PassengerAutocompleteInput
+          clientId={form.client_id}
+          className="md:col-span-1"
+          value={form.passenger_name}
+          onChange={(passenger_name) => setForm((f) => ({ ...f, passenger_name }))}
+          onSelect={(p) => {
+            setForm((f) => {
+              const next = {
+                ...f,
+                passenger_name: p.name,
+                passenger_phone: p.phone ?? f.passenger_phone
+              };
+              const addr = p.address?.trim();
+              if (addr) {
+                if (!f.origin_text.trim()) return { ...next, origin_text: addr };
+                if (!f.destination_text.trim()) return { ...next, destination_text: addr };
+              }
+              return next;
+            });
+          }}
+          devFallbackRole="admin"
+        />
         <label className="grid gap-1 text-sm">
           <span>Telefone do passageiro</span>
           <input

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
+import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { DateTimeInput } from "@/components/datetime-input";
 import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
 import type { EnabledServiceDto } from "@/app/api/clients/[id]/enabled-services/route";
@@ -461,11 +462,20 @@ export function ClientRequestConsole({
             }
           />
         </label>
-        <input
-          className={PRIME_INPUT_CLASS}
+        <PassengerAutocompleteInput
+          clientId={clientId}
           value={passengerName}
-          onChange={(e) => setPassengerName(e.target.value)}
-          placeholder="Nome do passageiro"
+          onChange={setPassengerName}
+          onSelect={(p) => {
+            setPassengerName(p.name);
+            if (p.phone) setPassengerPhone(p.phone);
+            const addr = p.address?.trim();
+            if (addr) {
+              if (!origin.trim()) setOrigin(addr);
+              else if (!destination.trim()) setDestination(addr);
+            }
+          }}
+          devFallbackRole={devFallbackRole}
         />
         <input
           className={PRIME_INPUT_CLASS}
