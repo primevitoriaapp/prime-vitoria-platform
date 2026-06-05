@@ -4,15 +4,16 @@ import type { Route } from "next";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { asUserRole, roleFromJwtClaims } from "@/lib/auth/role-from-claims";
 import { postLoginPathForRole } from "@/lib/auth/post-login-path";
-import { db } from "@/lib/server/db";
+import { resolveLoginRole } from "@/lib/auth/resolve-login-role";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 
 export type LoginState = { error?: string };
 
 function isSafeInternalPath(path: string): boolean {
-  return path.startsWith("/") && !path.startsWith("//") && path.length < 512;
+  if (!path.startsWith("/") || path.startsWith("//")) return false;
+  if (path.includes("://") || path.includes("@")) return false;
+  return path.length < 512;
 }
 
 export async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
@@ -53,9 +54,15 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     return { error: error?.message ?? "E-mail ou senha inválidos." };
   }
 
-  const { data: profile } = await db.from("profiles").select("role").eq("id", data.user.id).maybeSingle();
-  const role = asUserRole(profile?.role) ?? roleFromJwtClaims(data.user);
+  const role = await resolveLoginRole(data.user);
 
+  await supabase.auth.updateUser({
+    data: { ...(data.user.user_metadata ?? {}), role }
+  });
+
+  if (role === "motorista") {
+    redirect("/driver");
+  }
   if (isSafeInternalPath(nextRaw)) {
     redirect(nextRaw as Route);
   }

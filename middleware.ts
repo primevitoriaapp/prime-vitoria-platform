@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { asUserRole, roleFromJwtClaims } from "@/lib/auth/role-from-claims";
+import { asUserRole } from "@/lib/auth/role-from-claims";
+import { resolveMiddlewareRole } from "@/lib/auth/middleware-role";
 import type { UserRole } from "@/lib/domain/types";
 import { getSessionFromSupabaseCookies } from "@/lib/supabase/middleware-session";
 import { trustHeaderAuth } from "@/lib/server/trust-header-auth";
@@ -30,7 +31,7 @@ export async function middleware(request: NextRequest) {
     const { user, response: cookieResponse } = await getSessionFromSupabaseCookies(request);
     response = cookieResponse;
     if (user) {
-      role = roleFromJwtClaims(user);
+      role = await resolveMiddlewareRole(user);
     }
   }
 
