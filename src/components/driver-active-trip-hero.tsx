@@ -17,15 +17,31 @@ import {
 import { formatTripKmLine } from "@/lib/trips/format-km";
 import { confirmDriverStatusTransition } from "@/lib/trips/driver-status-confirm";
 
+const WAIT_ELIGIBLE: TripOperationalStatus[] = ["on_the_way", "arrived", "in_progress"];
+
 type Props = {
   trip: Trip;
   isBusy: boolean;
   highlighted?: boolean;
+  waitElapsedLabel?: string | null;
+  waitBusy?: boolean;
   onStatus: (tripId: string, to: TripOperationalStatus) => void;
   onGps: (trip: Trip) => void;
+  onWaitStart?: (tripId: string) => void;
+  onWaitStop?: (tripId: string) => void;
 };
 
-export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGps }: Props) {
+export function DriverActiveTripHero({
+  trip,
+  isBusy,
+  highlighted,
+  waitElapsedLabel,
+  waitBusy = false,
+  onStatus,
+  onGps,
+  onWaitStart,
+  onWaitStop
+}: Props) {
   const dest = { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.destination_text };
   const navLinks = buildDriverNavigationLinks({
     origin: { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text },
@@ -36,6 +52,9 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
   const primaryStep = next[0];
   const extraSteps = next.slice(1);
   const scheduledLabel = formatBrDateTime(trip.scheduled_at);
+  const canWait = WAIT_ELIGIBLE.includes(trip.operational_status);
+  const isWaiting = Boolean(trip.wait_started_at);
+  const accumulatedWait = trip.wait_minutes ?? 0;
 
   return (
     <article
@@ -105,6 +124,39 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
       ) : (
         <p className="mt-4 text-sm text-prime-muted">Sem coordenadas GPS — use o endereço no Maps manualmente.</p>
       )}
+
+      {canWait && onWaitStart && onWaitStop ? (
+        <div className="mt-4 rounded-xl border border-prime-border bg-prime-bg/80 p-3">
+          {isWaiting ? (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">Aguardando passageiro</p>
+              <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-prime-text">
+                {waitElapsedLabel ?? "00:00"}
+              </p>
+              {accumulatedWait > 0 ? (
+                <p className="mt-1 text-xs text-prime-muted">Total registado: {accumulatedWait} min</p>
+              ) : null}
+              <button
+                type="button"
+                disabled={isBusy || waitBusy}
+                onClick={() => onWaitStop(trip.id)}
+                className="btn-primary mt-3 min-h-[2.75rem] w-full rounded-xl px-4 py-2.5 text-base disabled:opacity-50"
+              >
+                {waitBusy ? "A guardar…" : "Retomar corrida"}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={isBusy || waitBusy}
+              onClick={() => onWaitStart(trip.id)}
+              className="btn-outline min-h-[2.75rem] w-full rounded-xl border-amber-300/60 px-4 py-2.5 text-base text-amber-900 hover:bg-amber-50 disabled:opacity-50"
+            >
+              Aguardando passageiro
+            </button>
+          )}
+        </div>
+      ) : null}
 
       <div className="mt-4 flex flex-col gap-2">
         {primaryStep ? (

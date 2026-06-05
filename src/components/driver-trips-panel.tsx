@@ -52,6 +52,8 @@ export function DriverTripsPanel({
   const [busyTrip, setBusyTrip] = useState<string | null>(null);
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
   const [highlightTripId, setHighlightTripId] = useState<string | null>(null);
+  const [waitBusy, setWaitBusy] = useState(false);
+  const [waitTick, setWaitTick] = useState(0);
   const docVisible = useDocumentVisible();
   const knownTripIdsRef = useRef<Set<string>>(new Set());
   const tripsInitializedRef = useRef(false);
@@ -107,6 +109,24 @@ export function DriverTripsPanel({
     if (docVisible) clearDriverTabAlertBadge();
   }, [docVisible]);
 
+  const waitingTrip = primaryTrip?.wait_started_at ? primaryTrip : null;
+  useEffect(() => {
+    if (!waitingTrip?.wait_started_at) return;
+    const timer = setInterval(() => setWaitTick((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, [waitingTrip?.id, waitingTrip?.wait_started_at]);
+
+  const waitElapsedLabel = useMemo(() => {
+    void waitTick;
+    const started = primaryTrip?.wait_started_at;
+    if (!started) return null;
+    const ms = Math.max(0, Date.now() - new Date(started).getTime());
+    const totalSec = Math.floor(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }, [primaryTrip?.wait_started_at, waitTick]);
+
   useEffect(() => {
     if (!docVisible) return;
     const timer = setInterval(() => void load({ silent: true }), 15_000);
@@ -119,6 +139,7 @@ export function DriverTripsPanel({
     () => void load({ silent: trips.length > 0 }),
     () => {
       notifyDriverNewAssignment("trip");
+      void load({ silent: true });
     }
   );
 
@@ -133,6 +154,30 @@ export function DriverTripsPanel({
     window.addEventListener(FOCUS_EVENT, onFocus);
     return () => window.removeEventListener(FOCUS_EVENT, onFocus);
   }, [load, trips.length]);
+
+  async function setWait(tripId: string, action: "start" | "stop") {
+    setWaitBusy(true);
+    setMessage(null);
+    const res = await fetchWithSupabaseSession(
+      `/api/trips/${tripId}/wait`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      },
+      devFallbackRole
+    );
+    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    setWaitBusy(false);
+    if (!res.ok || !json.success) {
+      setMessage(json.error?.message ?? "Falha ao registar espera.");
+      return;
+    }
+    if (action === "stop") {
+      setMessage("Tempo de espera registado.");
+    }
+    await load({ silent: true });
+  }
 
   async function setStatus(tripId: string, to_status: TripOperationalStatus) {
     setBusyTrip(tripId);
@@ -235,8 +280,12 @@ export function DriverTripsPanel({
                 trip={primaryTrip}
                 isBusy={busyTrip === primaryTrip.id}
                 highlighted={highlightTripId === primaryTrip.id}
+                waitElapsedLabel={waitElapsedLabel}
+                waitBusy={waitBusy}
                 onStatus={setStatus}
                 onGps={sendGps}
+                onWaitStart={(id) => void setWait(id, "start")}
+                onWaitStop={(id) => void setWait(id, "stop")}
               />
             ) : null}
 
