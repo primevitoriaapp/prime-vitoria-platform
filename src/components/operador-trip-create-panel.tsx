@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
+import type { CostCenterRow } from "@/lib/clients/client-cost-centers";
 import { DateTimeInput } from "@/components/datetime-input";
 import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
 import { primeMarginFromAmounts } from "@/lib/pricing/prime-price-estimate";
@@ -74,9 +75,11 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [multiLeg, setMultiLeg] = useState(false);
   const [roundTrip, setRoundTrip] = useState(false);
+  const [costCenters, setCostCenters] = useState<CostCenterRow[]>([]);
   const [legs, setLegs] = useState<LegForm[]>([emptyLeg()]);
   const [form, setForm] = useState({
     client_id: "",
+    cost_center_id: "",
     service_type: "transfer_seda",
     scheduled_at: defaultScheduledIso(),
     return_scheduled_at: defaultScheduledIso(),
@@ -120,6 +123,22 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- init client_id once
   }, []);
+
+  useEffect(() => {
+    if (!form.client_id) {
+      setCostCenters([]);
+      return;
+    }
+    void (async () => {
+      const res = await fetchWithSupabaseSession(`/api/clients/${form.client_id}/cost-centers`, {}, "admin");
+      const json = (await res.json()) as { success?: boolean; data?: CostCenterRow[] };
+      if (res.ok && json.success) {
+        setCostCenters(json.data ?? []);
+      } else {
+        setCostCenters([]);
+      }
+    })();
+  }, [form.client_id]);
 
   async function refreshEstimate() {
     if (!form.client_id || multiLeg) return;
@@ -291,6 +310,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
         : undefined;
 
       const sharedFields = {
+        cost_center_id: form.cost_center_id || undefined,
         passenger_name: form.passenger_name || undefined,
         passenger_phone: form.passenger_phone || undefined,
         passenger_count: form.passenger_count,
@@ -373,11 +393,28 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             required
             className={PRIME_INPUT_CLASS}
             value={form.client_id}
-            onChange={(e) => setForm((f) => ({ ...f, client_id: e.target.value }))}
+            onChange={(e) => setForm((f) => ({ ...f, client_id: e.target.value, cost_center_id: "" }))}
           >
             <option value="">— seleccionar —</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm md:col-span-2">
+          <span>Centro de custo (opcional)</span>
+          <select
+            className={PRIME_INPUT_CLASS}
+            value={form.cost_center_id}
+            onChange={(e) => setForm((f) => ({ ...f, cost_center_id: e.target.value }))}
+            disabled={!form.client_id || costCenters.filter((c) => c.active).length === 0}
+          >
+            <option value="">— nenhum —</option>
+            {costCenters.filter((c) => c.active).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.code ? `${c.code} · ` : ""}
                 {c.name}
               </option>
             ))}

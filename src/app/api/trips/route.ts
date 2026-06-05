@@ -20,6 +20,7 @@ import {
 import { driverBelongsToSession, withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { enrichTripListItems } from "@/lib/trips/enrich-trip-list";
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
+import { resolveCostCenterScopeForEmail } from "@/lib/clients/client-cost-centers";
 
 const coordSchema = z.union([z.number(), z.string()]).optional().nullable().transform((v) => {
   if (v === null || v === undefined || v === "") return null;
@@ -345,6 +346,10 @@ export async function GET(request: Request) {
         return fail("FORBIDDEN", "Filtro nao permitido para este perfil", 403);
       }
       req = req.eq("client_id", session.clientId);
+      const scopedCenterId = await resolveCostCenterScopeForEmail(session.clientId, session.email);
+      if (scopedCenterId) {
+        req = req.eq("cost_center_id", scopedCenterId);
+      }
       if (query.status) req = req.eq("operational_status", query.status);
     } else if (can(session, "trip.read.assigned")) {
       assertCapability(session, "trip.read.assigned");
