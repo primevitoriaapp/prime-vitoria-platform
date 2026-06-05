@@ -37,6 +37,7 @@ async function sessionContextFromUser(user: User): Promise<SessionContext> {
   return {
     userId: user.id,
     role: roleFromJwt,
+    email: user.email ?? undefined,
     tenantId,
     clientId: h.get("x-client-id") ?? (profile?.client_id as string | undefined) ?? undefined,
     driverId

@@ -93,6 +93,11 @@ export function ClientTripDetailPanel({
                   </span>
                 ) : null}
               </p>
+              {trip.passenger_phone?.trim() ? (
+                <p className="text-slate-500">
+                  Telefone: <span className="text-slate-300">{trip.passenger_phone.trim()}</span>
+                </p>
+              ) : null}
               {trip.passenger_count != null && trip.passenger_count > 0 ? (
                 <p className="text-slate-500">
                   Passageiros: <span className="text-slate-300">{trip.passenger_count}</span>

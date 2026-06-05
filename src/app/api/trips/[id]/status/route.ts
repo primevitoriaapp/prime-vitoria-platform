@@ -5,6 +5,7 @@ import { clientMayCancelTrip, validateOperationalTransition } from "@/lib/domain
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
+import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { notifyTripStatusTransition } from "@/lib/notifications/trip-status-notify";
@@ -41,11 +42,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!trip) return fail("TRIP_NOT_FOUND", "Trip not found", 404);
 
     const denied = denyUnlessTripReadable(
-      tripGetAccess(session, {
-        client_id: trip.client_id,
-        driver_id: trip.driver_id ?? null,
-        tenant_id: trip.tenant_id
-      })
+      tripGetAccess(
+        session,
+        {
+          client_id: trip.client_id,
+          driver_id: trip.driver_id ?? null,
+          tenant_id: trip.tenant_id
+        },
+        session.driverId
+      )
     );
     if (denied) return denied;
 

@@ -84,6 +84,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     destination_lat: null as number | null,
     destination_lng: null as number | null,
     passenger_name: "",
+    passenger_phone: "",
     passenger_count: 1,
     dispatch_mode: "directed" as "directed" | "offer",
     planned_km: null as number | null,
@@ -274,6 +275,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             origin_text: legs[0].origin_text,
             destination_text: legs[legs.length - 1].destination_text,
             passenger_name: form.passenger_name || undefined,
+            passenger_phone: form.passenger_phone || undefined,
             passenger_count: form.passenger_count,
             dispatch_mode: form.dispatch_mode,
             client_amount,
@@ -292,6 +294,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             destination_lat: form.destination_lat,
             destination_lng: form.destination_lng,
             passenger_name: form.passenger_name || undefined,
+            passenger_phone: form.passenger_phone || undefined,
             passenger_count: form.passenger_count,
             dispatch_mode: form.dispatch_mode,
             client_amount,
@@ -555,6 +558,16 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             className={PRIME_INPUT_CLASS}
             value={form.passenger_name}
             onChange={(e) => setForm((f) => ({ ...f, passenger_name: e.target.value }))}
+          />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span>Telefone do passageiro</span>
+          <input
+            type="tel"
+            className={PRIME_INPUT_CLASS}
+            value={form.passenger_phone}
+            onChange={(e) => setForm((f) => ({ ...f, passenger_phone: e.target.value }))}
+            placeholder="+55 27 99999-0000"
           />
         </label>
         <label className="grid gap-1 text-sm">

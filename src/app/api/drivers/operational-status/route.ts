@@ -11,6 +11,7 @@ import {
   isDriverOperationalStatus
 } from "@/lib/drivers/operational-status";
 import type { DriverOperationalStatus } from "@/lib/domain/types";
+import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 
 const bodySchema = z.object({
   driver_id: z.string().uuid().optional(),
@@ -18,9 +19,9 @@ const bodySchema = z.object({
 });
 
 async function resolveDriverId(session: Awaited<ReturnType<typeof getSessionContext>>, requested?: string) {
-  if (session.role === "motorista") {
-    if (!session.driverId) return null;
-    return session.driverId;
+  const resolved = await withResolvedDriverId(session);
+  if (resolved.role === "motorista") {
+    return resolved.driverId ?? null;
   }
   if (session.role === "admin" || session.role === "operador") {
     return requested ?? null;

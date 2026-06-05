@@ -67,6 +67,14 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
           <span className="text-base font-normal text-prime-muted"> · {trip.passenger_count} passageiros</span>
         ) : null}
       </p>
+      {trip.passenger_phone?.trim() ? (
+        <p className="mt-1 text-sm text-prime-muted">
+          Telefone:{" "}
+          <a href={`tel:${trip.passenger_phone.trim()}`} className="font-medium text-prime-gold hover:underline">
+            {trip.passenger_phone.trim()}
+          </a>
+        </p>
+      ) : null}
 
       <DriverTripRouteCard
         originText={trip.origin_text ?? "—"}

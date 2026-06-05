@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { DateTimeInput } from "@/components/datetime-input";
@@ -80,7 +80,16 @@ export function ClientRequestConsole({
   const [destinationLat, setDestinationLat] = useState<number | null>(null);
   const [destinationLng, setDestinationLng] = useState<number | null>(null);
   const [passengerName, setPassengerName] = useState("");
+  const [passengerPhone, setPassengerPhone] = useState("");
   const [passengerCount, setPassengerCount] = useState(1);
+  const [estimateBusy, setEstimateBusy] = useState(false);
+  const [estimate, setEstimate] = useState<{
+    hasRule: boolean;
+    plannedKm: number | null;
+    clientAmount: number | null;
+    chargeType?: string;
+    pricePerKm?: number | null;
+  } | null>(null);
   const [notes, setNotes] = useState("");
   const [costCenterId, setCostCenterId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -151,6 +160,93 @@ export function ClientRequestConsole({
   }
 
   const maxPassengers = serviceType ? maxPassengersForService(serviceType) : 4;
+  const hasCoords =
+    originLat != null && originLng != null && destinationLat != null && destinationLng != null;
+
+  useEffect(() => {
+    if (!serviceType || step !== "form") return;
+    const timer = setTimeout(() => {
+      void (async () => {
+        setEstimateBusy(true);
+        const scheduledIso =
+          parseBrDateTimeToIso(scheduledAt) ?? new Date(scheduledAt).toISOString();
+        const res = await fetchWithSupabaseSession(
+          "/api/pricing/estimate-trip",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              client_id: clientId,
+              service_type: serviceType,
+              scheduled_at: scheduledIso,
+              origin_lat: originLat,
+              origin_lng: originLng,
+              destination_lat: destinationLat,
+              destination_lng: destinationLng
+            })
+          },
+          devFallbackRole
+        );
+        const json = (await res.json()) as {
+          success?: boolean;
+          data?: {
+            has_rule?: boolean;
+            charge_type?: string;
+            price_per_km?: number | null;
+            estimate?: { planned_km: number | null; client_amount: number } | null;
+          };
+        };
+        if (!res.ok || !json.success) {
+          setEstimate(null);
+          setEstimateBusy(false);
+          return;
+        }
+        const hasRule = json.data?.has_rule !== false && json.data?.estimate != null;
+        setEstimate({
+          hasRule,
+          plannedKm: json.data?.estimate?.planned_km ?? null,
+          clientAmount: json.data?.estimate?.client_amount ?? null,
+          chargeType: json.data?.charge_type,
+          pricePerKm: json.data?.price_per_km ?? null
+        });
+        setEstimateBusy(false);
+      })();
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [
+    clientId,
+    serviceType,
+    scheduledAt,
+    originLat,
+    originLng,
+    destinationLat,
+    destinationLng,
+    step,
+    devFallbackRole
+  ]);
+
+  const estimateHint = useMemo(() => {
+    if (estimateBusy) return "A calcular estimativa…";
+    if (!estimate?.hasRule) {
+      return hasCoords
+        ? "Sem tabela de preços para este serviço — a equipa confirmará o valor."
+        : "Selecione origem e destino no mapa para ver distância e estimativa.";
+    }
+    const parts: string[] = [];
+    if (estimate.plannedKm != null) {
+      parts.push(`${estimate.plannedKm.toLocaleString("pt-BR")} km`);
+    }
+    if (estimate.chargeType === "per_km" && estimate.pricePerKm != null) {
+      parts.push(
+        `${estimate.pricePerKm.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/km`
+      );
+    }
+    if (estimate.clientAmount != null) {
+      parts.push(
+        `estimado ${estimate.clientAmount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`
+      );
+    }
+    return parts.length ? parts.join(" · ") : "Estimativa disponível após definir rota.";
+  }, [estimate, estimateBusy, hasCoords]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -273,7 +369,7 @@ export function ClientRequestConsole({
     );
   }
 
-  const selectedLabel = primeServiceTypeLabel(serviceType);
+  const selectedLabel = primeServiceTypeLabel(serviceType, { audience: "client" });
 
   return (
     <section className="card">
@@ -371,6 +467,17 @@ export function ClientRequestConsole({
           onChange={(e) => setPassengerName(e.target.value)}
           placeholder="Nome do passageiro"
         />
+        <input
+          className={PRIME_INPUT_CLASS}
+          type="tel"
+          value={passengerPhone}
+          onChange={(e) => setPassengerPhone(e.target.value)}
+          placeholder="Telefone do passageiro"
+        />
+        <div className="sm:col-span-2 rounded-lg border border-prime-border bg-white px-3 py-2 text-sm text-prime-muted shadow-prime-card">
+          <span className="font-medium text-prime-text">Estimativa: </span>
+          {estimateHint}
+        </div>
         <textarea
           className={`sm:col-span-2 ${PRIME_INPUT_CLASS}`}
           rows={2}

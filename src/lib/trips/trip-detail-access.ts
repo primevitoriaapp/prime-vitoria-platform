@@ -22,7 +22,8 @@ export type TripGetAccess =
 
 export function tripGetAccess(
   session: SessionContext,
-  trip: { client_id: string; driver_id: string | null; tenant_id?: string }
+  trip: { client_id: string; driver_id: string | null; tenant_id?: string },
+  resolvedDriverId?: string | null
 ): TripGetAccess {
   if (trip.tenant_id && trip.tenant_id !== sessionTenantId(session)) {
     return "not_found";
@@ -37,8 +38,9 @@ export function tripGetAccess(
   }
 
   if (can(session, "trip.read.assigned")) {
-    if (!session.driverId) return "scope_required_driver";
-    if (trip.driver_id !== session.driverId) return "not_found";
+    const driverId = resolvedDriverId ?? session.driverId;
+    if (!driverId) return "scope_required_driver";
+    if (trip.driver_id !== driverId) return "not_found";
     return "allow";
   }
 

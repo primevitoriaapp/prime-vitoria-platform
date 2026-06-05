@@ -123,6 +123,8 @@ export default async function AgendaPage({
             serviceType={focusTrip?.service_type}
             scheduledAt={focusTrip?.scheduled_at}
             passengerCount={focusTrip?.passenger_count}
+            passengerName={focusTrip?.passenger_name}
+            passengerPhone={focusTrip?.passenger_phone}
             clientAmount={focusTrip?.client_amount}
             driverAmount={focusTrip?.driver_amount}
             margin={focusTrip?.margin}

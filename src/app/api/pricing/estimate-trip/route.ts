@@ -10,7 +10,7 @@ import {
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
-import { assertCapability } from "@/lib/security/rbac";
+import { can } from "@/lib/security/rbac";
 
 const bodySchema = z.object({
   client_id: z.string().uuid(),
@@ -26,9 +26,22 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   try {
     const session = await getSessionContext();
-    assertCapability(session, "trip.write");
     const tenantId = assertTenantScope(session);
     const body = bodySchema.parse(await request.json());
+
+    const isClientPortal = session.role === "cliente" && can(session, "trip.request");
+    const isOperator = can(session, "trip.write");
+
+    if (!isClientPortal && !isOperator) {
+      return fail("FORBIDDEN", "Sem permissão para estimar valor", 403);
+    }
+
+    if (isClientPortal) {
+      if (!session.clientId || body.client_id !== session.clientId) {
+        return fail("FORBIDDEN", "Não é possível estimar para outro cliente", 403);
+      }
+    }
+
     const uiServiceType = normalizePrimeServiceType(body.service_type);
     const pricingServiceType = resolvePricingServiceType(uiServiceType, body.scheduled_at ?? null);
 
@@ -37,10 +50,11 @@ export async function POST(request: Request) {
       return ok({
         service_type: uiServiceType,
         pricing_service_type: pricingServiceType,
-        corporativo_bandeira:
-          uiServiceType === "corporativo" || pricingServiceType.startsWith("corporativo_")
+        corporativo_bandeira: isOperator
+          ? uiServiceType === "corporativo" || pricingServiceType.startsWith("corporativo_")
             ? corporativoBandeiraOperatorLabel(pricingServiceType)
-            : null,
+            : null
+          : null,
         has_rule: false,
         rule: null,
         estimate: null,
@@ -52,7 +66,7 @@ export async function POST(request: Request) {
     let driver_min_km = clientRule.driver_min_km;
     let driver_fixed_price = clientRule.driver_fixed_price;
 
-    if (body.driver_id) {
+    if (body.driver_id && isOperator) {
       const driverRule = await getDriverPayoutRule(body.driver_id, tenantId, pricingServiceType);
       if (driverRule) {
         if (driverRule.charge_type === "per_km") {
@@ -81,6 +95,19 @@ export async function POST(request: Request) {
         destination_lng: body.destination_lng ?? null
       }
     );
+
+    if (isClientPortal) {
+      return ok({
+        service_type: uiServiceType,
+        has_rule: true,
+        charge_type: clientRule.charge_type,
+        price_per_km: clientRule.price_per_km,
+        estimate: {
+          planned_km: estimate.planned_km,
+          client_amount: estimate.client_amount
+        }
+      });
+    }
 
     return ok({
       service_type: uiServiceType,

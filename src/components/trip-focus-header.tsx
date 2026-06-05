@@ -11,6 +11,8 @@ type Props = {
   serviceType?: string | null;
   scheduledAt?: string | null;
   passengerCount?: number | null;
+  passengerName?: string | null;
+  passengerPhone?: string | null;
   clientAmount?: number | null;
   driverAmount?: number | null;
   margin?: number | null;
@@ -27,6 +29,8 @@ export function TripFocusHeader({
   serviceType,
   scheduledAt,
   passengerCount,
+  passengerName,
+  passengerPhone,
   clientAmount,
   driverAmount,
   margin
@@ -51,10 +55,16 @@ export function TripFocusHeader({
           {serviceLabel}
         </span>
       ) : null}
-      {passengerCount != null && passengerCount > 0 ? (
+      {passengerName?.trim() || passengerPhone?.trim() || (passengerCount != null && passengerCount > 0) ? (
         <span className="text-sm text-prime-text">
-          <span className="text-prime-muted">Passageiros: </span>
-          <strong>{passengerCount}</strong>
+          <span className="text-prime-muted">Passageiro: </span>
+          {passengerName?.trim() || "—"}
+          {passengerPhone?.trim() ? (
+            <span className="text-prime-muted"> · {passengerPhone.trim()}</span>
+          ) : null}
+          {passengerCount != null && passengerCount > 0 ? (
+            <span className="text-prime-muted"> · {passengerCount} pax</span>
+          ) : null}
         </span>
       ) : null}
       {hasFinance ? (

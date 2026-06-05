@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { DriverAppShell } from "@/components/driver-app-shell";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
+import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { getSessionContext } from "@/lib/server/session";
 import Link from "next/link";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
@@ -14,7 +15,7 @@ async function loadDriversForAdmin() {
 }
 
 export default async function DriverPage() {
-  const session = await getSessionContext();
+  const session = await withResolvedDriverId(await getSessionContext());
   const isMotorista = session.role === "motorista";
   const isAdminPreview = session.role === "admin";
   const isGuest = session.role === "guest" || session.userId === "anonymous";

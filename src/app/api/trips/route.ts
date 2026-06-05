@@ -17,8 +17,8 @@ import {
   sumLegAmounts,
   tripLegsSchema
 } from "@/lib/trips/trip-legs";
-import { resolveDriverIdForUser } from "@/lib/drivers/resolve-driver-for-session";
-import { enrichTripItemsWithVehicles } from "@/lib/trips/enrich-trip-vehicles";
+import { driverBelongsToSession, withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
+import { enrichTripListItems } from "@/lib/trips/enrich-trip-list";
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 
 const coordSchema = z.union([z.number(), z.string()]).optional().nullable().transform((v) => {
@@ -221,7 +221,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const session = await getSessionContext();
+    const session = await withResolvedDriverId(await getSessionContext());
     const query = parseTripsListQuery(new URL(request.url).searchParams);
 
     const from = (query.page - 1) * query.pageSize;
@@ -256,22 +256,15 @@ export async function GET(request: Request) {
       if (query.status) req = req.eq("operational_status", query.status);
     } else if (can(session, "trip.read.assigned")) {
       assertCapability(session, "trip.read.assigned");
-      let driverId =
-        session.driverId ??
-        (await resolveDriverIdForUser({ userId: session.userId, tenantId }));
+      let driverId = session.driverId;
 
       if (query.driverId) {
         if (driverId && query.driverId !== driverId) {
           return fail("FORBIDDEN", "Nao e possivel listar viagens de outro motorista", 403);
         }
         if (!driverId) {
-          const { data: driverRow } = await db
-            .from("drivers")
-            .select("id, profile_id")
-            .eq("id", query.driverId)
-            .eq("tenant_id", tenantId)
-            .maybeSingle();
-          if (!driverRow || driverRow.profile_id !== session.userId) {
+          const allowed = await driverBelongsToSession(query.driverId, session);
+          if (!allowed) {
             return fail("FORBIDDEN", "Nao e possivel listar viagens de outro motorista", 403);
           }
           driverId = query.driverId;
@@ -300,7 +293,7 @@ export async function GET(request: Request) {
       return fail("TRIP_LIST_FAILED", error.message, 500);
     }
 
-    const items = await enrichTripItemsWithVehicles(data ?? []);
+    const items = await enrichTripListItems(data ?? []);
 
     return ok({
       items,

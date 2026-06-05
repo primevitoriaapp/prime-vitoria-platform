@@ -2,79 +2,97 @@ import Link from "next/link";
 import type { Route } from "next";
 import { StatusBadge } from "@/components/status-badge";
 import { TripTrackingLinkButton } from "@/components/trip-tracking-link-button";
-import type { DispatchMode } from "@/lib/domain/types";
-import { formatBrDateTime } from "@/lib/dates/br-date";
-import { MODO_DESPACHO_PT } from "@/lib/i18n/pt-br";
+import type { TripOperationalStatus } from "@/lib/domain/types";
 
 export interface TripRow {
   id: string;
   scheduled_at: string;
   origin_text: string;
   destination_text: string;
-  operational_status: any;
+  operational_status: TripOperationalStatus;
   dispatch_mode: string;
-}
-
-function labelModoDespacho(mode: string): string {
-  return mode in MODO_DESPACHO_PT ? MODO_DESPACHO_PT[mode as DispatchMode] : mode;
+  client_name?: string | null;
+  driver_name?: string | null;
 }
 
 type TripTableProps = {
   trips: TripRow[];
-  /** Se definido, mostra coluna com ligação para notas operacionais (ex.: agenda). */
+  /** Se definido, mostra botão Abrir (ex.: agenda). */
   operatorNotesHref?: (tripId: string) => string;
 };
 
+function formatSchedule(iso: string): { date: string; time: string } {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) {
+    return { date: "—", time: "" };
+  }
+  return {
+    date: d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" }),
+    time: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+  };
+}
+
 export function TripTable({ trips, operatorNotesHref }: TripTableProps) {
-  const showNotes = typeof operatorNotesHref === "function";
+  const showOpen = typeof operatorNotesHref === "function";
+
   return (
-    <div className="card" style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th align="left">Horário</th>
-            <th align="left">Origem</th>
-            <th align="left">Destino</th>
-            <th align="left">Despacho</th>
-            <th align="left">Status</th>
-            <th align="left">Rastreio</th>
-            {showNotes ? <th align="left">Acções</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {trips.length === 0 ? (
-            <tr>
-              <td colSpan={showNotes ? 7 : 6} className="py-8 text-center text-sm text-slate-500">
-                Nenhuma viagem no período. Ajuste o intervalo de datas na agenda ou abra a fila operacional.
-              </td>
-            </tr>
-          ) : null}
-          {trips.map((trip) => (
-            <tr key={trip.id}>
-              <td>{formatBrDateTime(trip.scheduled_at)}</td>
-              <td>{trip.origin_text}</td>
-              <td>{trip.destination_text}</td>
-              <td>{labelModoDespacho(trip.dispatch_mode)}</td>
-              <td>
-                <StatusBadge status={trip.operational_status} />
-              </td>
-              <td>
+    <div className="space-y-3">
+      {trips.length === 0 ? (
+        <div className="card py-10 text-center text-sm text-slate-500">
+          Nenhuma viagem no período. Ajuste o intervalo de datas na agenda ou abra a fila operacional.
+        </div>
+      ) : null}
+
+      {trips.map((trip) => {
+        const schedule = formatSchedule(trip.scheduled_at);
+        return (
+          <article
+            key={trip.id}
+            className="card flex flex-col gap-3 border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:gap-4"
+          >
+            <div className="shrink-0 sm:w-28">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{schedule.date}</p>
+              <p className="text-2xl font-semibold tabular-nums text-slate-900">{schedule.time}</p>
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <p className="text-sm font-medium leading-snug text-slate-900">
+                <span className="block truncate">{trip.origin_text || "—"}</span>
+                <span className="text-slate-400" aria-hidden>
+                  {" "}
+                  →{" "}
+                </span>
+                <span className="block truncate">{trip.destination_text || "—"}</span>
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                <span>
+                  <span className="text-slate-400">Cliente: </span>
+                  {trip.client_name?.trim() || "—"}
+                </span>
+                <span>
+                  <span className="text-slate-400">Motorista: </span>
+                  {trip.driver_name?.trim() || "A definir"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+              <StatusBadge status={trip.operational_status} />
+              <div className="flex flex-wrap items-center gap-2">
                 <TripTrackingLinkButton tripId={trip.id} />
-              </td>
-              {showNotes ? (
-                <td>
+                {showOpen ? (
                   <Link
                     href={operatorNotesHref(trip.id) as Route}
-                    className="text-sm font-medium text-amber-700 hover:underline"
+                    className="inline-flex items-center rounded-lg border border-amber-600/40 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-100"
                   >
                     Abrir
                   </Link>
-                </td>
-              ) : null}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                ) : null}
+              </div>
+            </div>
+          </article>
+        );
+      })}
     </div>
   );
 }

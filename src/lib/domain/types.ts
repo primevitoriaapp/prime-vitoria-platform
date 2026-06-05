@@ -23,6 +23,8 @@ export type TripFinancialStatus = "pending" | "partially_paid" | "paid" | "cance
 export interface SessionContext {
   userId: string;
   role: UserRole;
+  /** E-mail do login Supabase (motorista sem profile_id). */
+  email?: string;
   /** Organizacao (SaaS). Ausente em `guest`; fallback em API via tenant padrao. */
   tenantId?: string;
   clientId?: string;
@@ -48,6 +50,7 @@ export interface Trip {
   destination_lat?: number | null;
   destination_lng?: number | null;
   passenger_name?: string | null;
+  passenger_phone?: string | null;
   passenger_count?: number | null;
   cost_center_id?: string | null;
   planned_km?: number | null;
