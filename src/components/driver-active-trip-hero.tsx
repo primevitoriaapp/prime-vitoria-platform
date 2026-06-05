@@ -4,6 +4,7 @@ import { formatBrDateTime } from "@/lib/dates/br-date";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { StatusBadge } from "@/components/status-badge";
+import { TripLegLabelBadge } from "@/components/trip-leg-label-badge";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
 import { DriverTripRouteCard } from "@/components/driver-trip-route-card";
 import { buildDriverNavigationLinks } from "@/lib/trips/driver-nav-links";
@@ -50,6 +51,7 @@ export function DriverActiveTripHero({ trip, isBusy, highlighted, onStatus, onGp
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <StatusBadge status={trip.operational_status} />
+        <TripLegLabelBadge label={trip.trip_leg_label} />
         <span className="font-mono text-xs text-prime-muted">{trip.id.slice(0, 8)}…</span>
       </div>
 

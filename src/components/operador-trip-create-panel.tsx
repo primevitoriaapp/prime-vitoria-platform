@@ -73,11 +73,13 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   const [corporativoBandeira, setCorporativoBandeira] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [multiLeg, setMultiLeg] = useState(false);
+  const [roundTrip, setRoundTrip] = useState(false);
   const [legs, setLegs] = useState<LegForm[]>([emptyLeg()]);
   const [form, setForm] = useState({
     client_id: "",
     service_type: "transfer_seda",
     scheduled_at: defaultScheduledIso(),
+    return_scheduled_at: defaultScheduledIso(),
     origin_text: "",
     origin_lat: null as number | null,
     origin_lng: null as number | null,
@@ -224,6 +226,21 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
       return;
     }
 
+    if (roundTrip && !multiLeg) {
+      const returnIso =
+        parseBrDateTimeToIso(form.return_scheduled_at) ?? new Date(form.return_scheduled_at).toISOString();
+      const outboundIso =
+        parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString();
+      if (!returnIso || !Number.isFinite(new Date(returnIso).getTime())) {
+        setMessage("Informe horário de retorno válido.");
+        return;
+      }
+      if (new Date(returnIso).getTime() <= new Date(outboundIso).getTime()) {
+        setMessage("Horário de retorno deve ser após a ida.");
+        return;
+      }
+    }
+
     if (multiLeg) {
       for (let i = 0; i < legs.length; i++) {
         const iso =
@@ -243,6 +260,11 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
       const scheduled_at = multiLeg
         ? (parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString())
         : (parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString());
+      const return_scheduled_at =
+        roundTrip && !multiLeg
+          ? (parseBrDateTimeToIso(form.return_scheduled_at) ??
+            new Date(form.return_scheduled_at).toISOString())
+          : undefined;
       const client_amount = totals.client;
       const driver_amount = totals.driver;
       const margin = totals.margin;
@@ -268,6 +290,16 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
           })
         : undefined;
 
+      const sharedFields = {
+        passenger_name: form.passenger_name || undefined,
+        passenger_phone: form.passenger_phone || undefined,
+        passenger_count: form.passenger_count,
+        dispatch_mode: form.dispatch_mode,
+        client_amount,
+        driver_amount,
+        margin
+      };
+
       const body = multiLeg
         ? {
             client_id: form.client_id,
@@ -275,13 +307,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             scheduled_at,
             origin_text: legs[0].origin_text,
             destination_text: legs[legs.length - 1].destination_text,
-            passenger_name: form.passenger_name || undefined,
-            passenger_phone: form.passenger_phone || undefined,
-            passenger_count: form.passenger_count,
-            dispatch_mode: form.dispatch_mode,
-            client_amount,
-            driver_amount,
-            margin,
+            ...sharedFields,
             trip_legs: tripLegsPayload
           }
         : {
@@ -294,13 +320,9 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             destination_text: form.destination_text,
             destination_lat: form.destination_lat,
             destination_lng: form.destination_lng,
-            passenger_name: form.passenger_name || undefined,
-            passenger_phone: form.passenger_phone || undefined,
-            passenger_count: form.passenger_count,
-            dispatch_mode: form.dispatch_mode,
-            client_amount,
-            driver_amount,
-            margin
+            ...sharedFields,
+            round_trip: roundTrip,
+            return_scheduled_at
           };
 
       const res = await fetchWithSupabaseSession(
@@ -312,7 +334,11 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
       if (!res.ok || !json.success || !json.data?.id) {
         throw new Error(json.error?.message ?? "Não foi possível criar a corrida.");
       }
-      setMessage("Corrida criada. A abrir na agenda…");
+      setMessage(
+        roundTrip && !multiLeg
+          ? "Corridas ida e volta criadas. A abrir na agenda…"
+          : "Corrida criada. A abrir na agenda…"
+      );
       void scheduledFrom;
       void scheduledTo;
       const href =
@@ -412,6 +438,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             checked={multiLeg}
             onChange={(e) => {
               setMultiLeg(e.target.checked);
+              if (e.target.checked) setRoundTrip(false);
               if (e.target.checked) {
                 setLegs([
                   {
@@ -431,6 +458,32 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
           />
           <span>Corrida com múltiplos trechos (ida + disponível + retorno, etc.)</span>
         </label>
+
+        {!multiLeg ? (
+          <>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={roundTrip}
+                onChange={(e) => setRoundTrip(e.target.checked)}
+              />
+              <span>Ida e volta</span>
+            </label>
+            {roundTrip ? (
+              <label className="grid gap-1 text-sm">
+                <span>Horário de retorno</span>
+                <DateTimeInput
+                  required
+                  className={PRIME_INPUT_CLASS}
+                  value={form.return_scheduled_at}
+                  onChange={(iso) =>
+                    setForm((f) => ({ ...f, return_scheduled_at: iso ?? defaultScheduledIso() }))
+                  }
+                />
+              </label>
+            ) : null}
+          </>
+        ) : null}
 
         {!multiLeg ? (
           <>

@@ -47,7 +47,9 @@ const createTripSchema = z.object({
   client_amount: z.coerce.number().nonnegative().optional(),
   driver_amount: z.coerce.number().nonnegative().optional(),
   margin: z.coerce.number().optional(),
-  trip_legs: tripLegsSchema.optional()
+  trip_legs: tripLegsSchema.optional(),
+  round_trip: z.boolean().optional(),
+  return_scheduled_at: z.string().optional()
 });
 
 function mapTripError(error: unknown) {
@@ -187,11 +189,14 @@ export async function POST(request: Request) {
       return fail("TRIP_CREATE_FAILED", error.message, 500);
     }
 
-    if (clientAmount != null && driverAmount != null) {
+    let outbound = data;
+
+    async function upsertTripFinancials(tripId: string) {
+      if (clientAmount == null || driverAmount == null) return;
       const netMargin = margin ?? clientAmount - driverAmount;
       await db.from("trip_financials").upsert(
         {
-          trip_id: data.id,
+          trip_id: tripId,
           amount_client: clientAmount,
           amount_driver: driverAmount,
           net_margin: netMargin
@@ -200,20 +205,107 @@ export async function POST(request: Request) {
       );
     }
 
+    await upsertTripFinancials(outbound.id as string);
+
+    if (body.round_trip && body.return_scheduled_at && !legs?.length) {
+      const returnScheduled = (() => {
+        const d = new Date(body.return_scheduled_at);
+        return Number.isFinite(d.getTime()) ? d.toISOString() : body.return_scheduled_at;
+      })();
+
+      if (new Date(returnScheduled).getTime() <= new Date(scheduledAt).getTime()) {
+        await db.from("trips").delete().eq("id", outbound.id);
+        return fail("INVALID_RETURN_TIME", "Horário de retorno deve ser após a ida", 400);
+      }
+
+      const { data: returnTrip, error: returnErr } = await db
+        .from("trips")
+        .insert({
+          client_id: body.client_id,
+          requester_id: body.requester_id ?? null,
+          cost_center_id: body.cost_center_id ?? null,
+          service_type: serviceType,
+          scheduled_at: returnScheduled,
+          origin_text: destinationText,
+          origin_lat: destLat,
+          origin_lng: destLng,
+          destination_text: originText,
+          destination_lat: originLat,
+          destination_lng: originLng,
+          dispatch_mode: body.dispatch_mode,
+          passenger_name: body.passenger_name ?? null,
+          passenger_phone: body.passenger_phone ?? null,
+          passenger_count: passengerCount,
+          notes: body.notes ?? null,
+          client_amount: clientAmount,
+          driver_amount: driverAmount,
+          margin,
+          tenant_id: tenantId,
+          created_by: session.userId,
+          operational_status: "requested",
+          trip_leg_label: "volta"
+        })
+        .select("*")
+        .single();
+
+      if (returnErr || !returnTrip) {
+        await db.from("trips").delete().eq("id", outbound.id);
+        return fail("TRIP_RETURN_CREATE_FAILED", returnErr?.message ?? "Falha ao criar volta", 500);
+      }
+
+      const { data: linkedOutbound, error: linkErr } = await db
+        .from("trips")
+        .update({ trip_id_return: returnTrip.id, trip_leg_label: "ida" })
+        .eq("id", outbound.id)
+        .select("*")
+        .single();
+
+      if (linkErr || !linkedOutbound) {
+        await db.from("trips").delete().eq("id", returnTrip.id);
+        await db.from("trips").delete().eq("id", outbound.id);
+        return fail("TRIP_LINK_FAILED", linkErr?.message ?? "Falha ao vincular ida/volta", 500);
+      }
+
+      outbound = linkedOutbound;
+      await upsertTripFinancials(returnTrip.id as string);
+
+      await insertAuditEvent({
+        tenantId,
+        actorUserId: session.userId,
+        action: "trip.create",
+        entityType: "trip",
+        entityId: returnTrip.id as string,
+        metadata: {
+          client_id: body.client_id,
+          operational_status: returnTrip.operational_status,
+          trip_leg_label: "volta",
+          linked_outbound_id: outbound.id
+        },
+        request
+      });
+
+      const { notifyTripRequested: notifyReturn } = await import("@/lib/notifications/operational-notify");
+      await notifyReturn(tenantId, returnTrip.id as string, { client_id: body.client_id });
+    }
+
     await insertAuditEvent({
       tenantId,
       actorUserId: session.userId,
       action: "trip.create",
       entityType: "trip",
-      entityId: data.id,
-      metadata: { client_id: body.client_id, operational_status: data.operational_status },
+      entityId: outbound.id,
+      metadata: {
+        client_id: body.client_id,
+        operational_status: outbound.operational_status,
+        trip_leg_label: outbound.trip_leg_label ?? null
+      },
       request
     });
 
     const { notifyTripRequested } = await import("@/lib/notifications/operational-notify");
-    await notifyTripRequested(tenantId, data.id as string, { client_id: body.client_id });
+    await notifyTripRequested(tenantId, outbound.id as string, { client_id: body.client_id });
 
-    return ok(data, 201);
+    return ok(outbound, 201);
   } catch (error) {
     return mapTripError(error);
   }

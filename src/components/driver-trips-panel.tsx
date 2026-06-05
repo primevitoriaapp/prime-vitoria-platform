@@ -17,6 +17,7 @@ import { formatTripKmLine } from "@/lib/trips/format-km";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
 import { DriverActiveTripHero } from "@/components/driver-active-trip-hero";
+import { TripLegLabelBadge } from "@/components/trip-leg-label-badge";
 import { DriverTripRouteCard } from "@/components/driver-trip-route-card";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
@@ -86,7 +87,18 @@ export function DriverTripsPanel({
     void load();
   }, [load]);
 
-  const active = useMemo(() => trips.filter((t) => ACTIVE.includes(t.operational_status)), [trips]);
+  const active = useMemo(
+    () =>
+      trips
+        .filter((t) => ACTIVE.includes(t.operational_status))
+        .sort((a, b) => {
+          const legOrder = (t: Trip) => (t.trip_leg_label === "volta" ? 1 : 0);
+          const legDiff = legOrder(a) - legOrder(b);
+          if (legDiff !== 0) return legDiff;
+          return new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime();
+        }),
+    [trips]
+  );
   const primaryId = useMemo(() => pickPrimaryActiveTripId(active), [active]);
   const primaryTrip = active.find((t) => t.id === primaryId) ?? null;
   const otherActive = active.filter((t) => t.id !== primaryId);
@@ -196,7 +208,7 @@ export function DriverTripsPanel({
             </button>
             {lastRefreshAt ? (
               <span className="text-[10px] text-slate-500">
-                {active.length > 0 ? "Auto 12s · " : "Auto 20s · "}
+                {active.length > 0 ? "Auto 15s · " : "Auto 15s · "}
                 {lastRefreshAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                 {!docVisible ? " · separador inactivo" : null}
               </span>
@@ -213,7 +225,7 @@ export function DriverTripsPanel({
           <DriverTripSkeleton />
         ) : active.length === 0 ? (
           <p className="mt-4 text-sm text-slate-500">
-            Sem corrida actual. Após despacho da central, a corrida aparece aqui — actualização automática a cada 20s
+            Sem corrida actual. Após despacho da central, a corrida aparece aqui — actualização automática a cada 15s
             (ou notificação push quando activa).
           </p>
         ) : (
@@ -295,6 +307,7 @@ function CompactActiveTripCard({
     >
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={trip.operational_status} />
+        <TripLegLabelBadge label={trip.trip_leg_label} />
         <span className="text-sm font-medium text-prime-text">{trip.passenger_name ?? "Passageiro"}</span>
       </div>
       <DriverTripRouteCard originText={trip.origin_text ?? "—"} destinationText={trip.destination_text ?? "—"} />

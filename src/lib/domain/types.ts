@@ -55,6 +55,9 @@ export interface Trip {
   passenger_phone?: string | null;
   passenger_count?: number | null;
   cost_center_id?: string | null;
+  /** Corrida de volta vinculada (ida aponta para volta). */
+  trip_id_return?: string | null;
+  trip_leg_label?: "ida" | "volta" | null;
   planned_km?: number | null;
   actual_km?: number | null;
   vehicle?: { id: string; model: string; plate: string } | null;
