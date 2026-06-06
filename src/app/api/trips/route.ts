@@ -22,6 +22,7 @@ import { enrichTripListItems } from "@/lib/trips/enrich-trip-list";
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 import { resolveCostCenterScopeForEmail } from "@/lib/clients/client-cost-centers";
 import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
+import { notifyPortalTripRequestedEmail } from "@/lib/notifications/portal-trip-request-email";
 
 const coordSchema = z.union([z.number(), z.string()]).optional().nullable().transform((v) => {
   if (v === null || v === undefined || v === "") return null;
@@ -314,6 +315,28 @@ export async function POST(request: Request) {
 
     const { notifyTripRequested } = await import("@/lib/notifications/operational-notify");
     await notifyTripRequested(tenantId, outbound.id as string, { client_id: body.client_id });
+
+    if (session.role === "cliente") {
+      const emailResult = await notifyPortalTripRequestedEmail({
+        clientName: String(clientRow.name ?? "Cliente"),
+        serviceType: String(outbound.service_type ?? serviceType),
+        scheduledAt: String(outbound.scheduled_at ?? scheduledAt),
+        originText: String(outbound.origin_text ?? originText),
+        destinationText: String(outbound.destination_text ?? destinationText),
+        tripId: String(outbound.id)
+      });
+      if (!emailResult.sent) {
+        await insertAuditEvent({
+          tenantId,
+          actorUserId: session.userId,
+          action: "notification.email_failed",
+          entityType: "trip",
+          entityId: outbound.id as string,
+          metadata: { channel: "portal_trip_request", reason: emailResult.reason ?? "unknown" },
+          request
+        });
+      }
+    }
 
     return ok(outbound, 201);
   } catch (error) {
