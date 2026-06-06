@@ -41,6 +41,7 @@ export function AgendaDateRangeForm({ initialFromIso, initialToIso }: Props) {
     }
     params.set("page", "1");
     params.set("pageSize", "250");
+    params.set("agenda", "1");
     const path = `/agenda?${params.toString()}`;
     router.push(path as Route);
     router.refresh();

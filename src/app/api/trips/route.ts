@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, ok } from "@/lib/server/http";
-import { assertCapability, can } from "@/lib/security/rbac";
+import { assertCapability } from "@/lib/security/rbac";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
@@ -17,11 +17,8 @@ import {
   sumLegAmounts,
   tripLegsSchema
 } from "@/lib/trips/trip-legs";
-import { driverBelongsToSession, withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
-import { enrichTripListItems } from "@/lib/trips/enrich-trip-list";
-import { AGENDA_OPERATIONAL_STATUSES } from "@/lib/operations/agenda-trip-statuses";
-import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
-import { resolveCostCenterScopeForEmail } from "@/lib/clients/client-cost-centers";
+import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
+import { listTripsForSession } from "@/lib/trips/list-trips-for-session";
 import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
 import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
 import { notifyPortalTripRequestedEmail } from "@/lib/notifications/portal-trip-request-email";
@@ -351,128 +348,8 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const session = await withResolvedDriverId(await getSessionContext());
-    const query = parseTripsListQuery(new URL(request.url).searchParams);
-
-    const tenantId = assertTenantScope(session);
-    const { scheduledFromIso, scheduledToIso } = tripsListQueryRange(query);
-    const agendaMode = query.agenda && can(session, "trip.read");
-    const from = (query.page - 1) * query.pageSize;
-    const to = from + query.pageSize - 1;
-    const listLimit = agendaMode ? Math.min(query.pageSize, 500) : query.pageSize;
-
-    let req = db.from("trips").select("*", { count: "exact" }).eq("tenant_id", tenantId);
-
-    if (scheduledFromIso) req = req.gte("scheduled_at", scheduledFromIso);
-    if (scheduledToIso) req = req.lte("scheduled_at", scheduledToIso);
-
-    if (agendaMode) {
-      req = req.in("operational_status", [...AGENDA_OPERATIONAL_STATUSES]);
-    }
-
-    req = req.order("scheduled_at", { ascending: true });
-    req = agendaMode ? req.limit(listLimit) : req.range(from, to);
-
-    if (can(session, "trip.read")) {
-      assertCapability(session, "trip.read");
-      if (query.status) req = req.eq("operational_status", query.status);
-      if (query.driverId) req = req.eq("driver_id", query.driverId);
-      if (query.clientId) req = req.eq("client_id", query.clientId);
-    } else if (can(session, "trip.read.own")) {
-      assertCapability(session, "trip.read.own");
-      if (!session.clientId) {
-        return fail("FORBIDDEN", "Cliente precisa de escopo de cliente (x-client-id ou perfil)", 403);
-      }
-      if (query.clientId && query.clientId !== session.clientId) {
-        return fail("FORBIDDEN", "Nao e possivel listar viagens de outro cliente", 403);
-      }
-      if (query.driverId) {
-        return fail("FORBIDDEN", "Filtro nao permitido para este perfil", 403);
-      }
-      req = req.eq("client_id", session.clientId);
-      const scopedCenterId = await resolveCostCenterScopeForEmail(session.clientId, session.email);
-      if (scopedCenterId) {
-        req = req.eq("cost_center_id", scopedCenterId);
-      }
-      if (query.status) req = req.eq("operational_status", query.status);
-    } else if (can(session, "trip.read.assigned")) {
-      assertCapability(session, "trip.read.assigned");
-      let driverId = session.driverId;
-
-      if (query.driverId) {
-        if (driverId && query.driverId !== driverId) {
-          return fail("FORBIDDEN", "Nao e possivel listar viagens de outro motorista", 403);
-        }
-        if (!driverId) {
-          const allowed = await driverBelongsToSession(query.driverId, session);
-          if (!allowed) {
-            return fail("FORBIDDEN", "Nao e possivel listar viagens de outro motorista", 403);
-          }
-          driverId = query.driverId;
-        }
-      }
-
-      if (!driverId) {
-        return fail(
-          "FORBIDDEN",
-          "Motorista precisa de cadastro vinculado (profile_id ou e-mail na ficha)",
-          403
-        );
-      }
-      if (query.clientId) {
-        return fail("FORBIDDEN", "Filtro nao permitido para este perfil", 403);
-      }
-      req = req.eq("driver_id", driverId);
-      if (query.status) req = req.eq("operational_status", query.status);
-    } else {
-      assertCapability(session, "trip.read");
-    }
-
-    const { data, error, count } = await req;
-
-    if (error) {
-      return fail("TRIP_LIST_FAILED", error.message, 500);
-    }
-
-    let merged = data ?? [];
-    const mergeOpenStatuses =
-      agendaMode || (query.includeAllRequested && can(session, "trip.read"));
-    if (mergeOpenStatuses && can(session, "trip.read")) {
-      const statuses = agendaMode ? [...AGENDA_OPERATIONAL_STATUSES] : (["requested"] as const);
-      let outsideQuery = db
-        .from("trips")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .in("operational_status", statuses);
-
-      if (scheduledFromIso && scheduledToIso) {
-        outsideQuery = outsideQuery.or(
-          `scheduled_at.lt.${scheduledFromIso},scheduled_at.gt.${scheduledToIso}`
-        );
-      } else if (scheduledFromIso) {
-        outsideQuery = outsideQuery.lt("scheduled_at", scheduledFromIso);
-      } else if (scheduledToIso) {
-        outsideQuery = outsideQuery.gt("scheduled_at", scheduledToIso);
-      }
-
-      const { data: openRows } = await outsideQuery.order("scheduled_at", { ascending: true }).limit(500);
-      const byId = new Map(merged.map((row) => [row.id as string, row]));
-      for (const row of openRows ?? []) {
-        byId.set(row.id as string, row);
-      }
-      merged = [...byId.values()].sort(
-        (a, b) =>
-          new Date(a.scheduled_at as string).getTime() - new Date(b.scheduled_at as string).getTime()
-      );
-    }
-
-    const items = await enrichTripListItems(merged);
-
-    return ok({
-      items,
-      page: query.page,
-      pageSize: query.pageSize,
-      total: count ?? 0
-    });
+    const result = await listTripsForSession(session, new URL(request.url).searchParams);
+    return ok(result);
   } catch (error) {
     return mapTripError(error);
   }

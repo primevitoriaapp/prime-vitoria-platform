@@ -7,6 +7,19 @@ import { OperationalRealtimeBridge } from "@/components/operational-realtime-bri
 import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { TripAgendaFocusPanel } from "@/components/trip-agenda-focus-panel";
 import { AgendaTripsList } from "@/components/agenda-trips-list";
+import type { TripRow } from "@/components/trip-table";
+
+type AgendaTrip = TripRow & {
+  service_type?: string;
+  passenger_count?: number;
+  passenger_name?: string | null;
+  passenger_phone?: string | null;
+  client_amount?: number | null;
+  driver_amount?: number | null;
+  margin?: number | null;
+  driver_id?: string | null;
+  vehicle?: { id: string; model: string; plate: string } | null;
+};
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { OperadorTripCreatePanel } from "@/components/operador-trip-create-panel";
 import { TripFocusHeader } from "@/components/trip-focus-header";
@@ -14,16 +27,35 @@ import { defaultAgendaRangeIso } from "@/lib/operations/agenda-default-range";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
+import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
+import {
+  buildAgendaTripsSearchParams,
+  listTripsForSession
+} from "@/lib/trips/list-trips-for-session";
 
 function defaultRangeUtc(): { fromIso: string; toIso: string } {
   return defaultAgendaRangeIso();
 }
 
-async function getTrips(search: URLSearchParams) {
-  const response = await fetchInternalApi(`/api/trips?${search.toString()}`);
-  if (!response.ok) return [];
-  const payload = await response.json();
-  return payload.data.items;
+async function getAgendaTrips(
+  session: Awaited<ReturnType<typeof getSessionContext>>,
+  scheduledFrom: string,
+  scheduledTo: string
+): Promise<AgendaTrip[]> {
+  try {
+    const resolved = await withResolvedDriverId(session);
+    const qs = buildAgendaTripsSearchParams({ scheduledFrom, scheduledTo });
+    const { items } = await listTripsForSession(resolved, qs);
+    return items as unknown as AgendaTrip[];
+  } catch (error) {
+    console.error("[agenda] falha ao carregar corridas", {
+      role: session.role,
+      userId: session.userId,
+      tenantId: session.tenantId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return [];
+  }
 }
 
 export default async function AgendaPage({
@@ -37,18 +69,10 @@ export default async function AgendaPage({
     session.role === "guest" || session.userId === "anonymous" ? null : (session.tenantId ?? DEFAULT_TENANT_ID);
 
   const defaults = defaultRangeUtc();
-  const qs = new URLSearchParams({
-    page: "1",
-    pageSize: "250",
-    agenda: "1",
-    scheduledFrom: sp.scheduledFrom?.trim() || defaults.fromIso,
-    scheduledTo: sp.scheduledTo?.trim() || defaults.toIso
-  });
+  const scheduledFrom = sp.scheduledFrom?.trim() || defaults.fromIso;
+  const scheduledTo = sp.scheduledTo?.trim() || defaults.toIso;
 
-  const scheduledFrom = qs.get("scheduledFrom")!;
-  const scheduledTo = qs.get("scheduledTo")!;
-
-  const trips = await getTrips(qs);
+  const trips = await getAgendaTrips(session, scheduledFrom, scheduledTo);
   const focusRaw = sp.trip?.trim() || "";
   const focusTripId = z.string().uuid().safeParse(focusRaw).success ? focusRaw : "";
   const showClaimBar = session.role === "admin" || session.role === "operador";
@@ -56,7 +80,9 @@ export default async function AgendaPage({
   const showErpEnqueue = session.role === "operador";
   const financeDevRole =
     session.role === "financeiro" ? "financeiro" : session.role === "operador" ? "operador" : "admin";
-  let focusTrip = focusTripId ? trips.find((t: { id: string }) => t.id === focusTripId) : null;
+  let focusTrip: AgendaTrip | null = focusTripId
+    ? (trips.find((t) => t.id === focusTripId) ?? null)
+    : null;
   let focusOutsideRange = false;
   if (focusTripId && !focusTrip) {
     const detailRes = await fetchInternalApi(`/api/trips/${focusTripId}`);
