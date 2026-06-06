@@ -1,6 +1,7 @@
 "use client";
 
 import { StatusBadge } from "@/components/status-badge";
+import { TripVoucherButton } from "@/components/trip-voucher-button";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
@@ -71,6 +72,7 @@ export function TripFocusHeader({
           ) : null}
         </span>
       ) : null}
+      <TripVoucherButton tripId={tripId} />
       {hasFinance ? (
         <div className="ml-auto flex flex-wrap gap-4 text-sm">
           <span>
