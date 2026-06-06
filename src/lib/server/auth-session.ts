@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
 import { headers } from "next/headers";
-import { asUserRole, roleFromJwtClaims } from "../auth/role-from-claims";
+import { resolveEffectiveUserRole } from "../auth/role-from-claims";
 import type { SessionContext, UserRole } from "../domain/types";
 import { DEFAULT_TENANT_ID } from "../tenant/default-tenant";
 import { createSupabaseRouteClient } from "../supabase/server";
@@ -30,16 +30,11 @@ async function sessionContextFromUser(user: User): Promise<SessionContext> {
   const h = await headers();
   const { data: profile } = await db.from("profiles").select("role, tenant_id, client_id").eq("id", user.id).maybeSingle();
 
-  const roleFromJwt = asUserRole(profile?.role) ?? roleFromJwtClaims(user);
-
   let tenantId = (profile?.tenant_id as string | undefined) ?? DEFAULT_TENANT_ID;
   const clientId = h.get("x-client-id") ?? (profile?.client_id as string | undefined) ?? undefined;
-  if (roleFromJwt === "cliente" && clientId) {
-    tenantId = await getClientTenantId(clientId, tenantId);
-  }
   const cpf = cpfFromUserMetadata(user);
   let driverId = h.get("x-driver-id") ?? undefined;
-  if (roleFromJwt === "motorista" && !driverId) {
+  if (!driverId) {
     driverId = await resolveDriverIdForUser({
       userId: user.id,
       tenantId,
@@ -48,9 +43,20 @@ async function sessionContextFromUser(user: User): Promise<SessionContext> {
     });
   }
 
+  const role = resolveEffectiveUserRole({
+    user,
+    profileRole: profile?.role,
+    profileClientId: profile?.client_id,
+    driverId: driverId ?? null
+  });
+
+  if (role === "cliente" && clientId) {
+    tenantId = await getClientTenantId(clientId, tenantId);
+  }
+
   return {
     userId: user.id,
-    role: roleFromJwt,
+    role,
     email: user.email ?? undefined,
     cpf,
     tenantId,

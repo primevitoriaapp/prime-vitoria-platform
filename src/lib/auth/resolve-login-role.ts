@@ -3,7 +3,7 @@ import type { UserRole } from "@/lib/domain/types";
 import { db } from "@/lib/server/db";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { resolveDriverIdForUser } from "@/lib/drivers/resolve-driver-for-session";
-import { asUserRole, roleFromJwtClaims } from "@/lib/auth/role-from-claims";
+import { resolveEffectiveUserRole } from "@/lib/auth/role-from-claims";
 
 function cpfFromUserMetadata(user: User): string | undefined {
   const raw = user.user_metadata?.cpf ?? user.user_metadata?.document;
@@ -18,9 +18,6 @@ export async function resolveLoginRole(user: User): Promise<UserRole> {
     .eq("id", user.id)
     .maybeSingle();
 
-  const profileRole = asUserRole(profile?.role);
-  if (profileRole) return profileRole;
-
   const tenantId = (profile?.tenant_id as string | undefined) ?? DEFAULT_TENANT_ID;
   const driverId = await resolveDriverIdForUser({
     userId: user.id,
@@ -28,13 +25,11 @@ export async function resolveLoginRole(user: User): Promise<UserRole> {
     email: user.email,
     cpf: cpfFromUserMetadata(user)
   });
-  if (driverId) return "motorista";
 
-  if (profile?.client_id) return "cliente";
-
-  const claimRole =
-    asUserRole(user.user_metadata?.role) ?? asUserRole(user.app_metadata?.role);
-  if (claimRole) return claimRole;
-
-  return roleFromJwtClaims(user);
+  return resolveEffectiveUserRole({
+    user,
+    profileRole: profile?.role,
+    profileClientId: profile?.client_id,
+    driverId
+  });
 }

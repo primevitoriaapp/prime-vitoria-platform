@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import type { UserRole } from "@/lib/domain/types";
 import { normalizeEmailForDriverMatch } from "@/lib/drivers/resolve-driver-for-session";
 import { asUserRole, roleFromJwtClaims } from "@/lib/auth/role-from-claims";
+import { roleFromProfileField } from "@/lib/auth/role-from-claims";
 
 type ProfileRow = { role: string; client_id?: string | null };
 type DriverRow = { id: string; email?: string | null; profile_id?: string | null };
@@ -31,7 +32,7 @@ export async function resolveMiddlewareRole(user: User): Promise<UserRole> {
     );
     if (profileRes.ok) {
       const rows = (await profileRes.json()) as ProfileRow[];
-      const profileRole = asUserRole(rows[0]?.role);
+      const profileRole = roleFromProfileField(rows[0]?.role);
       if (profileRole) return profileRole;
       if (rows[0]?.client_id) return "cliente";
     }

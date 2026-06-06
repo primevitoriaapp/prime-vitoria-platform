@@ -23,8 +23,8 @@ import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
 import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
 import { notifyPortalTripRequestedEmail } from "@/lib/notifications/portal-trip-request-email";
 import {
-  initialTripApprovalFields,
-  initialTripOperationalStatus
+  initialTripApprovalFieldsForSession,
+  initialTripOperationalStatusForSession
 } from "@/lib/trips/initial-trip-status";
 
 const coordSchema = z.union([z.number(), z.string()]).optional().nullable().transform((v) => {
@@ -130,8 +130,8 @@ export async function POST(request: Request) {
     const legScheduleIso = legs?.length ? firstLegScheduledAtIso(legs) : null;
     const scheduledAt =
       legScheduleIso ?? normalizeScheduledAtForStorage(body.scheduled_at) ?? body.scheduled_at;
-    const initialStatus = initialTripOperationalStatus(session.role);
-    const approvalFields = initialTripApprovalFields(session.role, session.userId);
+    const initialStatus = initialTripOperationalStatusForSession(session);
+    const approvalFields = initialTripApprovalFieldsForSession(session, session.userId);
 
     const serviceType = resolvePricingServiceType(uiServiceType, scheduledAt);
     const maxPassengers = maxPassengersForService(uiServiceType);
@@ -317,7 +317,7 @@ export async function POST(request: Request) {
     const { notifyTripRequested } = await import("@/lib/notifications/operational-notify");
     await notifyTripRequested(tenantId, outbound.id as string, { client_id: body.client_id });
 
-    if (session.role === "cliente") {
+    if (initialStatus === "requested") {
       const emailResult = await notifyPortalTripRequestedEmail({
         clientName: String(clientRow.name ?? "Cliente"),
         serviceType: String(outbound.service_type ?? serviceType),
