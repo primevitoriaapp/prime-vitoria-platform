@@ -4,6 +4,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
 import { driverPayableForecast } from "@/lib/finance/driver-payable-forecast";
+import { enrichDriverPayablesWithTrips } from "@/lib/finance/enrich-driver-payables";
 import { parseDriverPayablesListQuery } from "@/lib/finance/driver-payables-query";
 
 /** Lista contas a pagar (motorista) do tenant via viagem. */
@@ -53,11 +54,17 @@ export async function GET(request: Request) {
     const { data, error, count } = await query;
     if (error) return fail("DRIVER_PAYABLES_LIST_FAILED", error.message, 500);
 
+    const baseItems = (data ?? []).map((row) => ({
+      ...row,
+      ...driverPayableForecast({ due_date: row.due_date as string, status: row.status as string })
+    }));
+    const items =
+      session.role === "motorista"
+        ? await enrichDriverPayablesWithTrips(baseItems)
+        : baseItems.map((row) => ({ ...row, trip: null }));
+
     return ok({
-      items: (data ?? []).map((row) => ({
-        ...row,
-        ...driverPayableForecast({ due_date: row.due_date as string, status: row.status as string })
-      })),
+      items,
       page: q.page,
       pageSize: q.pageSize,
       total: count ?? 0

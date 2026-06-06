@@ -35,6 +35,16 @@ type PayableRow = {
   days_until_due?: number;
   overdue?: boolean;
   due_label?: string;
+  trip?: {
+    scheduled_label: string | null;
+    route_label: string | null;
+    passenger_name: string | null;
+    planned_km: number | null;
+    actual_km: number | null;
+    wait_minutes: number | null;
+    started_label: string | null;
+    completed_label: string | null;
+  } | null;
 };
 
 type Props = {
@@ -51,6 +61,7 @@ export function DriverPayablesPanel({
   const financeStaff = devFallbackRole === "financeiro" || devFallbackRole === "admin";
   const [statusFilter, setStatusFilter] = useState<"" | "open" | "paid" | "cancelled">("open");
   const [items, setItems] = useState<PayableRow[]>([]);
+  const [historyItems, setHistoryItems] = useState<PayableRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -106,6 +117,22 @@ export function DriverPayablesPanel({
     }
   }, [financeStaff, driverIdFilter, devFallbackRole]);
 
+  const loadHistory = useCallback(async () => {
+    if (financeStaff) return;
+    const qs = new URLSearchParams({ page: "1", pageSize: "30", status: "paid" });
+    if (driverIdFilter) qs.set("driverId", driverIdFilter);
+    const res = await fetchWithSupabaseSession(`/api/finance/driver-payables?${qs}`, {}, devFallbackRole);
+    const json = (await res.json()) as {
+      success?: boolean;
+      data?: { items: PayableRow[] };
+    };
+    if (res.ok && json.success) {
+      setHistoryItems(json.data?.items ?? []);
+    } else {
+      setHistoryItems([]);
+    }
+  }, [financeStaff, driverIdFilter, devFallbackRole]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setMessage(null);
@@ -134,11 +161,13 @@ export function DriverPayablesPanel({
   useEffect(() => {
     void load();
     void loadWalletSummary();
-  }, [load, loadWalletSummary]);
+    void loadHistory();
+  }, [load, loadWalletSummary, loadHistory]);
 
   useTenantTableRefresh(tenantId, ["driver_payables"], () => {
     void load();
     void loadWalletSummary();
+    void loadHistory();
   });
 
   const walletCards = useMemo(
@@ -262,6 +291,7 @@ export function DriverPayablesPanel({
             onClick={() => {
               void load();
               void loadWalletSummary();
+              void loadHistory();
             }}
             disabled={loading}
             className="text-sm text-prime-gold"
@@ -364,30 +394,88 @@ export function DriverPayablesPanel({
           </table>
         </div>
       ) : (
-        <ul className="mt-4 space-y-3">
-          {items.map((row) => (
-            <li
-              key={row.id}
-              className="rounded-xl border border-prime-border bg-prime-surface/40 p-3 text-sm"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium text-prime-text">
-                    {Number(row.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </p>
-                  <p className="mt-0.5 text-xs text-prime-muted">Vencimento {row.due_date}</p>
-                </div>
-                <span className="rounded-full border border-prime-border px-2 py-0.5 text-[10px] uppercase text-prime-muted">
-                  {row.status}
-                </span>
-              </div>
-              <p className={`mt-2 text-xs ${row.overdue ? "font-medium text-red-400" : "text-prime-muted"}`}>
-                {row.due_label ?? "—"}
-              </p>
-            </li>
-          ))}
-        </ul>
+        <>
+          {items.length > 0 ? (
+            <>
+              <h3 className="mt-4 text-sm font-medium text-prime-muted">A receber</h3>
+              <ul className="mt-2 space-y-3">
+                {items.map((row) => (
+                  <DriverPayableTripCard key={row.id} row={row} />
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className={`mt-3 text-sm ${mutedClass}`}>Nenhum título em aberto.</p>
+          )}
+          {historyItems.length > 0 ? (
+            <>
+              <h3 className="mt-6 text-sm font-medium text-prime-muted">Histórico de corridas</h3>
+              <ul className="mt-2 space-y-3">
+                {historyItems.map((row) => (
+                  <DriverPayableTripCard key={row.id} row={row} />
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </>
       )}
     </section>
+  );
+}
+
+function DriverPayableTripCard({ row }: { row: PayableRow }) {
+  return (
+    <li className="rounded-xl border border-prime-border bg-prime-surface/40 p-4 text-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-prime-text">
+            {Number(row.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          </p>
+          {row.trip?.scheduled_label ? (
+            <p className="mt-0.5 text-xs text-prime-muted">Agendada {row.trip.scheduled_label}</p>
+          ) : null}
+        </div>
+        <span className="shrink-0 rounded-full border border-prime-border px-2 py-0.5 text-[10px] uppercase text-prime-muted">
+          {row.status}
+        </span>
+      </div>
+
+      {row.trip?.route_label ? <p className="mt-2 text-sm text-prime-text">{row.trip.route_label}</p> : null}
+      {row.trip?.passenger_name ? (
+        <p className="mt-1 text-xs text-prime-muted">Passageiro: {row.trip.passenger_name}</p>
+      ) : null}
+
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+        <div>
+          <dt className="text-prime-muted">Km rodado</dt>
+          <dd className="font-medium text-prime-text">
+            {row.trip?.actual_km != null
+              ? `${row.trip.actual_km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`
+              : row.trip?.planned_km != null
+                ? `${row.trip.planned_km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km (prev.)`
+                : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-prime-muted">Tempo de espera</dt>
+          <dd className="font-medium text-prime-text">
+            {row.trip?.wait_minutes != null && row.trip.wait_minutes > 0 ? `${row.trip.wait_minutes} min` : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-prime-muted">Início</dt>
+          <dd className="font-medium text-prime-text">{row.trip?.started_label ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-prime-muted">Fim</dt>
+          <dd className="font-medium text-prime-text">{row.trip?.completed_label ?? "—"}</dd>
+        </div>
+      </dl>
+
+      <p className={`mt-3 text-xs ${row.overdue ? "font-medium text-red-400" : "text-prime-muted"}`}>
+        Vencimento {row.due_date}
+        {row.due_label ? ` · ${row.due_label}` : ""}
+      </p>
+    </li>
   );
 }

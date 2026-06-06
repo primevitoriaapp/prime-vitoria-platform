@@ -14,6 +14,7 @@ import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { driverOperationalStatusForTrip } from "@/lib/drivers/operational-status";
 import { assertClientMayUsePortalWrites } from "@/lib/clients/client-portal-access";
 import { isOperationalTripStatusEvent } from "@/lib/notifications/operational-status-event";
+import { finalizeWaitFields } from "@/lib/trips/finalize-trip-wait";
 
 const bodySchema = z.object({
   to_status: z.enum([
@@ -99,9 +100,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       p_changed_by: session.userId
     });
 
+    const waitFinalize =
+      body.to_status === "in_progress" ? finalizeWaitFields(trip.wait_minutes, trip.wait_started_at) : null;
+
+    const statusUpdate: Record<string, unknown> = { operational_status: body.to_status };
+    if (waitFinalize) {
+      statusUpdate.wait_minutes = waitFinalize.wait_minutes;
+      statusUpdate.wait_started_at = waitFinalize.wait_started_at;
+    }
+
     const { data, error } = await db
       .from("trips")
-      .update({ operational_status: body.to_status })
+      .update(statusUpdate)
       .eq("id", id)
       .eq("tenant_id", tenantId)
       .select("*")

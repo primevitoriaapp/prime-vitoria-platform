@@ -45,14 +45,46 @@ export function buildGoogleMapsDirectionsUrl(route: DriverNavigationRoute): stri
 }
 
 /**
- * Waze deep link — navega para destino final.
- * Waypoints não são suportados de forma fiável via URL; origem é ignorada (app usa GPS).
+ * Waze deep link — navega para um ponto (embarque ou destino).
  */
-export function buildWazeNavigateUrl(destination: NavPoint): string | null {
-  if (destination.lat == null || destination.lng == null || Number.isNaN(destination.lat) || Number.isNaN(destination.lng)) {
+export function buildWazeNavigateUrl(point: NavPoint): string | null {
+  if (point.lat == null || point.lng == null || Number.isNaN(point.lat) || Number.isNaN(point.lng)) {
     return null;
   }
-  return `waze://?ll=${destination.lat},${destination.lng}&navigate=yes`;
+  return `waze://?ll=${point.lat},${point.lng}&navigate=yes`;
+}
+
+/** Google Maps — direcções até um único ponto. */
+export function buildGoogleMapsPointUrl(point: NavPoint): string {
+  const dest = encodePoint(point);
+  const params = new URLSearchParams({ api: "1" });
+  if (dest) params.set("destination", dest);
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+/** Apple Maps — direcções até um único ponto. */
+export function buildAppleMapsPointUrl(point: NavPoint): string {
+  const dest = encodePoint(point);
+  const params = new URLSearchParams({ dirflg: "d" });
+  if (dest) params.set("daddr", dest);
+  return `https://maps.apple.com/?${params.toString()}`;
+}
+
+export function buildNavigationLinksToPoint(point: NavPoint): NavigationLink[] {
+  const links: NavigationLink[] = [];
+  links.push({ id: "google", label: "Google Maps", href: buildGoogleMapsPointUrl(point) });
+  const waze = buildWazeNavigateUrl(point);
+  if (waze) links.push({ id: "waze", label: "Waze", href: waze });
+  links.push({ id: "apple", label: "Apple Maps", href: buildAppleMapsPointUrl(point) });
+  return links;
+}
+
+/**
+ * Waze deep link — navega para destino final (rota completa).
+ * @deprecated Prefer buildNavigationLinksToPoint para embarque/destino separados.
+ */
+export function buildWazeNavigateToDestination(destination: NavPoint): string | null {
+  return buildWazeNavigateUrl(destination);
 }
 
 /**

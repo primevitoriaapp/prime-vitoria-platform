@@ -47,6 +47,20 @@ export function driverFlowChip(status: TripOperationalStatus): string {
   return "Operador → Motorista → Cliente";
 }
 
+export function pickDriverFocusTripId<T extends { id: string; operational_status: TripOperationalStatus; scheduled_at: string }>(
+  trips: T[]
+): string | null {
+  if (trips.length === 0) return null;
+  const sorted = [...trips].sort(
+    (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+  );
+  const inFlow = sorted.find((trip) =>
+    ["in_progress", "arrived", "on_the_way"].includes(trip.operational_status)
+  );
+  if (inFlow) return inFlow.id;
+  return sorted[0]?.id ?? null;
+}
+
 export function pickPrimaryActiveTripId<T extends { id: string; operational_status: TripOperationalStatus; scheduled_at: string }>(
   trips: T[]
 ): string | null {

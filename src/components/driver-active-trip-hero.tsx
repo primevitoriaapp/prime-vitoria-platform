@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { TripLegLabelBadge } from "@/components/trip-leg-label-badge";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
 import { DriverTripRouteCard } from "@/components/driver-trip-route-card";
-import { buildDriverNavigationLinks } from "@/lib/trips/driver-nav-links";
+import { buildDriverNavigationLinks, buildNavigationLinksToPoint } from "@/lib/trips/driver-nav-links";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import {
   driverFlowChip,
@@ -43,11 +43,14 @@ export function DriverActiveTripHero({
   onWaitStop
 }: Props) {
   const dest = { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.destination_text };
-  const navLinks = buildDriverNavigationLinks({
-    origin: { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text },
-    destination: dest
-  });
-  const primaryNav = navLinks.find((l) => l.id === "waze") ?? navLinks[0];
+  const pickup = { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text };
+  const routeNavLinks = buildDriverNavigationLinks({ origin: pickup, destination: dest });
+  const pickupNavLinks = buildNavigationLinksToPoint(pickup);
+  const destinationNavLinks = buildNavigationLinksToPoint(dest);
+  const navigatingToDestination = trip.operational_status === "in_progress";
+  const primaryNavLinks = navigatingToDestination ? destinationNavLinks : pickupNavLinks;
+  const primaryNav = primaryNavLinks.find((l) => l.id === "waze") ?? primaryNavLinks[0];
+  const secondaryNavLinks = navigatingToDestination ? pickupNavLinks : destinationNavLinks;
   const next = driverNextStatuses(trip.operational_status);
   const primaryStep = next[0];
   const extraSteps = next.slice(1);
@@ -117,13 +120,27 @@ export function DriverActiveTripHero({
           href={primaryNav.href}
           target={primaryNav.id === "waze" ? undefined : "_blank"}
           rel={primaryNav.id === "waze" ? undefined : "noopener noreferrer"}
-          className="mt-4 flex min-h-[3.25rem] w-full items-center justify-center gap-2 rounded-xl border-2 border-prime-border bg-prime-bg px-4 py-3 text-lg font-bold text-prime-text hover:border-prime-gold/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-prime-gold"
+          className="mt-4 flex min-h-[3.25rem] w-full items-center justify-center gap-2 rounded-xl border-2 border-prime-gold/40 bg-prime-gold/10 px-4 py-3 text-lg font-bold text-prime-text hover:border-prime-gold/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-prime-gold"
         >
-          <span aria-hidden>🧭</span> Navegar — {primaryNav.label}
+          <span aria-hidden>🧭</span>
+          {navigatingToDestination ? "Ir até o destino" : "Ir até o cliente"} — {primaryNav.label}
         </a>
       ) : (
-        <p className="mt-4 text-sm text-prime-muted">Sem coordenadas GPS — use o endereço no Maps manualmente.</p>
+        <p className="mt-4 text-sm text-prime-muted">
+          Sem coordenadas GPS do {navigatingToDestination ? "destino" : "embarque"} — use o endereço no Maps manualmente.
+        </p>
       )}
+
+      {!navigatingToDestination && destinationNavLinks[0] ? (
+        <a
+          href={destinationNavLinks.find((l) => l.id === "waze")?.href ?? destinationNavLinks[0].href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 flex min-h-[2.75rem] w-full items-center justify-center rounded-xl border border-prime-border bg-prime-bg px-4 py-2.5 text-sm font-medium text-prime-muted hover:border-prime-gold/40"
+        >
+          Pré-visualizar destino no mapa
+        </a>
+      ) : null}
 
       {canWait && onWaitStart && onWaitStop ? (
         <div className="mt-4 rounded-xl border border-prime-border bg-prime-bg/80 p-3">
@@ -201,17 +218,30 @@ export function DriverActiveTripHero({
         ) : null}
       </div>
 
-      {navLinks.length > 1 ? (
+      {routeNavLinks.length > 0 ? (
         <p className="mt-3 text-xs text-prime-muted">
           Também:{" "}
-          {navLinks.map((link, i) => (
+          {routeNavLinks.map((link, i) => (
             <span key={link.id}>
               {i > 0 ? " · " : null}
               <a href={link.href} className="text-prime-gold hover:underline" target="_blank" rel="noopener noreferrer">
-                {link.label}
+                Rota completa ({link.label})
               </a>
             </span>
           ))}
+          {secondaryNavLinks.length > 0 ? (
+            <>
+              {" · "}
+              {secondaryNavLinks.map((link, i) => (
+                <span key={`${link.id}-alt`}>
+                  {i > 0 ? " · " : null}
+                  <a href={link.href} className="text-prime-gold hover:underline" target="_blank" rel="noopener noreferrer">
+                    {navigatingToDestination ? "Embarque" : "Destino"} ({link.label})
+                  </a>
+                </span>
+              ))}
+            </>
+          ) : null}
         </p>
       ) : null}
     </article>

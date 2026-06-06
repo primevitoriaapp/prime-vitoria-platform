@@ -12,12 +12,7 @@ const bodySchema = z.object({
   action: z.enum(["start", "stop"])
 });
 
-function minutesBetween(startIso: string, end: Date): number {
-  const start = new Date(startIso).getTime();
-  if (!Number.isFinite(start)) return 0;
-  const diffMs = Math.max(0, end.getTime() - start);
-  return Math.max(1, Math.ceil(diffMs / 60_000));
-}
+import { waitMinutesBetween } from "@/lib/trips/finalize-trip-wait";
 
 /** Inicia ou encerra contagem de espera do passageiro (app motorista). */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -73,7 +68,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return ok({ wait_minutes: trip.wait_minutes ?? 0, wait_started_at: null });
     }
 
-    const added = minutesBetween(startedAt, new Date());
+    const added = waitMinutesBetween(startedAt, new Date());
     const wait_minutes = (trip.wait_minutes ?? 0) + added;
     const { error } = await db
       .from("trips")

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatBrDateTime } from "@/lib/dates/br-date";
+import { formatBrDateTime, formatBrTime } from "@/lib/dates/br-date";
 import { clearDriverTabAlertBadge, notifyDriverNewAssignment } from "@/lib/client/driver-alert-notify";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
@@ -12,14 +12,13 @@ import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { buildDriverNavigationLinks } from "@/lib/trips/driver-nav-links";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { confirmDriverStatusTransition } from "@/lib/trips/driver-status-confirm";
-import { pickPrimaryActiveTripId } from "@/lib/trips/driver-step-copy";
+import { buildNavigationLinksToPoint } from "@/lib/trips/driver-nav-links";
+import { pickDriverFocusTripId } from "@/lib/trips/driver-step-copy";
 import { formatTripKmLine } from "@/lib/trips/format-km";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
-import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
 import { DriverActiveTripHero } from "@/components/driver-active-trip-hero";
 import { DriverNewTripBanner } from "@/components/driver-new-trip-banner";
 import { TripLegLabelBadge } from "@/components/trip-leg-label-badge";
-import { DriverTripRouteCard } from "@/components/driver-trip-route-card";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
 
@@ -100,15 +99,10 @@ export function DriverTripsPanel({
     () =>
       trips
         .filter((t) => ACTIVE.includes(t.operational_status))
-        .sort((a, b) => {
-          const legOrder = (t: Trip) => (t.trip_leg_label === "volta" ? 1 : 0);
-          const legDiff = legOrder(a) - legOrder(b);
-          if (legDiff !== 0) return legDiff;
-          return new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime();
-        }),
+        .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()),
     [trips]
   );
-  const primaryId = useMemo(() => pickPrimaryActiveTripId(active), [active]);
+  const primaryId = useMemo(() => pickDriverFocusTripId(active), [active]);
   const primaryTrip = active.find((t) => t.id === primaryId) ?? null;
   const otherActive = active.filter((t) => t.id !== primaryId);
 
@@ -116,7 +110,7 @@ export function DriverTripsPanel({
     if (docVisible) clearDriverTabAlertBadge();
   }, [docVisible]);
 
-  const waitingTrip = primaryTrip?.wait_started_at ? primaryTrip : null;
+  const waitingTrip = active.find((trip) => trip.wait_started_at) ?? null;
   useEffect(() => {
     if (!waitingTrip?.wait_started_at) return;
     const timer = setInterval(() => setWaitTick((n) => n + 1), 1000);
@@ -125,14 +119,27 @@ export function DriverTripsPanel({
 
   const waitElapsedLabel = useMemo(() => {
     void waitTick;
-    const started = primaryTrip?.wait_started_at;
+    const started = waitingTrip?.wait_started_at;
     if (!started) return null;
     const ms = Math.max(0, Date.now() - new Date(started).getTime());
     const totalSec = Math.floor(ms / 1000);
     const m = Math.floor(totalSec / 60);
     const s = totalSec % 60;
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }, [primaryTrip?.wait_started_at, waitTick]);
+  }, [waitingTrip?.wait_started_at, waitTick]);
+
+  const waitElapsedLabelForTrip = useCallback(
+    (trip: Trip) => {
+      void waitTick;
+      if (!trip.wait_started_at) return null;
+      const ms = Math.max(0, Date.now() - new Date(trip.wait_started_at).getTime());
+      const totalSec = Math.floor(ms / 1000);
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    },
+    [waitTick]
+  );
 
   useEffect(() => {
     if (!docVisible) return;
@@ -187,6 +194,10 @@ export function DriverTripsPanel({
   }
 
   async function setStatus(tripId: string, to_status: TripOperationalStatus) {
+    const trip = trips.find((item) => item.id === tripId);
+    if (to_status === "in_progress" && trip?.wait_started_at) {
+      await setWait(tripId, "stop");
+    }
     setBusyTrip(tripId);
     setMessage(null);
     const res = await fetchWithSupabaseSession(
@@ -289,12 +300,27 @@ export function DriverTripsPanel({
           </p>
         ) : (
           <div className="mt-4 space-y-4">
+            <div>
+              <h3 className="text-sm font-medium text-slate-300">Ordem do dia (mais cedo primeiro)</h3>
+              <ol className="mt-2 space-y-2">
+                {active.map((trip, index) => (
+                  <DriverTripScheduleRow
+                    key={trip.id}
+                    trip={trip}
+                    position={index + 1}
+                    isFocus={trip.id === primaryId}
+                    waitLabel={trip.wait_started_at ? waitElapsedLabelForTrip(trip) : null}
+                  />
+                ))}
+              </ol>
+            </div>
+
             {primaryTrip ? (
               <DriverActiveTripHero
                 trip={primaryTrip}
                 isBusy={busyTrip === primaryTrip.id}
                 highlighted={highlightTripId === primaryTrip.id}
-                waitElapsedLabel={waitElapsedLabel}
+                waitElapsedLabel={primaryTrip.wait_started_at ? waitElapsedLabel : null}
                 waitBusy={waitBusy}
                 onStatus={setStatus}
                 onGps={sendGps}
@@ -305,7 +331,7 @@ export function DriverTripsPanel({
 
             {otherActive.length > 0 ? (
               <div>
-                <h3 className="text-sm font-medium text-slate-400">Outras corridas activas ({otherActive.length})</h3>
+                <h3 className="text-sm font-medium text-slate-400">Acções rápidas ({otherActive.length})</h3>
                 <ul className="mt-2 space-y-3">
                   {otherActive.map((trip) => (
                     <CompactActiveTripCard
@@ -353,6 +379,57 @@ export function DriverTripsPanel({
   );
 }
 
+function DriverTripScheduleRow({
+  trip,
+  position,
+  isFocus,
+  waitLabel
+}: {
+  trip: Trip;
+  position: number;
+  isFocus: boolean;
+  waitLabel: string | null;
+}) {
+  const timeLabel = formatBrTime(trip.scheduled_at) || formatBrDateTime(trip.scheduled_at);
+  const passenger = trip.passenger_name?.trim() || "Passageiro";
+  const origin = trip.origin_text?.trim() || "Origem";
+  const destination = trip.destination_text?.trim() || "Destino";
+
+  return (
+    <li
+      data-driver-trip-id={trip.id}
+      className={[
+        "rounded-xl border px-3 py-3",
+        isFocus ? "border-prime-gold/50 bg-prime-gold/10" : "border-slate-700 bg-slate-900/50"
+      ].join(" ")}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-slate-200">
+          {position}
+        </span>
+        <span className="font-mono text-sm font-semibold text-white">{timeLabel}</span>
+        <StatusBadge status={trip.operational_status} />
+        <TripLegLabelBadge label={trip.trip_leg_label} />
+        {isFocus ? <span className="text-[10px] font-semibold uppercase tracking-wide text-prime-gold">Em foco</span> : null}
+        {waitLabel ? (
+          <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+            Espera {waitLabel}
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-2 text-sm font-medium text-slate-100">{passenger}</p>
+      <p className="mt-1 text-sm text-slate-400">
+        <span className="block truncate" title={origin}>
+          {origin}
+        </span>
+        <span className="block truncate" title={destination}>
+          → {destination}
+        </span>
+      </p>
+    </li>
+  );
+}
+
 function CompactActiveTripCard({
   trip,
   isBusy,
@@ -363,10 +440,18 @@ function CompactActiveTripCard({
   onStatus: (id: string, s: TripOperationalStatus) => void;
 }) {
   const next = driverNextStatuses(trip.operational_status)[0];
-  const nav = buildDriverNavigationLinks({
-    origin: { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text },
-    destination: { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.destination_text }
-  })[0];
+  const pickupNav =
+    buildNavigationLinksToPoint({
+      lat: trip.origin_lat,
+      lng: trip.origin_lng,
+      label: trip.origin_text
+    }).find((link) => link.id === "waze") ??
+    buildNavigationLinksToPoint({
+      lat: trip.origin_lat,
+      lng: trip.origin_lng,
+      label: trip.origin_text
+    })[0];
+  const timeLabel = formatBrTime(trip.scheduled_at) || formatBrDateTime(trip.scheduled_at);
 
   return (
     <li
@@ -374,12 +459,19 @@ function CompactActiveTripCard({
       className="prime-driver-card p-3"
     >
       <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-sm font-semibold text-prime-gold">{timeLabel}</span>
         <StatusBadge status={trip.operational_status} />
         <TripLegLabelBadge label={trip.trip_leg_label} />
-        <span className="text-sm font-medium text-prime-text">{trip.passenger_name ?? "Passageiro"}</span>
       </div>
-      <DriverTripRouteCard originText={trip.origin_text ?? "—"} destinationText={trip.destination_text ?? "—"} />
-      <DriverOperationalTimeline current={trip.operational_status} />
+      <p className="mt-2 text-sm font-medium text-prime-text">{trip.passenger_name ?? "Passageiro"}</p>
+      <p className="mt-1 text-sm text-prime-muted">
+        <span className="block truncate" title={trip.origin_text ?? ""}>
+          {trip.origin_text ?? "—"}
+        </span>
+        <span className="block truncate" title={trip.destination_text ?? ""}>
+          → {trip.destination_text ?? "—"}
+        </span>
+      </p>
       <div className="mt-2 flex flex-wrap gap-2">
         {next ? (
           <button
@@ -394,14 +486,14 @@ function CompactActiveTripCard({
             {driverPrimaryActionLabel(trip.operational_status, next)}
           </button>
         ) : null}
-        {nav ? (
+        {pickupNav && trip.operational_status !== "in_progress" ? (
           <a
-            href={nav.href}
-            className="rounded-lg border border-prime-border bg-prime-card px-3 py-2 text-sm text-prime-text hover:border-prime-gold/50"
+            href={pickupNav.href}
+            className="rounded-lg border border-prime-gold/40 bg-prime-gold/10 px-3 py-2 text-sm font-medium text-prime-text hover:border-prime-gold/60"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Navegar
+            Ir até o cliente
           </a>
         ) : null}
       </div>
