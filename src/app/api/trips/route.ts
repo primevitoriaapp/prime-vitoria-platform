@@ -21,7 +21,7 @@ import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { listTripsForSession } from "@/lib/trips/list-trips-for-session";
 import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
 import { assertClientMayUsePortalWrites } from "@/lib/clients/client-portal-access";
-import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
+import { normalizeScheduledAtForStorage, validatePortalScheduledAt } from "@/lib/dates/br-date";
 import { notifyPortalTripRequestedEmail } from "@/lib/notifications/portal-trip-request-email";
 import {
   initialTripApprovalFieldsForSession,
@@ -137,8 +137,20 @@ export async function POST(request: Request) {
     const legs = body.trip_legs;
     const legTotals = legs?.length ? sumLegAmounts(legs) : null;
     const legScheduleIso = legs?.length ? firstLegScheduledAtIso(legs) : null;
-    const scheduledAt =
-      legScheduleIso ?? normalizeScheduledAtForStorage(body.scheduled_at) ?? body.scheduled_at;
+    const scheduledAtRaw = legScheduleIso ?? body.scheduled_at;
+    let scheduledAt: string;
+    if (session.role === "cliente") {
+      const scheduleCheck = validatePortalScheduledAt(scheduledAtRaw);
+      if (!scheduleCheck.ok) {
+        return fail("INVALID_SCHEDULED_AT", scheduleCheck.message, 400);
+      }
+      scheduledAt = scheduleCheck.iso;
+    } else {
+      scheduledAt =
+        legScheduleIso ??
+        normalizeScheduledAtForStorage(body.scheduled_at) ??
+        body.scheduled_at;
+    }
     const initialStatus = initialTripOperationalStatusForSession(session);
     const approvalFields = initialTripApprovalFieldsForSession(session, session.userId);
 

@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { DateTimeInput } from "@/components/datetime-input";
-import { defaultScheduledAtIso, normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
+import {
+  defaultScheduledAtIso,
+  normalizeScheduledAtForStorage,
+  validatePortalScheduledAt
+} from "@/lib/dates/br-date";
 import type { EnabledServiceDto } from "@/app/api/clients/[id]/enabled-services/route";
 import type { PrimeServiceIcon } from "@/lib/pricing/prime-service-catalog";
 import { maxPassengersForService, primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
@@ -249,12 +253,13 @@ export function ClientRequestConsole({
     event.preventDefault();
     setLoading(true);
     setMessage(null);
-    const scheduledIso = normalizeScheduledAtForStorage(scheduledAt);
-    if (!scheduledIso) {
+    const scheduleCheck = validatePortalScheduledAt(scheduledAt);
+    if (!scheduleCheck.ok) {
       setLoading(false);
-      setMessage("Informe data e horário válidos (DD/MM/AAAA HH:mm).");
+      setMessage(scheduleCheck.message);
       return;
     }
+    const scheduledIso = scheduleCheck.iso;
     const response = await fetchWithSupabaseSession(
       "/api/trips",
       {

@@ -228,14 +228,74 @@ export function formatBrDate(value: string | null | undefined): string {
   return `${d}/${m}/${y}`;
 }
 
+/** Instante UTC (ISO) a partir de valor armazenado ou digitado; evita `Date.parse` ambíguo. */
+export function scheduledAtToUtcIso(value: string | null | undefined): string | null {
+  const t = value?.trim();
+  if (!t) return null;
+  const normalized = normalizeScheduledAtForStorage(t);
+  if (normalized) return normalized;
+  if (t.includes("Z") || /[+-]\d{2}:\d{2}$/.test(t)) {
+    const d = new Date(t);
+    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  }
+  return null;
+}
+
+/** Timestamp para ordenação cronológica (corrida mais recente = maior valor). */
+export function scheduledAtSortMs(value: string | null | undefined): number {
+  const iso = scheduledAtToUtcIso(value);
+  if (!iso) return 0;
+  const ms = new Date(iso).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+/** Ano civil em Brasília para um agendamento. */
+export function saoPauloYearFromScheduledAt(value: string | null | undefined): number | null {
+  const iso = scheduledAtToUtcIso(value);
+  if (!iso) return null;
+  const year = Number(formatterPart(brDateTimeFormatter, new Date(iso), "year"));
+  return Number.isFinite(year) ? year : null;
+}
+
+/** Ano civil actual em Brasília. */
+export function currentSaoPauloYear(): number {
+  return Number(formatterPart(brDateTimeFormatter, new Date(), "year"));
+}
+
+export type PortalScheduledAtValidation =
+  | { ok: true; iso: string }
+  | { ok: false; message: string };
+
+/** Valida agendamento do portal — rejeita anos no passado (ex.: 2025 quando já é 2026). */
+export function validatePortalScheduledAt(value: string | null | undefined): PortalScheduledAtValidation {
+  const iso = scheduledAtToUtcIso(value);
+  if (!iso) {
+    return { ok: false, message: "Informe data e horário válidos (DD/MM/AAAA HH:mm)." };
+  }
+  const year = saoPauloYearFromScheduledAt(iso);
+  const currentYear = currentSaoPauloYear();
+  if (year == null) {
+    return { ok: false, message: "Informe data e horário válidos (DD/MM/AAAA HH:mm)." };
+  }
+  if (year < currentYear) {
+    return {
+      ok: false,
+      message: `Ano inválido — use ${currentYear} ou posterior para agendar corridas.`
+    };
+  }
+  return { ok: true, iso };
+}
+
 /** Exibe DD/MM/AAAA HH:mm em America/Sao_Paulo. */
 export function formatBrDateTime(value: string | null | undefined): string {
   if (!value?.trim()) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) {
+  const iso = scheduledAtToUtcIso(value);
+  if (!iso) {
     const datePart = formatBrDate(value);
     return datePart || "";
   }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
   const day = formatterPart(brDateTimeFormatter, d, "day");
   const month = formatterPart(brDateTimeFormatter, d, "month");
   const year = formatterPart(brDateTimeFormatter, d, "year");
@@ -280,7 +340,8 @@ export type BrAgendaDateGroup = "overdue" | "today" | "tomorrow" | "upcoming";
 
 /** Agrupa corrida por dia relativo a «hoje» em Brasília. */
 export function tripAgendaDateGroup(scheduledAt: string): BrAgendaDateGroup {
-  const d = new Date(scheduledAt);
+  const iso = scheduledAtToUtcIso(scheduledAt) ?? scheduledAt;
+  const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "upcoming";
 
   const tripYmd = saoPauloYmdFromDate(d);

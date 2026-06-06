@@ -55,6 +55,7 @@ export function DriverTripsPanel({
   const [newTripBanner, setNewTripBanner] = useState<{ origin: string; destination: string } | null>(null);
   const [waitBusy, setWaitBusy] = useState(false);
   const [waitTick, setWaitTick] = useState(0);
+  const [completeKmByTrip, setCompleteKmByTrip] = useState<Record<string, string>>({});
   const docVisible = useDocumentVisible();
   const knownTripIdsRef = useRef<Set<string>>(new Set());
   const tripsInitializedRef = useRef(false);
@@ -193,16 +194,39 @@ export function DriverTripsPanel({
     await load({ silent: true });
   }
 
+  function parseDriverKmInput(raw: string): number | null {
+    const normalized = raw.trim().replace(",", ".");
+    if (!normalized) return null;
+    const km = Number(normalized);
+    return Number.isFinite(km) && km > 0 ? km : null;
+  }
+
   async function setStatus(tripId: string, to_status: TripOperationalStatus) {
     const trip = trips.find((item) => item.id === tripId);
     if (to_status === "in_progress" && trip?.wait_started_at) {
       await setWait(tripId, "stop");
     }
+    let actualKm: number | undefined;
+    if (to_status === "completed") {
+      const km = parseDriverKmInput(completeKmByTrip[tripId] ?? "");
+      if (km == null) {
+        setMessage("Informe o KM percorrido para finalizar");
+        return;
+      }
+      actualKm = km;
+    }
     setBusyTrip(tripId);
     setMessage(null);
     const res = await fetchWithSupabaseSession(
       `/api/trips/${tripId}/status`,
-      { method: "POST", body: JSON.stringify({ to_status }) },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to_status,
+          ...(actualKm != null ? { actual_km: actualKm } : {})
+        })
+      },
       devFallbackRole
     );
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
@@ -322,6 +346,10 @@ export function DriverTripsPanel({
                 highlighted={highlightTripId === primaryTrip.id}
                 waitElapsedLabel={primaryTrip.wait_started_at ? waitElapsedLabel : null}
                 waitBusy={waitBusy}
+                completeKm={completeKmByTrip[primaryTrip.id] ?? ""}
+                onCompleteKmChange={(id, value) =>
+                  setCompleteKmByTrip((prev) => ({ ...prev, [id]: value }))
+                }
                 onStatus={setStatus}
                 onGps={sendGps}
                 onWaitStart={(id) => void setWait(id, "start")}
@@ -338,6 +366,10 @@ export function DriverTripsPanel({
                       key={trip.id}
                       trip={trip}
                       isBusy={busyTrip === trip.id}
+                      completeKm={completeKmByTrip[trip.id] ?? ""}
+                      onCompleteKmChange={(id, value) =>
+                        setCompleteKmByTrip((prev) => ({ ...prev, [id]: value }))
+                      }
                       onStatus={setStatus}
                     />
                   ))}
@@ -441,13 +473,18 @@ function DriverTripScheduleRow({
 function CompactActiveTripCard({
   trip,
   isBusy,
+  completeKm,
+  onCompleteKmChange,
   onStatus
 }: {
   trip: Trip;
   isBusy: boolean;
+  completeKm: string;
+  onCompleteKmChange: (id: string, value: string) => void;
   onStatus: (id: string, s: TripOperationalStatus) => void;
 }) {
   const next = driverNextStatuses(trip.operational_status)[0];
+  const completingTrip = next === "completed";
   const pickupNav =
     buildNavigationLinksToPoint({
       lat: trip.origin_lat,
@@ -480,6 +517,21 @@ function CompactActiveTripCard({
           → {trip.destination_text ?? "—"}
         </span>
       </p>
+      {completingTrip ? (
+        <label className="mt-3 block text-xs text-prime-muted">
+          KM real percorrido
+          <input
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="Ex.: 12,5"
+            value={completeKm}
+            disabled={isBusy}
+            onChange={(e) => onCompleteKmChange(trip.id, e.target.value)}
+            className="mt-1 w-full rounded-lg border border-prime-border bg-white px-3 py-2 text-sm text-prime-text"
+          />
+        </label>
+      ) : null}
       <div className="mt-2 flex flex-wrap gap-2">
         {next ? (
           <button

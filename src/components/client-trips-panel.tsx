@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { formatBrDateTime } from "@/lib/dates/br-date";
+import { formatBrDateTime, scheduledAtSortMs } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { TripTrackingLinkButton } from "@/components/trip-tracking-link-button";
 import { StatusBadge } from "@/components/status-badge";
@@ -103,7 +103,7 @@ export function ClientTripsPanel({
 
   const visible = useMemo(() => {
     const sorted = [...trips].sort(
-      (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
+      (a, b) => scheduledAtSortMs(b.scheduled_at) - scheduledAtSortMs(a.scheduled_at)
     );
     if (filter === "active") {
       return sorted.filter((t) => EM_ANDAMENTO.includes(t.operational_status));
@@ -203,7 +203,7 @@ export function ClientTripsPanel({
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <StatusBadge status={trip.operational_status} />
+                        <StatusBadge status={trip.operational_status} variant="portal" />
                         <span className="font-mono text-xs text-prime-gold">{trip.id.slice(0, 8)}…</span>
                         {clientShowsAwaitingApproval(trip.operational_status) ? (
                           <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">

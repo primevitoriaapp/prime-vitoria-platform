@@ -30,7 +30,8 @@ const bodySchema = z.object({
     "rejected",
     "no_show",
     "reassigned"
-  ])
+  ]),
+  actual_km: z.coerce.number().positive().optional()
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -100,6 +101,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       p_changed_by: session.userId
     });
 
+    if (body.to_status === "completed" && session.role === "motorista") {
+      const kmFromBody = body.actual_km;
+      const kmFromTrip = trip.actual_km != null ? Number(trip.actual_km) : null;
+      const resolvedKm =
+        kmFromBody != null && Number.isFinite(kmFromBody) && kmFromBody > 0
+          ? kmFromBody
+          : kmFromTrip != null && Number.isFinite(kmFromTrip) && kmFromTrip > 0
+            ? kmFromTrip
+            : null;
+      if (resolvedKm == null) {
+        return fail("ACTUAL_KM_REQUIRED", "Informe o KM percorrido para finalizar", 400);
+      }
+    }
+
     const waitFinalize =
       body.to_status === "in_progress" ? finalizeWaitFields(trip.wait_minutes, trip.wait_started_at) : null;
 
@@ -107,6 +122,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (waitFinalize) {
       statusUpdate.wait_minutes = waitFinalize.wait_minutes;
       statusUpdate.wait_started_at = waitFinalize.wait_started_at;
+    }
+    if (body.to_status === "completed" && body.actual_km != null && Number.isFinite(body.actual_km)) {
+      statusUpdate.actual_km = body.actual_km;
+      statusUpdate.km_source = "manual";
+      statusUpdate.km_updated_at = new Date().toISOString();
     }
 
     const { data, error } = await db

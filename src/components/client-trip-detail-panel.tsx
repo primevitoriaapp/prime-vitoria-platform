@@ -74,7 +74,7 @@ export function ClientTripDetailPanel({
         ) : trip ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge status={trip.operational_status} />
+              <StatusBadge status={trip.operational_status} variant="portal" />
               <span className="font-mono text-xs text-amber-500/90">{trip.id}</span>
               <CopyTextButton
                 text={trip.id}

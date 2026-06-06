@@ -12,7 +12,10 @@ import {
   normalizeScheduledAtForStorage,
   parseBrDateTimeToIso,
   parseBrDateToIso,
-  resolveScheduledAtForSubmit
+  resolveScheduledAtForSubmit,
+  scheduledAtSortMs,
+  scheduledAtToUtcIso,
+  validatePortalScheduledAt
 } from "../src/lib/dates/br-date.ts";
 
 test("parseBrDateToIso aceita DD/MM/AAAA", () => {
@@ -78,4 +81,25 @@ test("defaultScheduledAtIso usa calendário de Brasília", () => {
   const iso = defaultScheduledAtIso(24);
   assert.match(iso, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   assert.match(formatBrDateTime(iso), /^\d{2}\/\d{2}\/\d{4} \d{2}:00$/);
+});
+
+test("scheduledAtToUtcIso trata ISO sem offset como Brasília", () => {
+  assert.equal(scheduledAtToUtcIso("2026-05-29T22:00:00"), "2026-05-30T01:00:00.000Z");
+});
+
+test("scheduledAtSortMs ordena 2026 à frente de 2025", () => {
+  assert.ok(
+    scheduledAtSortMs("2026-05-30T01:00:00.000Z") > scheduledAtSortMs("2025-05-30T01:00:00.000Z")
+  );
+});
+
+test("validatePortalScheduledAt rejeita ano no passado", () => {
+  const currentYear = new Date().getFullYear();
+  const past = validatePortalScheduledAt("29/05/2020 10:00");
+  assert.equal(past.ok, false);
+  if (!past.ok) {
+    assert.match(past.message, new RegExp(String(currentYear)));
+  }
+  const ok = validatePortalScheduledAt(`29/05/${currentYear} 10:00`);
+  assert.equal(ok.ok, true);
 });

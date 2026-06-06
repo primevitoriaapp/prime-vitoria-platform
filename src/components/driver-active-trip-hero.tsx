@@ -25,6 +25,8 @@ type Props = {
   highlighted?: boolean;
   waitElapsedLabel?: string | null;
   waitBusy?: boolean;
+  completeKm?: string;
+  onCompleteKmChange?: (tripId: string, value: string) => void;
   onStatus: (tripId: string, to: TripOperationalStatus) => void;
   onGps: (trip: Trip) => void;
   onWaitStart?: (tripId: string) => void;
@@ -37,6 +39,8 @@ export function DriverActiveTripHero({
   highlighted,
   waitElapsedLabel,
   waitBusy = false,
+  completeKm = "",
+  onCompleteKmChange,
   onStatus,
   onGps,
   onWaitStart,
@@ -54,6 +58,7 @@ export function DriverActiveTripHero({
   const next = driverNextStatuses(trip.operational_status);
   const primaryStep = next[0];
   const extraSteps = next.slice(1);
+  const completingTrip = primaryStep === "completed";
   const scheduledLabel = formatBrDateTime(trip.scheduled_at);
   const canWait = WAIT_ELIGIBLE.includes(trip.operational_status);
   const isWaiting = Boolean(trip.wait_started_at);
@@ -172,6 +177,25 @@ export function DriverActiveTripHero({
               Aguardando passageiro
             </button>
           )}
+        </div>
+      ) : null}
+
+      {completingTrip && onCompleteKmChange ? (
+        <div className="mt-4 rounded-xl border border-prime-border bg-prime-bg/80 p-3">
+          <label htmlFor={`complete-km-${trip.id}`} className="text-xs font-semibold uppercase tracking-wide text-prime-muted">
+            KM real percorrido
+          </label>
+          <input
+            id={`complete-km-${trip.id}`}
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="Ex.: 12,5"
+            value={completeKm}
+            disabled={isBusy}
+            onChange={(e) => onCompleteKmChange(trip.id, e.target.value)}
+            className="mt-2 w-full rounded-lg border border-prime-border bg-white px-3 py-2.5 text-base text-prime-text"
+          />
         </div>
       ) : null}
 
