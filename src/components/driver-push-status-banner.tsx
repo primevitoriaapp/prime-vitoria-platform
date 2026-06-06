@@ -20,8 +20,16 @@ type Props = {
 
 /**
  * Banner compacto: push activo, fallback realtime, ou passos para activar FCM.
+ * Sem Firebase Web configurado, não exibe nada (polling silencioso).
  */
-export function DriverPushStatusBanner({ driverId, devFallbackRole = "motorista" }: Props) {
+export function DriverPushStatusBanner(props: Props) {
+  if (!readFirebaseWebConfig()) {
+    return null;
+  }
+  return <DriverPushStatusBannerInner {...props} />;
+}
+
+function DriverPushStatusBannerInner({ driverId, devFallbackRole = "motorista" }: Props) {
   const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -83,19 +91,7 @@ export function DriverPushStatusBanner({ driverId, devFallbackRole = "motorista"
   }
 
   if (!readiness.firebaseWebConfigured) {
-    return (
-      <div className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-300" role="status">
-        <p className="font-medium text-slate-200">Modo sem push automático</p>
-        <p className="mt-1 text-slate-400">
-          Firebase Web não configurado. A lista actualiza via tempo real e botão <strong>Actualizar</strong>. Registe token
-          manualmente em{" "}
-          <Link href="#push-setup" className="text-amber-400 hover:underline">
-            Notificações
-          </Link>{" "}
-          (staging).
-        </p>
-      </div>
-    );
+    return null;
   }
 
   return (
