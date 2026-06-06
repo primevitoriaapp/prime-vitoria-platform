@@ -24,6 +24,7 @@ export type ClientRow = {
   notes?: string | null;
   registry_status?: string | null;
   active: boolean;
+  portal_requests_enabled?: boolean;
   service_types?: string[] | null;
 };
 
@@ -121,6 +122,17 @@ export function ClientsFleetPanel({ initialClients }: Props) {
                 </div>
                 <p className="mt-3 font-medium text-white">{client.name}</p>
                 {client.trade_name ? <p className="text-xs text-slate-500">{client.trade_name}</p> : null}
+                <p className="mt-2 text-xs">
+                  <span
+                    className={`inline-flex rounded-full px-2 py-0.5 font-medium ${
+                      client.portal_requests_enabled
+                        ? "bg-emerald-500/15 text-emerald-400"
+                        : "bg-slate-700/60 text-slate-400"
+                    }`}
+                  >
+                    Portal: {client.portal_requests_enabled ? "solicitações activas" : "modo consulta"}
+                  </span>
+                </p>
                 <p className="mt-2 text-xs text-slate-500">
                   {client.type === "PJ" ? "CNPJ" : "CPF"}: {client.document ?? "—"}
                 </p>

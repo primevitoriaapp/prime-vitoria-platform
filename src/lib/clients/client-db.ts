@@ -23,10 +23,23 @@ const SERVICE_TYPES_KEY = "service_types";
 /** 0058_client_contract_storage.sql */
 const CONTRACT_PATH_KEY = "contract_storage_path";
 
-const ALL_OPTIONAL_KEYS = [...EXTENDED_CLIENT_KEYS, SERVICE_TYPES_KEY, CONTRACT_PATH_KEY] as const;
+/** 0063_client_portal_requests_enabled.sql */
+const PORTAL_REQUESTS_KEY = "portal_requests_enabled";
+
+const ALL_OPTIONAL_KEYS = [
+  ...EXTENDED_CLIENT_KEYS,
+  SERVICE_TYPES_KEY,
+  CONTRACT_PATH_KEY,
+  PORTAL_REQUESTS_KEY
+] as const;
 
 const LIST_CORE_SELECT = "id,type,name,document,email,phone,active,tenant_id,created_at";
-const LIST_EXTENDED_SELECT = [...EXTENDED_CLIENT_KEYS, SERVICE_TYPES_KEY, CONTRACT_PATH_KEY].join(",");
+const LIST_EXTENDED_SELECT = [
+  ...EXTENDED_CLIENT_KEYS,
+  SERVICE_TYPES_KEY,
+  CONTRACT_PATH_KEY,
+  PORTAL_REQUESTS_KEY
+].join(",");
 
 export type ClientListRow = {
   id: string;
@@ -47,6 +60,7 @@ export type ClientListRow = {
   tenant_id?: string | null;
   service_types?: string[] | null;
   contract_storage_path?: string | null;
+  portal_requests_enabled?: boolean;
   created_at?: string;
 };
 

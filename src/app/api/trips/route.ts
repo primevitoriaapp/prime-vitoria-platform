@@ -20,6 +20,7 @@ import {
 import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { listTripsForSession } from "@/lib/trips/list-trips-for-session";
 import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
+import { assertClientMayUsePortalWrites } from "@/lib/clients/client-portal-access";
 import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
 import { notifyPortalTripRequestedEmail } from "@/lib/notifications/portal-trip-request-email";
 import {
@@ -122,6 +123,14 @@ export async function POST(request: Request) {
       );
     } catch {
       return fail("FORBIDDEN", "Cliente nao pertence a esta organizacao", 403);
+    }
+
+    if (session.role === "cliente") {
+      try {
+        await assertClientMayUsePortalWrites(body.client_id, tenantId);
+      } catch (error) {
+        return mapTripError(error);
+      }
     }
 
     const uiServiceType = normalizePrimeServiceType(body.service_type);

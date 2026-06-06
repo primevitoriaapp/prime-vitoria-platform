@@ -12,6 +12,7 @@ import { notifyTripStatusTransition } from "@/lib/notifications/trip-status-noti
 import { runPostTripAutomationSafely } from "@/lib/trips/post-trip-automation";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { driverOperationalStatusForTrip } from "@/lib/drivers/operational-status";
+import { assertClientMayUsePortalWrites } from "@/lib/clients/client-portal-access";
 import { isOperationalTripStatusEvent } from "@/lib/notifications/operational-status-event";
 
 const bodySchema = z.object({
@@ -58,6 +59,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       assertCapability(session, "trip.status");
     } else if (session.role === "cliente") {
       assertCapability(session, "trip.request");
+      try {
+        await assertClientMayUsePortalWrites(trip.client_id as string, tenantId);
+      } catch (error) {
+        return mapApiError(error);
+      }
       if (body.to_status !== "cancelled") {
         return fail("FORBIDDEN", "Cliente só pode cancelar a solicitação", 403);
       }

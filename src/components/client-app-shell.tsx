@@ -24,6 +24,7 @@ type Props = {
   sessionClientId?: string | null;
   initialClients?: ClientOption[];
   initialClientName?: string;
+  initialPortalRequestsEnabled?: boolean | null;
   initialCostCenters?: { id: string; code: string | null; name: string }[];
   canManageTeam?: boolean;
 };
@@ -34,6 +35,7 @@ export function ClientAppShell({
   sessionClientId,
   initialClients = [],
   initialClientName = "Cliente",
+  initialPortalRequestsEnabled = null,
   initialCostCenters = [],
   canManageTeam = false
 }: Props) {
@@ -42,6 +44,9 @@ export function ClientAppShell({
   const [clients, setClients] = useState(initialClients);
   const [costCenters, setCostCenters] = useState(initialCostCenters);
   const [clientName, setClientName] = useState(initialClientName);
+  const [portalRequestsEnabled, setPortalRequestsEnabled] = useState<boolean | null>(
+    initialPortalRequestsEnabled
+  );
 
   const selectedClientId = useMemo(() => {
     if (mode === "cliente") return sessionClientId ?? null;
@@ -75,7 +80,12 @@ export function ClientAppShell({
     void fetch(`/api/clients/${selectedClientId}`, { credentials: "include" })
       .then((r) => r.json())
       .then((body) => {
-        if (body?.success && body?.data?.name) setClientName(body.data.name as string);
+        if (!body?.success || !body?.data) return;
+        const data = body.data as { name?: string; portal_requests_enabled?: boolean };
+        if (data.name) setClientName(data.name);
+        if (typeof data.portal_requests_enabled === "boolean") {
+          setPortalRequestsEnabled(data.portal_requests_enabled);
+        }
       })
       .catch(() => undefined);
   }, [selectedClientId, clients]);
@@ -84,10 +94,12 @@ export function ClientAppShell({
     const params = new URLSearchParams(searchParams.toString());
     if (nextId) params.set("client_id", nextId);
     else params.delete("client_id");
+    setPortalRequestsEnabled(null);
     router.replace(`/client?${params.toString()}`, { scroll: false });
   }
 
-  const readOnly = mode === "admin" ? false : isClientPortalReadOnly();
+  const readOnly =
+    mode === "admin" ? false : isClientPortalReadOnly({ portalRequestsEnabled });
   const saudacao =
     mode === "admin"
       ? `Preview admin — portal da ${clientName}.`

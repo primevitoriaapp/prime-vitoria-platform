@@ -48,14 +48,23 @@ export default async function ClientPage() {
   const clientId = isCliente ? session.clientId! : null;
 
   let nomeCliente = "Cliente";
+  let initialPortalRequestsEnabled: boolean | null = null;
   let costCenters: { id: string; code: string | null; name: string }[] = [];
   if (isCliente && clientId) {
     try {
       const [{ data: clientRow }, { data: cc }] = await Promise.all([
-        db.from("clients").select("name").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle(),
+        db
+          .from("clients")
+          .select("name, portal_requests_enabled")
+          .eq("id", clientId)
+          .eq("tenant_id", tenantId)
+          .maybeSingle(),
         db.from("cost_centers").select("id, code, name").eq("client_id", clientId).order("name").limit(30)
       ]);
       nomeCliente = clientRow?.name ?? nomeCliente;
+      if (typeof clientRow?.portal_requests_enabled === "boolean") {
+        initialPortalRequestsEnabled = clientRow.portal_requests_enabled;
+      }
       costCenters = cc ?? [];
     } catch {
       /* fallback via API nos painéis */
@@ -75,6 +84,7 @@ export default async function ClientPage() {
         sessionClientId={clientId}
         initialClients={initialClients}
         initialClientName={nomeCliente}
+        initialPortalRequestsEnabled={initialPortalRequestsEnabled}
         initialCostCenters={costCenters}
         canManageTeam={canManageTeam}
       />

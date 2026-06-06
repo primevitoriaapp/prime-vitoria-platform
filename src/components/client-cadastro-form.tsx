@@ -25,6 +25,7 @@ export type ClientFormValues = {
   notes: string;
   registry_status: string;
   active: boolean;
+  portal_requests_enabled: boolean;
   service_types: ClientServiceTypeId[];
 };
 
@@ -43,6 +44,7 @@ const emptyForm = (): ClientFormValues => ({
   notes: "",
   registry_status: "",
   active: true,
+  portal_requests_enabled: false,
   service_types: []
 });
 
@@ -233,6 +235,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         notes: form.notes.trim() || null,
         registry_status: form.registry_status.trim() || null,
         active: form.active,
+        portal_requests_enabled: form.portal_requests_enabled,
         ...(form.type === "PJ" ? { service_types: form.service_types } : {})
       };
       const url = clientId ? `/api/clients/${clientId}` : "/api/clients";
@@ -417,6 +420,23 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
           <input type="checkbox" checked={form.active} onChange={(e) => set("active", e.target.checked)} />
           <span>Cliente activo</span>
         </label>
+        <fieldset className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2">
+          <legend className="px-1 text-sm font-medium text-slate-800">Portal corporativo</legend>
+          <label className="mt-1 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={form.portal_requests_enabled}
+              onChange={(e) => set("portal_requests_enabled", e.target.checked)}
+            />
+            <span>
+              Permitir solicitações de corrida no portal
+              <span className="mt-0.5 block text-xs text-slate-500">
+                Desactivado = modo consulta (utilizadores só visualizam corridas e dados).
+              </span>
+            </span>
+          </label>
+        </fieldset>
         {clientId && form.type === "PJ" ? (
           <>
             <ClientPricingServicesSection clientId={clientId} disabled={busy} />
@@ -477,6 +497,7 @@ export function clientRowToForm(row: {
   notes?: string | null;
   registry_status?: string | null;
   active?: boolean;
+  portal_requests_enabled?: boolean;
   service_types?: string[] | null;
 }): ClientFormValues {
   return {
@@ -494,6 +515,7 @@ export function clientRowToForm(row: {
     notes: row.notes ?? "",
     registry_status: row.registry_status ?? "",
     active: row.active !== false,
+    portal_requests_enabled: row.portal_requests_enabled === true,
     service_types: (row.service_types ?? []).filter((id): id is ClientServiceTypeId =>
       CLIENT_SERVICE_TYPE_OPTIONS.some((o) => o.id === id)
     )

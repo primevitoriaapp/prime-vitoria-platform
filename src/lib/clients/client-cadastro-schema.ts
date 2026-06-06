@@ -16,6 +16,7 @@ export const clientCadastroSchema = z.object({
   notes: z.string().optional().nullable(),
   registry_status: z.string().optional().nullable(),
   active: z.boolean().optional(),
+  portal_requests_enabled: z.boolean().optional(),
   service_types: z.array(z.string()).optional()
 });
 
@@ -43,6 +44,7 @@ export function normalizeClientBody(body: ClientCadastroInput) {
     notes: emptyToNull(body.notes ?? undefined),
     registry_status: emptyToNull(body.registry_status ?? undefined),
     active: body.active,
+    portal_requests_enabled: body.portal_requests_enabled,
     ...(body.type === "PJ" ? { service_types } : {})
   };
 }
@@ -69,5 +71,8 @@ export function normalizeClientPatch(body: Partial<ClientCadastroInput>) {
     out.service_types = normalizeServiceTypes(body.service_types);
   }
   if (body.active !== undefined) out.active = body.active;
+  if (body.portal_requests_enabled !== undefined) {
+    out.portal_requests_enabled = body.portal_requests_enabled;
+  }
   return out;
 }
