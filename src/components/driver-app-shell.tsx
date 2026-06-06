@@ -7,7 +7,7 @@ import { DriverOffersPanel } from "@/components/driver-offers-panel";
 import { DriverOperationalStatusPanel } from "@/components/driver-operational-status-panel";
 import { DriverPayablesPanel } from "@/components/driver-payables-panel";
 import { DriverPushRegister } from "@/components/driver-push-register";
-import { DriverPushStatusBanner } from "@/components/driver-push-status-banner";
+import { readFirebaseWebConfig } from "@/lib/firebase/messaging-config";
 import { DriverTripDeepLink } from "@/components/driver-trip-deep-link";
 import { DriverTripsPanel } from "@/components/driver-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
@@ -61,6 +61,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
 
   const devRole = mode === "admin" ? "admin" : "motorista";
   const driverKey = selectedDriverId ?? "none";
+  const firebaseWebConfigured = Boolean(readFirebaseWebConfig());
 
   return (
     <div className="driver-theme min-h-screen bg-[#1A1A1A] text-[#F5F5F5]">
@@ -98,10 +99,6 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         ) : null}
 
         <StagingSmokeHints variant="light" />
-        <DriverPushStatusBanner
-          driverId={mode === "admin" ? selectedDriverId : sessionDriverId}
-          devFallbackRole={devRole}
-        />
         <DriverTripDeepLink />
 
         <section id="corridas">
@@ -143,7 +140,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           </div>
         </section>
 
-        {mode === "motorista" ? (
+        {mode === "motorista" && firebaseWebConfigured ? (
           <>
             <section id="perfil">
               <DriverProfilePanel devFallbackRole={devRole} />
@@ -155,6 +152,10 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
               </div>
             </section>
           </>
+        ) : mode === "motorista" ? (
+          <section id="perfil">
+            <DriverProfilePanel devFallbackRole={devRole} />
+          </section>
         ) : null}
 
         {mode === "admin" ? (

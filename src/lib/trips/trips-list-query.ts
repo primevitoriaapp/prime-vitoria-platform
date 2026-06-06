@@ -19,7 +19,9 @@ export const tripsListQuerySchema = z.object({
   agenda: z
     .string()
     .optional()
-    .transform((v) => v === "1" || v === "true")
+    .transform((v) => v === "1" || v === "true"),
+  /** Ordenação por scheduled_at (portal cliente usa desc para histórico recente). */
+  sortDir: z.enum(["asc", "desc"]).optional().default("asc")
 });
 
 export type TripsListQuery = z.infer<typeof tripsListQuerySchema>;

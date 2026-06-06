@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { useCallback, useEffect, useState } from "react";
+import { buildAgendaTripHref } from "@/lib/operations/agenda-trip-href";
 import { DateInput } from "@/components/date-input";
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
@@ -237,7 +239,10 @@ export function OperationalHistoryPanel({ devFallbackRole = "operador", days = 1
                         : ""}
                   </p>
                 </div>
-                <Link href={`/agenda?trip=${row.id}`} className="text-sm font-medium text-amber-700 hover:underline">
+                <Link
+                  href={`${buildAgendaTripHref(row.id, row.scheduled_at)}#trip-detail` as Route}
+                  className="text-sm font-medium text-amber-700 hover:underline"
+                >
                   Detalhe
                 </Link>
               </li>

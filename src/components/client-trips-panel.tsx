@@ -48,7 +48,7 @@ export function ClientTripsPanel({
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     setLoadError(null);
-    const params = new URLSearchParams({ page: "1", pageSize: "50" });
+    const params = new URLSearchParams({ page: "1", pageSize: "100", sortDir: "desc" });
     if (clientIdOverride) params.set("clientId", clientIdOverride);
     const res = await fetchWithSupabaseSession(`/api/trips?${params}`, {}, devFallbackRole);
     const json = (await res.json()) as {
@@ -103,7 +103,7 @@ export function ClientTripsPanel({
 
   const visible = useMemo(() => {
     const sorted = [...trips].sort(
-      (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+      (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
     );
     if (filter === "active") {
       return sorted.filter((t) => EM_ANDAMENTO.includes(t.operational_status));

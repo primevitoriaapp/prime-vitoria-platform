@@ -2,6 +2,7 @@ import { z } from "zod";
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { BackButton } from "@/components/back-button";
 import { AgendaDateRangeForm } from "@/components/agenda-date-range-form";
+import { AgendaTripDetailAnchor } from "@/components/agenda-trip-detail-anchor";
 import { OperationalHistoryPanel } from "@/components/operational-history-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
@@ -136,7 +137,8 @@ export default async function AgendaPage({
         />
       </section>
       {focusTripId ? (
-        <div className="mt-8 space-y-3">
+        <div id="trip-detail" className="mt-8 scroll-mt-6 space-y-3">
+          <AgendaTripDetailAnchor tripId={focusTripId} />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-3">
               <BackButton

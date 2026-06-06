@@ -30,16 +30,18 @@ export type TripsListResult = {
 
 function mergeTripsOutsideDateRange(
   merged: TripDbRow[],
-  outsideRows: TripDbRow[] | null
+  outsideRows: TripDbRow[] | null,
+  sortAscending: boolean
 ): TripDbRow[] {
   const byId = new Map(merged.map((row) => [row.id as string, row]));
   for (const row of outsideRows ?? []) {
     byId.set(row.id as string, row);
   }
-  return [...byId.values()].sort(
-    (a, b) =>
-      new Date(a.scheduled_at as string).getTime() - new Date(b.scheduled_at as string).getTime()
-  );
+  return [...byId.values()].sort((a, b) => {
+    const ta = new Date(a.scheduled_at as string).getTime();
+    const tb = new Date(b.scheduled_at as string).getTime();
+    return sortAscending ? ta - tb : tb - ta;
+  });
 }
 
 async function fetchAllRequestedTrips(tenantId: string): Promise<TripDbRow[]> {
@@ -118,8 +120,8 @@ export async function listTripsForSession(
     req = req.in("operational_status", [...AGENDA_OPERATIONAL_STATUSES]);
   }
 
-  req = req.order("scheduled_at", { ascending: true });
-  req = agendaMode ? req.limit(listLimit) : req.range(from, to);
+  const sortAscending = query.sortDir !== "desc";
+  req = req.order("scheduled_at", { ascending: sortAscending });
 
   if (can(session, "trip.read")) {
     assertCapability(session, "trip.read");
@@ -189,7 +191,7 @@ export async function listTripsForSession(
 
     if (agendaMode) {
       const requestedRows = await fetchAllRequestedTrips(tenantId);
-      merged = mergeTripsOutsideDateRange(merged, requestedRows);
+      merged = mergeTripsOutsideDateRange(merged, requestedRows, sortAscending);
     }
 
     if (scheduledFromIso && scheduledToIso) {
@@ -203,7 +205,7 @@ export async function listTripsForSession(
           scheduledFromIso,
           scheduledToIso
         );
-        merged = mergeTripsOutsideDateRange(merged, outsideRows);
+        merged = mergeTripsOutsideDateRange(merged, outsideRows, sortAscending);
       }
     } else if (scheduledFromIso) {
       const { data: openRows } = await db
@@ -212,9 +214,9 @@ export async function listTripsForSession(
         .eq("tenant_id", tenantId)
         .in("operational_status", [...statuses])
         .lt("scheduled_at", scheduledFromIso)
-        .order("scheduled_at", { ascending: true })
+        .order("scheduled_at", { ascending: sortAscending })
         .limit(500);
-      merged = mergeTripsOutsideDateRange(merged, (openRows ?? []) as TripDbRow[]);
+      merged = mergeTripsOutsideDateRange(merged, (openRows ?? []) as TripDbRow[], sortAscending);
     } else if (scheduledToIso) {
       const { data: openRows } = await db
         .from("trips")
@@ -222,9 +224,9 @@ export async function listTripsForSession(
         .eq("tenant_id", tenantId)
         .in("operational_status", [...statuses])
         .gt("scheduled_at", scheduledToIso)
-        .order("scheduled_at", { ascending: true })
+        .order("scheduled_at", { ascending: sortAscending })
         .limit(500);
-      merged = mergeTripsOutsideDateRange(merged, (openRows ?? []) as TripDbRow[]);
+      merged = mergeTripsOutsideDateRange(merged, (openRows ?? []) as TripDbRow[], sortAscending);
     }
   }
 

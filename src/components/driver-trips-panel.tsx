@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatBrDateTime, formatBrTime } from "@/lib/dates/br-date";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { clearDriverTabAlertBadge, notifyDriverNewAssignment } from "@/lib/client/driver-alert-notify";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
@@ -379,6 +379,14 @@ export function DriverTripsPanel({
   );
 }
 
+function formatTripScheduleLabel(scheduledAt: string | null | undefined): string {
+  if (!scheduledAt?.trim()) return "Horário a definir";
+  const full = formatBrDateTime(scheduledAt);
+  if (full) return full;
+  const d = new Date(scheduledAt);
+  return Number.isNaN(d.getTime()) ? "Horário a definir" : formatBrDateTime(d.toISOString());
+}
+
 function DriverTripScheduleRow({
   trip,
   position,
@@ -390,7 +398,7 @@ function DriverTripScheduleRow({
   isFocus: boolean;
   waitLabel: string | null;
 }) {
-  const timeLabel = formatBrTime(trip.scheduled_at) || formatBrDateTime(trip.scheduled_at);
+  const scheduleLabel = formatTripScheduleLabel(trip.scheduled_at);
   const passenger = trip.passenger_name?.trim() || "Passageiro";
   const origin = trip.origin_text?.trim() || "Origem";
   const destination = trip.destination_text?.trim() || "Destino";
@@ -407,7 +415,7 @@ function DriverTripScheduleRow({
         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-slate-200">
           {position}
         </span>
-        <span className="font-mono text-sm font-semibold text-white">{timeLabel}</span>
+        <span className="font-mono text-sm font-semibold text-white">{scheduleLabel}</span>
         <StatusBadge status={trip.operational_status} />
         <TripLegLabelBadge label={trip.trip_leg_label} />
         {isFocus ? <span className="text-[10px] font-semibold uppercase tracking-wide text-prime-gold">Em foco</span> : null}
@@ -451,7 +459,7 @@ function CompactActiveTripCard({
       lng: trip.origin_lng,
       label: trip.origin_text
     })[0];
-  const timeLabel = formatBrTime(trip.scheduled_at) || formatBrDateTime(trip.scheduled_at);
+  const scheduleLabel = formatTripScheduleLabel(trip.scheduled_at);
 
   return (
     <li
@@ -459,7 +467,7 @@ function CompactActiveTripCard({
       className="prime-driver-card p-3"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-sm font-semibold text-prime-gold">{timeLabel}</span>
+        <span className="font-mono text-sm font-semibold text-prime-gold">{scheduleLabel}</span>
         <StatusBadge status={trip.operational_status} />
         <TripLegLabelBadge label={trip.trip_leg_label} />
       </div>
