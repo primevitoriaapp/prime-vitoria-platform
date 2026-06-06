@@ -1,7 +1,7 @@
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { shortPlaceLabel } from "@/lib/trips/format-place-label";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
-import { sendOperationalEmail } from "@/lib/notifications/send-email";
+import { sendOperationalEmail, DEFAULT_OPERATIONAL_EMAIL_FROM } from "@/lib/notifications/send-email";
 import { resolveAppBaseUrl } from "@/lib/server/app-base-url";
 
 export const PORTAL_OPS_INBOX = "contato@primevitoria.com";
@@ -54,11 +54,27 @@ export async function notifyPortalTripRequestedEmail(
     <p style="font-size:12px;color:#666">ID: ${escapeHtml(input.tripId)}</p>
   `.trim();
 
+  console.info("[portal.trip_request_email] preparando envio", {
+    tripId: input.tripId,
+    to: PORTAL_OPS_INBOX,
+    from: DEFAULT_OPERATIONAL_EMAIL_FROM,
+    resendApiKeyDefined: process.env.RESEND_API_KEY !== undefined,
+    resendApiKeyLength: process.env.RESEND_API_KEY?.trim().length ?? 0
+  });
+
   const result = await sendOperationalEmail({
     to: PORTAL_OPS_INBOX,
     subject,
     text,
-    html
+    html,
+    from: DEFAULT_OPERATIONAL_EMAIL_FROM
+  });
+
+  console.info("[portal.trip_request_email] resultado", {
+    tripId: input.tripId,
+    sent: result.ok,
+    reason: result.ok ? undefined : result.reason,
+    resendId: result.ok ? result.id : undefined
   });
 
   if (!result.ok) {
