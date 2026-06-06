@@ -22,7 +22,7 @@ import { listTripsForSession } from "@/lib/trips/list-trips-for-session";
 import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
 import { assertClientMayUsePortalWrites } from "@/lib/clients/client-portal-access";
 import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
-import { notifyPortalTripRequestedEmail } from "@/lib/notifications/portal-trip-request-email";
+import { notifyPortalTripRequestedEmail, enqueuePortalTripRequestedEmailJob } from "@/lib/notifications/portal-trip-request-email";
 import {
   initialTripApprovalFieldsForSession,
   initialTripOperationalStatusForSession
@@ -327,22 +327,28 @@ export async function POST(request: Request) {
     await notifyTripRequested(tenantId, outbound.id as string, { client_id: body.client_id });
 
     if (initialStatus === "requested") {
-      const emailResult = await notifyPortalTripRequestedEmail({
+      const emailInput = {
         clientName: String(clientRow.name ?? "Cliente"),
         serviceType: String(outbound.service_type ?? serviceType),
         scheduledAt: String(outbound.scheduled_at ?? scheduledAt),
         originText: String(outbound.origin_text ?? originText),
         destinationText: String(outbound.destination_text ?? destinationText),
         tripId: String(outbound.id)
-      });
+      };
+      const emailResult = await notifyPortalTripRequestedEmail(emailInput);
       if (!emailResult.sent) {
+        await enqueuePortalTripRequestedEmailJob(tenantId, emailInput);
         await insertAuditEvent({
           tenantId,
           actorUserId: session.userId,
           action: "notification.email_failed",
           entityType: "trip",
           entityId: outbound.id as string,
-          metadata: { channel: "portal_trip_request", reason: emailResult.reason ?? "unknown" },
+          metadata: {
+            channel: "portal_trip_request",
+            reason: emailResult.reason ?? "unknown",
+            enqueued: true
+          },
           request
         });
       }

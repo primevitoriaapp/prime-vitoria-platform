@@ -1,20 +1,20 @@
-import { brDateToEndOfDayIso, brDateToStartOfDayIso, normalizeDateFieldForStorage } from "@/lib/dates/br-date";
+import {
+  brDateToEndOfDayIso,
+  brDateToStartOfDayIso,
+  saoPauloYmdFromDate
+} from "@/lib/dates/br-date";
 
-/** Intervalo predefinido da agenda: ontem 00:00 (local) até +365 dias. */
+/** Intervalo predefinido da agenda: ontem 00:00 (Brasília) até +365 dias. */
 export function defaultAgendaRangeIso(): { fromIso: string; toIso: string } {
   const now = new Date();
-  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 365);
+  const yesterday = new Date(now.getTime() - 86_400_000);
+  const end = new Date(now.getTime() + 365 * 86_400_000);
 
-  const fromDate = normalizeDateFieldForStorage(
-    `${String(yesterday.getDate()).padStart(2, "0")}/${String(yesterday.getMonth() + 1).padStart(2, "0")}/${yesterday.getFullYear()}`
-  );
-  const toDate = normalizeDateFieldForStorage(
-    `${String(end.getDate()).padStart(2, "0")}/${String(end.getMonth() + 1).padStart(2, "0")}/${end.getFullYear()}`
-  );
+  const fromDate = saoPauloYmdFromDate(yesterday);
+  const toDate = saoPauloYmdFromDate(end);
 
   return {
-    fromIso: brDateToStartOfDayIso(fromDate!)!,
-    toIso: brDateToEndOfDayIso(toDate!)!
+    fromIso: brDateToStartOfDayIso(fromDate)!,
+    toIso: brDateToEndOfDayIso(toDate)!
   };
 }

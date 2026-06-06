@@ -7,7 +7,7 @@ import { AddressAutocompleteInput } from "@/components/address-autocomplete-inpu
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import type { CostCenterRow } from "@/lib/clients/client-cost-centers";
 import { DateTimeInput } from "@/components/datetime-input";
-import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
+import { defaultScheduledAtIso, normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
 import { primeMarginFromAmounts } from "@/lib/pricing/prime-price-estimate";
 import {
   maxPassengersForService,
@@ -42,9 +42,7 @@ type Props = {
 };
 
 function defaultScheduledIso(): string {
-  const d = new Date(Date.now() + 24 * 3600_000);
-  d.setMinutes(0, 0, 0);
-  return d.toISOString();
+  return defaultScheduledAtIso();
 }
 
 function emptyLeg(scheduledAt?: string): LegForm {

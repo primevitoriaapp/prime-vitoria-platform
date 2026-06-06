@@ -42,6 +42,26 @@ function mergeTripsOutsideDateRange(
   );
 }
 
+async function fetchAllRequestedTrips(tenantId: string): Promise<TripDbRow[]> {
+  const { data, error } = await db
+    .from("trips")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("operational_status", "requested")
+    .order("scheduled_at", { ascending: true })
+    .limit(200);
+
+  if (error) {
+    console.warn("[trips list agenda] requested fetch failed", {
+      tenantId,
+      message: error.message
+    });
+    return [];
+  }
+
+  return (data ?? []) as TripDbRow[];
+}
+
 async function fetchAgendaTripsOutsideRange(
   tenantId: string,
   statuses: readonly string[],
@@ -167,14 +187,24 @@ export async function listTripsForSession(
   if (mergeOpenStatuses && can(session, "trip.read")) {
     const statuses = agendaMode ? [...AGENDA_OPERATIONAL_STATUSES] : (["requested"] as const);
 
+    if (agendaMode) {
+      const requestedRows = await fetchAllRequestedTrips(tenantId);
+      merged = mergeTripsOutsideDateRange(merged, requestedRows);
+    }
+
     if (scheduledFromIso && scheduledToIso) {
-      const outsideRows = await fetchAgendaTripsOutsideRange(
-        tenantId,
-        statuses,
-        scheduledFromIso,
-        scheduledToIso
-      );
-      merged = mergeTripsOutsideDateRange(merged, outsideRows);
+      const outsideStatuses = agendaMode
+        ? statuses.filter((status) => status !== "requested")
+        : statuses;
+      if (outsideStatuses.length > 0) {
+        const outsideRows = await fetchAgendaTripsOutsideRange(
+          tenantId,
+          outsideStatuses,
+          scheduledFromIso,
+          scheduledToIso
+        );
+        merged = mergeTripsOutsideDateRange(merged, outsideRows);
+      }
     } else if (scheduledFromIso) {
       const { data: openRows } = await db
         .from("trips")

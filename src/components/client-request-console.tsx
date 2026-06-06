@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { DateTimeInput } from "@/components/datetime-input";
-import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
+import { defaultScheduledAtIso, normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
 import type { EnabledServiceDto } from "@/app/api/clients/[id]/enabled-services/route";
 import type { PrimeServiceIcon } from "@/lib/pricing/prime-service-catalog";
 import { maxPassengersForService, primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
@@ -69,11 +69,7 @@ export function ClientRequestConsole({
   const [services, setServices] = useState<EnabledServiceDto[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [serviceType, setServiceType] = useState("");
-  const [scheduledAt, setScheduledAt] = useState(() => {
-    const d = new Date(Date.now() + 24 * 3600_000);
-    d.setMinutes(0, 0, 0);
-    return d.toISOString();
-  });
+  const [scheduledAt, setScheduledAt] = useState(() => defaultScheduledAtIso());
   const [origin, setOrigin] = useState("");
   const [originLat, setOriginLat] = useState<number | null>(null);
   const [originLng, setOriginLng] = useState<number | null>(null);
@@ -253,6 +249,12 @@ export function ClientRequestConsole({
     event.preventDefault();
     setLoading(true);
     setMessage(null);
+    const scheduledIso = normalizeScheduledAtForStorage(scheduledAt);
+    if (!scheduledIso) {
+      setLoading(false);
+      setMessage("Informe data e horário válidos (DD/MM/AAAA HH:mm).");
+      return;
+    }
     const response = await fetchWithSupabaseSession(
       "/api/trips",
       {
@@ -261,7 +263,7 @@ export function ClientRequestConsole({
           client_id: clientId,
           cost_center_id: costCenterId || undefined,
           service_type: serviceType,
-          scheduled_at: normalizeScheduledAtForStorage(scheduledAt) ?? scheduledAt,
+          scheduled_at: scheduledIso,
           origin_text: origin,
           origin_lat: originLat,
           origin_lng: originLng,

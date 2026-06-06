@@ -6,6 +6,7 @@ const BR_DATE_RE = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})/;
 const BR_DATETIME_RE = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/;
 const ISO_NAIVE_DATETIME_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/;
+const ISO_SPACE_DATETIME_RE = /^(\d{4}-\d{2}-\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/;
 
 const brDateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
   timeZone: SAO_PAULO_TZ,
@@ -49,6 +50,28 @@ function saoPauloLocalToUtcIso(isoDate: string, hour: number, minute: number, se
   return new Date(
     `${isoDate}T${pad(hour)}:${pad(minute)}:${pad(second)}.${pad(ms, 3)}-03:00`
   ).toISOString();
+}
+
+function saoPauloPartsFromDate(date: Date) {
+  const parts = brDateTimeFormatter.formatToParts(date);
+  const pick = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+  return {
+    day: pick("day"),
+    month: pick("month"),
+    year: pick("year"),
+    hour: pick("hour"),
+    minute: pick("minute")
+  };
+}
+
+/** Próximo agendamento padrão (amanhã, hora cheia) no fuso de Brasília. */
+export function defaultScheduledAtIso(hoursAhead = 24): string {
+  const target = new Date(Date.now() + hoursAhead * 3600_000);
+  const { year, month, day, hour } = saoPauloPartsFromDate(target);
+  const isoDate = parseBrDateToIso(`${day}/${month}/${year}`);
+  if (!isoDate) return target.toISOString();
+  return saoPauloLocalToUtcIso(isoDate, Number(hour), 0);
 }
 
 export function maskBrDateInput(raw: string): string {
@@ -164,13 +187,36 @@ export function normalizeScheduledAtForStorage(value: string | null | undefined)
     return saoPauloLocalToUtcIso(naive[1], hour, minute, second);
   }
 
+  const spaced = ISO_SPACE_DATETIME_RE.exec(t);
+  if (spaced) {
+    const hour = Number(spaced[2]);
+    const minute = Number(spaced[3]);
+    const second = spaced[4] ? Number(spaced[4]) : 0;
+    if (hour > 23 || minute > 59 || second > 59) return null;
+    return saoPauloLocalToUtcIso(spaced[1], hour, minute, second);
+  }
+
   const dateOnly = parseBrDateToIso(t);
   if (dateOnly) return saoPauloLocalToUtcIso(dateOnly, 12, 0);
 
-  const d = new Date(t);
-  if (!Number.isNaN(d.getTime())) return d.toISOString();
-
   return null;
+}
+
+/** Converte texto DD/MM/AAAA HH:mm (ou ISO) para armazenamento; evita fallback ambíguo de `Date.parse`. */
+export function resolveScheduledAtForSubmit(
+  brDateTimeText: string | null | undefined,
+  fallbackIso?: string | null
+): string | null {
+  const trimmed = brDateTimeText?.trim();
+  if (trimmed) {
+    if (trimmed.length === 16) {
+      const br = parseBrDateTimeToIso(trimmed);
+      if (br) return br;
+    }
+    const normalized = normalizeScheduledAtForStorage(trimmed);
+    if (normalized) return normalized;
+  }
+  return fallbackIso ? normalizeScheduledAtForStorage(fallbackIso) : null;
 }
 
 /** Exibe DD/MM/AAAA a partir de ISO ou YYYY-MM-DD. */

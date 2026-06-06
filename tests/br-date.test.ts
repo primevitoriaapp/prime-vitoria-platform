@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   brDateToEndOfDayIso,
   brDateToStartOfDayIso,
+  defaultScheduledAtIso,
   formatBrDate,
   formatBrDateTime,
   formatBrTime,
@@ -10,7 +11,8 @@ import {
   normalizeDateFieldForStorage,
   normalizeScheduledAtForStorage,
   parseBrDateTimeToIso,
-  parseBrDateToIso
+  parseBrDateToIso,
+  resolveScheduledAtForSubmit
 } from "../src/lib/dates/br-date.ts";
 
 test("parseBrDateToIso aceita DD/MM/AAAA", () => {
@@ -61,4 +63,19 @@ test("maskBrDateInput formata enquanto digita", () => {
 test("normalizeDateFieldForStorage unifica formatos", () => {
   assert.equal(normalizeDateFieldForStorage("15/08/1985"), "1985-08-15");
   assert.equal(normalizeDateFieldForStorage("1985-08-15"), "1985-08-15");
+});
+
+test("normalizeScheduledAtForStorage aceita YYYY-MM-DD HH:mm como Brasília", () => {
+  assert.equal(normalizeScheduledAtForStorage("2026-05-29 22:00"), "2026-05-30T01:00:00.000Z");
+});
+
+test("resolveScheduledAtForSubmit preserva ano digitado no portal", () => {
+  const iso = resolveScheduledAtForSubmit("29/05/2026 10:00");
+  assert.equal(iso, "2026-05-29T13:00:00.000Z");
+});
+
+test("defaultScheduledAtIso usa calendário de Brasília", () => {
+  const iso = defaultScheduledAtIso(24);
+  assert.match(iso, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  assert.match(formatBrDateTime(iso), /^\d{2}\/\d{2}\/\d{4} \d{2}:00$/);
 });

@@ -6,6 +6,7 @@ import type { Provider } from "../integrations/types";
 import { isPostgresUniqueViolation } from "../server/postgres-errors";
 import { insertAuditEvent } from "../server/audit-log";
 import { fcmDataFromPayload, fcmLegacyFailureIsRetryable, sendFcmLegacyDataMessage } from "../notifications/fcm-legacy";
+import { notifyPortalTripRequestedEmail } from "@/lib/notifications/portal-trip-request-email";
 import { notificationFailureUpdate } from "../notifications/job-retry";
 
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -132,6 +133,39 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
 
     if (channel === "in_app" && recipientType === "profile" && uuidRe.test(recipientId)) {
       await succeedJob();
+      continue;
+    }
+
+    if (channel === "email" && recipientType === "ops_inbox") {
+      if (eventType !== "operations.trip_requested") {
+        await failJob("UNSUPPORTED_EMAIL_EVENT", `Evento de e-mail nao suportado: ${eventType}`, {
+          retryable: false
+        });
+        continue;
+      }
+
+      const tripId = String(payload.tripId ?? "");
+      if (!tripId) {
+        await failJob("MISSING_TRIP_ID", "tripId ausente no payload de e-mail", { retryable: false });
+        continue;
+      }
+
+      const result = await notifyPortalTripRequestedEmail({
+        tripId,
+        clientName: String(payload.clientName ?? "Cliente"),
+        serviceType: String(payload.serviceType ?? ""),
+        scheduledAt: String(payload.scheduledAt ?? ""),
+        originText: String(payload.originText ?? ""),
+        destinationText: String(payload.destinationText ?? "")
+      });
+
+      if (result.sent) {
+        await succeedJob();
+      } else {
+        const reason = result.reason ?? "EMAIL_SEND_FAILED";
+        const retryable = reason !== "RESEND_API_KEY nao configurado";
+        await failJob(reason, reason, { retryable });
+      }
       continue;
     }
 

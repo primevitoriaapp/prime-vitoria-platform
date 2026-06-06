@@ -4,7 +4,8 @@ import { useEffect, useId, useState } from "react";
 import {
   isoToBrDateTimeInput,
   maskBrDateTimeInput,
-  parseBrDateTimeToIso
+  parseBrDateTimeToIso,
+  resolveScheduledAtForSubmit
 } from "@/lib/dates/br-date";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
@@ -34,6 +35,17 @@ export function DateTimeInput({
   useEffect(() => {
     setText(isoToBrDateTimeInput(value));
   }, [value]);
+
+  function commitParsed(nextText: string, fallbackIso?: string | null) {
+    const masked = maskBrDateTimeInput(nextText);
+    setText(masked);
+    if (!masked.trim()) {
+      onChange(null);
+      return;
+    }
+    const iso = resolveScheduledAtForSubmit(masked, fallbackIso);
+    if (iso) onChange(iso);
+  }
 
   function commit(next: string) {
     const masked = maskBrDateTimeInput(next);
@@ -65,12 +77,22 @@ export function DateTimeInput({
           onChange(null);
           return;
         }
-        const iso = parseBrDateTimeToIso(text);
+        const iso = resolveScheduledAtForSubmit(text, value);
         if (iso) {
           setText(isoToBrDateTimeInput(iso));
           onChange(iso);
+          return;
         }
+        setText(isoToBrDateTimeInput(value));
       }}
     />
   );
+}
+
+/** Valor ISO pronto para POST /api/trips a partir do texto visível no campo. */
+export function scheduledAtIsoFromDateTimeInput(
+  text: string,
+  fallbackIso?: string | null
+): string | null {
+  return resolveScheduledAtForSubmit(text, fallbackIso);
 }
