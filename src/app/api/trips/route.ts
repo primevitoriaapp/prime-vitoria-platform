@@ -23,7 +23,12 @@ import { AGENDA_OPERATIONAL_STATUSES } from "@/lib/operations/agenda-trip-status
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 import { resolveCostCenterScopeForEmail } from "@/lib/clients/client-cost-centers";
 import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
+import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
 import { notifyPortalTripRequestedEmail } from "@/lib/notifications/portal-trip-request-email";
+import {
+  initialTripApprovalFields,
+  initialTripOperationalStatus
+} from "@/lib/trips/initial-trip-status";
 
 const coordSchema = z.union([z.number(), z.string()]).optional().nullable().transform((v) => {
   if (v === null || v === undefined || v === "") return null;
@@ -127,11 +132,9 @@ export async function POST(request: Request) {
     const legTotals = legs?.length ? sumLegAmounts(legs) : null;
     const legScheduleIso = legs?.length ? firstLegScheduledAtIso(legs) : null;
     const scheduledAt =
-      legScheduleIso ??
-      (() => {
-        const d = new Date(body.scheduled_at);
-        return Number.isFinite(d.getTime()) ? d.toISOString() : body.scheduled_at;
-      })();
+      legScheduleIso ?? normalizeScheduledAtForStorage(body.scheduled_at) ?? body.scheduled_at;
+    const initialStatus = initialTripOperationalStatus(session.role);
+    const approvalFields = initialTripApprovalFields(session.role, session.userId);
 
     const serviceType = resolvePricingServiceType(uiServiceType, scheduledAt);
     const maxPassengers = maxPassengersForService(uiServiceType);
@@ -192,7 +195,8 @@ export async function POST(request: Request) {
         margin,
         tenant_id: tenantId,
         created_by: session.userId,
-        operational_status: "requested"
+        operational_status: initialStatus,
+        ...approvalFields
       })
       .select("*")
       .single();
@@ -220,10 +224,8 @@ export async function POST(request: Request) {
     await upsertTripFinancials(outbound.id as string);
 
     if (body.round_trip && body.return_scheduled_at && !legs?.length) {
-      const returnScheduled = (() => {
-        const d = new Date(body.return_scheduled_at);
-        return Number.isFinite(d.getTime()) ? d.toISOString() : body.return_scheduled_at;
-      })();
+      const returnScheduled =
+        normalizeScheduledAtForStorage(body.return_scheduled_at) ?? body.return_scheduled_at;
 
       if (new Date(returnScheduled).getTime() <= new Date(scheduledAt).getTime()) {
         await db.from("trips").delete().eq("id", outbound.id);
@@ -254,7 +256,8 @@ export async function POST(request: Request) {
           margin,
           tenant_id: tenantId,
           created_by: session.userId,
-          operational_status: "requested",
+          operational_status: initialStatus,
+          ...approvalFields,
           trip_leg_label: "volta"
         })
         .select("*")

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { StatusBadge } from "@/components/status-badge";
 import type { TripOperationalStatus } from "@/lib/domain/types";
+import { formatBrTime, tripAgendaDateGroup } from "@/lib/dates/br-date";
 import { formatRouteShort } from "@/lib/trips/format-place-label";
 import type { TripRow } from "@/components/trip-table";
 
@@ -31,27 +32,6 @@ function fmtMoney(n: number | null | undefined) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "—";
-  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-}
-
-function tripDateGroup(scheduledAt: string): DateGroup {
-  const d = new Date(scheduledAt);
-  const now = new Date();
-  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startTomorrow = new Date(startToday);
-  startTomorrow.setDate(startTomorrow.getDate() + 1);
-  const startAfterTomorrow = new Date(startTomorrow);
-  startAfterTomorrow.setDate(startAfterTomorrow.getDate() + 1);
-
-  if (d < startToday) return "overdue";
-  if (d >= startToday && d < startTomorrow) return "today";
-  if (d >= startTomorrow && d < startAfterTomorrow) return "tomorrow";
-  return "upcoming";
-}
-
 function groupTrips(trips: TripRow[]): Map<DateGroup, TripRow[]> {
   const sorted = [...trips].sort((a, b) => {
     const sa = STATUS_SORT[a.operational_status] ?? 50;
@@ -62,7 +42,7 @@ function groupTrips(trips: TripRow[]): Map<DateGroup, TripRow[]> {
   const map = new Map<DateGroup, TripRow[]>();
   for (const g of GROUP_ORDER) map.set(g, []);
   for (const trip of sorted) {
-    const g = tripDateGroup(trip.scheduled_at);
+    const g = tripAgendaDateGroup(trip.scheduled_at);
     map.get(g)!.push(trip);
   }
   return map;
@@ -113,7 +93,7 @@ export function AgendaTripsList({ trips, operatorNotesHref }: Props) {
                             dateTime={trip.scheduled_at}
                             className="text-lg font-semibold tabular-nums text-slate-900"
                           >
-                            {formatTime(trip.scheduled_at)}
+                            {formatBrTime(trip.scheduled_at)}
                           </time>
                           <StatusBadge status={trip.operational_status} />
                         </div>

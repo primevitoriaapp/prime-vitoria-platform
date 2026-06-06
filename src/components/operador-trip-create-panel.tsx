@@ -7,7 +7,7 @@ import { AddressAutocompleteInput } from "@/components/address-autocomplete-inpu
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import type { CostCenterRow } from "@/lib/clients/client-cost-centers";
 import { DateTimeInput } from "@/components/datetime-input";
-import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
+import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
 import { primeMarginFromAmounts } from "@/lib/pricing/prime-price-estimate";
 import {
   maxPassengersForService,
@@ -145,7 +145,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     setEstimateBusy(true);
     try {
       const scheduledIso =
-        parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString();
+        normalizeScheduledAtForStorage(form.scheduled_at) ?? form.scheduled_at;
       const res = await fetchWithSupabaseSession(
         "/api/pricing/estimate-trip",
         {
@@ -247,9 +247,9 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
 
     if (roundTrip && !multiLeg) {
       const returnIso =
-        parseBrDateTimeToIso(form.return_scheduled_at) ?? new Date(form.return_scheduled_at).toISOString();
+        normalizeScheduledAtForStorage(form.return_scheduled_at) ?? form.return_scheduled_at;
       const outboundIso =
-        parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString();
+        normalizeScheduledAtForStorage(form.scheduled_at) ?? form.scheduled_at;
       if (!returnIso || !Number.isFinite(new Date(returnIso).getTime())) {
         setMessage("Informe horário de retorno válido.");
         return;
@@ -264,8 +264,8 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
       for (let i = 0; i < legs.length; i++) {
         const iso =
           i === 0
-            ? parseBrDateTimeToIso(form.scheduled_at) ?? form.scheduled_at
-            : parseBrDateTimeToIso(legs[i].scheduled_at) ?? legs[i].scheduled_at;
+            ? normalizeScheduledAtForStorage(form.scheduled_at) ?? form.scheduled_at
+            : normalizeScheduledAtForStorage(legs[i].scheduled_at) ?? legs[i].scheduled_at;
         if (!iso || !Number.isFinite(new Date(iso).getTime())) {
           setMessage(`Informe data e hora válidas no trecho ${i + 1}.`);
           return;
@@ -277,12 +277,11 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     setMessage(null);
     try {
       const scheduled_at = multiLeg
-        ? (parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString())
-        : (parseBrDateTimeToIso(form.scheduled_at) ?? new Date(form.scheduled_at).toISOString());
+        ? (normalizeScheduledAtForStorage(form.scheduled_at) ?? form.scheduled_at)
+        : (normalizeScheduledAtForStorage(form.scheduled_at) ?? form.scheduled_at);
       const return_scheduled_at =
         roundTrip && !multiLeg
-          ? (parseBrDateTimeToIso(form.return_scheduled_at) ??
-            new Date(form.return_scheduled_at).toISOString())
+          ? (normalizeScheduledAtForStorage(form.return_scheduled_at) ?? form.return_scheduled_at)
           : undefined;
       const client_amount = totals.client;
       const driver_amount = totals.driver;
@@ -293,8 +292,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             const legSchedule =
               idx === 0
                 ? scheduled_at
-                : (parseBrDateTimeToIso(l.scheduled_at) ??
-                  new Date(l.scheduled_at).toISOString());
+                : (normalizeScheduledAtForStorage(l.scheduled_at) ?? l.scheduled_at);
             return {
               origin_text: l.origin_text,
               destination_text: l.destination_text,

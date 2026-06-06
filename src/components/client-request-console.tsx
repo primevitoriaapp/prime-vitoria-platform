@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { DateTimeInput } from "@/components/datetime-input";
-import { parseBrDateTimeToIso } from "@/lib/dates/br-date";
+import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
 import type { EnabledServiceDto } from "@/app/api/clients/[id]/enabled-services/route";
 import type { PrimeServiceIcon } from "@/lib/pricing/prime-service-catalog";
 import { maxPassengersForService, primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
@@ -170,7 +170,7 @@ export function ClientRequestConsole({
       void (async () => {
         setEstimateBusy(true);
         const scheduledIso =
-          parseBrDateTimeToIso(scheduledAt) ?? new Date(scheduledAt).toISOString();
+          normalizeScheduledAtForStorage(scheduledAt) ?? scheduledAt;
         const res = await fetchWithSupabaseSession(
           "/api/pricing/estimate-trip",
           {
@@ -261,7 +261,7 @@ export function ClientRequestConsole({
           client_id: clientId,
           cost_center_id: costCenterId || undefined,
           service_type: serviceType,
-          scheduled_at: parseBrDateTimeToIso(scheduledAt) ?? new Date(scheduledAt).toISOString(),
+          scheduled_at: normalizeScheduledAtForStorage(scheduledAt) ?? scheduledAt,
           origin_text: origin,
           origin_lat: originLat,
           origin_lng: originLng,

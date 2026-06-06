@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  brDateToEndOfDayIso,
+  brDateToStartOfDayIso,
   formatBrDate,
   formatBrDateTime,
+  formatBrTime,
   maskBrDateInput,
   normalizeDateFieldForStorage,
+  normalizeScheduledAtForStorage,
   parseBrDateTimeToIso,
   parseBrDateToIso
 } from "../src/lib/dates/br-date.ts";
@@ -25,10 +29,29 @@ test("formatBrDate exibe DD/MM/AAAA", () => {
   assert.equal(formatBrDate("1990-05-29"), "29/05/1990");
 });
 
-test("parseBrDateTimeToIso converte para ISO", () => {
-  const iso = parseBrDateTimeToIso("29/05/2026 14:30");
-  assert.ok(iso);
-  assert.match(iso!, /2026-05-29/);
+test("parseBrDateTimeToIso interpreta horário como Brasília (UTC-3)", () => {
+  const iso = parseBrDateTimeToIso("29/05/2026 22:00");
+  assert.equal(iso, "2026-05-30T01:00:00.000Z");
+});
+
+test("formatBrDateTime exibe em America/Sao_Paulo", () => {
+  assert.equal(formatBrDateTime("2026-05-30T01:00:00.000Z"), "29/05/2026 22:00");
+});
+
+test("formatBrTime exibe hora em America/Sao_Paulo", () => {
+  assert.equal(formatBrTime("2026-05-30T01:00:00.000Z"), "22:00");
+});
+
+test("normalizeScheduledAtForStorage trata ISO sem offset como Brasília", () => {
+  assert.equal(normalizeScheduledAtForStorage("2026-05-29T22:00:00"), "2026-05-30T01:00:00.000Z");
+});
+
+test("brDateToStartOfDayIso usa início do dia em Brasília", () => {
+  assert.equal(brDateToStartOfDayIso("29/05/2026"), "2026-05-29T03:00:00.000Z");
+});
+
+test("brDateToEndOfDayIso usa fim do dia em Brasília", () => {
+  assert.equal(brDateToEndOfDayIso("29/05/2026"), "2026-05-30T02:59:59.999Z");
 });
 
 test("maskBrDateInput formata enquanto digita", () => {
@@ -38,9 +61,4 @@ test("maskBrDateInput formata enquanto digita", () => {
 test("normalizeDateFieldForStorage unifica formatos", () => {
   assert.equal(normalizeDateFieldForStorage("15/08/1985"), "1985-08-15");
   assert.equal(normalizeDateFieldForStorage("1985-08-15"), "1985-08-15");
-});
-
-test("formatBrDateTime exibe data e hora brasileiras", () => {
-  const label = formatBrDateTime("2026-05-29T14:30:00.000Z");
-  assert.match(label, /^29\/05\/2026 \d{2}:\d{2}$/);
 });

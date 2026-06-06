@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
 
 export const tripLegSchema = z.object({
   origin_text: z.string().min(2),
@@ -41,6 +42,5 @@ export function legScheduledAtRange(legs: TripLeg[]): { from: string; to: string
 export function firstLegScheduledAtIso(legs: TripLeg[]): string | null {
   const t = legs[0]?.scheduled_at?.trim();
   if (!t) return null;
-  const d = new Date(t);
-  return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  return normalizeScheduledAtForStorage(t);
 }

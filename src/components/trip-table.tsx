@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { StatusBadge } from "@/components/status-badge";
 import type { DispatchMode, TripOperationalStatus } from "@/lib/domain/types";
 import { MODO_DESPACHO_PT } from "@/lib/i18n/pt-br";
+import { formatBrDateTime } from "@/lib/dates/br-date";
 import { formatRouteShort } from "@/lib/trips/format-place-label";
 
 export interface TripRow {
@@ -26,18 +27,6 @@ type TripTableProps = {
   trips: TripRow[];
   operatorNotesHref?: (tripId: string) => string;
 };
-
-function formatSchedule(iso: string): string {
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "—";
-  return d.toLocaleString("pt-BR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
 
 function labelModoDespacho(mode: string): string {
   return mode in MODO_DESPACHO_PT ? MODO_DESPACHO_PT[mode as DispatchMode] : mode;
@@ -66,7 +55,7 @@ export function TripTable({ trips, operatorNotesHref }: TripTableProps) {
                 dateTime={trip.scheduled_at}
                 className="text-base font-semibold tabular-nums text-slate-900"
               >
-                {formatSchedule(trip.scheduled_at)}
+                {formatBrDateTime(trip.scheduled_at)}
               </time>
               <StatusBadge status={trip.operational_status} />
             </div>
