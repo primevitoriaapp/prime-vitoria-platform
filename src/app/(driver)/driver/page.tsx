@@ -30,7 +30,7 @@ export default async function DriverPage() {
           <h1 className="mt-2 text-2xl font-semibold text-white">App motorista</h1>
           {isGuest ? (
             <p className="mt-4 text-sm text-slate-400">
-              Entre com conta motorista ou admin para testar o fluxo completo.
+              Use CPF e PIN de 4 dígitos (definido pelo operador) ou conta admin para preview.
             </p>
           ) : (
             <p className="mt-4 text-sm text-amber-200/90">
@@ -40,10 +40,10 @@ export default async function DriverPage() {
           )}
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
-              href="/login?next=/driver"
+              href="/driver/login"
               className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-amber-400"
             >
-              {isGuest ? "Entrar" : "Trocar conta"}
+              {isGuest ? "Entrar com CPF + PIN" : "Trocar conta"}
             </Link>
             {!isGuest ? (
               <Link href="/dashboard" className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200">

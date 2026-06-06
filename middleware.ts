@@ -45,11 +45,20 @@ export async function middleware(request: NextRequest) {
   const accept = request.headers.get("accept") ?? "";
   const wantsHtml = accept.includes("text/html");
 
+  if (pathname === "/driver/login" || pathname.startsWith("/driver/login/")) {
+    if (role === "motorista" && wantsHtml) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/driver";
+      return NextResponse.redirect(url);
+    }
+    return response;
+  }
+
   for (const entry of protectedPrefixes) {
     if (pathname.startsWith(entry.prefix) && !entry.allowedRoles.includes(role)) {
       if (wantsHtml) {
         const url = request.nextUrl.clone();
-        url.pathname = "/login";
+        url.pathname = entry.prefix === "/driver" ? "/driver/login" : "/login";
         url.searchParams.set("next", pathname);
         return NextResponse.redirect(url);
       }

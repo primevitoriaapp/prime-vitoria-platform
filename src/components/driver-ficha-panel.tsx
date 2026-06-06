@@ -72,6 +72,7 @@ export type DriverDetail = {
   payout_price_per_km?: number | null;
   payout_percent?: number | null;
   profile_phone?: string | null;
+  has_pin?: boolean;
   linked_vehicles: LinkedVehicle[];
 };
 
@@ -157,6 +158,8 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
   const [cepBusy, setCepBusy] = useState(false);
   const [linkVehicleId, setLinkVehicleId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [pinInput, setPinInput] = useState("");
+  const [pinBusy, setPinBusy] = useState(false);
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -266,6 +269,51 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       setFeedback({ kind: "error", message: "Falha na consulta CEP. Preencha manualmente." });
     } finally {
       setCepBusy(false);
+    }
+  }
+
+  async function saveDriverPin(clear = false) {
+    if (!detail) return;
+    if (!clear && !/^\d{4}$/.test(pinInput)) {
+      setFeedback({ kind: "error", message: "PIN deve ter exatamente 4 dígitos numéricos." });
+      return;
+    }
+    setPinBusy(true);
+    setFeedback(null);
+    try {
+      const res = await fetchWithSupabaseSession(
+        `/api/drivers/${detail.id}/pin`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ pin: clear ? null : pinInput })
+        },
+        "admin"
+      );
+      const json = await parseApiResponse(res);
+      if (!res.ok || !json.success) {
+        setFeedback({
+          kind: "error",
+          code: json.error?.code,
+          message: json.error?.message ?? "Não foi possível guardar o PIN.",
+          hint: json.error?.hint
+        });
+        return;
+      }
+      setPinInput("");
+      setDetail((d) => (d ? { ...d, has_pin: !clear } : d));
+      setFeedback({
+        kind: "success",
+        message: clear
+          ? "PIN removido. O motorista não consegue entrar até definir um novo PIN."
+          : "PIN definido. O motorista pode entrar em /driver/login com CPF + PIN."
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Erro ao guardar PIN."
+      });
+    } finally {
+      setPinBusy(false);
     }
   }
 
@@ -635,6 +683,54 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
               onChange={(e) => patchDetail("email", e.target.value)}
             />
           </label>
+        </fieldset>
+
+        <fieldset className="grid gap-3 md:grid-cols-2">
+          <legend className="mb-2 text-sm font-semibold text-slate-800 md:col-span-2">Acesso ao app motorista</legend>
+          <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-3 text-sm text-amber-950">
+            <p>
+              O motorista entra em{" "}
+              <strong className="font-mono text-xs">/driver/login</strong> com CPF e PIN de 4 dígitos — sem e-mail.
+            </p>
+            <p className="mt-2">
+              Estado:{" "}
+              <strong>{detail.has_pin ? "PIN configurado" : "PIN ainda não definido"}</strong>
+            </p>
+          </div>
+          <label className="grid gap-1 text-sm md:col-span-2">
+            <span>Novo PIN (4 dígitos)</span>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              pattern="\d{4}"
+              className={inputClass}
+              value={pinInput}
+              disabled={pinBusy || busy}
+              placeholder="Ex.: 1234"
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            />
+          </label>
+          <div className="flex flex-wrap gap-2 md:col-span-2">
+            <button
+              type="button"
+              disabled={pinBusy || busy || pinInput.length !== 4}
+              onClick={() => void saveDriverPin(false)}
+              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {pinBusy ? "A guardar…" : "Definir PIN"}
+            </button>
+            {detail.has_pin ? (
+              <button
+                type="button"
+                disabled={pinBusy || busy}
+                onClick={() => void saveDriverPin(true)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Remover PIN
+              </button>
+            ) : null}
+          </div>
         </fieldset>
 
         <fieldset className="grid gap-3 md:grid-cols-2">

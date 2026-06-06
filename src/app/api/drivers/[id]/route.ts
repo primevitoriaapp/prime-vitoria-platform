@@ -61,7 +61,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       phone: driver.phone ?? profilePhone ?? null,
       photo_url,
       default_vehicle,
-      linked_vehicles
+      linked_vehicles,
+      has_pin: Boolean((driver as { pin_hash?: string | null }).pin_hash)
     });
   } catch (error) {
     return mapApiError(error);

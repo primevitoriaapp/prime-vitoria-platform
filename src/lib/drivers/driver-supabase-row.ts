@@ -40,7 +40,9 @@ export const DRIVERS_TABLE_COLUMNS = new Set([
   "number",
   "complement",
   "payout_price_per_km",
-  "payout_percent"
+  "payout_percent",
+  "pin_hash",
+  "pin_set_at"
 ]);
 
 /** Campo do normalizeDriverBody / formulário → coluna Postgres. */
@@ -61,7 +63,9 @@ const PATCH_OMIT_KEYS = new Set([
   "operational_category",
   "cnh_categories",
   "payee_name",
-  "payee_document"
+  "payee_document",
+  "pin_hash",
+  "pin_set_at"
 ]);
 
 /**
