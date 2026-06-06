@@ -9,6 +9,18 @@ const BUCKET = "tenant-assets";
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/svg+xml"]);
 
+function resolveImageMime(file: File): string | null {
+  const mime = file.type?.trim();
+  if (mime && ALLOWED.has(mime)) return mime;
+
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  if (ext === "svg") return "image/svg+xml";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  return null;
+}
+
 export const runtime = "nodejs";
 
 export async function GET() {
@@ -55,8 +67,8 @@ export async function POST(request: Request) {
       return fail("INVALID_FILE", "Seleccione uma imagem.", 400);
     }
     if (file.size > MAX_BYTES) return fail("INVALID_FILE", "Imagem excede 5 MB.", 400);
-    const mime = file.type || "application/octet-stream";
-    if (!ALLOWED.has(mime)) return fail("INVALID_FILE", "Formato não permitido.", 400);
+    const mime = resolveImageMime(file);
+    if (!mime) return fail("INVALID_FILE", "Formato não permitido.", 400);
 
     const ext =
       mime === "image/png"

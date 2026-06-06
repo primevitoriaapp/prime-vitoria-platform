@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
@@ -17,8 +17,10 @@ type Profile = {
 export function TenantCompanySettingsForm() {
   const [form, setForm] = useState<Profile | null>(null);
   const [busy, setBusy] = useState(false);
-  const [logoBusy, setLogoBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void (async () => {
@@ -28,11 +30,65 @@ export function TenantCompanySettingsForm() {
     })();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl);
+    };
+  }, [logoPreviewUrl]);
+
+  function onLogoSelected(file: File | null) {
+    if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl);
+
+    if (!file) {
+      setLogoFile(null);
+      setLogoPreviewUrl(null);
+      return;
+    }
+
+    setLogoFile(file);
+    setLogoPreviewUrl(URL.createObjectURL(file));
+    setMessage(null);
+  }
+
+  async function uploadLogo(file: File): Promise<boolean> {
+    const body = new FormData();
+    body.append("file", file, file.name);
+
+    const res = await fetchWithSupabaseSession(
+      "/api/tenant/company-profile/logo",
+      { method: "POST", body },
+      "admin"
+    );
+    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    if (!res.ok || !json.success) {
+      setMessage(json.error?.message ?? "Falha no upload do logo.");
+      return false;
+    }
+
+    setForm((current) => (current ? { ...current, logo_storage_path: "uploaded" } : current));
+    setLogoFile(null);
+    if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl);
+    setLogoPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    return true;
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form) return;
+
     setBusy(true);
     setMessage(null);
+
+    const pendingLogo = logoFile;
+    if (pendingLogo) {
+      const uploaded = await uploadLogo(pendingLogo);
+      if (!uploaded) {
+        setBusy(false);
+        return;
+      }
+    }
+
     const res = await fetchWithSupabaseSession(
       "/api/tenant/company-profile",
       { method: "PATCH", body: JSON.stringify(form) },
@@ -40,27 +96,13 @@ export function TenantCompanySettingsForm() {
     );
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     setBusy(false);
-    setMessage(res.ok && json.success ? "Dados guardados." : (json.error?.message ?? "Falha ao guardar."));
-  }
 
-  async function onLogo(file: File | null) {
-    if (!file) return;
-    setLogoBusy(true);
-    const body = new FormData();
-    body.set("file", file);
-    const res = await fetchWithSupabaseSession(
-      "/api/tenant/company-profile/logo",
-      { method: "POST", body },
-      "admin"
-    );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
-    setLogoBusy(false);
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha no upload do logo.");
+      setMessage(json.error?.message ?? "Falha ao guardar.");
       return;
     }
-    setMessage("Logo actualizado.");
-    setForm((f) => (f ? { ...f, logo_storage_path: "uploaded" } : f));
+
+    setMessage(pendingLogo ? "Dados e logo guardados." : "Dados guardados.");
   }
 
   if (!form) {
@@ -68,6 +110,7 @@ export function TenantCompanySettingsForm() {
   }
 
   const inputClass = PRIME_INPUT_CLASS;
+  const previewSrc = logoPreviewUrl ?? (form.logo_storage_path ? "/api/tenant/company-profile/logo" : null);
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="card max-w-2xl space-y-4">
@@ -75,25 +118,27 @@ export function TenantCompanySettingsForm() {
         <h2 className="text-lg font-semibold text-prime-text">Identidade visual</h2>
         <p className="mt-1 text-sm text-prime-muted">Aparece no cabeçalho e nos PDFs gerados.</p>
       </div>
-      <label className="grid gap-1 text-sm">
-        <span>Logo</span>
+      <div className="grid gap-1 text-sm">
+        <label htmlFor="company-logo">Logo</label>
         <input
+          id="company-logo"
+          ref={fileInputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/svg+xml"
-          disabled={logoBusy}
-          onChange={(e) => {
-            void onLogo(e.target.files?.[0] ?? null);
-            e.target.value = "";
-          }}
+          accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
+          disabled={busy}
+          onChange={(e) => onLogoSelected(e.target.files?.[0] ?? null)}
         />
-        {form.logo_storage_path ? (
-          <img
-            src="/api/tenant/company-profile/logo"
-            alt="Logo"
-            className="mt-2 max-h-16 w-auto"
-          />
+        {logoFile ? (
+          <p className="text-xs text-prime-muted">
+            Ficheiro seleccionado: <span className="text-prime-text">{logoFile.name}</span> — será enviado ao
+            guardar.
+          </p>
         ) : null}
-      </label>
+        {previewSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={previewSrc} alt="Logo" className="mt-2 max-h-16 w-auto" />
+        ) : null}
+      </div>
       <label className="grid gap-1 text-sm">
         <span>Nome fantasia</span>
         <input
