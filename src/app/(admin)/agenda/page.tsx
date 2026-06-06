@@ -152,7 +152,7 @@ export default async function AgendaPage({
         <p className="mt-6 text-sm text-red-700">Identificador de viagem inválido na URL.</p>
       ) : (
         <p className="mt-8 text-sm text-slate-500">
-          Clique em <strong>Abrir</strong> numa corrida para aprovar, despachar, assumir atendimento e registar notas.
+          Clique em <strong>Abrir</strong> numa corrida para aprovar, despachar e registar notas.
         </p>
       )}
     </>

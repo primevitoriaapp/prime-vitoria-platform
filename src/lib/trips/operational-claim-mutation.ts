@@ -1,6 +1,5 @@
 import { db } from "@/lib/server/db";
 import type { SessionContext } from "@/lib/domain/types";
-import { loadDispatchAutomationSettings } from "@/lib/dispatch/auto-offer-after-approve";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { isPostgresUniqueViolation } from "@/lib/server/postgres-errors";
 import { notifyOperationalClaimTaken } from "@/lib/notifications/operational-notify";
@@ -23,8 +22,6 @@ export async function ensureOperationalClaimForMutation(
   if (session.role === "admin") return { ok: true };
   if (session.role !== "operador") return { ok: true };
 
-  const settings = await loadDispatchAutomationSettings(tenantId);
-
   const { data: claim } = await db
     .from("trip_operational_claims")
     .select("id, operator_profile_id, claimed_at")
@@ -34,14 +31,6 @@ export async function ensureOperationalClaimForMutation(
     .maybeSingle();
 
   if (!claim) {
-    if (settings.require_operational_claim) {
-      return {
-        ok: false,
-        code: "CLAIM_REQUIRED",
-        message: "Assuma o atendimento desta viagem antes de executar esta acção (multiatendimento)."
-      };
-    }
-
     const { data: row, error } = await db
       .from("trip_operational_claims")
       .insert({
