@@ -10,8 +10,13 @@ export const tripsListQuerySchema = z.object({
   clientId: z.string().uuid().optional(),
   scheduledFrom: isoDateTimeQueryParam.optional(),
   scheduledTo: isoDateTimeQueryParam.optional(),
-  /** Inclui todas as corridas «requested» do tenant (agenda operador). */
+  /** Inclui todas as corridas «requested» do tenant (legado; preferir agenda=1). */
   includeAllRequested: z
+    .string()
+    .optional()
+    .transform((v) => v === "1" || v === "true"),
+  /** Agenda operacional: só status abertos e inclui corridas activas fora do intervalo de datas. */
+  agenda: z
     .string()
     .optional()
     .transform((v) => v === "1" || v === "true")

@@ -40,7 +40,7 @@ export default async function AgendaPage({
   const qs = new URLSearchParams({
     page: "1",
     pageSize: "250",
-    includeAllRequested: "1",
+    agenda: "1",
     scheduledFrom: sp.scheduledFrom?.trim() || defaults.fromIso,
     scheduledTo: sp.scheduledTo?.trim() || defaults.toIso
   });

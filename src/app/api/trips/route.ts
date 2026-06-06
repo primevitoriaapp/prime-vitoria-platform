@@ -19,6 +19,7 @@ import {
 } from "@/lib/trips/trip-legs";
 import { driverBelongsToSession, withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { enrichTripListItems } from "@/lib/trips/enrich-trip-list";
+import { AGENDA_OPERATIONAL_STATUSES } from "@/lib/operations/agenda-trip-statuses";
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 import { resolveCostCenterScopeForEmail } from "@/lib/clients/client-cost-centers";
 import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
@@ -349,17 +350,24 @@ export async function GET(request: Request) {
     const session = await withResolvedDriverId(await getSessionContext());
     const query = parseTripsListQuery(new URL(request.url).searchParams);
 
-    const from = (query.page - 1) * query.pageSize;
-    const to = from + query.pageSize - 1;
     const tenantId = assertTenantScope(session);
     const { scheduledFromIso, scheduledToIso } = tripsListQueryRange(query);
+    const agendaMode = query.agenda && can(session, "trip.read");
+    const from = (query.page - 1) * query.pageSize;
+    const to = from + query.pageSize - 1;
+    const listLimit = agendaMode ? Math.min(query.pageSize, 500) : query.pageSize;
 
     let req = db.from("trips").select("*", { count: "exact" }).eq("tenant_id", tenantId);
 
     if (scheduledFromIso) req = req.gte("scheduled_at", scheduledFromIso);
     if (scheduledToIso) req = req.lte("scheduled_at", scheduledToIso);
 
-    req = req.order("scheduled_at", { ascending: true }).range(from, to);
+    if (agendaMode) {
+      req = req.in("operational_status", [...AGENDA_OPERATIONAL_STATUSES]);
+    }
+
+    req = req.order("scheduled_at", { ascending: true });
+    req = agendaMode ? req.limit(listLimit) : req.range(from, to);
 
     if (can(session, "trip.read")) {
       assertCapability(session, "trip.read");
@@ -423,14 +431,27 @@ export async function GET(request: Request) {
     }
 
     let merged = data ?? [];
-    if (query.includeAllRequested && can(session, "trip.read")) {
-      const { data: openRows } = await db
+    const mergeOpenStatuses =
+      agendaMode || (query.includeAllRequested && can(session, "trip.read"));
+    if (mergeOpenStatuses && can(session, "trip.read")) {
+      const statuses = agendaMode ? [...AGENDA_OPERATIONAL_STATUSES] : (["requested"] as const);
+      let outsideQuery = db
         .from("trips")
         .select("*")
         .eq("tenant_id", tenantId)
-        .eq("operational_status", "requested")
-        .order("scheduled_at", { ascending: true })
-        .limit(200);
+        .in("operational_status", statuses);
+
+      if (scheduledFromIso && scheduledToIso) {
+        outsideQuery = outsideQuery.or(
+          `scheduled_at.lt.${scheduledFromIso},scheduled_at.gt.${scheduledToIso}`
+        );
+      } else if (scheduledFromIso) {
+        outsideQuery = outsideQuery.lt("scheduled_at", scheduledFromIso);
+      } else if (scheduledToIso) {
+        outsideQuery = outsideQuery.gt("scheduled_at", scheduledToIso);
+      }
+
+      const { data: openRows } = await outsideQuery.order("scheduled_at", { ascending: true }).limit(500);
       const byId = new Map(merged.map((row) => [row.id as string, row]));
       for (const row of openRows ?? []) {
         byId.set(row.id as string, row);

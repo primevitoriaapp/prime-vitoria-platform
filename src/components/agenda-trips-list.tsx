@@ -5,15 +5,16 @@ import type { TripOperationalStatus } from "@/lib/domain/types";
 import { formatRouteShort } from "@/lib/trips/format-place-label";
 import type { TripRow } from "@/components/trip-table";
 
-type DateGroup = "today" | "tomorrow" | "upcoming";
+type DateGroup = "overdue" | "today" | "tomorrow" | "upcoming";
 
 const GROUP_LABEL: Record<DateGroup, string> = {
+  overdue: "Atrasadas / anteriores",
   today: "Hoje",
   tomorrow: "Amanhã",
   upcoming: "Próximas"
 };
 
-const GROUP_ORDER: DateGroup[] = ["today", "tomorrow", "upcoming"];
+const GROUP_ORDER: DateGroup[] = ["overdue", "today", "tomorrow", "upcoming"];
 
 const STATUS_SORT: Partial<Record<TripOperationalStatus, number>> = {
   requested: 0,
@@ -45,6 +46,7 @@ function tripDateGroup(scheduledAt: string): DateGroup {
   const startAfterTomorrow = new Date(startTomorrow);
   startAfterTomorrow.setDate(startAfterTomorrow.getDate() + 1);
 
+  if (d < startToday) return "overdue";
   if (d >= startToday && d < startTomorrow) return "today";
   if (d >= startTomorrow && d < startAfterTomorrow) return "tomorrow";
   return "upcoming";
