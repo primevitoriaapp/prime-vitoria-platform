@@ -18,6 +18,7 @@ const NAV = [
 ] as const;
 
 const ADMIN_EXTRA = [
+  { href: "/configuracoes", label: "Configurações" },
   { href: "/users", label: "Utilizadores" },
   { href: "/audit", label: "Auditoria" },
   { href: "/driver", label: "App motorista" },
