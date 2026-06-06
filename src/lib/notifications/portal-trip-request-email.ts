@@ -4,7 +4,21 @@ import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { sendOperationalEmail, DEFAULT_OPERATIONAL_EMAIL_FROM } from "@/lib/notifications/send-email";
 import { resolveAppBaseUrl } from "@/lib/server/app-base-url";
 
-export const PORTAL_OPS_INBOX = "contato@primevitoria.com";
+/** Destinatário das notificações de solicitação do portal (operador). */
+export const PORTAL_OPS_INBOX_PRODUCTION = "contato@primevitoria.com";
+
+/** Sandbox Resend (onboarding@resend.dev): só entrega para o e-mail da conta. */
+export const PORTAL_OPS_INBOX_RESEND_SANDBOX = "contatoprimevix@gmail.com";
+
+export function resolvePortalOpsInbox(): string {
+  const override = process.env.PORTAL_OPS_INBOX?.trim();
+  if (override) return override;
+  const from = process.env.OPERATIONAL_EMAIL_FROM?.trim();
+  if (from?.includes("@primevitoria.com")) {
+    return PORTAL_OPS_INBOX_PRODUCTION;
+  }
+  return PORTAL_OPS_INBOX_RESEND_SANDBOX;
+}
 
 export type PortalTripRequestEmailInput = {
   clientName: string;
@@ -54,16 +68,18 @@ export async function notifyPortalTripRequestedEmail(
     <p style="font-size:12px;color:#666">ID: ${escapeHtml(input.tripId)}</p>
   `.trim();
 
+  const opsInbox = resolvePortalOpsInbox();
+
   console.info("[portal.trip_request_email] preparando envio", {
     tripId: input.tripId,
-    to: PORTAL_OPS_INBOX,
+    to: opsInbox,
     from: DEFAULT_OPERATIONAL_EMAIL_FROM,
     resendApiKeyDefined: process.env.RESEND_API_KEY !== undefined,
     resendApiKeyLength: process.env.RESEND_API_KEY?.trim().length ?? 0
   });
 
   const result = await sendOperationalEmail({
-    to: PORTAL_OPS_INBOX,
+    to: opsInbox,
     subject,
     text,
     html,
