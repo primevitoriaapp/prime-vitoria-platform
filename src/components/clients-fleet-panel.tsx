@@ -40,7 +40,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
   const [pricingClientId, setPricingClientId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const res = await fetch("/api/clients", { credentials: "include" });
+    const res = await fetchWithSupabaseSession("/api/clients", { method: "GET" }, "admin");
     const json = (await res.json()) as { success?: boolean; data?: ClientRow[] };
     if (res.ok && json.success) {
       setClients(json.data ?? []);

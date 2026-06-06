@@ -25,7 +25,58 @@ const CONTRACT_PATH_KEY = "contract_storage_path";
 
 const ALL_OPTIONAL_KEYS = [...EXTENDED_CLIENT_KEYS, SERVICE_TYPES_KEY, CONTRACT_PATH_KEY] as const;
 
+const LIST_CORE_SELECT = "id,type,name,document,email,phone,active,tenant_id,created_at";
+const LIST_EXTENDED_SELECT = [...EXTENDED_CLIENT_KEYS, SERVICE_TYPES_KEY, CONTRACT_PATH_KEY].join(",");
+
+export type ClientListRow = {
+  id: string;
+  type: string;
+  name: string;
+  trade_name?: string | null;
+  document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  address_line?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  notes?: string | null;
+  registry_status?: string | null;
+  active: boolean;
+  tenant_id?: string | null;
+  service_types?: string[] | null;
+  contract_storage_path?: string | null;
+  created_at?: string;
+};
+
 export type ClientRowInput = Record<string, unknown>;
+
+/** Lista clientes do tenant (colunas explícitas + fallback se migrations 0044/0046/0058 não aplicadas). */
+export async function listActiveClientsForTenant(
+  tenantId: string,
+  opts?: { includeInactive?: boolean; limit?: number }
+): Promise<ClientListRow[]> {
+  const limit = opts?.limit ?? 200;
+  const tenantFilter = `tenant_id.eq.${tenantId},tenant_id.is.null`;
+
+  const runQuery = (select: string) => {
+    let req = db.from("clients").select(select).or(tenantFilter).order("name").limit(limit);
+    if (!opts?.includeInactive) {
+      req = req.eq("active", true);
+    }
+    return req;
+  };
+
+  let { data, error } = await runQuery(`${LIST_CORE_SELECT},${LIST_EXTENDED_SELECT}`);
+  if (error && isMissingColumnError(error)) {
+    ({ data, error } = await runQuery(LIST_CORE_SELECT));
+  }
+  if (error) {
+    throw error;
+  }
+  return (data ?? []) as unknown as ClientListRow[];
+}
 
 function pickKeys(row: ClientRowInput, keys: readonly string[]): ClientRowInput {
   const out: ClientRowInput = {};

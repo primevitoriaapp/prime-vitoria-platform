@@ -1,6 +1,5 @@
-import { insertClientRow, updateClientRow } from "@/lib/clients/client-db";
+import { insertClientRow, listActiveClientsForTenant } from "@/lib/clients/client-db";
 import { clientCadastroSchema, normalizeClientBody } from "@/lib/clients/client-cadastro-schema";
-import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
@@ -49,18 +48,8 @@ export async function GET() {
     const session = await getSessionContext();
     assertCapability(session, "client.read");
     const tenantId = assertTenantScope(session);
-    const { data, error } = await db
-      .from("clients")
-      .select("*")
-      .eq("active", true)
-      .eq("tenant_id", tenantId)
-      .order("name")
-      .limit(200);
-    if (error) {
-      const mapped = mapSupabaseError(error, "listagem de clientes");
-      return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
-    }
-    return ok(data ?? []);
+    const data = await listActiveClientsForTenant(tenantId);
+    return ok(data);
   } catch (error) {
     return mapApiError(error);
   }

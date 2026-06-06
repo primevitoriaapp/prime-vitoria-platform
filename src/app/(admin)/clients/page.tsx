@@ -1,20 +1,19 @@
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { ClientsFleetPanel } from "@/components/clients-fleet-panel";
-import { fetchInternalApi } from "@/lib/server/internal-fetch";
+import { listActiveClientsForTenant } from "@/lib/clients/client-db";
+import { assertCapability } from "@/lib/security/rbac";
+import { getSessionContext } from "@/lib/server/session";
+import { assertTenantScope } from "@/lib/server/tenant-scope";
 
 async function getClients() {
-  const response = await fetchInternalApi("/api/clients");
-  if (!response.ok) return [];
-  const payload = await response.json();
-  return payload.data as Array<{
-    id: string;
-    name: string;
-    type: string;
-    document?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    active: boolean;
-  }>;
+  try {
+    const session = await getSessionContext();
+    assertCapability(session, "client.read");
+    const tenantId = assertTenantScope(session);
+    return await listActiveClientsForTenant(tenantId);
+  } catch {
+    return [];
+  }
 }
 
 export default async function ClientsPage() {
