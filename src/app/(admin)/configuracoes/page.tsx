@@ -3,12 +3,12 @@ import { TenantCompanySettingsForm } from "@/components/tenant-company-settings-
 
 export default function ConfiguracoesPage() {
   return (
-    <>
+    <div className="pb-10">
       <AdminPageHeader
         title="Configurações"
         subtitle="Dados da empresa, logo e informações para documentos"
       />
       <TenantCompanySettingsForm />
-    </>
+    </div>
   );
 }
