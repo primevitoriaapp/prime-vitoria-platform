@@ -7,8 +7,7 @@ import { assertCapability } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
-import { enqueueNotificationJob } from "@/lib/notifications/events";
-import { driverDispatchedPushPayload } from "@/lib/notifications/driver-status-event";
+import { notifyDriverDispatchedNow } from "@/lib/notifications/send-driver-push-now";
 import { dispatchConflict } from "@/lib/dispatch/conflicts";
 import { runBestEffort } from "@/lib/server/best-effort";
 import { planOperationalTransition } from "@/lib/domain/status";
@@ -142,12 +141,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       })
     );
 
-    await runBestEffort("trip.reassign.driver_push", () =>
-      enqueueNotificationJob(
-        driverDispatchedPushPayload(body.new_driver_id, id),
-        { tenantId, correlation_id: `trip-${id}-reassign-${body.new_driver_id}` }
-      )
-    );
+    await runBestEffort("trip.reassign.driver_push", async () => {
+      const result = await notifyDriverDispatchedNow(tenantId, body.new_driver_id, id);
+      if (!result.ok) throw new Error(result.reason);
+    });
 
     await insertAuditEvent({
       tenantId,

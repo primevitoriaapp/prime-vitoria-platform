@@ -7,8 +7,7 @@ import { assertCapability } from "@/lib/security/rbac";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
-import { enqueueNotificationJob } from "@/lib/notifications/events";
-import { driverDispatchedPushPayload } from "@/lib/notifications/driver-status-event";
+import { notifyDriverDispatchedNow } from "@/lib/notifications/send-driver-push-now";
 import { canTransition } from "@/lib/domain/status";
 import { dispatchConflict } from "@/lib/dispatch/conflicts";
 import { runBestEffort } from "@/lib/server/best-effort";
@@ -145,16 +144,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
       })
     );
 
-    await runBestEffort("dispatch.offer_approve.driver_push", () =>
-      enqueueNotificationJob(
-        driverDispatchedPushPayload(body.driver_id, offer.trip_id),
-        { tenantId, correlation_id: `trip-${offer.trip_id}-offer-${offerId}-${body.driver_id}` }
-      )
-    );
-
-    await runBestEffort("dispatch.offer_approve.push_process", async () => {
-      const { processNotificationJobs } = await import("@/lib/jobs/processors");
-      await processNotificationJobs({ limit: 5, tenantId });
+    await runBestEffort("dispatch.offer_approve.driver_push", async () => {
+      const result = await notifyDriverDispatchedNow(tenantId, body.driver_id, offer.trip_id);
+      if (!result.ok) throw new Error(result.reason);
     });
 
     await db

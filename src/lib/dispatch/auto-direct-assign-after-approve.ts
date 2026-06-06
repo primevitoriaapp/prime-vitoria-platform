@@ -1,7 +1,6 @@
 import { loadDispatchAutomationSettings } from "@/lib/dispatch/auto-offer-after-approve";
 import { listEligibleDriverIdsForScheduling, resolveDefaultVehicleIdForDriver } from "@/lib/dispatch/driver-availability";
-import { enqueueNotificationJob } from "@/lib/notifications/events";
-import { driverDispatchedPushPayload } from "@/lib/notifications/driver-status-event";
+import { notifyDriverDispatchedNow } from "@/lib/notifications/send-driver-push-now";
 import { db } from "@/lib/server/db";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 
@@ -84,20 +83,15 @@ export async function tryAutoDirectAssignAfterApprove(opts: {
     return;
   }
 
-  try {
-    await enqueueNotificationJob(
-      driverDispatchedPushPayload(driverId, tripId),
-      { tenantId }
-    );
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
+  const pushResult = await notifyDriverDispatchedNow(tenantId, driverId, tripId);
+  if (!pushResult.ok) {
     await insertAuditEvent({
       tenantId,
       actorUserId,
       action: "dispatch.auto_direct_notify_failed",
       entityType: "trip",
       entityId: tripId,
-      metadata: { driver_id: driverId, message },
+      metadata: { driver_id: driverId, reason: pushResult.reason },
       request
     });
   }

@@ -1,7 +1,6 @@
 import { loadDispatchAutomationSettings } from "@/lib/dispatch/auto-offer-after-approve";
 import { listEligibleDriverIdsForScheduling, resolveDefaultVehicleIdForDriver } from "@/lib/dispatch/driver-availability";
-import { enqueueNotificationJob } from "@/lib/notifications/events";
-import { driverDispatchedPushPayload } from "@/lib/notifications/driver-status-event";
+import { notifyDriverDispatchedNow } from "@/lib/notifications/send-driver-push-now";
 import { db } from "@/lib/server/db";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 
@@ -80,13 +79,9 @@ export async function scanAndAssignStaleApprovedTrips(opts: {
 
       trips_assigned += 1;
 
-      try {
-        await enqueueNotificationJob(
-          driverDispatchedPushPayload(driverId, trip.id),
-          { tenantId: tid }
-        );
-      } catch {
-        // notificação falhou; viagem já despachada
+      const pushResult = await notifyDriverDispatchedNow(tid, driverId, trip.id);
+      if (!pushResult.ok) {
+        // viagem já despachada; falha de push fica só no log de auditoria implícito
       }
 
       await insertAuditEvent({

@@ -1,6 +1,7 @@
 import { enqueueNotificationJob } from "./events";
 import { enqueueInAppForTenantRoles } from "./enqueue-for-profiles";
 import { driverStatusPushEventType, driverStatusPushPresentation } from "./driver-status-event";
+import { sendDriverPushNow } from "./send-driver-push-now";
 
 type TripNotifyRow = {
   id: string;
@@ -63,16 +64,13 @@ export async function notifyTripStatusTransition(
   }
 
   if (toStatus === "dispatched" && trip.driver_id && driverPushEventType) {
-    await enqueueNotificationJob(
-      {
-        eventType: driverPushEventType,
-        channel: "push",
-        recipientType: "driver",
-        recipientId: trip.driver_id,
-        ...driverPushPresentation,
-        ...base
-      },
-      { tenantId, correlation_id: `trip-${trip.id}-dispatched` }
-    );
+    await sendDriverPushNow(tenantId, trip.driver_id, {
+      eventType: driverPushEventType,
+      channel: "push",
+      recipientType: "driver",
+      recipientId: trip.driver_id,
+      ...driverPushPresentation,
+      ...base
+    });
   }
 }

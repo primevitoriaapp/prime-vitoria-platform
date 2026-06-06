@@ -22,7 +22,7 @@ import { listTripsForSession } from "@/lib/trips/list-trips-for-session";
 import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
 import { assertClientMayUsePortalWrites } from "@/lib/clients/client-portal-access";
 import { normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
-import { notifyPortalTripRequestedEmail, enqueuePortalTripRequestedEmailJob } from "@/lib/notifications/portal-trip-request-email";
+import { notifyPortalTripRequestedEmail } from "@/lib/notifications/portal-trip-request-email";
 import {
   initialTripApprovalFieldsForSession,
   initialTripOperationalStatusForSession
@@ -337,7 +337,6 @@ export async function POST(request: Request) {
       };
       const emailResult = await notifyPortalTripRequestedEmail(emailInput);
       if (!emailResult.sent) {
-        await enqueuePortalTripRequestedEmailJob(tenantId, emailInput);
         await insertAuditEvent({
           tenantId,
           actorUserId: session.userId,
@@ -346,8 +345,7 @@ export async function POST(request: Request) {
           entityId: outbound.id as string,
           metadata: {
             channel: "portal_trip_request",
-            reason: emailResult.reason ?? "unknown",
-            enqueued: true
+            reason: emailResult.reason ?? "unknown"
           },
           request
         });

@@ -2,7 +2,6 @@ import { formatBrDateTime } from "@/lib/dates/br-date";
 import { shortPlaceLabel } from "@/lib/trips/format-place-label";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { sendOperationalEmail } from "@/lib/notifications/send-email";
-import { enqueueNotificationJob } from "@/lib/notifications/events";
 import { resolveAppBaseUrl } from "@/lib/server/app-base-url";
 
 export const PORTAL_OPS_INBOX = "contato@primevitoria.com";
@@ -66,28 +65,6 @@ export async function notifyPortalTripRequestedEmail(
     return { sent: false, reason: result.reason };
   }
   return { sent: true };
-}
-
-/** Enfileira e-mail operacional para o worker /api/cron/notifications (retry automático). */
-export async function enqueuePortalTripRequestedEmailJob(
-  tenantId: string,
-  input: PortalTripRequestEmailInput
-): Promise<void> {
-  await enqueueNotificationJob(
-    {
-      channel: "email",
-      recipientType: "ops_inbox",
-      recipientId: PORTAL_OPS_INBOX,
-      eventType: "operations.trip_requested",
-      tripId: input.tripId,
-      clientName: input.clientName,
-      serviceType: input.serviceType,
-      scheduledAt: input.scheduledAt,
-      originText: input.originText,
-      destinationText: input.destinationText
-    },
-    { tenantId, correlation_id: `trip-${input.tripId}-portal-email` }
-  );
 }
 
 function escapeHtml(value: string): string {
