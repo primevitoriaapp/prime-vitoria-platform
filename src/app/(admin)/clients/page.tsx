@@ -1,15 +1,17 @@
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { ClientsFleetPanel } from "@/components/clients-fleet-panel";
 import { listActiveClientsForTenant } from "@/lib/clients/client-db";
-import { assertCapability } from "@/lib/security/rbac";
+import { can } from "@/lib/security/rbac";
 import { getSessionContext } from "@/lib/server/session";
-import { assertTenantScope } from "@/lib/server/tenant-scope";
+import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
+
+export const dynamic = "force-dynamic";
 
 async function getClients() {
+  const session = await getSessionContext();
+  if (!can(session, "client.read")) return [];
+  const tenantId = session.tenantId ?? DEFAULT_TENANT_ID;
   try {
-    const session = await getSessionContext();
-    assertCapability(session, "client.read");
-    const tenantId = assertTenantScope(session);
     return await listActiveClientsForTenant(tenantId);
   } catch {
     return [];

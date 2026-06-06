@@ -58,10 +58,8 @@ export async function listActiveClientsForTenant(
   opts?: { includeInactive?: boolean; limit?: number }
 ): Promise<ClientListRow[]> {
   const limit = opts?.limit ?? 200;
-  const tenantFilter = `tenant_id.eq.${tenantId},tenant_id.is.null`;
-
   const runQuery = (select: string) => {
-    let req = db.from("clients").select(select).or(tenantFilter).order("name").limit(limit);
+    let req = db.from("clients").select(select).eq("tenant_id", tenantId).order("name").limit(limit);
     if (!opts?.includeInactive) {
       req = req.eq("active", true);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BackButton } from "@/components/back-button";
 import { ClientCadastroForm, clientRowToForm } from "@/components/client-cadastro-form";
@@ -47,6 +47,10 @@ export function ClientsFleetPanel({ initialClients }: Props) {
     }
     router.refresh();
   }, [router]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
   async function deactivate(client: ClientRow) {
     if (!window.confirm(`Desactivar ${client.name}?`)) return;
