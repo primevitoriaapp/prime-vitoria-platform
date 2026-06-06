@@ -4,12 +4,17 @@ const isoDateTimeQueryParam = z.string().max(50).datetime({ offset: true });
 
 export const tripsListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  pageSize: z.coerce.number().int().min(1).max(300).default(20),
   status: z.string().optional(),
   driverId: z.string().uuid().optional(),
   clientId: z.string().uuid().optional(),
   scheduledFrom: isoDateTimeQueryParam.optional(),
-  scheduledTo: isoDateTimeQueryParam.optional()
+  scheduledTo: isoDateTimeQueryParam.optional(),
+  /** Inclui todas as corridas «requested» do tenant (agenda operador). */
+  includeAllRequested: z
+    .string()
+    .optional()
+    .transform((v) => v === "1" || v === "true")
 });
 
 export type TripsListQuery = z.infer<typeof tripsListQuerySchema>;

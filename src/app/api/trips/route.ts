@@ -21,6 +21,7 @@ import { driverBelongsToSession, withResolvedDriverId } from "@/lib/drivers/reso
 import { enrichTripListItems } from "@/lib/trips/enrich-trip-list";
 import { parseTripsListQuery, tripsListQueryRange } from "@/lib/trips/trips-list-query";
 import { resolveCostCenterScopeForEmail } from "@/lib/clients/client-cost-centers";
+import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
 
 const coordSchema = z.union([z.number(), z.string()]).optional().nullable().transform((v) => {
   if (v === null || v === undefined || v === "") return null;
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
       }
     }
     const body = createTripSchema.parse(raw);
-    const tenantId = assertTenantScope(session);
+    const sessionTenantId = assertTenantScope(session);
 
     if (session.role === "cliente") {
       if (!session.clientId) {
@@ -101,13 +102,21 @@ export async function POST(request: Request) {
 
     const { data: clientRow, error: clientErr } = await db
       .from("clients")
-      .select("id, tenant_id")
+      .select("id, tenant_id, name")
       .eq("id", body.client_id)
       .single();
     if (clientErr || !clientRow) {
       return fail("CLIENT_NOT_FOUND", "Cliente nao encontrado", 404);
     }
-    if (clientRow.tenant_id !== tenantId) {
+
+    let tenantId: string;
+    try {
+      tenantId = resolveTripTenantId(
+        session,
+        clientRow.tenant_id as string | null | undefined,
+        sessionTenantId
+      );
+    } catch {
       return fail("FORBIDDEN", "Cliente nao pertence a esta organizacao", 403);
     }
 
@@ -390,7 +399,26 @@ export async function GET(request: Request) {
       return fail("TRIP_LIST_FAILED", error.message, 500);
     }
 
-    const items = await enrichTripListItems(data ?? []);
+    let merged = data ?? [];
+    if (query.includeAllRequested && can(session, "trip.read")) {
+      const { data: openRows } = await db
+        .from("trips")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .eq("operational_status", "requested")
+        .order("scheduled_at", { ascending: true })
+        .limit(200);
+      const byId = new Map(merged.map((row) => [row.id as string, row]));
+      for (const row of openRows ?? []) {
+        byId.set(row.id as string, row);
+      }
+      merged = [...byId.values()].sort(
+        (a, b) =>
+          new Date(a.scheduled_at as string).getTime() - new Date(b.scheduled_at as string).getTime()
+      );
+    }
+
+    const items = await enrichTripListItems(merged);
 
     return ok({
       items,

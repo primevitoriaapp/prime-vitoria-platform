@@ -10,17 +10,13 @@ import { AgendaTripsList } from "@/components/agenda-trips-list";
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { OperadorTripCreatePanel } from "@/components/operador-trip-create-panel";
 import { TripFocusHeader } from "@/components/trip-focus-header";
+import { defaultAgendaRangeIso } from "@/lib/operations/agenda-default-range";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
 
 function defaultRangeUtc(): { fromIso: string; toIso: string } {
-  const start = new Date();
-  start.setUTCHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 90);
-  end.setUTCHours(23, 59, 59, 999);
-  return { fromIso: start.toISOString(), toIso: end.toISOString() };
+  return defaultAgendaRangeIso();
 }
 
 async function getTrips(search: URLSearchParams) {
@@ -43,7 +39,8 @@ export default async function AgendaPage({
   const defaults = defaultRangeUtc();
   const qs = new URLSearchParams({
     page: "1",
-    pageSize: "100",
+    pageSize: "250",
+    includeAllRequested: "1",
     scheduledFrom: sp.scheduledFrom?.trim() || defaults.fromIso,
     scheduledTo: sp.scheduledTo?.trim() || defaults.toIso
   });

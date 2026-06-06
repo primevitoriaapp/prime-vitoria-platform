@@ -6,6 +6,7 @@ import type { SessionContext, UserRole } from "../domain/types";
 import { DEFAULT_TENANT_ID } from "../tenant/default-tenant";
 import { createSupabaseRouteClient } from "../supabase/server";
 import { resolveDriverIdForUser, withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
+import { getClientTenantId } from "@/lib/clients/client-tenant";
 import { db } from "./db";
 import { trustHeaderAuth } from "./trust-header-auth";
 
@@ -31,7 +32,11 @@ async function sessionContextFromUser(user: User): Promise<SessionContext> {
 
   const roleFromJwt = asUserRole(profile?.role) ?? roleFromJwtClaims(user);
 
-  const tenantId = (profile?.tenant_id as string | undefined) ?? DEFAULT_TENANT_ID;
+  let tenantId = (profile?.tenant_id as string | undefined) ?? DEFAULT_TENANT_ID;
+  const clientId = h.get("x-client-id") ?? (profile?.client_id as string | undefined) ?? undefined;
+  if (roleFromJwt === "cliente" && clientId) {
+    tenantId = await getClientTenantId(clientId, tenantId);
+  }
   const cpf = cpfFromUserMetadata(user);
   let driverId = h.get("x-driver-id") ?? undefined;
   if (roleFromJwt === "motorista" && !driverId) {
@@ -49,7 +54,7 @@ async function sessionContextFromUser(user: User): Promise<SessionContext> {
     email: user.email ?? undefined,
     cpf,
     tenantId,
-    clientId: h.get("x-client-id") ?? (profile?.client_id as string | undefined) ?? undefined,
+    clientId,
     driverId
   };
 }

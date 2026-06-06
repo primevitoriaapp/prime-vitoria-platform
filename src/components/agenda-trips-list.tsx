@@ -15,6 +15,16 @@ const GROUP_LABEL: Record<DateGroup, string> = {
 
 const GROUP_ORDER: DateGroup[] = ["today", "tomorrow", "upcoming"];
 
+const STATUS_SORT: Partial<Record<TripOperationalStatus, number>> = {
+  requested: 0,
+  approved: 1,
+  dispatched: 2,
+  accepted: 3,
+  on_the_way: 4,
+  arrived: 5,
+  in_progress: 6
+};
+
 function fmtMoney(n: number | null | undefined) {
   if (n == null || !Number.isFinite(n)) return null;
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -41,9 +51,12 @@ function tripDateGroup(scheduledAt: string): DateGroup {
 }
 
 function groupTrips(trips: TripRow[]): Map<DateGroup, TripRow[]> {
-  const sorted = [...trips].sort(
-    (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
-  );
+  const sorted = [...trips].sort((a, b) => {
+    const sa = STATUS_SORT[a.operational_status] ?? 50;
+    const sb = STATUS_SORT[b.operational_status] ?? 50;
+    if (sa !== sb) return sa - sb;
+    return new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime();
+  });
   const map = new Map<DateGroup, TripRow[]>();
   for (const g of GROUP_ORDER) map.set(g, []);
   for (const trip of sorted) {
