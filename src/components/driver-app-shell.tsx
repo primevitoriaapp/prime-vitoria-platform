@@ -13,6 +13,7 @@ import { DriverTripsPanel } from "@/components/driver-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { BrandLogo } from "@/components/brand-logo";
 import { DriverBottomNav } from "@/components/driver-bottom-nav";
+import { DriverProfilePanel } from "@/components/driver-profile-panel";
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 
 type DriverOption = {
@@ -143,12 +144,17 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         </section>
 
         {mode === "motorista" ? (
-          <section id="push-setup" className="driver-card scroll-mt-6 p-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-[#AAAAAA]">Notificações push</h2>
-            <div className="mt-3">
-              <DriverPushRegister variant="light" />
-            </div>
-          </section>
+          <>
+            <section id="perfil">
+              <DriverProfilePanel devFallbackRole={devRole} />
+            </section>
+            <section id="push-setup" className="driver-card scroll-mt-6 p-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[#AAAAAA]">Notificações push</h2>
+              <div className="mt-3">
+                <DriverPushRegister variant="light" />
+              </div>
+            </section>
+          </>
         ) : null}
 
         {mode === "admin" ? (

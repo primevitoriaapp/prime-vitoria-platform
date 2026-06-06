@@ -67,6 +67,10 @@ export function SiteHeader() {
     return null;
   }
 
+  if (role === "motorista" && pathname.startsWith("/driver")) {
+    return null;
+  }
+
   return (
     <header
       style={{

@@ -1,8 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { SAO_PAULO_TZ } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
+
+function currentMonthBoundsIso(): { from: string; to: string } {
+  const now = new Date();
+  const year = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: SAO_PAULO_TZ, year: "numeric" }).format(now)
+  );
+  const month = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: SAO_PAULO_TZ, month: "numeric" }).format(now)
+  );
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    from: `${year}-${pad(month)}-01T00:00:00-03:00`,
+    to: `${year}-${pad(month)}-${pad(lastDay)}T23:59:59-03:00`
+  };
+}
+
+function formatBrl(value: number): string {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 type PayableRow = {
   id: string;
@@ -34,6 +55,56 @@ export function DriverPayablesPanel({
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [proofUrl, setProofUrl] = useState<Record<string, string>>({});
+  const [monthTrips, setMonthTrips] = useState(0);
+  const [openSummary, setOpenSummary] = useState({ total: 0, overdue: 0, count: 0 });
+
+  const loadWalletSummary = useCallback(async () => {
+    if (financeStaff) return;
+
+    const openQs = new URLSearchParams({ page: "1", pageSize: "200", status: "open" });
+    if (driverIdFilter) openQs.set("driverId", driverIdFilter);
+
+    const { from, to } = currentMonthBoundsIso();
+    const tripsQs = new URLSearchParams({
+      page: "1",
+      pageSize: "1",
+      status: "completed",
+      scheduledFrom: from,
+      scheduledTo: to
+    });
+    if (driverIdFilter) tripsQs.set("driverId", driverIdFilter);
+
+    const [openRes, tripsRes] = await Promise.all([
+      fetchWithSupabaseSession(`/api/finance/driver-payables?${openQs}`, {}, devFallbackRole),
+      fetchWithSupabaseSession(`/api/trips?${tripsQs}`, {}, devFallbackRole)
+    ]);
+
+    const openJson = (await openRes.json()) as {
+      success?: boolean;
+      data?: { items: PayableRow[] };
+    };
+    const tripsJson = (await tripsRes.json()) as {
+      success?: boolean;
+      data?: { total: number };
+    };
+
+    if (openRes.ok && openJson.success) {
+      const openItems = openJson.data?.items ?? [];
+      const total = openItems.reduce((sum, row) => sum + Number(row.amount), 0);
+      const overdue = openItems
+        .filter((row) => row.overdue)
+        .reduce((sum, row) => sum + Number(row.amount), 0);
+      setOpenSummary({ total, overdue, count: openItems.length });
+    } else {
+      setOpenSummary({ total: 0, overdue: 0, count: 0 });
+    }
+
+    if (tripsRes.ok && tripsJson.success) {
+      setMonthTrips(tripsJson.data?.total ?? 0);
+    } else {
+      setMonthTrips(0);
+    }
+  }, [financeStaff, driverIdFilter, devFallbackRole]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,9 +133,39 @@ export function DriverPayablesPanel({
 
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadWalletSummary();
+  }, [load, loadWalletSummary]);
 
-  useTenantTableRefresh(tenantId, ["driver_payables"], load);
+  useTenantTableRefresh(tenantId, ["driver_payables"], () => {
+    void load();
+    void loadWalletSummary();
+  });
+
+  const walletCards = useMemo(
+    () => [
+      {
+        label: "Saldo pendente",
+        value: formatBrl(openSummary.overdue > 0 ? openSummary.overdue : openSummary.total),
+        hint:
+          openSummary.overdue > 0
+            ? `${openSummary.count} título(s) em aberto`
+            : openSummary.count > 0
+              ? `${openSummary.count} título(s) em aberto`
+              : "Nenhum título em aberto"
+      },
+      {
+        label: "Corridas do mês",
+        value: String(monthTrips),
+        hint: "Concluídas no mês actual"
+      },
+      {
+        label: "Valor a receber",
+        value: formatBrl(openSummary.total),
+        hint: "Total em aberto"
+      }
+    ],
+    [openSummary, monthTrips]
+  );
 
   async function postAction(id: string, path: "mark-paid" | "reopen" | "cancel", body: Record<string, unknown> = {}) {
     setMessage(null);
@@ -130,34 +231,69 @@ export function DriverPayablesPanel({
     setMessage("Comprovante enviado para storage.");
   }
 
+  const sectionClass = financeStaff ? "card mt-6" : "";
+  const titleClass = financeStaff ? "text-lg font-semibold text-slate-900" : "text-base font-semibold text-prime-text";
+  const mutedClass = financeStaff ? "text-slate-600" : "text-prime-muted";
+  const errorClass = financeStaff ? "text-red-700" : "text-red-400";
+
   return (
-    <section className="card mt-6">
+    <section className={sectionClass}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-slate-900">
-          {financeStaff ? "Contas a pagar (motoristas)" : "Os meus pagamentos"}
+        <h2 className={titleClass}>
+          {financeStaff ? "Contas a pagar (motoristas)" : "Carteira"}
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className={
+              financeStaff
+                ? "rounded border border-slate-300 px-2 py-1 text-sm"
+                : "rounded-lg border border-prime-border bg-prime-surface px-2 py-1 text-sm text-prime-text"
+            }
           >
             <option value="open">Em aberto</option>
             <option value="paid">Pagas</option>
             <option value="cancelled">Canceladas</option>
             <option value="">Todas</option>
           </select>
-          <button type="button" onClick={() => void load()} disabled={loading} className="text-sm">
+          <button
+            type="button"
+            onClick={() => {
+              void load();
+              void loadWalletSummary();
+            }}
+            disabled={loading}
+            className="text-sm text-prime-gold"
+          >
             Actualizar
           </button>
         </div>
       </div>
-      {message ? <p className="mt-2 text-sm text-red-700">{message}</p> : null}
+
+      {!financeStaff ? (
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {walletCards.map((card) => (
+            <div
+              key={card.label}
+              className="rounded-xl border border-prime-border bg-prime-surface/60 p-4"
+            >
+              <p className="text-xs font-medium uppercase tracking-wide text-prime-muted">{card.label}</p>
+              <p className="mt-1 text-xl font-semibold text-prime-text">{card.value}</p>
+              <p className="mt-1 text-[11px] text-prime-muted">{card.hint}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {message ? <p className={`mt-2 text-sm ${errorClass}`}>{message}</p> : null}
       {loading ? (
-        <p className="mt-3 text-sm text-slate-600">A carregar…</p>
+        <p className={`mt-3 text-sm ${mutedClass}`}>A carregar…</p>
       ) : items.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">Sem títulos ({total} no total).</p>
-      ) : (
+        <p className={`mt-3 text-sm ${financeStaff ? "text-slate-500" : "text-prime-muted"}`}>
+          Sem títulos ({total} no total).
+        </p>
+      ) : financeStaff ? (
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
@@ -227,6 +363,30 @@ export function DriverPayablesPanel({
             </tbody>
           </table>
         </div>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {items.map((row) => (
+            <li
+              key={row.id}
+              className="rounded-xl border border-prime-border bg-prime-surface/40 p-3 text-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-prime-text">
+                    {Number(row.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
+                  <p className="mt-0.5 text-xs text-prime-muted">Vencimento {row.due_date}</p>
+                </div>
+                <span className="rounded-full border border-prime-border px-2 py-0.5 text-[10px] uppercase text-prime-muted">
+                  {row.status}
+                </span>
+              </div>
+              <p className={`mt-2 text-xs ${row.overdue ? "font-medium text-red-400" : "text-prime-muted"}`}>
+                {row.due_label ?? "—"}
+              </p>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

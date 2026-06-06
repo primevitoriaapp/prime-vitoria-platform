@@ -124,8 +124,13 @@ export function DriverOffersPanel({
                     {trip.passenger_name?.trim() || "Passageiro"} ·{" "}
                     {formatBrDateTime(trip.scheduled_at)}
                   </p>
-                  <p className="mt-1 text-slate-400">
-                    {trip.origin_text} → {trip.destination_text}
+                  <p className="mt-1 min-w-0 text-slate-400">
+                    <span className="block truncate" title={trip.origin_text ?? ""}>
+                      {trip.origin_text}
+                    </span>
+                    <span className="block truncate" title={trip.destination_text ?? ""}>
+                      → {trip.destination_text}
+                    </span>
                   </p>
                 </>
               ) : null}

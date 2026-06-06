@@ -7,7 +7,7 @@ const TABS = [
   { id: "inicio", href: "/driver", label: "Início", icon: "⌂" },
   { id: "corridas", href: "/driver#corridas", label: "Corridas", icon: "◎" },
   { id: "carteira", href: "/driver#carteira", label: "Carteira", icon: "◈" },
-  { id: "perfil", href: "/driver#push-setup", label: "Perfil", icon: "◉" }
+  { id: "perfil", href: "/driver#perfil", label: "Perfil", icon: "◉" }
 ] as const;
 
 export function DriverBottomNav() {

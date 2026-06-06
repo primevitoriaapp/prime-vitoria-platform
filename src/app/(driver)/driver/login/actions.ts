@@ -123,3 +123,28 @@ export async function driverPinLoginAction(
   }
   redirect("/driver");
 }
+
+export async function driverLogoutAction(): Promise<void> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    redirect("/driver/login");
+  }
+
+  const cookieStore = await cookies();
+  const supabase = createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
+        cookiesToSet.forEach(({ name, value, options }) =>
+          cookieStore.set(name, value, options as CookieOptions | undefined)
+        );
+      }
+    }
+  });
+
+  await supabase.auth.signOut();
+  redirect("/driver/login");
+}
