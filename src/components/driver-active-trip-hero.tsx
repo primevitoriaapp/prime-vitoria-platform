@@ -22,6 +22,13 @@ import {
   driverShowsManualKmOnComplete,
   formatDriverGpsKm
 } from "@/lib/trips/driver-complete-km";
+import {
+  allPickupStopsCompleted,
+  nextIncompletePickupStopIndex,
+  parseTripPickupStops,
+  pickupStopNavPoint
+} from "@/lib/trips/trip-pickup-stops";
+import { DriverPickupStopsPanel } from "@/components/driver-pickup-stops-panel";
 
 const WAIT_ELIGIBLE: TripOperationalStatus[] = ["on_the_way", "arrived", "in_progress"];
 
@@ -36,6 +43,7 @@ type Props = {
   onCompleteKmChange?: (tripId: string, value: string) => void;
   onStatus: (tripId: string, to: TripOperationalStatus) => void;
   onGps: (trip: Trip) => void;
+  onCompletePickupStop?: (tripId: string, stopIndex: number) => void;
   onWaitStart?: (tripId: string) => void;
   onWaitStop?: (tripId: string) => void;
 };
@@ -51,11 +59,20 @@ export function DriverActiveTripHero({
   onCompleteKmChange,
   onStatus,
   onGps,
+  onCompletePickupStop,
   onWaitStart,
   onWaitStop
 }: Props) {
   const dest = { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.destination_text };
-  const pickup = { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text };
+  const pickupStops = parseTripPickupStops(trip.trip_pickup_stops);
+  const multiPickup = pickupStops.length > 1;
+  const pickupsDone = allPickupStopsCompleted(pickupStops);
+  const currentStopIdx = nextIncompletePickupStopIndex(pickupStops);
+  const currentStop = currentStopIdx != null ? pickupStops[currentStopIdx] : null;
+  const pickup =
+    multiPickup && currentStop && !pickupsDone
+      ? pickupStopNavPoint(currentStop)
+      : { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text };
   const routeNavLinks = buildDriverNavigationLinks({ origin: pickup, destination: dest });
   const pickupNavLinks = buildNavigationLinksToPoint(pickup);
   const destinationNavLinks = buildNavigationLinksToPoint(dest);
@@ -76,6 +93,8 @@ export function DriverActiveTripHero({
   };
   const showManualKm = driverShowsManualKmOnComplete(gps, completingTrip);
   const completeKmReady = driverCanCompleteTrip(completingTrip, gps, completeKm);
+  const pendingPickups = multiPickup && !pickupsDone;
+  const blockStartTrip = primaryStep === "in_progress" && pendingPickups;
   const inProgressTracking = trip.operational_status === "in_progress";
   const scheduledLabel = formatBrDateTime(trip.scheduled_at);
   const canWait = WAIT_ELIGIBLE.includes(trip.operational_status);
@@ -124,7 +143,11 @@ export function DriverActiveTripHero({
       ) : null}
 
       <DriverTripRouteCard
-        originText={trip.origin_text ?? "—"}
+        originText={
+          multiPickup
+            ? `Paradas: ${pickupStops.map((s) => s.passenger_name).join(" → ")}`
+            : (trip.origin_text ?? "—")
+        }
         destinationText={trip.destination_text ?? "—"}
         scheduledLabel={
           trip.vehicle
@@ -138,6 +161,14 @@ export function DriverActiveTripHero({
         return km ? <p className="mt-2 text-xs text-prime-muted">{km}</p> : null;
       })()}
 
+      {multiPickup && onCompletePickupStop ? (
+        <DriverPickupStopsPanel
+          stops={pickupStops}
+          isBusy={isBusy}
+          onCompleteStop={(stopIndex) => onCompletePickupStop(trip.id, stopIndex)}
+        />
+      ) : null}
+
       {primaryNav ? (
         <a
           href={primaryNav.href}
@@ -146,7 +177,7 @@ export function DriverActiveTripHero({
           className="mt-4 flex min-h-[3.25rem] w-full items-center justify-center gap-2 rounded-xl border-2 border-prime-gold/40 bg-prime-gold/10 px-4 py-3 text-lg font-bold text-prime-text hover:border-prime-gold/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-prime-gold"
         >
           <span aria-hidden>🧭</span>
-          {navigatingToDestination ? "Ir até o destino" : "Ir até o cliente"} — {primaryNav.label}
+          {navigatingToDestination ? "Ir até o destino" : pendingPickups && currentStopIdx != null ? `Ir até parada ${currentStopIdx + 1}` : "Ir até o cliente"} — {primaryNav.label}
         </a>
       ) : (
         <p className="mt-4 text-sm text-prime-muted">
@@ -255,7 +286,7 @@ export function DriverActiveTripHero({
         {primaryStep ? (
           <button
             type="button"
-            disabled={isBusy || (completingTrip && !completeKmReady)}
+            disabled={isBusy || (completingTrip && !completeKmReady) || blockStartTrip}
             aria-busy={isBusy}
             onClick={() => {
               if (!confirmDriverStatusTransition(primaryStep)) return;
@@ -265,6 +296,9 @@ export function DriverActiveTripHero({
           >
             {isBusy ? "A processar…" : driverPrimaryActionLabel(trip.operational_status, primaryStep)}
           </button>
+        ) : null}
+        {blockStartTrip ? (
+          <p className="text-xs text-amber-800">Conclua todos os embarques antes de iniciar a viagem ao destino.</p>
         ) : null}
         <button
           type="button"

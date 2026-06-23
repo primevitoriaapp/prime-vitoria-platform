@@ -15,6 +15,11 @@ import { driverOperationalStatusForTrip } from "@/lib/drivers/operational-status
 import { assertClientMayUsePortalWrites } from "@/lib/clients/client-portal-access";
 import { isOperationalTripStatusEvent } from "@/lib/notifications/operational-status-event";
 import { finalizeWaitFields } from "@/lib/trips/finalize-trip-wait";
+import {
+  allPickupStopsCompleted,
+  hasMultiplePickupStops,
+  parseTripPickupStops
+} from "@/lib/trips/trip-pickup-stops";
 
 const bodySchema = z.object({
   to_status: z.enum([
@@ -100,6 +105,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       p_source: statusSource,
       p_changed_by: session.userId
     });
+
+    if (body.to_status === "in_progress" && session.role === "motorista") {
+      const stops = parseTripPickupStops(trip.trip_pickup_stops);
+      if (hasMultiplePickupStops(stops) && !allPickupStopsCompleted(stops)) {
+        return fail(
+          "PICKUP_STOPS_PENDING",
+          "Conclua todos os embarques antes de iniciar a viagem",
+          409
+        );
+      }
+    }
 
     if (body.to_status === "completed" && session.role === "motorista") {
       const kmFromBody = body.actual_km;

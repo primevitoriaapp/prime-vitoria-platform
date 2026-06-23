@@ -254,6 +254,28 @@ export function DriverTripsPanel({
     await load();
   }
 
+  async function completePickupStop(tripId: string, stopIndex: number) {
+    setBusyTrip(tripId);
+    setMessage(null);
+    const res = await fetchWithSupabaseSession(
+      `/api/trips/${tripId}/pickup-stop-complete`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stop_index: stopIndex })
+      },
+      devFallbackRole
+    );
+    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    setBusyTrip(null);
+    if (!res.ok || !json.success) {
+      setMessage(json.error?.message ?? "Falha ao concluir parada.");
+      return;
+    }
+    setMessage(`Parada ${stopIndex + 1} concluída.`);
+    await load({ silent: true });
+  }
+
   async function sendGps(trip: Trip) {
     if (!navigator.geolocation) {
       setMessage("GPS indisponível neste dispositivo.");
@@ -367,6 +389,7 @@ export function DriverTripsPanel({
                   setCompleteKmByTrip((prev) => ({ ...prev, [id]: value }))
                 }
                 onStatus={setStatus}
+                onCompletePickupStop={(id, idx) => void completePickupStop(id, idx)}
                 onGps={sendGps}
                 onWaitStart={(id) => void setWait(id, "start")}
                 onWaitStop={(id) => void setWait(id, "stop")}

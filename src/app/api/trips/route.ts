@@ -17,6 +17,10 @@ import {
   sumLegAmounts,
   tripLegsSchema
 } from "@/lib/trips/trip-legs";
+import {
+  pickupStopsForStorage,
+  tripPickupStopsSchema
+} from "@/lib/trips/trip-pickup-stops";
 import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { listTripsForSession } from "@/lib/trips/list-trips-for-session";
 import { resolveTripTenantId } from "@/lib/trips/resolve-trip-tenant";
@@ -55,6 +59,7 @@ const createTripSchema = z.object({
   driver_amount: z.coerce.number().nonnegative().optional(),
   margin: z.coerce.number().optional(),
   trip_legs: tripLegsSchema.optional(),
+  trip_pickup_stops: tripPickupStopsSchema.optional(),
   round_trip: z.boolean().optional(),
   return_scheduled_at: z.string().optional()
 });
@@ -135,6 +140,14 @@ export async function POST(request: Request) {
 
     const uiServiceType = normalizePrimeServiceType(body.service_type);
     const legs = body.trip_legs;
+    const pickupStops = body.trip_pickup_stops;
+    if (legs?.length && pickupStops?.length) {
+      return fail(
+        "INVALID_TRIP_SHAPE",
+        "Use trechos múltiplos ou paradas de embarque, não ambos",
+        400
+      );
+    }
     const legTotals = legs?.length ? sumLegAmounts(legs) : null;
     const legScheduleIso = legs?.length ? firstLegScheduledAtIso(legs) : null;
     const scheduledAtRaw = legScheduleIso ?? body.scheduled_at;
@@ -156,7 +169,7 @@ export async function POST(request: Request) {
 
     const serviceType = resolvePricingServiceType(uiServiceType, scheduledAt);
     const maxPassengers = maxPassengersForService(uiServiceType);
-    const passengerCount = body.passenger_count ?? 1;
+    const passengerCount = pickupStops?.length ?? body.passenger_count ?? 1;
     if (passengerCount > maxPassengers) {
       return fail(
         "INVALID_PASSENGER_COUNT",
@@ -177,10 +190,22 @@ export async function POST(request: Request) {
           ? Math.round((clientAmount - driverAmount) * 100) / 100
           : null);
 
-    const originText = legs?.length ? legs[0].origin_text : body.origin_text;
+    const originText = pickupStops?.length
+      ? pickupStops[0].pickup_text
+      : legs?.length
+        ? legs[0].origin_text
+        : body.origin_text;
     const destinationText = legs?.length ? legs[legs.length - 1].destination_text : body.destination_text;
-    const originLat = legs?.length ? (legs[0].origin_lat ?? null) : body.origin_lat;
-    const originLng = legs?.length ? (legs[0].origin_lng ?? null) : body.origin_lng;
+    const originLat = pickupStops?.length
+      ? (pickupStops[0].pickup_lat ?? null)
+      : legs?.length
+        ? (legs[0].origin_lat ?? null)
+        : body.origin_lat;
+    const originLng = pickupStops?.length
+      ? (pickupStops[0].pickup_lng ?? null)
+      : legs?.length
+        ? (legs[0].origin_lng ?? null)
+        : body.origin_lng;
     const destLat = legs?.length
       ? (legs[legs.length - 1].destination_lat ?? null)
       : body.destination_lat;
@@ -203,9 +228,14 @@ export async function POST(request: Request) {
         destination_lat: destLat,
         destination_lng: destLng,
         trip_legs: legs?.length ? legs : null,
+        trip_pickup_stops: pickupStops?.length ? pickupStopsForStorage(pickupStops) : null,
         dispatch_mode: body.dispatch_mode,
-        passenger_name: body.passenger_name ?? null,
-        passenger_phone: body.passenger_phone ?? null,
+        passenger_name: pickupStops?.length
+          ? pickupStops[0].passenger_name
+          : body.passenger_name ?? null,
+        passenger_phone: pickupStops?.length
+          ? pickupStops[0].passenger_phone ?? null
+          : body.passenger_phone ?? null,
         passenger_count: passengerCount,
         notes: body.notes ?? null,
         client_amount: clientAmount,

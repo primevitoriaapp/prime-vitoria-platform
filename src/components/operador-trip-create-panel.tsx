@@ -4,7 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
-import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
+import { PickupStopsEditor, defaultPickupStopForm, type PickupStopForm } from "@/components/pickup-stops-editor";
+import { pickupStopsForStorage } from "@/lib/trips/trip-pickup-stops";
 import type { CostCenterRow } from "@/lib/clients/client-cost-centers";
 import { DateTimeInput } from "@/components/datetime-input";
 import { defaultScheduledAtIso, normalizeScheduledAtForStorage } from "@/lib/dates/br-date";
@@ -75,6 +76,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
   const [roundTrip, setRoundTrip] = useState(false);
   const [costCenters, setCostCenters] = useState<CostCenterRow[]>([]);
   const [legs, setLegs] = useState<LegForm[]>([emptyLeg()]);
+  const [pickupStops, setPickupStops] = useState<PickupStopForm[]>([defaultPickupStopForm()]);
   const [form, setForm] = useState({
     client_id: "",
     cost_center_id: "",
@@ -87,8 +89,6 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     destination_text: "",
     destination_lat: null as number | null,
     destination_lng: null as number | null,
-    passenger_name: "",
-    passenger_phone: "",
     passenger_count: 1,
     dispatch_mode: "directed" as "directed" | "offer",
     planned_km: null as number | null,
@@ -138,8 +138,13 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     })();
   }, [form.client_id]);
 
+  useEffect(() => {
+    setForm((f) => ({ ...f, passenger_count: pickupStops.length }));
+  }, [pickupStops.length]);
+
   async function refreshEstimate() {
     if (!form.client_id || multiLeg) return;
+    const firstStop = pickupStops[0];
     setEstimateBusy(true);
     try {
       const scheduledIso =
@@ -152,8 +157,8 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             client_id: form.client_id,
             service_type: form.service_type,
             scheduled_at: scheduledIso,
-            origin_lat: form.origin_lat,
-            origin_lng: form.origin_lng,
+            origin_lat: firstStop?.pickup_lat ?? form.origin_lat,
+            origin_lng: firstStop?.pickup_lng ?? form.origin_lng,
             destination_lat: form.destination_lat,
             destination_lng: form.destination_lng
           })
@@ -214,6 +219,8 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
     form.origin_lng,
     form.destination_lat,
     form.destination_lng,
+    pickupStops[0]?.pickup_lat,
+    pickupStops[0]?.pickup_lng,
     multiLeg
   ]);
 
@@ -243,7 +250,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
       return;
     }
 
-    if (roundTrip && !multiLeg) {
+    if (roundTrip && !multiLeg && pickupStops.length === 1) {
       const returnIso =
         normalizeScheduledAtForStorage(form.return_scheduled_at) ?? form.return_scheduled_at;
       const outboundIso =
@@ -254,6 +261,25 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
       }
       if (new Date(returnIso).getTime() <= new Date(outboundIso).getTime()) {
         setMessage("Horário de retorno deve ser após a ida.");
+        return;
+      }
+    }
+
+    if (!multiLeg) {
+      for (let i = 0; i < pickupStops.length; i++) {
+        const stop = pickupStops[i];
+        if (!stop.pickup_text.trim() || !stop.passenger_name.trim()) {
+          setMessage(`Preencha endereço e passageiro na parada ${i + 1}.`);
+          return;
+        }
+      }
+      if (!form.destination_text.trim()) {
+        setMessage("Informe o destino final da corrida.");
+        return;
+      }
+      const maxPax = maxPassengersForService(form.service_type);
+      if (pickupStops.length > maxPax) {
+        setMessage(`Número de paradas excede o máximo (${maxPax}) para este serviço.`);
         return;
       }
     }
@@ -307,14 +333,25 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
 
       const sharedFields = {
         cost_center_id: form.cost_center_id || undefined,
-        passenger_name: form.passenger_name || undefined,
-        passenger_phone: form.passenger_phone || undefined,
-        passenger_count: form.passenger_count,
+        passenger_count: pickupStops.length,
         dispatch_mode: form.dispatch_mode,
         client_amount,
         driver_amount,
         margin
       };
+
+      const pickupStopsPayload = !multiLeg
+        ? pickupStopsForStorage(
+            pickupStops.map((s) => ({
+              pickup_text: s.pickup_text,
+              pickup_lat: s.pickup_lat,
+              pickup_lng: s.pickup_lng,
+              passenger_name: s.passenger_name,
+              passenger_phone: s.passenger_phone || null,
+              completed_at: null
+            }))
+          )
+        : undefined;
 
       const body = multiLeg
         ? {
@@ -330,15 +367,17 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             client_id: form.client_id,
             service_type: form.service_type,
             scheduled_at,
-            origin_text: form.origin_text,
-            origin_lat: form.origin_lat,
-            origin_lng: form.origin_lng,
+            origin_text: pickupStops[0].pickup_text,
+            origin_lat: pickupStops[0].pickup_lat,
+            origin_lng: pickupStops[0].pickup_lng,
             destination_text: form.destination_text,
             destination_lat: form.destination_lat,
             destination_lng: form.destination_lng,
             ...sharedFields,
-            round_trip: roundTrip,
-            return_scheduled_at
+            trip_pickup_stops: pickupStopsPayload,
+            ...(pickupStops.length === 1 && roundTrip
+              ? { round_trip: true, return_scheduled_at }
+              : {})
           };
 
       const res = await fetchWithSupabaseSession(
@@ -494,53 +533,15 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
 
         {!multiLeg ? (
           <>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={roundTrip}
-                onChange={(e) => setRoundTrip(e.target.checked)}
-              />
-              <span>Ida e volta</span>
-            </label>
-            {roundTrip ? (
-              <label className="grid gap-1 text-sm">
-                <span>Horário de retorno</span>
-                <DateTimeInput
-                  required
-                  className={PRIME_INPUT_CLASS}
-                  value={form.return_scheduled_at}
-                  onChange={(iso) =>
-                    setForm((f) => ({ ...f, return_scheduled_at: iso ?? defaultScheduledIso() }))
-                  }
-                />
-              </label>
-            ) : null}
-          </>
-        ) : null}
-
-        {!multiLeg ? (
-          <>
-            <AddressAutocompleteInput
-              className="md:col-span-2"
-              label="Origem"
-              required
-              placeholder="Ex.: Aeroporto de Vitória ES"
-              value={form.origin_text}
-              hasCoords={form.origin_lat != null && form.origin_lng != null}
-              onChange={(origin_text) => setForm((f) => ({ ...f, origin_text }))}
-              onPlaceSelect={(place) =>
-                setForm((f) => ({
-                  ...f,
-                  origin_text: place.displayName,
-                  origin_lat: place.lat,
-                  origin_lng: place.lng
-                }))
-              }
-              onCoordsClear={() => setForm((f) => ({ ...f, origin_lat: null, origin_lng: null }))}
+            <PickupStopsEditor
+              clientId={form.client_id}
+              stops={pickupStops}
+              onChange={setPickupStops}
+              devFallbackRole="admin"
             />
             <AddressAutocompleteInput
               className="md:col-span-2"
-              label="Destino"
+              label="Destino final"
               required
               placeholder="Ex.: Shopping Vitória ES"
               value={form.destination_text}
@@ -639,58 +640,36 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
           </div>
         )}
 
-        <PassengerAutocompleteInput
-          clientId={form.client_id}
-          className="md:col-span-1"
-          value={form.passenger_name}
-          onChange={(passenger_name) => setForm((f) => ({ ...f, passenger_name }))}
-          onSelect={(p) => {
-            setForm((f) => {
-              const next = {
-                ...f,
-                passenger_name: p.name,
-                passenger_phone: p.phone ?? f.passenger_phone
-              };
-              const addr = p.address?.trim();
-              if (addr) {
-                if (!f.origin_text.trim()) return { ...next, origin_text: addr };
-                if (!f.destination_text.trim()) return { ...next, destination_text: addr };
-              }
-              return next;
-            });
-          }}
-          devFallbackRole="admin"
-        />
-        <label className="grid gap-1 text-sm">
-          <span>Telefone do passageiro</span>
-          <input
-            type="tel"
-            className={PRIME_INPUT_CLASS}
-            value={form.passenger_phone}
-            onChange={(e) => setForm((f) => ({ ...f, passenger_phone: e.target.value }))}
-            placeholder="+55 27 99999-0000"
-          />
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span>Número de passageiros</span>
-          <input
-            type="number"
-            min={1}
-            max={maxPassengersForService(form.service_type)}
-            required
-            className={PRIME_INPUT_CLASS}
-            value={form.passenger_count}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                passenger_count: Math.min(
-                  maxPassengersForService(f.service_type),
-                  Math.max(1, Number(e.target.value) || 1)
-                )
-              }))
-            }
-          />
-        </label>
+        {!multiLeg ? (
+          <>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={roundTrip}
+                disabled={pickupStops.length > 1}
+                onChange={(e) => setRoundTrip(e.target.checked)}
+              />
+              <span>Ida e volta {pickupStops.length > 1 ? "(apenas 1 parada)" : ""}</span>
+            </label>
+            {roundTrip && pickupStops.length === 1 ? (
+              <label className="grid gap-1 text-sm">
+                <span>Horário de retorno</span>
+                <DateTimeInput
+                  required
+                  className={PRIME_INPUT_CLASS}
+                  value={form.return_scheduled_at}
+                  onChange={(iso) =>
+                    setForm((f) => ({ ...f, return_scheduled_at: iso ?? defaultScheduledIso() }))
+                  }
+                />
+              </label>
+            ) : null}
+            <p className="text-sm text-prime-muted md:col-span-2">
+              Passageiros na corrida: <strong>{pickupStops.length}</strong>
+            </p>
+          </>
+        ) : null}
+
         <label className="grid gap-1 text-sm">
           <span>Modo despacho</span>
           <select

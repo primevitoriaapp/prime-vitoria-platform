@@ -1,3 +1,5 @@
+import type { TripPickupStop } from "@/lib/trips/trip-pickup-stops";
+
 export type UserRole = "admin" | "operador" | "financeiro" | "cliente" | "motorista" | "guest";
 
 export type DispatchMode = "directed" | "offer";
@@ -63,5 +65,6 @@ export interface Trip {
   client_amount?: number | null;
   wait_minutes?: number | null;
   wait_started_at?: string | null;
+  trip_pickup_stops?: TripPickupStop[] | null;
   vehicle?: { id: string; model: string; plate: string } | null;
 }
