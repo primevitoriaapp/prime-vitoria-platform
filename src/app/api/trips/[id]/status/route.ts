@@ -103,14 +103,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (body.to_status === "completed" && session.role === "motorista") {
       const kmFromBody = body.actual_km;
-      const kmFromTrip = trip.actual_km != null ? Number(trip.actual_km) : null;
-      const resolvedKm =
-        kmFromBody != null && Number.isFinite(kmFromBody) && kmFromBody > 0
-          ? kmFromBody
-          : kmFromTrip != null && Number.isFinite(kmFromTrip) && kmFromTrip > 0
-            ? kmFromTrip
-            : null;
-      if (resolvedKm == null) {
+      if (kmFromBody == null || !Number.isFinite(kmFromBody) || kmFromBody <= 0) {
         return fail("ACTUAL_KM_REQUIRED", "Informe o KM percorrido para finalizar", 400);
       }
     }

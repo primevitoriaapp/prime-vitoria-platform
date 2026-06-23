@@ -59,6 +59,12 @@ export function DriverActiveTripHero({
   const primaryStep = next[0];
   const extraSteps = next.slice(1);
   const completingTrip = primaryStep === "completed";
+  const completeKmReady =
+    !completingTrip ||
+    (() => {
+      const km = Number(completeKm.trim().replace(",", "."));
+      return Number.isFinite(km) && km > 0;
+    })();
   const scheduledLabel = formatBrDateTime(trip.scheduled_at);
   const canWait = WAIT_ELIGIBLE.includes(trip.operational_status);
   const isWaiting = Boolean(trip.wait_started_at);
@@ -203,7 +209,7 @@ export function DriverActiveTripHero({
         {primaryStep ? (
           <button
             type="button"
-            disabled={isBusy}
+            disabled={isBusy || (completingTrip && !completeKmReady)}
             aria-busy={isBusy}
             onClick={() => {
               if (!confirmDriverStatusTransition(primaryStep)) return;
@@ -228,7 +234,7 @@ export function DriverActiveTripHero({
               <button
                 key={s}
                 type="button"
-                disabled={isBusy}
+                disabled={isBusy || (s === "completed" && !completeKmReady)}
                 onClick={() => {
                   if (!confirmDriverStatusTransition(s)) return;
                   onStatus(trip.id, s);

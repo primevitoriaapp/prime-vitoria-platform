@@ -485,6 +485,12 @@ function CompactActiveTripCard({
 }) {
   const next = driverNextStatuses(trip.operational_status)[0];
   const completingTrip = next === "completed";
+  const completeKmReady =
+    !completingTrip ||
+    (() => {
+      const km = Number(completeKm.trim().replace(",", "."));
+      return Number.isFinite(km) && km > 0;
+    })();
   const pickupNav =
     buildNavigationLinksToPoint({
       lat: trip.origin_lat,
@@ -536,7 +542,7 @@ function CompactActiveTripCard({
         {next ? (
           <button
             type="button"
-            disabled={isBusy}
+            disabled={isBusy || (completingTrip && !completeKmReady)}
             onClick={() => {
               if (!confirmDriverStatusTransition(next)) return;
               onStatus(trip.id, next);

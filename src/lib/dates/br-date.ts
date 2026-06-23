@@ -307,7 +307,9 @@ export function formatBrDateTime(value: string | null | undefined): string {
 /** Exibe HH:mm em America/Sao_Paulo. */
 export function formatBrTime(value: string | null | undefined): string {
   if (!value?.trim()) return "";
-  const d = new Date(value);
+  const iso = scheduledAtToUtcIso(value);
+  if (!iso) return "—";
+  const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return brTimeFormatter.format(d);
 }

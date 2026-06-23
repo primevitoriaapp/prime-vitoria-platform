@@ -97,7 +97,8 @@ export function ClientTripsPanel({
 
   const agora = new Date();
   const mesIni = inicioMesUtc(agora);
-  const corridasMes = trips.filter((t) => new Date(t.scheduled_at) >= mesIni).length;
+  const mesIniMs = mesIni.getTime();
+  const corridasMes = trips.filter((t) => scheduledAtSortMs(t.scheduled_at) >= mesIniMs).length;
   const emAndamento = trips.filter((t) => EM_ANDAMENTO.includes(t.operational_status)).length;
   const aguardandoAprovacao = trips.filter((t) => clientShowsAwaitingApproval(t.operational_status)).length;
 
