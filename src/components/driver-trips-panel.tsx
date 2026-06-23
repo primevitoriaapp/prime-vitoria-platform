@@ -13,6 +13,12 @@ import { buildDriverNavigationLinks } from "@/lib/trips/driver-nav-links";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { confirmDriverStatusTransition } from "@/lib/trips/driver-status-confirm";
 import { buildNavigationLinksToPoint } from "@/lib/trips/driver-nav-links";
+import type { DriverTripGpsState } from "@/lib/trips/driver-complete-km";
+import {
+  driverCanCompleteTrip,
+  driverShowsManualKmOnComplete,
+  formatDriverGpsKm
+} from "@/lib/trips/driver-complete-km";
 import { pickDriverFocusTripId } from "@/lib/trips/driver-step-copy";
 import { formatTripKmLine } from "@/lib/trips/format-km";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
@@ -21,6 +27,8 @@ import { DriverNewTripBanner } from "@/components/driver-new-trip-banner";
 import { TripLegLabelBadge } from "@/components/trip-leg-label-badge";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
+import { useDriverTripGpsTracking } from "@/hooks/use-driver-trip-gps-tracking";
+import { parseDriverKmInput } from "@/lib/trips/driver-complete-km";
 
 const ACTIVE: TripOperationalStatus[] = [
   "dispatched",
@@ -59,6 +67,11 @@ export function DriverTripsPanel({
   const docVisible = useDocumentVisible();
   const knownTripIdsRef = useRef<Set<string>>(new Set());
   const tripsInitializedRef = useRef(false);
+
+  const { getTripGpsState, resolveActualKmForComplete, clearTripTrail } = useDriverTripGpsTracking({
+    trips,
+    devFallbackRole
+  });
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -194,13 +207,6 @@ export function DriverTripsPanel({
     await load({ silent: true });
   }
 
-  function parseDriverKmInput(raw: string): number | null {
-    const normalized = raw.trim().replace(",", ".");
-    if (!normalized) return null;
-    const km = Number(normalized);
-    return Number.isFinite(km) && km > 0 ? km : null;
-  }
-
   async function setStatus(tripId: string, to_status: TripOperationalStatus) {
     const trip = trips.find((item) => item.id === tripId);
     if (to_status === "in_progress" && trip?.wait_started_at) {
@@ -208,12 +214,13 @@ export function DriverTripsPanel({
     }
     let actualKm: number | undefined;
     if (to_status === "completed") {
-      const km = parseDriverKmInput(completeKmByTrip[tripId] ?? "");
-      if (km == null) {
+      const manualKm = parseDriverKmInput(completeKmByTrip[tripId] ?? "");
+      const resolved = resolveActualKmForComplete(tripId, manualKm);
+      if (resolved == null) {
         setMessage("Informe o KM percorrido para finalizar");
         return;
       }
-      actualKm = km;
+      actualKm = resolved;
     }
     setBusyTrip(tripId);
     setMessage(null);
@@ -234,6 +241,14 @@ export function DriverTripsPanel({
     if (!res.ok || !json.success) {
       setMessage(json.error?.message ?? "Falha ao actualizar estado.");
       return;
+    }
+    if (to_status === "completed") {
+      clearTripTrail(tripId);
+      setCompleteKmByTrip((prev) => {
+        const next = { ...prev };
+        delete next[tripId];
+        return next;
+      });
     }
     setMessage(`Estado: ${STATUS_CORRIDA_PT[to_status]}.`);
     await load();
@@ -347,6 +362,7 @@ export function DriverTripsPanel({
                 waitElapsedLabel={primaryTrip.wait_started_at ? waitElapsedLabel : null}
                 waitBusy={waitBusy}
                 completeKm={completeKmByTrip[primaryTrip.id] ?? ""}
+                gpsTracking={getTripGpsState(primaryTrip.id)}
                 onCompleteKmChange={(id, value) =>
                   setCompleteKmByTrip((prev) => ({ ...prev, [id]: value }))
                 }
@@ -367,6 +383,7 @@ export function DriverTripsPanel({
                       trip={trip}
                       isBusy={busyTrip === trip.id}
                       completeKm={completeKmByTrip[trip.id] ?? ""}
+                      gpsTracking={getTripGpsState(trip.id)}
                       onCompleteKmChange={(id, value) =>
                         setCompleteKmByTrip((prev) => ({ ...prev, [id]: value }))
                       }
@@ -474,23 +491,28 @@ function CompactActiveTripCard({
   trip,
   isBusy,
   completeKm,
+  gpsTracking,
   onCompleteKmChange,
   onStatus
 }: {
   trip: Trip;
   isBusy: boolean;
   completeKm: string;
+  gpsTracking?: DriverTripGpsState;
   onCompleteKmChange: (id: string, value: string) => void;
   onStatus: (id: string, s: TripOperationalStatus) => void;
 }) {
   const next = driverNextStatuses(trip.operational_status)[0];
   const completingTrip = next === "completed";
-  const completeKmReady =
-    !completingTrip ||
-    (() => {
-      const km = Number(completeKm.trim().replace(",", "."));
-      return Number.isFinite(km) && km > 0;
-    })();
+  const gps = gpsTracking ?? {
+    accumulatedKm: null,
+    pointCount: 0,
+    tracking: false,
+    requiresManualKm: false,
+    gpsError: null
+  };
+  const showManualKm = driverShowsManualKmOnComplete(gps, completingTrip);
+  const completeKmReady = driverCanCompleteTrip(completingTrip, gps, completeKm);
   const pickupNav =
     buildNavigationLinksToPoint({
       lat: trip.origin_lat,
@@ -523,9 +545,19 @@ function CompactActiveTripCard({
           → {trip.destination_text ?? "—"}
         </span>
       </p>
-      {completingTrip ? (
+      {trip.operational_status === "in_progress" ? (
+        <p className="mt-2 text-xs text-emerald-300">
+          GPS: {formatDriverGpsKm(gps.accumulatedKm)} km
+          {gps.tracking ? " · a registar" : gps.gpsError ? ` · ${gps.gpsError}` : null}
+        </p>
+      ) : null}
+      {completingTrip && !showManualKm && gps.accumulatedKm != null && gps.accumulatedKm > 0 ? (
+        <p className="mt-2 text-xs text-prime-muted">KM GPS: {formatDriverGpsKm(gps.accumulatedKm)} km</p>
+      ) : null}
+      {completingTrip && showManualKm ? (
         <label className="mt-3 block text-xs text-prime-muted">
           KM real percorrido
+          {gps.gpsError ? <span className="mt-1 block text-amber-800">{gps.gpsError}</span> : null}
           <input
             type="text"
             inputMode="decimal"

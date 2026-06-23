@@ -16,6 +16,12 @@ import {
 } from "@/lib/trips/driver-step-copy";
 import { formatTripKmLine } from "@/lib/trips/format-km";
 import { confirmDriverStatusTransition } from "@/lib/trips/driver-status-confirm";
+import type { DriverTripGpsState } from "@/lib/trips/driver-complete-km";
+import {
+  driverCanCompleteTrip,
+  driverShowsManualKmOnComplete,
+  formatDriverGpsKm
+} from "@/lib/trips/driver-complete-km";
 
 const WAIT_ELIGIBLE: TripOperationalStatus[] = ["on_the_way", "arrived", "in_progress"];
 
@@ -26,6 +32,7 @@ type Props = {
   waitElapsedLabel?: string | null;
   waitBusy?: boolean;
   completeKm?: string;
+  gpsTracking?: DriverTripGpsState;
   onCompleteKmChange?: (tripId: string, value: string) => void;
   onStatus: (tripId: string, to: TripOperationalStatus) => void;
   onGps: (trip: Trip) => void;
@@ -40,6 +47,7 @@ export function DriverActiveTripHero({
   waitElapsedLabel,
   waitBusy = false,
   completeKm = "",
+  gpsTracking,
   onCompleteKmChange,
   onStatus,
   onGps,
@@ -59,12 +67,16 @@ export function DriverActiveTripHero({
   const primaryStep = next[0];
   const extraSteps = next.slice(1);
   const completingTrip = primaryStep === "completed";
-  const completeKmReady =
-    !completingTrip ||
-    (() => {
-      const km = Number(completeKm.trim().replace(",", "."));
-      return Number.isFinite(km) && km > 0;
-    })();
+  const gps = gpsTracking ?? {
+    accumulatedKm: null,
+    pointCount: 0,
+    tracking: false,
+    requiresManualKm: false,
+    gpsError: null
+  };
+  const showManualKm = driverShowsManualKmOnComplete(gps, completingTrip);
+  const completeKmReady = driverCanCompleteTrip(completingTrip, gps, completeKm);
+  const inProgressTracking = trip.operational_status === "in_progress";
   const scheduledLabel = formatBrDateTime(trip.scheduled_at);
   const canWait = WAIT_ELIGIBLE.includes(trip.operational_status);
   const isWaiting = Boolean(trip.wait_started_at);
@@ -186,11 +198,45 @@ export function DriverActiveTripHero({
         </div>
       ) : null}
 
-      {completingTrip && onCompleteKmChange ? (
+      {inProgressTracking ? (
+        <div className="mt-4 rounded-xl border border-emerald-300/50 bg-emerald-50/90 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+            KM percorridos (GPS)
+          </p>
+          {gps.tracking ? (
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums text-emerald-950">
+              {formatDriverGpsKm(gps.accumulatedKm)}
+              <span className="ml-1 text-lg font-medium">km</span>
+            </p>
+          ) : gps.gpsError ? (
+            <p className="mt-1 text-sm text-amber-900">{gps.gpsError}</p>
+          ) : (
+            <p className="mt-1 text-sm text-emerald-900">A aguardar sinal GPS…</p>
+          )}
+          <p className="mt-1 text-xs text-emerald-800/80">
+            {gps.pointCount > 0
+              ? `${gps.pointCount} pontos registados · actualização a cada 30s`
+              : "Registo automático a cada 30 segundos"}
+          </p>
+        </div>
+      ) : null}
+
+      {completingTrip && !showManualKm && gps.accumulatedKm != null && gps.accumulatedKm > 0 ? (
+        <div className="mt-4 rounded-xl border border-prime-border bg-prime-bg/80 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-prime-muted">KM real (GPS)</p>
+          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-prime-text">
+            {formatDriverGpsKm(gps.accumulatedKm)} km
+          </p>
+          <p className="mt-1 text-xs text-prime-muted">Será guardado automaticamente ao finalizar.</p>
+        </div>
+      ) : null}
+
+      {completingTrip && showManualKm && onCompleteKmChange ? (
         <div className="mt-4 rounded-xl border border-prime-border bg-prime-bg/80 p-3">
           <label htmlFor={`complete-km-${trip.id}`} className="text-xs font-semibold uppercase tracking-wide text-prime-muted">
             KM real percorrido
           </label>
+          {gps.gpsError ? <p className="mt-1 text-xs text-amber-800">{gps.gpsError}</p> : null}
           <input
             id={`complete-km-${trip.id}`}
             type="text"
