@@ -31,3 +31,14 @@ test("períodos e vencimento", () => {
   });
   assert.equal(formatInvoiceNumber(7), "FAT-00007");
 });
+
+import { closingPeriodEndingYesterday } from "../src/lib/finance/client-invoice-calc.ts";
+
+test("closingPeriodEndingYesterday — mês cheio e dia fixo", () => {
+  assert.deepEqual(closingPeriodEndingYesterday(0, "2026-11-01"), { start: "2026-10-01", end: "2026-10-31" });
+  assert.equal(closingPeriodEndingYesterday(0, "2026-11-02"), null);
+  assert.deepEqual(closingPeriodEndingYesterday(0, "2026-03-01"), { start: "2026-02-01", end: "2026-02-28" });
+  assert.deepEqual(closingPeriodEndingYesterday(15, "2026-11-16"), { start: "2026-10-16", end: "2026-11-15" });
+  assert.deepEqual(closingPeriodEndingYesterday(20, "2027-01-21"), { start: "2026-12-21", end: "2027-01-20" });
+  assert.equal(closingPeriodEndingYesterday(15, "2026-11-15"), null);
+});

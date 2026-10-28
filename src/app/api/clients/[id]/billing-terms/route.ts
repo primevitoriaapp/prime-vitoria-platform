@@ -13,7 +13,9 @@ const bodySchema = z.object({
   wait_client_price_per_hour: money,
   wait_driver_price_per_hour: money,
   payment_term_days: z.coerce.number().int().min(0).max(180).nullable(),
-  billing_issuer: z.enum(["rj_prime", "prime_servicos", "ilha_prime"]).nullable()
+  billing_issuer: z.enum(["rj_prime", "prime_servicos", "ilha_prime"]).nullable(),
+  invoice_closing_day: z.coerce.number().int().min(0).max(28).default(0),
+  invoice_auto_close: z.boolean().default(true)
 });
 
 async function clientExists(id: string, tenantId: string): Promise<boolean> {

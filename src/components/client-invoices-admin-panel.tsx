@@ -124,7 +124,7 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
         <div>
           <h2 className="text-lg font-semibold">Faturas dos clientes</h2>
           <p className="text-sm text-prime-muted">
-            Fecha as corridas concluídas do mês de cada empresa, com relatório completo. O vencimento segue o prazo do cadastro do cliente.
+            As empresas com fechamento automático (cadastro do cliente) têm a fatura criada sozinha no dia seguinte ao fechamento. Use o botão para fechar um mês manualmente. O vencimento segue o prazo do cadastro.
           </p>
         </div>
         <div className="flex items-end gap-2">

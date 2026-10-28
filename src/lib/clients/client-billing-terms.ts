@@ -8,7 +8,7 @@ import {
 export * from "@/lib/clients/billing-terms-calc";
 
 const COLUMNS =
-  "wait_tolerance_minutes, wait_client_price_per_hour, wait_driver_price_per_hour, payment_term_days, billing_issuer";
+  "wait_tolerance_minutes, wait_client_price_per_hour, wait_driver_price_per_hour, payment_term_days, billing_issuer, invoice_closing_day, invoice_auto_close";
 
 function num(v: unknown): number | null {
   if (v == null || v === "") return null;
@@ -30,7 +30,9 @@ export async function getClientBillingTerms(clientId: string, tenantId: string):
     wait_client_price_per_hour: num(row.wait_client_price_per_hour),
     wait_driver_price_per_hour: num(row.wait_driver_price_per_hour),
     payment_term_days: num(row.payment_term_days),
-    billing_issuer: (row.billing_issuer as BillingIssuer | null) ?? null
+    billing_issuer: (row.billing_issuer as BillingIssuer | null) ?? null,
+    invoice_closing_day: num(row.invoice_closing_day) ?? 0,
+    invoice_auto_close: row.invoice_auto_close !== false
   };
 }
 
@@ -46,7 +48,9 @@ export async function updateClientBillingTerms(
       wait_client_price_per_hour: terms.wait_client_price_per_hour,
       wait_driver_price_per_hour: terms.wait_driver_price_per_hour,
       payment_term_days: terms.payment_term_days,
-      billing_issuer: terms.billing_issuer
+      billing_issuer: terms.billing_issuer,
+      invoice_closing_day: terms.invoice_closing_day,
+      invoice_auto_close: terms.invoice_auto_close
     })
     .eq("id", clientId)
     .eq("tenant_id", tenantId);

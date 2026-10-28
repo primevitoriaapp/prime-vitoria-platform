@@ -33,6 +33,10 @@ export type ClientBillingTerms = {
   wait_driver_price_per_hour: number | null;
   payment_term_days: number | null;
   billing_issuer: BillingIssuer | null;
+  /** 0 = mês cheio (1 ao último dia); 1–28 = dia em que fecha. */
+  invoice_closing_day: number;
+  /** Fecha a fatura sozinho no dia seguinte ao fechamento. */
+  invoice_auto_close: boolean;
 };
 
 export const DEFAULT_WAIT_TOLERANCE_MINUTES = 15;
@@ -43,7 +47,9 @@ export function emptyClientBillingTerms(): ClientBillingTerms {
     wait_client_price_per_hour: null,
     wait_driver_price_per_hour: null,
     payment_term_days: 30,
-    billing_issuer: null
+    billing_issuer: null,
+    invoice_closing_day: 0,
+    invoice_auto_close: true
   };
 }
 

@@ -1,4 +1,5 @@
 {
   "framework": "nextjs",
-  "regions": ["gru1"]
+  "regions": ["gru1"],
+  "crons": [{ "path": "/api/cron/client-invoices", "schedule": "0 9 * * *" }]
 }

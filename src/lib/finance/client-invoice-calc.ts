@@ -75,3 +75,42 @@ export const INVOICE_STATUS_LABEL: Record<string, string> = {
 export function formatInvoiceNumber(n: number | string): string {
   return `FAT-${String(n).padStart(5, "0")}`;
 }
+
+function ymdAddDays(ymd: string, days: number): string {
+  const d = new Date(`${ymd}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function lastDayOfMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** Hoje em Brasília (AAAA-MM-DD). */
+export function saoPauloToday(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+/**
+ * Período que fechou ONTEM para um cliente, ou null se ontem não foi dia de fechamento.
+ * closingDay 0 = mês cheio (fecha no último dia); 1–28 = fecha nesse dia
+ * (ex.: 15 → período de 16 do mês anterior a 15 deste mês).
+ */
+export function closingPeriodEndingYesterday(closingDay: number, todayYmd: string): { start: string; end: string } | null {
+  const yesterday = ymdAddDays(todayYmd, -1);
+  const [y, m, d] = yesterday.split("-").map(Number);
+  if (!closingDay) {
+    if (d !== lastDayOfMonth(y, m)) return null;
+    return monthPeriod(y, m);
+  }
+  if (d !== closingDay) return null;
+  const prevY = m === 1 ? y - 1 : y;
+  const prevM = m === 1 ? 12 : m - 1;
+  const start = ymdAddDays(`${prevY}-${String(prevM).padStart(2, "0")}-${String(closingDay).padStart(2, "0")}`, 1);
+  return { start, end: yesterday };
+}
+
+export function closingCycleLabel(closingDay: number): string {
+  if (!closingDay) return "Mês cheio: do dia 1 ao último dia, fecha no dia 1º do mês seguinte";
+  return `Fecha todo dia ${closingDay}: período do dia ${closingDay + 1} do mês anterior ao dia ${closingDay}`;
+}

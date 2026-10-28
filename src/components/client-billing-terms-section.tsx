@@ -16,6 +16,8 @@ type FormState = {
   wait_driver_price_per_hour: string;
   payment_term_days: string;
   billing_issuer: string;
+  invoice_closing_day: string;
+  invoice_auto_close: boolean;
 };
 
 const TERM_PRESETS = [
@@ -34,7 +36,9 @@ function toForm(d: Record<string, unknown> | undefined): FormState {
     wait_client_price_per_hour: s(d?.wait_client_price_per_hour),
     wait_driver_price_per_hour: s(d?.wait_driver_price_per_hour),
     payment_term_days: s(d?.payment_term_days, "30"),
-    billing_issuer: s(d?.billing_issuer)
+    billing_issuer: s(d?.billing_issuer),
+    invoice_closing_day: s(d?.invoice_closing_day, "0"),
+    invoice_auto_close: d?.invoice_auto_close !== false
   };
 }
 
@@ -77,7 +81,9 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
       wait_client_price_per_hour: numOrNull(form.wait_client_price_per_hour),
       wait_driver_price_per_hour: numOrNull(form.wait_driver_price_per_hour),
       payment_term_days: numOrNull(form.payment_term_days) == null ? null : Math.round(numOrNull(form.payment_term_days)!),
-      billing_issuer: form.billing_issuer || null
+      billing_issuer: form.billing_issuer || null,
+      invoice_closing_day: Number(form.invoice_closing_day) || 0,
+      invoice_auto_close: form.invoice_auto_close
     };
     const res = await fetchWithSupabaseSession(
       `/api/clients/${clientId}/billing-terms`,
@@ -109,7 +115,7 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
   return (
     <section className="card space-y-4 md:col-span-2">
       <div>
-        <h3 className="text-base font-semibold text-prime-text">Hora parada, prazo e emitente</h3>
+        <h3 className="text-base font-semibold text-prime-text">Hora parada, prazo, fechamento e emitente</h3>
         <p className="mt-1 text-sm text-prime-muted">
           Valem para todas as corridas deste cliente. A hora parada entra no valor final quando a corrida é finalizada.
         </p>
@@ -188,6 +194,39 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="grid gap-1 text-sm">
+          <span>Fechamento da fatura</span>
+          <select
+            id="invoice-closing-day"
+            className={PRIME_INPUT_CLASS}
+            value={form.invoice_closing_day}
+            onChange={(e) => setForm((f) => ({ ...f, invoice_closing_day: e.target.value }))}
+            disabled={off}
+          >
+            <option value="0">Mês cheio (dia 1 ao último dia)</option>
+            {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+              <option key={d} value={String(d)}>
+                Fecha todo dia {d}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-start gap-2 self-end rounded-lg bg-prime-bg p-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={form.invoice_auto_close}
+            onChange={(e) => setForm((f) => ({ ...f, invoice_auto_close: e.target.checked }))}
+            disabled={off}
+          />
+          <span>
+            <span className="font-medium">Fechar automaticamente</span>
+            <span className="block text-xs text-prime-muted">
+              No dia seguinte ao fechamento o sistema soma as corridas e cria a fatura. Você só anexa o boleto e envia.
+            </span>
+          </span>
         </label>
 
         <p className="text-xs text-prime-muted sm:col-span-2">
