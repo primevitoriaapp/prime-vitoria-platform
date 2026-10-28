@@ -142,10 +142,10 @@ export function ClientAppShell({
       <header className="bg-[#111] text-[#fff]">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <PrimeLogoMark size={40} />
+            <PrimeLogoMark size={56} />
             <div className="min-w-0 leading-tight">
-              <p className="truncate text-sm font-semibold">Prime Vitória</p>
-              <p className="truncate text-[11px] text-prime-gold">{clientName}</p>
+              <p className="line-clamp-2 text-base font-semibold text-prime-gold sm:text-lg">{clientName}</p>
+              <p className="truncate text-[11px] uppercase tracking-[0.2em] text-[#fff]/70">Portal Prime Vitória</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
