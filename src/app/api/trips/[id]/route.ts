@@ -4,6 +4,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
+import { redactTripMoneyForRole } from "@/lib/trips/list-trips-for-session";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,7 +27,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const denied = denyUnlessTripReadable(access);
     if (denied) return denied;
 
-    return ok(trip);
+    const [visible] = redactTripMoneyForRole([trip as Record<string, unknown>], session.role);
+    return ok(visible);
   } catch (error) {
     return mapApiError(error);
   }

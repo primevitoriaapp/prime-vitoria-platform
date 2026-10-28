@@ -71,6 +71,7 @@ export type DriverDetail = {
   payee_document?: string | null;
   payout_price_per_km?: number | null;
   payout_percent?: number | null;
+  employment_type?: "funcionario" | "parceiro" | null;
   profile_phone?: string | null;
   has_pin?: boolean;
   linked_vehicles: LinkedVehicle[];
@@ -407,6 +408,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       active: flags.active,
       available: flags.available,
       pix_key: trim(detail.pix_key),
+      employment_type: detail.employment_type === "funcionario" ? "funcionario" : "parceiro",
       bank_name: trim(detail.bank_name),
       bank_branch: trim(detail.bank_branch),
       bank_account: trim(detail.bank_account),
@@ -885,6 +887,22 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           <label className="grid gap-1 text-sm md:col-span-2">
             <span>Pix</span>
             <input className={inputClass} value={detail.pix_key ?? ""} onChange={(e) => patchDetail("pix_key", e.target.value)} />
+          </label>
+        </fieldset>
+
+        <fieldset className="grid gap-3 md:grid-cols-2">
+          <legend className="text-sm font-semibold text-prime-text">Vínculo com a Prime</legend>
+          <label className="grid gap-1 text-sm md:col-span-2">
+            <span>Tipo de motorista</span>
+            <select
+              id="driver-employment-type"
+              className={inputClass}
+              value={detail.employment_type === "funcionario" ? "funcionario" : "parceiro"}
+              onChange={(e) => patchDetail("employment_type", e.target.value as "funcionario" | "parceiro")}
+            >
+              <option value="parceiro">Parceiro (terceirizado ou agregado): vê no app quanto vai receber</option>
+              <option value="funcionario">Funcionário (salário): não vê nenhum valor no app</option>
+            </select>
           </label>
         </fieldset>
 

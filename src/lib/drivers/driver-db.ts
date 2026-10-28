@@ -50,7 +50,7 @@ const EXTENDED_0047_KEYS = [
 ] as const;
 
 /** Campos migration 0049 — repasse motorista. */
-const EXTENDED_0049_PAYOUT_KEYS = ["payout_price_per_km", "payout_percent"] as const;
+const EXTENDED_0049_PAYOUT_KEYS = ["payout_price_per_km", "payout_percent", "employment_type"] as const;
 
 const OPTIONAL_BATCHES = [
   EXTENDED_0044_KEYS,

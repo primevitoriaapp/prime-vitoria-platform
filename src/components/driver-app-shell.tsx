@@ -33,6 +33,24 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   const router = useRouter();
   const searchParams = useSearchParams();
   const [drivers, setDrivers] = useState(initialDrivers);
+  // Funcionário (salário) não vê valores; parceiro vê só o próprio repasse.
+  const [employmentType, setEmploymentType] = useState<"funcionario" | "parceiro" | null>(null);
+
+  useEffect(() => {
+    if (mode !== "motorista") return;
+    let cancelled = false;
+    fetch("/api/drivers/me", { credentials: "include" })
+      .then((r) => r.json())
+      .then((json: { success?: boolean; data?: { employment_type?: string } }) => {
+        if (cancelled || !json?.success) return;
+        setEmploymentType(json.data?.employment_type === "funcionario" ? "funcionario" : "parceiro");
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+  const hidePayments = mode === "motorista" && employmentType !== "parceiro";
 
   const selectedDriverId = useMemo(() => {
     if (mode === "motorista") return sessionDriverId ?? null;
@@ -129,16 +147,21 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           devFallbackRole={devRole}
         />
 
-        <section id="carteira" className="driver-card scroll-mt-6 p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#AAAAAA]">Pagamentos</h2>
-          <div className="mt-3">
-            <DriverPayablesPanel
-              tenantId={tenantId}
-              driverIdFilter={mode === "admin" ? selectedDriverId : null}
-              devFallbackRole={devRole}
-            />
-          </div>
-        </section>
+        {hidePayments ? null : (
+          <section id="carteira" className="driver-card scroll-mt-6 p-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[#AAAAAA]">Meus ganhos</h2>
+            <p className="mt-1 text-xs text-[#AAAAAA]">
+              Valor de cada corrida e situação do pagamento. O repasse é liberado quando o cliente paga a Prime.
+            </p>
+            <div className="mt-3">
+              <DriverPayablesPanel
+                tenantId={tenantId}
+                driverIdFilter={mode === "admin" ? selectedDriverId : null}
+                devFallbackRole={devRole}
+              />
+            </div>
+          </section>
+        )}
 
         {mode === "motorista" && firebaseWebConfigured ? (
           <>
@@ -167,7 +190,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           </details>
         ) : null}
       </main>
-      {mode === "motorista" ? <DriverBottomNav /> : null}
+      {mode === "motorista" ? <DriverBottomNav showWallet={!hidePayments} /> : null}
     </div>
   );
 }

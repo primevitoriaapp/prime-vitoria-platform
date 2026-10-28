@@ -37,6 +37,7 @@ export async function GET() {
       cpf: shaped.cpf,
       profile_name: shaped.profile_name ?? shaped.full_name ?? null,
       full_name: shaped.full_name ?? null,
+      employment_type: (driver.employment_type as string | null) === "funcionario" ? "funcionario" : "parceiro",
       photo_url
     });
   } catch (error) {

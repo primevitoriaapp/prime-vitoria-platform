@@ -97,6 +97,24 @@ async function fetchAgendaTripsOutsideRange(
 }
 
 /**
+ * Motorista nunca recebe o valor cobrado do cliente nem a margem;
+ * cliente nunca recebe o repasse do motorista nem a margem.
+ */
+const CLIENT_SIDE_MONEY_KEYS = ["client_amount", "margin", "calculation_metadata", "pricing_rule_id"] as const;
+const DRIVER_SIDE_MONEY_KEYS = ["driver_amount", "margin", "calculation_metadata", "pricing_rule_id"] as const;
+
+export function redactTripMoneyForRole<T extends Record<string, unknown>>(rows: T[], role: string): T[] {
+  const keys =
+    role === "motorista" ? CLIENT_SIDE_MONEY_KEYS : role === "cliente" ? DRIVER_SIDE_MONEY_KEYS : null;
+  if (!keys) return rows;
+  return rows.map((row) => {
+    const copy: Record<string, unknown> = { ...row };
+    for (const k of keys) delete copy[k];
+    return copy as T;
+  });
+}
+
+/**
  * Lista corridas para a sessão actual (partilhado entre GET /api/trips e RSC da agenda).
  */
 export async function listTripsForSession(
@@ -230,7 +248,7 @@ export async function listTripsForSession(
     }
   }
 
-  const items = await enrichTripListItems(merged);
+  const items = redactTripMoneyForRole(await enrichTripListItems(merged), session.role);
 
   if (query.agenda) {
     console.log("[trips GET agenda]", {

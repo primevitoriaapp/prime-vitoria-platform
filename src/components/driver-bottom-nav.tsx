@@ -10,9 +10,10 @@ const TABS = [
   { id: "perfil", href: "/driver#perfil", label: "Perfil", icon: "◉" }
 ] as const;
 
-export function DriverBottomNav() {
+export function DriverBottomNav({ showWallet = true }: { showWallet?: boolean }) {
   const pathname = usePathname();
   if (!pathname.startsWith("/driver")) return null;
+  const tabs = showWallet ? TABS : TABS.filter((t) => t.id !== "carteira");
 
   return (
     <nav
@@ -20,7 +21,7 @@ export function DriverBottomNav() {
       aria-label="Navegação motorista"
     >
       <ul className="mx-auto flex max-w-lg justify-around px-2 py-2">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <li key={tab.id}>
             <Link
               href={tab.href}
