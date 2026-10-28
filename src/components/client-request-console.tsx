@@ -11,6 +11,8 @@ import { maxPassengersForService, primeServiceTypeLabel } from "@/lib/pricing/pr
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { shortAddress } from "@/lib/client/short-address";
 import { normalizeFlightNumber } from "@/lib/trips/flight";
+import { SERVICE_MODE_LABEL, legacyServiceType, type ServiceMode } from "@/lib/pricing/category-catalog";
+import type { ClientCatalogItem } from "@/lib/pricing/vehicle-categories";
 import {
   loadTripPresets,
   removeTripPreset,
@@ -129,6 +131,9 @@ export function ClientRequestConsole({
 }: Props) {
   const router = useRouter();
   const [services, setServices] = useState<EnabledServiceDto[]>([]);
+  const [catalog, setCatalog] = useState<ClientCatalogItem[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [mode, setMode] = useState<ServiceMode | "">("");
   const [servicesLoading, setServicesLoading] = useState(true);
   const [serviceType, setServiceType] = useState("");
   const [date, setDate] = useState("");
@@ -174,12 +179,22 @@ export function ClientRequestConsole({
     let cancelled = false;
     void (async () => {
       setServicesLoading(true);
-      const res = await fetchWithSupabaseSession(`/api/clients/${clientId}/enabled-services`, {}, devFallbackRole);
-      const json = (await res.json()) as { success?: boolean; data?: EnabledServiceDto[] };
+      const [res, catRes] = await Promise.all([
+        fetchWithSupabaseSession(`/api/clients/${clientId}/enabled-services`, {}, devFallbackRole),
+        fetchWithSupabaseSession(`/api/clients/${clientId}/catalog`, {}, devFallbackRole)
+      ]);
+      const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: EnabledServiceDto[] };
+      const catJson = (await catRes.json().catch(() => ({}))) as { success?: boolean; data?: ClientCatalogItem[] };
       if (!cancelled) {
         const list = res.ok && json.success ? (json.data ?? []) : [];
+        const cat = catRes.ok && catJson.success ? (catJson.data ?? []) : [];
         setServices(list);
-        if (list.length === 1) setServiceType(list[0].id);
+        setCatalog(cat);
+        if (cat.length === 1) {
+          setCategoryId(cat[0].id);
+          setMode(cat[0].modes[0]);
+          setServiceType(legacyServiceType(cat[0].kind, cat[0].modes[0]));
+        } else if (cat.length === 0 && list.length === 1) setServiceType(list[0].id);
         setServicesLoading(false);
       }
     })();
@@ -189,13 +204,35 @@ export function ClientRequestConsole({
   }, [clientId, devFallbackRole]);
 
   const scheduledIso = useMemo(() => (date && time ? saoPauloDateAndTimeToUtcIso(date, time) : null), [date, time]);
-  const maxPassengers = serviceType ? maxPassengersForService(serviceType) : 4;
+  const catalogMode = catalog.length > 0;
+  const selectedCategory = catalog.find((c) => c.id === categoryId) ?? null;
+  const maxPassengers = catalogMode
+    ? (selectedCategory?.passengers ?? 4)
+    : serviceType
+      ? maxPassengersForService(serviceType)
+      : 4;
   const enabledIds = new Set(services.map((sv) => sv.id));
   const groups = SERVICE_GROUPS.map((g) => ({ ...g, modes: g.modes.filter((m) => enabledIds.has(m.id)) })).filter(
     (g) => g.modes.length > 0
   );
   const activeGroup = groups.find((g) => g.modes.some((m) => m.id === serviceType)) ?? null;
-  const isDisposicao = serviceType.startsWith("diaria_");
+  const isDisposicao = catalogMode ? String(mode).startsWith("diaria_") : serviceType.startsWith("diaria_");
+  const isKm = catalogMode ? mode === "km" : serviceType === "corporativo";
+  const pacoteLabel = catalogMode && isDisposicao ? String(mode).replace("diaria_", "") : pacote;
+
+  function pickCategory(c: ClientCatalogItem) {
+    const m = c.modes.includes(mode as ServiceMode) ? (mode as ServiceMode) : c.modes[0];
+    setCategoryId(c.id);
+    setMode(m);
+    setServiceType(legacyServiceType(c.kind, m));
+    setPassengerCount((n) => Math.min(n, c.passengers));
+  }
+
+  function pickMode(m: ServiceMode) {
+    if (!selectedCategory) return;
+    setMode(m);
+    setServiceType(legacyServiceType(selectedCategory.kind, m));
+  }
 
   function pickService(id: string) {
     setServiceType(id);
@@ -215,6 +252,8 @@ export function ClientRequestConsole({
             body: JSON.stringify({
               client_id: clientId,
               service_type: serviceType,
+              vehicle_category_id: catalogMode ? categoryId || undefined : undefined,
+              service_mode: catalogMode ? mode || undefined : undefined,
               scheduled_at: scheduledIso ?? undefined,
               origin_lat: originLat,
               origin_lng: originLng,
@@ -248,7 +287,7 @@ export function ClientRequestConsole({
       })();
     }, 450);
     return () => clearTimeout(timer);
-  }, [clientId, serviceType, scheduledIso, originLat, originLng, destinationLat, destinationLng, devFallbackRole]);
+  }, [clientId, serviceType, scheduledIso, originLat, originLng, destinationLat, destinationLng, devFallbackRole, categoryId, mode, catalogMode]);
 
   function applyPreset(p: ClientTripPreset) {
     setOrigin(p.origin);
@@ -291,8 +330,8 @@ export function ClientRequestConsole({
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
-    if (!serviceType) {
-      setError("Escolha o tipo de serviço.");
+    if (!serviceType || (catalogMode && (!categoryId || !mode))) {
+      setError(catalogMode ? "Escolha o veículo e o serviço." : "Escolha o tipo de serviço.");
       return;
     }
     if (!scheduledIso) {
@@ -316,6 +355,8 @@ export function ClientRequestConsole({
           client_id: clientId,
           cost_center_id: costCenterId || undefined,
           service_type: serviceType,
+          vehicle_category_id: catalogMode ? categoryId : undefined,
+          service_mode: catalogMode ? mode : undefined,
           scheduled_at: scheduledIso,
           origin_text: origin,
           origin_lat: originLat,
@@ -328,7 +369,7 @@ export function ClientRequestConsole({
           passenger_count: passengerCount,
           notes:
             [
-              isDisposicao ? `Diária de ${pacote}.` : null,
+              isDisposicao ? `Diária de ${pacoteLabel}.` : null,
               isDisposicao && untilTime ? `À disposição até ${untilTime}.` : null,
               isDisposicao
                 ? area === "local"
@@ -356,7 +397,10 @@ export function ClientRequestConsole({
       when: formatBrDateTime(scheduledIso),
       origin: shortAddress(origin),
       destination: shortAddress(destination),
-      service: primeServiceTypeLabel(serviceType, { audience: "client" }),
+      service:
+        catalogMode && selectedCategory && mode
+          ? `${selectedCategory.name} · ${SERVICE_MODE_LABEL[mode as ServiceMode]}`
+          : primeServiceTypeLabel(serviceType, { audience: "client" }),
       passenger: passengerName.trim() || "A definir"
     });
     onCreated?.();
@@ -367,7 +411,7 @@ export function ClientRequestConsole({
     return <div className="h-64 animate-pulse rounded-2xl border border-prime-border bg-white" />;
   }
 
-  if (services.length === 0) {
+  if (services.length === 0 && catalog.length === 0) {
     return (
       <div className="rounded-2xl border border-prime-border bg-white p-6 text-sm text-prime-muted">
         Nenhum serviço liberado para esta conta ainda. Fale com a central Prime Vitória.
@@ -406,7 +450,7 @@ export function ClientRequestConsole({
   const estimateBox = (() => {
     if (!serviceType) return null;
     // Transfer e diária: valor combinado com a central (varia por trajeto e pacote).
-    if (serviceType !== "corporativo") {
+    if (!isKm) {
       return (
         <p className="text-sm text-prime-muted">
           Valor a ser informado pela central Prime de acordo com o serviço escolhido
@@ -439,8 +483,63 @@ export function ClientRequestConsole({
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="grid gap-6 rounded-2xl border border-prime-border bg-white p-5 shadow-prime-card sm:p-6">
-      {/* 1. Serviço */}
-      <section className="grid gap-3">
+      {/* 1. Veículo e serviço (tabela nova) */}
+      {catalogMode ? (
+        <section className="grid gap-3">
+          <StepTitle n={1}>Veículo e serviço</StepTitle>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {catalog.map((c) => {
+              const active = c.id === categoryId;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => pickCategory(c)}
+                  aria-pressed={active}
+                  className={`flex flex-col overflow-hidden rounded-xl border text-left transition ${
+                    active ? "border-prime-gold ring-1 ring-prime-gold" : "border-prime-border hover:border-prime-gold"
+                  }`}
+                >
+                  <span className="flex h-24 items-center justify-center bg-prime-bg">
+                    {c.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.photo_url} alt={c.name} className="h-full w-full object-contain p-2" />
+                    ) : (
+                      <span className="text-prime-muted">
+                        <ServiceIcon icon={c.kind === "carro" ? "car" : "van"} />
+                      </span>
+                    )}
+                  </span>
+                  <span className="p-3">
+                    <span className="block font-semibold text-prime-text">{c.name}</span>
+                    <span className="block text-xs text-prime-muted">Até {c.passengers} passageiros</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {selectedCategory ? (
+            <div className="flex flex-wrap gap-2">
+              {selectedCategory.modes.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => pickMode(m)}
+                  aria-pressed={mode === m}
+                  className={`rounded-lg px-3 py-2 text-sm ${mode === m ? "bg-[#111] font-semibold text-[#fff]" : "border border-prime-border text-prime-muted hover:text-prime-text"}`}
+                >
+                  {SERVICE_MODE_LABEL[m]}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-prime-muted">Escolha o veículo.</p>
+          )}
+        </section>
+      ) : null}
+
+      {/* 1. Serviço (tabela antiga) */}
+      <section className={`grid gap-3 ${catalogMode ? "hidden" : ""}`}>
         <StepTitle n={1}>Tipo de serviço</StepTitle>
         <div className="grid gap-2 sm:grid-cols-3">
           {groups.map((g) => {
@@ -503,7 +602,7 @@ export function ClientRequestConsole({
         </div>
         {isDisposicao ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className={LABEL}>
+            <div className={`${LABEL} ${catalogMode ? "hidden" : ""}`}>
               Pacote
               <div className="inline-flex rounded-lg border border-prime-border bg-prime-bg p-1">
                 {(["5h", "10h", "12h"] as const).map((p) => (

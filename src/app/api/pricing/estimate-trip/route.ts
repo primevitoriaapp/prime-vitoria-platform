@@ -1,3 +1,6 @@
+import { db } from "@/lib/server/db";
+import { plannedKmFromCoords } from "@/lib/trips/km-distance";
+import { bandeiraForIso, priceFromCategoryTable, type PriceCell } from "@/lib/pricing/category-catalog";
 import { z } from "zod";
 import { getClientPricingRule } from "@/lib/clients/client-pricing-rules";
 import { getDriverPayoutRule } from "@/lib/drivers/driver-payout-rules";
@@ -20,7 +23,9 @@ const bodySchema = z.object({
   origin_lat: z.coerce.number().optional().nullable(),
   origin_lng: z.coerce.number().optional().nullable(),
   destination_lat: z.coerce.number().optional().nullable(),
-  destination_lng: z.coerce.number().optional().nullable()
+  destination_lng: z.coerce.number().optional().nullable(),
+  vehicle_category_id: z.string().uuid().optional().nullable(),
+  service_mode: z.enum(["transfer", "diaria_5h", "diaria_10h", "diaria_12h", "km"]).optional().nullable()
 });
 
 export async function POST(request: Request) {
@@ -40,6 +45,38 @@ export async function POST(request: Request) {
       if (!session.clientId || body.client_id !== session.clientId) {
         return fail("FORBIDDEN", "Não é possível estimar para outro cliente", 403);
       }
+    }
+
+    // Tabela nova (veículo × serviço): só o corporativo por km tem estimativa no portal.
+    if (body.vehicle_category_id) {
+      if (body.service_mode !== "km") return ok({ service_type: body.service_type, has_rule: false, estimate: null });
+      const { data: rows } = await db
+        .from("client_category_prices")
+        .select("service, enabled, client_price, partner_price")
+        .eq("client_id", body.client_id)
+        .eq("category_id", body.vehicle_category_id);
+      const cells: PriceCell[] = (rows ?? []).map((r) => ({
+        service: r.service as PriceCell["service"],
+        enabled: Boolean(r.enabled),
+        client_price: r.client_price == null ? null : Number(r.client_price),
+        partner_price: r.partner_price == null ? null : Number(r.partner_price)
+      }));
+      const km = plannedKmFromCoords({
+        origin_lat: body.origin_lat ?? null,
+        origin_lng: body.origin_lng ?? null,
+        destination_lat: body.destination_lat ?? null,
+        destination_lng: body.destination_lng ?? null
+      });
+      const when = body.scheduled_at ?? new Date().toISOString();
+      const price = priceFromCategoryTable({ mode: "km", scheduledAt: when, km, cells });
+      const perKm = cells.find((c) => c.service === bandeiraForIso(when) && c.enabled)?.client_price ?? null;
+      return ok({
+        service_type: body.service_type,
+        has_rule: price.client != null,
+        charge_type: "per_km",
+        price_per_km: perKm,
+        estimate: price.client == null ? null : { planned_km: km, client_amount: price.client }
+      });
     }
 
     const uiServiceType = normalizePrimeServiceType(body.service_type);

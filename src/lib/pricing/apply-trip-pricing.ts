@@ -14,6 +14,7 @@ import { clientPricingRowToEngineRule } from "@/lib/clients/client-pricing-confi
 import { calculateWaitCharge, getClientBillingTerms } from "@/lib/clients/client-billing-terms";
 import { resolvePricingServiceType } from "@/lib/pricing/corporativo-bandeira";
 import { roundMoney } from "@/lib/pricing/pricing-utils";
+import { priceFromCategoryTable, type PriceCell, type ServiceMode } from "@/lib/pricing/category-catalog";
 
 export type ApplyTripPricingInput = {
   tripId: string;
@@ -44,10 +45,117 @@ function durationHours(scheduledAt: string | null | undefined, completedAt: stri
 
 export { loadActivePricingRule } from "@/lib/pricing/load-active-pricing";
 
+/**
+ * Tabela nova (veículo × serviço da empresa). Retorna null quando a corrida não usa a tabela nova
+ * ou a célula está sem valor — aí segue o motor antigo / valor digitado na corrida.
+ */
+async function applyCategoryPricing(input: ApplyTripPricingInput): Promise<ApplyTripPricingResult | null> {
+  const { data: trip } = await db
+    .from("trips")
+    .select("vehicle_category_id, service_mode, driver_id, scheduled_at, wait_minutes, client_amount, driver_amount")
+    .eq("id", input.tripId)
+    .eq("tenant_id", input.tenantId)
+    .maybeSingle();
+  if (!trip?.vehicle_category_id || !trip.service_mode) return null;
+
+  const { data: rows } = await db
+    .from("client_category_prices")
+    .select("service, enabled, client_price, partner_price")
+    .eq("client_id", input.clientId)
+    .eq("category_id", trip.vehicle_category_id);
+  const cells: PriceCell[] = (rows ?? []).map((r) => ({
+    service: r.service as PriceCell["service"],
+    enabled: Boolean(r.enabled),
+    client_price: r.client_price == null ? null : Number(r.client_price),
+    partner_price: r.partner_price == null ? null : Number(r.partner_price)
+  }));
+
+  const km = input.kmReal ?? input.kmPlanned ?? null;
+  const usedHours = durationHours(input.scheduledAt ?? (trip.scheduled_at as string), input.completedAt);
+  const table = priceFromCategoryTable({
+    mode: trip.service_mode as ServiceMode,
+    scheduledAt: (trip.scheduled_at as string) ?? input.scheduledAt ?? new Date().toISOString(),
+    km,
+    usedHours,
+    cells
+  });
+
+  // Valor digitado pela central na corrida tem prioridade (orçamento combinado).
+  const quotedClient = Number(trip.client_amount) || 0;
+  const quotedDriver = Number(trip.driver_amount) || 0;
+  let client = quotedClient > 0 ? quotedClient : table.client;
+  let partner = quotedClient > 0 ? (quotedDriver > 0 ? quotedDriver : table.partner) : table.partner;
+  if (client == null) return null;
+
+  // Hora parada: valores da tabela do veículo, se houver; senão os do cadastro da empresa.
+  const terms = await getClientBillingTerms(input.clientId, input.tenantId);
+  const hp = cells.find((c) => c.service === "hora_parada" && c.enabled);
+  const wait = calculateWaitCharge(trip.wait_minutes as number | null | undefined, {
+    ...terms,
+    wait_client_price_per_hour: hp?.client_price ?? terms.wait_client_price_per_hour,
+    wait_driver_price_per_hour: hp?.partner_price ?? terms.wait_driver_price_per_hour
+  });
+  client = roundMoney(client + wait.client_amount);
+  partner = partner == null ? null : roundMoney(partner + wait.driver_amount);
+
+  const hasDriver = Boolean(trip.driver_id);
+  const driverAmount = hasDriver ? (partner ?? 0) : 0;
+  const margin = roundMoney(client - driverAmount);
+  const metadata = { source: "categoria", detail: table.detail, km, used_hours: usedHours, wait, quoted: quotedClient > 0 };
+
+  const { error: tripErr } = await db
+    .from("trips")
+    .update({ client_amount: client, driver_amount: driverAmount, margin, km_billable: km, calculation_metadata: metadata })
+    .eq("id", input.tripId)
+    .eq("tenant_id", input.tenantId);
+  if (tripErr) throw new Error(tripErr.message);
+
+  const { error: finErr } = await db.from("trip_financials").upsert(
+    {
+      trip_id: input.tripId,
+      amount_client: client,
+      amount_driver: driverAmount,
+      tolls: 0,
+      parking: 0,
+      extras: 0,
+      discount: 0,
+      net_margin: margin,
+      pricing_rule_id: null,
+      calculation_metadata: metadata
+    },
+    { onConflict: "trip_id" }
+  );
+  if (finErr) throw new Error(finErr.message);
+
+  await insertAuditEvent({
+    tenantId: input.tenantId,
+    actorUserId: input.actorUserId,
+    action: "finance.pricing_applied",
+    entityType: "trip",
+    entityId: input.tripId,
+    metadata: { source: "categoria", detail: table.detail, amount_client: client, amount_driver: driverAmount }
+  });
+  return { applied: true, km_billable: km, amount_client: client, amount_driver: driverAmount };
+}
+
 /** Aplica regra de precificação do cliente e grava `trip_financials` + metadados na viagem. */
 export async function applyTripPricingOnCompletion(
   input: ApplyTripPricingInput
 ): Promise<ApplyTripPricingResult> {
+  {
+    const [receivableLock, payableLock] = await Promise.all([
+      db.from("accounts_receivable").select("status").eq("trip_id", input.tripId).eq("tenant_id", input.tenantId).maybeSingle(),
+      db.from("driver_payables").select("status").eq("trip_id", input.tripId).eq("tenant_id", input.tenantId).maybeSingle()
+    ]);
+    const locked =
+      financialTitleBlocksRegeneration(receivableLock.data?.status as string | undefined) ||
+      financialTitleBlocksRegeneration(payableLock.data?.status as string | undefined);
+    if (!locked) {
+      const byCategory = await applyCategoryPricing(input);
+      if (byCategory) return byCategory;
+    }
+  }
+
   const { data: tripRow } = await db
     .from("trips")
     .select("driver_id, service_type, scheduled_at, wait_minutes, client_amount, driver_amount")

@@ -57,6 +57,8 @@ const createTripSchema = z.object({
   passenger_count: z.coerce.number().int().min(1).optional(),
   notes: z.string().optional(),
   flight_number: z.string().max(12).optional().nullable(),
+  vehicle_category_id: z.string().uuid().optional().nullable(),
+  service_mode: z.enum(["transfer", "diaria_5h", "diaria_10h", "diaria_12h", "km"]).optional().nullable(),
   client_amount: z.coerce.number().nonnegative().optional(),
   driver_amount: z.coerce.number().nonnegative().optional(),
   margin: z.coerce.number().optional(),
@@ -177,7 +179,31 @@ export async function POST(request: Request) {
     const approvalFields = initialTripApprovalFieldsForSession(session, session.userId);
 
     const serviceType = resolvePricingServiceType(uiServiceType, scheduledAt);
-    const maxPassengers = maxPassengersForService(uiServiceType);
+    // Veículo escolhido pela tabela nova: confere se está liberado para a empresa e usa a lotação dele.
+    let categoryPassengers: number | null = null;
+    if (body.vehicle_category_id) {
+      const { data: cat } = await db
+        .from("vehicle_categories")
+        .select("passengers, active")
+        .eq("id", body.vehicle_category_id)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (!cat || cat.active === false) return fail("INVALID_CATEGORY", "Veículo não encontrado", 400);
+      categoryPassengers = Number(cat.passengers) || null;
+      if (session.role === "cliente") {
+        const mode = body.service_mode ?? "transfer";
+        const services = mode === "km" ? ["km_b1", "km_b2"] : [mode];
+        const { data: cells } = await db
+          .from("client_category_prices")
+          .select("service")
+          .eq("client_id", body.client_id)
+          .eq("category_id", body.vehicle_category_id)
+          .eq("enabled", true)
+          .in("service", services);
+        if (!cells?.length) return fail("SERVICE_NOT_ENABLED", "Este serviço não está liberado para a sua empresa", 403);
+      }
+    }
+    const maxPassengers = categoryPassengers ?? maxPassengersForService(uiServiceType);
     const passengerCount = pickupStops?.length ?? body.passenger_count ?? 1;
     if (passengerCount > maxPassengers) {
       return fail(
@@ -248,6 +274,8 @@ export async function POST(request: Request) {
         passenger_count: passengerCount,
         notes: body.notes ?? null,
         flight_number: normalizeFlightNumber(body.flight_number),
+        vehicle_category_id: body.vehicle_category_id ?? null,
+        service_mode: body.vehicle_category_id ? (body.service_mode ?? "transfer") : null,
         client_amount: clientAmount,
         driver_amount: driverAmount,
         margin,
@@ -310,6 +338,8 @@ export async function POST(request: Request) {
           passenger_count: passengerCount,
           notes: body.notes ?? null,
           flight_number: normalizeFlightNumber(body.flight_number),
+          vehicle_category_id: body.vehicle_category_id ?? null,
+          service_mode: body.vehicle_category_id ? (body.service_mode ?? "transfer") : null,
           client_amount: clientAmount,
           driver_amount: driverAmount,
           margin,

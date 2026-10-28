@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
 import { ClientPricingServicesSection } from "@/components/client-pricing-services-section";
 import { ClientBillingTermsSection } from "@/components/client-billing-terms-section";
+import { ClientCategoryPricesSection } from "@/components/client-category-prices-section";
 import { ClientPassengersAdminSection } from "@/components/client-passengers-admin-section";
 import { ClientCostCentersAdminSection } from "@/components/client-cost-centers-admin-section";
 import { ClientContractUploadSection } from "@/components/client-contract-upload-section";
@@ -440,7 +441,15 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         </fieldset>
         {clientId && form.type === "PJ" ? (
           <>
-            <ClientPricingServicesSection clientId={clientId} disabled={busy} />
+            <ClientCategoryPricesSection clientId={clientId} disabled={busy} />
+            <details className="card md:col-span-2">
+              <summary className="cursor-pointer text-sm font-medium text-prime-muted">
+                Tabela antiga de serviços (vale só enquanto a tabela de veículos acima não estiver ligada)
+              </summary>
+              <div className="mt-3">
+                <ClientPricingServicesSection clientId={clientId} disabled={busy} />
+              </div>
+            </details>
             <ClientBillingTermsSection clientId={clientId} disabled={busy} />
             <ClientPassengersAdminSection clientId={clientId} disabled={busy} />
             <ClientCostCentersAdminSection clientId={clientId} disabled={busy} />
