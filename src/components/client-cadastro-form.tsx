@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
 import { ClientPricingServicesSection } from "@/components/client-pricing-services-section";
+import { ClientBillingTermsSection } from "@/components/client-billing-terms-section";
 import { ClientPassengersAdminSection } from "@/components/client-passengers-admin-section";
 import { ClientCostCentersAdminSection } from "@/components/client-cost-centers-admin-section";
 import { ClientContractUploadSection } from "@/components/client-contract-upload-section";
@@ -440,6 +441,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         {clientId && form.type === "PJ" ? (
           <>
             <ClientPricingServicesSection clientId={clientId} disabled={busy} />
+            <ClientBillingTermsSection clientId={clientId} disabled={busy} />
             <ClientPassengersAdminSection clientId={clientId} disabled={busy} />
             <ClientCostCentersAdminSection clientId={clientId} disabled={busy} />
             <ClientContractUploadSection clientId={clientId} disabled={busy} />

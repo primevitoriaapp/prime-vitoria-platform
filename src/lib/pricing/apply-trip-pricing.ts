@@ -9,6 +9,11 @@ import {
 } from "@/lib/pricing/load-active-pricing";
 import { buildPricingCalculationMetadata } from "@/lib/pricing/pricing-audit-meta";
 import type { PricingTripInput } from "@/lib/pricing/types";
+import { getClientPricingConfig } from "@/lib/clients/client-pricing-db";
+import { clientPricingRowToEngineRule } from "@/lib/clients/client-pricing-config";
+import { calculateWaitCharge, getClientBillingTerms } from "@/lib/clients/client-billing-terms";
+import { resolvePricingServiceType } from "@/lib/pricing/corporativo-bandeira";
+import { roundMoney } from "@/lib/pricing/pricing-utils";
 
 export type ApplyTripPricingInput = {
   tripId: string;
@@ -43,7 +48,25 @@ export { loadActivePricingRule } from "@/lib/pricing/load-active-pricing";
 export async function applyTripPricingOnCompletion(
   input: ApplyTripPricingInput
 ): Promise<ApplyTripPricingResult> {
-  const baseRule = await loadActivePricingRule(input.tenantId, input.clientId);
+  const { data: tripRow } = await db
+    .from("trips")
+    .select("driver_id, service_type, scheduled_at, wait_minutes")
+    .eq("id", input.tripId)
+    .eq("tenant_id", input.tenantId)
+    .maybeSingle();
+
+  // Regra do tipo de serviço da corrida (corporativo → Bandeira 1 ou 2 pelo horário);
+  // sem regra específica, cai na regra geral do cliente.
+  const serviceKey = tripRow?.service_type
+    ? resolvePricingServiceType(
+        String(tripRow.service_type),
+        (tripRow.scheduled_at as string | null) ?? input.scheduledAt ?? null
+      )
+    : null;
+  const serviceRow = serviceKey ? await getClientPricingConfig(input.clientId, input.tenantId, serviceKey) : null;
+  const baseRule = serviceRow
+    ? clientPricingRowToEngineRule(serviceRow, input.tenantId)
+    : await loadActivePricingRule(input.tenantId, input.clientId);
   if (!baseRule) {
     return { applied: false, skipped_reason: "no_active_pricing_rule" };
   }
@@ -58,11 +81,11 @@ export async function applyTripPricingOnCompletion(
     return { applied: false, skipped_reason: "manual_financials_exist" };
   }
 
-  const [receivableRes, payableRes, tripDriver] = await Promise.all([
+  const [receivableRes, payableRes] = await Promise.all([
     db.from("accounts_receivable").select("status").eq("trip_id", input.tripId).eq("tenant_id", input.tenantId).maybeSingle(),
-    db.from("driver_payables").select("status").eq("trip_id", input.tripId).eq("tenant_id", input.tenantId).maybeSingle(),
-    db.from("trips").select("driver_id").eq("id", input.tripId).eq("tenant_id", input.tenantId).maybeSingle()
+    db.from("driver_payables").select("status").eq("trip_id", input.tripId).eq("tenant_id", input.tenantId).maybeSingle()
   ]);
+  const tripDriver = { data: tripRow ? { driver_id: tripRow.driver_id } : null };
 
   if (financialTitleBlocksRegeneration(receivableRes.data?.status as string | undefined)) {
     return { applied: false, skipped_reason: "receivable_locked" };
@@ -80,15 +103,37 @@ export async function applyTripPricingOnCompletion(
     duration_hours: durationHours(input.scheduledAt, input.completedAt)
   };
 
-  const result = calculateTripPricing(rule, pricingInput);
-  const calculationMetadata = buildPricingCalculationMetadata(rule, result);
+  const baseResult = calculateTripPricing(rule, pricingInput);
+
+  // Hora parada do cadastro do cliente: tolerância + valor proporcional ao tempo.
+  const terms = await getClientBillingTerms(input.clientId, input.tenantId);
+  const wait = calculateWaitCharge(tripRow?.wait_minutes as number | null | undefined, terms);
+  const hasDriver = Boolean(tripDriver.data?.driver_id);
+  const result =
+    wait.client_amount > 0 || wait.driver_amount > 0
+      ? {
+          ...baseResult,
+          amount_client: roundMoney(baseResult.amount_client + wait.client_amount),
+          amount_driver: roundMoney(baseResult.amount_driver + wait.driver_amount),
+          net_margin: roundMoney(baseResult.net_margin + wait.client_amount - wait.driver_amount),
+          breakdown: { ...baseResult.breakdown, wait }
+        }
+      : { ...baseResult, breakdown: { ...baseResult.breakdown, wait } };
+  const calculationMetadata = {
+    ...buildPricingCalculationMetadata(rule, result),
+    service_pricing_key: serviceKey,
+    wait
+  };
 
   const { error: tripErr } = await db
     .from("trips")
     .update({
       km_billable: result.km_billable,
       pricing_rule_id: rule.id,
-      calculation_metadata: calculationMetadata
+      calculation_metadata: calculationMetadata,
+      client_amount: result.amount_client,
+      driver_amount: hasDriver ? result.amount_driver : 0,
+      margin: hasDriver ? result.net_margin : result.amount_client
     })
     .eq("id", input.tripId)
     .eq("tenant_id", input.tenantId);
@@ -101,7 +146,7 @@ export async function applyTripPricingOnCompletion(
     {
       trip_id: input.tripId,
       amount_client: result.amount_client,
-      amount_driver: tripDriver.data?.driver_id ? result.amount_driver : 0,
+      amount_driver: hasDriver ? result.amount_driver : 0,
       tolls: result.tolls,
       parking: result.parking,
       extras: result.extras,

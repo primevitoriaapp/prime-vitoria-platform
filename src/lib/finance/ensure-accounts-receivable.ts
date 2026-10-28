@@ -1,5 +1,6 @@
 import { db } from "@/lib/server/db";
 import { accountsReceivableAmountFromFinancial } from "@/lib/finance/accounts-receivable-amount";
+import { getClientBillingTerms, receivableDueDate } from "@/lib/clients/client-billing-terms";
 
 /** Cria conta a receber a partir de `trip_financials.amount_client` se a viagem está concluída e ainda não existe título. */
 export async function ensureAccountsReceivableFromTripFinancials(
@@ -30,8 +31,9 @@ export async function ensureAccountsReceivableFromTripFinancials(
   const amount = accountsReceivableAmountFromFinancial(tf?.amount_client);
   if (amount == null) return { created: false };
 
-  const dueDate = new Date();
-  dueDate.setDate(dueDate.getDate() + 30);
+  // Vencimento pelo prazo do cliente (cadastro → Cobrança); sem prazo, 30 dias.
+  const terms = await getClientBillingTerms(trip.client_id as string, tenantId);
+  const dueDate = receivableDueDate(terms.payment_term_days);
   const issueDate = new Date().toISOString().slice(0, 10);
 
   const { data: inserted, error } = await db
@@ -42,7 +44,7 @@ export async function ensureAccountsReceivableFromTripFinancials(
       client_id: trip.client_id,
       amount,
       issue_date: issueDate,
-      due_date: dueDate.toISOString().slice(0, 10),
+      due_date: dueDate,
       status: "open"
     })
     .select("id")
