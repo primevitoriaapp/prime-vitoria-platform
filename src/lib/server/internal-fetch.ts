@@ -8,7 +8,11 @@ import { resolveAppBaseUrl } from "./app-base-url.ts";
 export async function fetchInternalApi(path: string, init?: RequestInit): Promise<Response> {
   const h = await headers();
   const cookie = h.get("cookie");
-  const base = resolveAppBaseUrl();
+  // Usa o mesmo endereço que a pessoa abriu (ex.: prime-vitoria-web.vercel.app).
+  // O endereço interno do deploy (VERCEL_URL) fica atrás da proteção da Vercel e devolve HTML de login.
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
+  const base = host ? `${proto}://${host}` : resolveAppBaseUrl();
   const url = path.startsWith("http") ? path : `${base}${path.startsWith("/") ? path : `/${path}`}`;
   const merged = new Headers(init?.headers);
   if (cookie) merged.set("cookie", cookie);

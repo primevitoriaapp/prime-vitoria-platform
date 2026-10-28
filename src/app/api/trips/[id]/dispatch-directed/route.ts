@@ -108,6 +108,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (!result.ok) throw new Error(result.reason);
     });
 
+    await runBestEffort("trip.dispatch_directed.driver_email", async () => {
+      const { emailDriverAssignment } = await import("@/lib/notifications/driver-assignment-email");
+      const result = await emailDriverAssignment(tenantId, id, body.driver_id);
+      if (!result.ok && result.reason !== "motorista sem e-mail") throw new Error(result.reason);
+    });
+
     await insertAuditEvent({
       tenantId,
       actorUserId: session.userId,

@@ -21,8 +21,14 @@ async function getData() {
   if (!response.ok) {
     return { totalTrips: 0, completedTrips: 0, activeDrivers: 0, monthRevenue: 0, receivable: 0 };
   }
-  const payload = await response.json();
-  return payload.data;
+  const payload = (await response.json().catch(() => null)) as { data?: unknown } | null;
+  return (payload?.data ?? { totalTrips: 0, completedTrips: 0, activeDrivers: 0, monthRevenue: 0, receivable: 0 }) as {
+    totalTrips: number;
+    completedTrips: number;
+    activeDrivers: number;
+    monthRevenue: number;
+    receivable: number;
+  };
 }
 
 type AuditRow = {
@@ -37,8 +43,8 @@ async function getRecentAudit(session: SessionContext): Promise<AuditRow[]> {
   if (!can(session, "trip.read")) return [];
   const response = await fetchInternalApi("/api/audit-events?pageSize=8");
   if (!response.ok) return [];
-  const payload = await response.json();
-  return (payload.data?.items ?? []) as AuditRow[];
+  const payload = (await response.json().catch(() => null)) as { data?: { items?: AuditRow[] } } | null;
+  return (payload?.data?.items ?? []) as AuditRow[];
 }
 
 export default async function DashboardPage() {
