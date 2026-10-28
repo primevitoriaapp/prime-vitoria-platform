@@ -134,6 +134,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         .eq("tenant_id", tenantId);
     }
 
+    await runBestEffort("trip.reassign.driver_email", async () => {
+      const { emailDriverAssignment } = await import("@/lib/notifications/driver-assignment-email");
+      const result = await emailDriverAssignment(tenantId, id, body.new_driver_id);
+      if (!result.ok && result.reason !== "motorista sem e-mail") throw new Error(result.reason);
+    });
+
     const { notifyTripReassignedToStaff } = await import("@/lib/notifications/operational-notify");
     await runBestEffort("trip.reassign.staff_notify", () =>
       notifyTripReassignedToStaff(tenantId, id, body.new_driver_id, (trip.driver_id as string | null) ?? null, {

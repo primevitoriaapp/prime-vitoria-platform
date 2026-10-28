@@ -137,6 +137,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
       .eq("id", body.driver_id)
       .eq("tenant_id", tenantId);
 
+    await runBestEffort("dispatch.offer_approve.driver_email", async () => {
+      const { emailDriverAssignment } = await import("@/lib/notifications/driver-assignment-email");
+      const result = await emailDriverAssignment(tenantId, offer.trip_id, body.driver_id);
+      if (!result.ok && result.reason !== "motorista sem e-mail") throw new Error(result.reason);
+    });
+
     const { notifyTripDispatchedToStaff } = await import("@/lib/notifications/operational-notify");
     await runBestEffort("dispatch.offer_approve.staff_notify", () =>
       notifyTripDispatchedToStaff(tenantId, offer.trip_id, body.driver_id, {
