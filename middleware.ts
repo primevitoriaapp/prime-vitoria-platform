@@ -16,6 +16,7 @@ const protectedPrefixes: Array<{ prefix: string; allowedRoles: string[] }> = [
   { prefix: "/audit", allowedRoles: ["admin", "operador", "financeiro"] },
   { prefix: "/finance", allowedRoles: ["admin", "financeiro"] },
   { prefix: "/configuracoes", allowedRoles: ["admin"] },
+  { prefix: "/whatsapp", allowedRoles: ["admin", "operador"] },
   { prefix: "/driver", allowedRoles: ["motorista", "admin"] },
   { prefix: "/client", allowedRoles: ["cliente", "admin"] }
 ];
@@ -90,6 +91,8 @@ export const config = {
     "/finance/:path*",
     "/configuracoes",
     "/configuracoes/:path*",
+    "/whatsapp",
+    "/whatsapp/:path*",
     "/driver/:path*",
     "/client/:path*"
   ]

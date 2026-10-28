@@ -108,6 +108,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (!result.ok) throw new Error(result.reason);
     });
 
+    await runBestEffort("trip.dispatch_directed.whatsapp", async () => {
+      const { dispatchTripMessages } = await import("@/lib/messages/dispatch-trip-messages");
+      await dispatchTripMessages(tenantId, id, "motorista_atribuido", ["solicitante", "passageiro"], { replace: true });
+      await dispatchTripMessages(tenantId, id, "os_motorista", ["motorista"], { replace: true });
+    });
+
     await runBestEffort("trip.dispatch_directed.driver_email", async () => {
       const { emailDriverAssignment } = await import("@/lib/notifications/driver-assignment-email");
       const result = await emailDriverAssignment(tenantId, id, body.driver_id);

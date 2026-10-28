@@ -405,6 +405,15 @@ export async function POST(request: Request) {
       }
     }
 
+    if (session.role === "cliente") {
+      try {
+        const { dispatchTripMessages } = await import("@/lib/messages/dispatch-trip-messages");
+        await dispatchTripMessages(tenantId, outbound.id as string, "solicitacao_recebida", ["solicitante"]);
+      } catch (err) {
+        console.warn("[whatsapp] pedido recebido", err instanceof Error ? err.message : err);
+      }
+    }
+
     return ok(outbound, 201);
   } catch (error) {
     return mapTripError(error);

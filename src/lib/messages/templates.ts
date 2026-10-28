@@ -37,7 +37,7 @@ export const MESSAGE_EVENTS: readonly MessageEventDef[] = [
     when: "Quando o cliente pede uma corrida pelo portal.",
     defaults: {
       solicitante:
-        "Olá, {nome}! Recebemos sua solicitação para {data} às {horario}, de {origem} para {destino}. Em breve confirmamos. Prime Vitória."
+        "Olá, {nome}! Recebemos seu pedido para {data} às {horario}, de {origem} para {destino}. Estamos preparando seu atendimento e já confirmamos o motorista. Prime Vitória."
     }
   },
   {
@@ -55,7 +55,9 @@ export const MESSAGE_EVENTS: readonly MessageEventDef[] = [
     when: "Quando a central atribui o motorista.",
     defaults: {
       solicitante:
-        "Tudo pronto, {nome}! Quem vai atender é {motorista}, em um {veiculo} {cor}, placa {placa}. Qualquer dúvida, estamos à disposição. Prime Vitória."
+        "Tudo pronto, {nome}! Pedido confirmado para {data} às {horario}. Quem vai atender {passageiro} é {motorista}, em um {veiculo} {cor}, placa {placa}. Qualquer dúvida, estamos à disposição. Prime Vitória.",
+      passageiro:
+        "Olá, {nome}! Tudo bem? Somos da Prime Vitória, responsável pelo seu atendimento. Seguem as informações do serviço agendado:\n📅 {data} às {horario}\n📍 {origem} → {destino}\n🚘 Motorista: {motorista} {telefone_motorista}\n{veiculo} {cor} · placa {placa}\nBoa viagem!"
     }
   },
   {

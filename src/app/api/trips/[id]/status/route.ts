@@ -8,6 +8,7 @@ import { assertCapability } from "@/lib/security/rbac";
 import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { runBestEffort } from "@/lib/server/best-effort";
 import { notifyTripStatusTransition } from "@/lib/notifications/trip-status-notify";
 import { runPostTripAutomationSafely } from "@/lib/trips/post-trip-automation";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
@@ -182,6 +183,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await notifyTripStatusTransition(tenantId, data, trip.operational_status, body.to_status).catch(() => {
       /* não bloqueia transição */
     });
+
+    if (body.to_status === "cancelled") {
+      await runBestEffort("trip.status.whatsapp_cancel", async () => {
+        const { dispatchTripMessages } = await import("@/lib/messages/dispatch-trip-messages");
+        await dispatchTripMessages(tenantId, id, "cancelamento", trip.driver_id ? ["solicitante", "passageiro", "motorista"] : ["solicitante", "passageiro"]);
+      });
+    }
 
     await insertAuditEvent({
       tenantId,

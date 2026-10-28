@@ -137,6 +137,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
       .eq("id", body.driver_id)
       .eq("tenant_id", tenantId);
 
+    await runBestEffort("dispatch.offer_approve.whatsapp", async () => {
+      const { dispatchTripMessages } = await import("@/lib/messages/dispatch-trip-messages");
+      await dispatchTripMessages(tenantId, offer.trip_id, "motorista_atribuido", ["solicitante", "passageiro"], { replace: true });
+      await dispatchTripMessages(tenantId, offer.trip_id, "os_motorista", ["motorista"], { replace: true });
+    });
+
     await runBestEffort("dispatch.offer_approve.driver_email", async () => {
       const { emailDriverAssignment } = await import("@/lib/notifications/driver-assignment-email");
       const result = await emailDriverAssignment(tenantId, offer.trip_id, body.driver_id);
