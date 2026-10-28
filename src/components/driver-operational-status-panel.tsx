@@ -65,7 +65,7 @@ export function DriverOperationalStatusPanel({
     };
     setLoading(false);
     if (!res.ok || !json.success || !json.data) {
-      setMessage(json.error?.message ?? "Falha ao actualizar disponibilidade.");
+      setMessage(json.error?.message ?? "Falha ao atualizar disponibilidade.");
       return;
     }
     if (isDriverOperationalStatus(json.data.status)) setStatus(json.data.status);
@@ -81,7 +81,7 @@ export function DriverOperationalStatusPanel({
           <p className="mt-1 text-lg font-semibold text-white">{DRIVER_OPERATIONAL_STATUS_PT[status]}</p>
           {updatedAt ? (
             <p className="mt-1 text-xs text-slate-500">
-              Actualizado {new Date(updatedAt).toLocaleString("pt-BR", { timeStyle: "short", dateStyle: "short" })}
+              Atualizado {new Date(updatedAt).toLocaleString("pt-BR", { timeStyle: "short", dateStyle: "short" })}
             </p>
           ) : null}
         </div>

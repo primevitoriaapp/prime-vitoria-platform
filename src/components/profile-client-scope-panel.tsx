@@ -74,7 +74,7 @@ export function ProfileClientScopePanel() {
   }
 
   if (profiles === null && !error) {
-    return <p className="text-sm text-slate-600">A carregar perfis…</p>;
+    return <p className="text-sm text-slate-600">Carregando perfis…</p>;
   }
 
   if (profiles === null) {

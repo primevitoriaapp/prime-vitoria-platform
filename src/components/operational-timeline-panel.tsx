@@ -153,7 +153,7 @@ export function OperationalTimelinePanel({ tripId, devFallbackRole = "operador" 
       {!loading && !error ? (
         <ul className="mt-3 max-h-80 space-y-3 overflow-y-auto text-sm">
           {items.length === 0 ? (
-            <li className="text-slate-500">Sem eventos registados para esta viagem.</li>
+            <li className="text-slate-500">Sem eventos cadastrados para esta viagem.</li>
           ) : (
             items.map((e) => (
               <li

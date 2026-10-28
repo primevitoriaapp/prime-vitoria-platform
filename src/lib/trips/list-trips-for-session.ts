@@ -158,6 +158,9 @@ export async function listTripsForSession(
       throw new Error("Forbidden: Filtro nao permitido para este perfil");
     }
     req = req.eq("client_id", session.clientId);
+    if (session.clientAccess === "solicitante") {
+      req = req.eq("created_by", session.userId);
+    }
     const scopedCenterId = await resolveCostCenterScopeForEmail(session.clientId, session.email);
     if (scopedCenterId) {
       req = req.eq("cost_center_id", scopedCenterId);

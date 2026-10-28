@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!WAIT_ALLOWED.includes(trip.operational_status)) {
       return fail(
         "INVALID_STATUS",
-        "Espera só durante corrida activa (a caminho, no local ou em andamento).",
+        "Espera só durante corrida ativa (a caminho, no local ou em andamento).",
         400
       );
     }

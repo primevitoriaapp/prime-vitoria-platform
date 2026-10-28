@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { AUTH_BUTTON, AUTH_FIELD, AuthCard } from "@/components/auth-card";
 
 type Phase = "checking" | "ready" | "invalid" | "saving" | "done";
 
@@ -90,73 +91,68 @@ export default function RedefinirSenhaPage() {
   };
 
   return (
-    <main>
-      <section className="card" style={{ maxWidth: 420 }}>
-        <h1>Criar senha nova</h1>
+    <AuthCard title="Criar senha">
+      {phase === "checking" ? <p>Conferindo o link…</p> : null}
 
-        {phase === "checking" ? <p>Conferindo o link…</p> : null}
+      {phase === "invalid" ? (
+        <div className="grid gap-3">
+          <p>{error ?? "Este link não é válido ou já expirou."} Peça um link novo.</p>
+          <Link href="/login/esqueci-senha" className="text-prime-gold hover:underline">
+            Pedir link novo
+          </Link>
+        </div>
+      ) : null}
 
-        {phase === "invalid" ? (
-          <div style={{ display: "grid", gap: 12 }}>
-            <p>{error ?? "Este link não é válido ou já expirou."} Peça um link novo.</p>
-            <p style={{ fontSize: 14 }}>
-              <Link href="/login/esqueci-senha" style={{ textDecoration: "underline" }}>
-                Pedir link novo
-              </Link>
+      {phase === "ready" || phase === "saving" ? (
+        <form onSubmit={submit} className="grid gap-4">
+          <p className="text-prime-muted">Crie uma senha com pelo menos 8 caracteres.</p>
+          <label className="grid gap-1.5 font-medium">
+            Senha nova
+            <input
+              id="new-password"
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              disabled={phase === "saving"}
+              className={AUTH_FIELD}
+            />
+          </label>
+          <label className="grid gap-1.5 font-medium">
+            Repita a senha nova
+            <input
+              id="confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              minLength={8}
+              disabled={phase === "saving"}
+              className={AUTH_FIELD}
+            />
+          </label>
+          {error ? (
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+              {error}
             </p>
-          </div>
-        ) : null}
+          ) : null}
+          <button type="submit" disabled={phase === "saving"} className={AUTH_BUTTON}>
+            {phase === "saving" ? "Salvando…" : "Salvar senha"}
+          </button>
+        </form>
+      ) : null}
 
-        {phase === "ready" || phase === "saving" ? (
-          <form onSubmit={submit} className="grid" style={{ gap: 12 }}>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span>Senha nova</span>
-              <input
-                id="new-password"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                disabled={phase === "saving"}
-              />
-            </label>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span>Repita a senha nova</span>
-              <input
-                id="confirm-password"
-                type="password"
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                required
-                minLength={8}
-                disabled={phase === "saving"}
-              />
-            </label>
-            {error ? (
-              <p role="alert" style={{ color: "#b91c1c", fontSize: 14 }}>
-                {error}
-              </p>
-            ) : null}
-            <button type="submit" disabled={phase === "saving"}>
-              {phase === "saving" ? "Salvando…" : "Salvar senha"}
-            </button>
-          </form>
-        ) : null}
-
-        {phase === "done" ? (
-          <div role="status" style={{ display: "grid", gap: 12 }}>
-            <p>Senha salva. Agora é só entrar com a senha nova.</p>
-            <p style={{ fontSize: 14 }}>
-              <Link href="/login" style={{ textDecoration: "underline" }}>
-                Ir para o login
-              </Link>
-            </p>
-          </div>
-        ) : null}
-      </section>
-    </main>
+      {phase === "done" ? (
+        <div role="status" className="grid gap-3">
+          <p>Senha salva. Agora é só entrar com o seu e-mail e a senha nova.</p>
+          <Link href="/login" className={`${AUTH_BUTTON} text-center`}>
+            Ir para o login
+          </Link>
+        </div>
+      ) : null}
+    </AuthCard>
   );
 }

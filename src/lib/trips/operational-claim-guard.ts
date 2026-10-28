@@ -8,7 +8,7 @@ export type ClaimGuardResult =
   | { ok: false; code: "CLAIM_REQUIRED"; message: string }
   | { ok: false; code: "CLAIM_NOT_OWNER"; message: string };
 
-/** Quando `require_operational_claim` está activo, operador precisa de claim activo na viagem. */
+/** Quando `require_operational_claim` está ativo, operador precisa de claim ativo na viagem. */
 export async function assertOperationalClaimForAction(
   session: SessionContext,
   tenantId: string,
@@ -33,7 +33,7 @@ export async function assertOperationalClaimForAction(
     return {
       ok: false,
       code: "CLAIM_REQUIRED",
-      message: "Assuma o atendimento desta viagem antes de executar esta acção (multiatendimento)."
+      message: "Assuma o atendimento desta viagem antes de executar esta ação (multiatendimento)."
     };
   }
 

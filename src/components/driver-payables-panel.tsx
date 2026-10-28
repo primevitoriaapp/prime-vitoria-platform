@@ -239,10 +239,10 @@ export function DriverPayablesPanel({
     );
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha ao registar comprovante.");
+      setMessage(json.error?.message ?? "Falha ao cadastrar comprovante.");
       return;
     }
-    setMessage("Comprovante registado (URL).");
+    setMessage("Comprovante cadastrado (URL).");
   }
 
   async function uploadProofFile(id: string, file: File) {
@@ -298,7 +298,7 @@ export function DriverPayablesPanel({
             disabled={loading}
             className="text-sm text-prime-gold"
           >
-            Actualizar
+            Atualizar
           </button>
         </div>
       </div>
@@ -320,7 +320,7 @@ export function DriverPayablesPanel({
 
       {message ? <p className={`mt-2 text-sm ${errorClass}`}>{message}</p> : null}
       {loading ? (
-        <p className={`mt-3 text-sm ${mutedClass}`}>A carregar…</p>
+        <p className={`mt-3 text-sm ${mutedClass}`}>Carregando…</p>
       ) : items.length === 0 ? (
         <p className={`mt-3 text-sm ${financeStaff ? "text-slate-500" : "text-prime-muted"}`}>
           Sem títulos ({total} no total).

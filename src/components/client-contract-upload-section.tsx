@@ -29,7 +29,7 @@ export function ClientContractUploadSection({ clientId, disabled }: Props) {
       setMessage(json.error?.message ?? "Falha no upload do contrato.");
       return;
     }
-    setMessage("Contrato guardado. O cliente pode abrir em «Ver contrato» no portal.");
+    setMessage("Contrato salvo. O cliente pode abrir em «Ver contrato» no portal.");
   }
 
   return (
@@ -49,7 +49,7 @@ export function ClientContractUploadSection({ clientId, disabled }: Props) {
           e.target.value = "";
         }}
       />
-      {busy ? <p className="text-xs text-slate-500">A enviar PDF…</p> : null}
+      {busy ? <p className="text-xs text-slate-500">Enviando PDF…</p> : null}
       {message ? <p className="text-xs text-slate-700">{message}</p> : null}
     </div>
   );

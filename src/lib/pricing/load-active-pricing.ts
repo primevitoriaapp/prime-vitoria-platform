@@ -3,7 +3,7 @@ import { getClientPricingConfig } from "@/lib/clients/client-pricing-db";
 import { clientPricingRowToEngineRule } from "@/lib/clients/client-pricing-config";
 import type { PricingRuleRow } from "@/lib/pricing/types";
 
-/** Regra activa: prioriza client_pricing_rules, depois pricing_rules legado. */
+/** Regra ativa: prioriza client_pricing_rules, depois pricing_rules legado. */
 export async function loadActivePricingRule(
   tenantId: string,
   clientId: string

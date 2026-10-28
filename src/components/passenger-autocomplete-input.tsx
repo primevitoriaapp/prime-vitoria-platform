@@ -89,7 +89,7 @@ export function PassengerAutocompleteInput({
           autoComplete="off"
           aria-expanded={open}
           aria-controls={listId}
-          placeholder={clientId ? "Digite para buscar funcionário…" : "Seleccione o cliente primeiro"}
+          placeholder={clientId ? "Digite para buscar funcionário…" : "Selecione o cliente primeiro"}
           onFocus={() => {
             setOpen(true);
             void fetchOptions(value);

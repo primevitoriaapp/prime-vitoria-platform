@@ -188,7 +188,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
       }));
       setFeedback({
         kind: "success",
-        message: `Dados de «${d.legal_name ?? d.trade_name}» preenchidos. Revise antes de guardar.`
+        message: `Dados de «${d.legal_name ?? d.trade_name}» preenchidos. Revise antes de salvar.`
       });
     } catch {
       setFeedback({
@@ -253,7 +253,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         setFeedback({
           kind: "error",
           code: json.error?.code ?? `HTTP_${res.status}`,
-          message: json.error?.message ?? "Falha ao guardar cliente.",
+          message: json.error?.message ?? "Falha ao salvar cliente.",
           hint: json.error?.hint
         });
         return;
@@ -261,10 +261,10 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
 
       const saved = json.data as { _warning?: string } | undefined;
       const successMsg = clientId
-        ? "Cliente actualizado com sucesso."
+        ? "Cliente atualizado com sucesso."
         : form.type === "PJ"
           ? "Cliente cadastrado com sucesso."
-          : "Cliente registado com sucesso.";
+          : "Cliente cadastrado com sucesso.";
       setFeedback({
         kind: saved?._warning ? "info" : "success",
         message: saved?._warning ? `${successMsg} ${saved._warning}` : successMsg
@@ -274,7 +274,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
     } catch (error) {
       setFeedback({
         kind: "error",
-        message: error instanceof Error ? error.message : "Erro inesperado ao guardar."
+        message: error instanceof Error ? error.message : "Erro inesperado ao salvar."
       });
     } finally {
       setBusy(false);
@@ -419,7 +419,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         </label>
         <label className="flex items-center gap-2 text-sm md:col-span-2">
           <input type="checkbox" checked={form.active} onChange={(e) => set("active", e.target.checked)} />
-          <span>Cliente activo</span>
+          <span>Cliente ativo</span>
         </label>
         <fieldset className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2">
           <legend className="px-1 text-sm font-medium text-slate-800">Portal corporativo</legend>
@@ -433,7 +433,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
             <span>
               Permitir solicitações de corrida no portal
               <span className="mt-0.5 block text-xs text-slate-500">
-                Desactivado = modo consulta (utilizadores só visualizam corridas e dados).
+                Desativado = modo consulta (usuários só visualizam corridas e dados).
               </span>
             </span>
           </label>
@@ -453,7 +453,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
             disabled={busy}
             className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
-            {busy ? "A guardar…" : clientId ? "Actualizar cliente" : "Registar cliente"}
+            {busy ? "Salvando…" : clientId ? "Atualizar cliente" : "Cadastrar cliente"}
           </button>
           {onCancel ? (
             <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">

@@ -115,7 +115,7 @@ export function TripFinanceErpPanel({ tripId, devFallbackRole = "admin", writeMo
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-600">A carregar financeiro…</p>;
+    return <p className="text-sm text-slate-600">Carregando financeiro…</p>;
   }
 
   if (!summary) {
@@ -176,7 +176,7 @@ export function TripFinanceErpPanel({ tripId, devFallbackRole = "admin", writeMo
             className="rounded border border-slate-300 px-2 py-1 text-sm"
           />
           <button type="submit" className="text-sm font-medium text-amber-800">
-            Gerar / actualizar financeiro
+            Gerar / atualizar financeiro
           </button>
         </form>
       ) : null}

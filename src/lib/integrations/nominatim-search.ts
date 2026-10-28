@@ -91,6 +91,10 @@ export async function searchNominatimBrazil(
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("countrycodes", "br");
   url.searchParams.set("limit", String(Math.min(Math.max(limit, 1), 10)));
+  // Prioriza a Grande Vitória (sem excluir o resto do Brasil).
+  url.searchParams.set("viewbox", "-40.75,-19.80,-39.95,-20.85");
+  url.searchParams.set("bounded", "0");
+  url.searchParams.set("accept-language", "pt-BR");
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

@@ -97,7 +97,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       profile_name === undefined &&
       profile_phone === undefined
     ) {
-      return fail("INVALID_BODY", "Nenhum campo para actualizar", 400);
+      return fail("INVALID_BODY", "Nenhum campo para atualizar", 400);
     }
 
     const { data: existing, error: loadErr } = await db

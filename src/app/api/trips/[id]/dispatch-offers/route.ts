@@ -15,7 +15,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     const { data: trip } = await db
       .from("trips")
-      .select("id, client_id, driver_id, tenant_id")
+      .select("id, client_id, driver_id, tenant_id, created_by")
       .eq("id", tripId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -25,7 +25,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       tripGetAccess(session, {
         client_id: trip.client_id,
         driver_id: trip.driver_id ?? null,
-        tenant_id: trip.tenant_id
+        tenant_id: trip.tenant_id,
+        created_by: (trip.created_by as string | null | undefined) ?? null
       })
     );
     if (denied) return denied;

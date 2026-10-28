@@ -3,7 +3,7 @@ type Props = {
 };
 
 /**
- * Rastreio em fase read-only: não gera token (POST). Orienta o utilizador.
+ * Rastreio em fase read-only: não gera token (POST). Orienta o usuário.
  */
 export function ClientTrackingReadonly({ operationalStatus }: Props) {
   const active = ["dispatched", "accepted", "on_the_way", "arrived", "in_progress", "completed"].includes(

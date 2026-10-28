@@ -36,7 +36,7 @@ export default function P1HomologacaoPage() {
       <section className="mt-6 rounded border p-4 text-sm">
         <h2 className="font-semibold">Amanhã — ordem dos passos</h2>
         <ol className="mt-2 list-inside list-decimal space-y-1 text-xs">
-          <li>Rubens: desactivar Vercel Authentication no preview</li>
+          <li>Rubens: desativar Vercel Authentication no preview</li>
           <li>Secrets GitHub + Vercel Preview (docs/P1_SECRETS_CHECKLIST.md)</li>
           <li>Workflows: migration 0044 → seed (reset_password=true)</li>
           <li>Abrir esta URL → /staging-status → tudo verde</li>

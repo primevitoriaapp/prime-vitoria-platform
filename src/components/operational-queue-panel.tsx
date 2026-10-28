@@ -136,19 +136,19 @@ export function OperationalQueuePanel({ tenantId, devFallbackRole = "operador" }
             Só sem atendimento
           </label>
           <button type="button" onClick={() => void load()} disabled={loading} className="text-sm">
-            Actualizar
+            Atualizar
           </button>
         </div>
       </div>
       {message ? <p className="mt-2 text-sm text-red-700">{message}</p> : null}
       {loading ? (
-        <ul className="mt-3 animate-pulse space-y-2" aria-busy="true" aria-label="A carregar fila">
+        <ul className="mt-3 animate-pulse space-y-2" aria-busy="true" aria-label="Carregando fila">
           {[1, 2, 3].map((i) => (
             <li key={i} className="h-12 rounded bg-slate-100" />
           ))}
         </ul>
       ) : items.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">Nenhuma viagem activa na fila.</p>
+        <p className="mt-3 text-sm text-slate-500">Nenhuma viagem ativa na fila.</p>
       ) : (
         <ul className="mt-3 divide-y divide-slate-100 text-sm">
           {items.map((row) => (

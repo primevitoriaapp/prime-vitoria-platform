@@ -73,6 +73,13 @@ export default async function ClientPage() {
 
   const initialClients = isAdminPreview ? await loadClientsForAdmin() : [];
 
+  let userName = "";
+  if (isCliente) {
+    const { data: me } = await db.from("profiles").select("name").eq("id", session.userId).maybeSingle();
+    userName = (me?.name as string | undefined) ?? "";
+  }
+  const clientAccess = isCliente ? (session.clientAccess ?? "gestor") : "gestor";
+
   const canManageTeam =
     isAdminPreview || (isCliente && clientId ? await canManageClientTeam(session, clientId) : false);
 
@@ -87,6 +94,8 @@ export default async function ClientPage() {
         initialPortalRequestsEnabled={initialPortalRequestsEnabled}
         initialCostCenters={costCenters}
         canManageTeam={canManageTeam}
+        clientAccess={clientAccess}
+        userName={userName}
       />
     </Suspense>
   );

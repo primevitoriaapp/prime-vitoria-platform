@@ -61,7 +61,7 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
 
   const access = tripGetAccess(
     session,
-    { client_id: trip.client_id as string, driver_id: (trip.driver_id as string | null) ?? null, tenant_id: trip.tenant_id as string },
+    { client_id: trip.client_id as string, driver_id: (trip.driver_id as string | null) ?? null, tenant_id: trip.tenant_id as string, created_by: (trip.created_by as string | null) ?? null },
     session.driverId
   );
   if (access !== "allow") {
@@ -108,7 +108,7 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
         }
       `}</style>
 
-      <div className="voucher-actions" style={{ maxWidth: 720, margin: "0 auto 12px", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      <div className="voucher-actions" style={{ maxWidth: 720, margin: "0 auto 12px", display: "flex", gap: 8, justifyContent: "space-between" }}>
         <VoucherPrintButton />
       </div>
 

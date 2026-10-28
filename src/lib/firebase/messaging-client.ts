@@ -6,7 +6,7 @@ let messagingPromise: Promise<string | null> | null = null;
 
 /**
  * Obtem token FCM no browser (Firebase Messaging). Requer permissao de notificacao concedida.
- * Retorna null se env incompleta, SW indisponivel ou utilizador negou permissao.
+ * Retorna null se env incompleta, SW indisponivel ou usuário negou permissao.
  */
 export async function obtainFcmRegistrationToken(): Promise<string | null> {
   if (typeof window === "undefined") return null;

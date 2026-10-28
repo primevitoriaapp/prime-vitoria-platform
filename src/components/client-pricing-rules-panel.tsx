@@ -97,7 +97,7 @@ export function ClientPricingRulesPanel({ clientId, clientName }: Props) {
   }
 
   async function deactivateRule(id: string) {
-    if (!window.confirm("Desactivar esta regra?")) return;
+    if (!window.confirm("Desativar esta regra?")) return;
     await fetch(`/api/pricing/rules/${id}`, { method: "DELETE", credentials: "include" });
     await load();
   }
@@ -110,9 +110,9 @@ export function ClientPricingRulesPanel({ clientId, clientName }: Props) {
       </p>
 
       {loading ? (
-        <p className="mt-3 text-sm text-slate-500">A carregar regras…</p>
+        <p className="mt-3 text-sm text-slate-500">Carregando regras…</p>
       ) : rules.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">Nenhuma regra activa. Crie abaixo.</p>
+        <p className="mt-3 text-sm text-slate-500">Nenhuma regra ativa. Crie abaixo.</p>
       ) : (
         <ul className="mt-3 space-y-2 text-sm">
           {rules.map((r) => (
@@ -121,11 +121,11 @@ export function ClientPricingRulesPanel({ clientId, clientName }: Props) {
                 <strong>{r.name}</strong> · {r.calculation_type}
                 {r.minimum_km != null ? ` · mín. ${r.minimum_km} km` : ""}
                 {r.price_per_km != null ? ` · R$ ${r.price_per_km}/km` : ""}
-                {!r.active ? " (inactiva)" : ""}
+                {!r.active ? " (inativa)" : ""}
               </span>
               {r.active ? (
                 <button type="button" onClick={() => void deactivateRule(r.id)} className="text-xs text-red-600 hover:underline">
-                  Desactivar
+                  Desativar
                 </button>
               ) : null}
             </li>
@@ -260,7 +260,7 @@ export function ClientPricingRulesPanel({ clientId, clientName }: Props) {
             disabled={busy}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
           >
-            {busy ? "A guardar…" : "Adicionar regra"}
+            {busy ? "Salvando…" : "Adicionar regra"}
           </button>
         </div>
       </form>

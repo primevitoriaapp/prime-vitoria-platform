@@ -1,8 +1,8 @@
 import type { PricingCalculationType, PricingRuleRow } from "./types.ts";
 
 /**
- * Tipos de precificação além do MVP — desactivados por defeito.
- * Activar via env `PRICING_FEATURE_<KEY>=true` ou `settings.features` na regra.
+ * Tipos de precificação além do MVP — desativados por defeito.
+ * Ativar via env `PRICING_FEATURE_<KEY>=true` ou `settings.features` na regra.
  */
 export const PRICING_FEATURE_FLAGS = {
   hourly_rate: false,
@@ -40,7 +40,7 @@ function ruleFeatureOverride(rule: PricingRuleRow, key: PricingFeatureKey): bool
   return null;
 }
 
-/** Feature activa globalmente, por env ou override na regra (`settings.features`). */
+/** Feature ativa globalmente, por env ou override na regra (`settings.features`). */
 export function isPricingFeatureEnabled(key: PricingFeatureKey, rule?: PricingRuleRow): boolean {
   const override = rule ? ruleFeatureOverride(rule, key) : null;
   if (override != null) return override;
@@ -51,7 +51,7 @@ export function isPricingFeatureEnabled(key: PricingFeatureKey, rule?: PricingRu
 
 /**
  * Resolve perfil extendido para tipo MVP suportado pelo motor actual.
- * Perfis desactivados lançam erro explícito (não silencioso).
+ * Perfis desativados lançam erro explícito (não silencioso).
  */
 export function resolveEffectiveCalculationType(rule: PricingRuleRow): PricingCalculationType {
   const profile =

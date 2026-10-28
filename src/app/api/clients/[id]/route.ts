@@ -46,7 +46,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const updatePayload = normalizeClientPatch(parsed);
 
     if (Object.keys(updatePayload).length === 0) {
-      return fail("INVALID_BODY", "Nenhum campo para actualizar", 400);
+      return fail("INVALID_BODY", "Nenhum campo para atualizar", 400);
     }
 
     const { data: existing } = await db
@@ -76,7 +76,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const apiWarning =
       warning ??
       (partialSave
-        ? "Actualizado parcialmente — aplique migrations 0044/0046 no Supabase para todos os campos."
+        ? "Atualizado parcialmente — aplique migrations 0044/0046 no Supabase para todos os campos."
         : undefined);
 
     return ok({ ...data, ...(apiWarning ? { _warning: apiWarning } : {}) });

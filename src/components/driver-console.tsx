@@ -101,7 +101,7 @@ export function DriverConsole() {
           ))}
         </select>
         <button type="submit" disabled={loading}>
-          Actualizar status
+          Atualizar status
         </button>
       </form>
       <form onSubmit={(e) => void onLocation(e)} className="mt-4 grid gap-2 sm:grid-cols-2">

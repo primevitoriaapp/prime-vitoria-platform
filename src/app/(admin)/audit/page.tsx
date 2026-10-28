@@ -60,7 +60,7 @@ export default async function AuditPage({
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Auditoria</h1>
-          <p className="mt-1 text-sm text-slate-600">Eventos registados para a sua organização (filtros via URL).</p>
+          <p className="mt-1 text-sm text-slate-600">Eventos cadastrados para a sua organização (filtros via URL).</p>
         </div>
         <Link href="/dashboard" className="text-sm font-medium text-amber-700 hover:underline">
           Painel

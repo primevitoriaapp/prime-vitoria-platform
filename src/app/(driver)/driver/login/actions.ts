@@ -84,7 +84,7 @@ export async function driverPinLoginAction(
     authEmail = auth.email;
     authPassword = auth.password;
   } catch {
-    return { error: "Não foi possível preparar o acesso. Contacte o operador." };
+    return { error: "Não foi possível preparar o acesso. Fale com o operador." };
   }
 
   const cookieStore = await cookies();
@@ -107,7 +107,7 @@ export async function driverPinLoginAction(
   });
 
   if (error || !data.user) {
-    return { error: "Falha ao iniciar sessão. Tente novamente ou contacte o operador." };
+    return { error: "Falha ao iniciar sessão. Tente novamente ou fale com o operador." };
   }
 
   await supabase.auth.updateUser({

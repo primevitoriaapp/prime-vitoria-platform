@@ -144,12 +144,12 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
         setFeedback({
           kind: "error",
           code: json.error?.code,
-          message: json.error?.message ?? "Falha ao registar motorista.",
+          message: json.error?.message ?? "Falha ao cadastrar motorista.",
           hint: json.error?.hint
         });
         return;
       }
-      setFeedback({ kind: "success", message: "Motorista registado. Abra a ficha para completar os dados." });
+      setFeedback({ kind: "success", message: "Motorista cadastrado. Abra a ficha para completar os dados." });
       setCreateName("");
       setCreateCpf("");
       setCreateCnh("");
@@ -203,7 +203,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
               disabled={creating}
               className="btn-primary disabled:opacity-50"
             >
-              {creating ? "A guardar…" : "Registar motorista"}
+              {creating ? "Salvando…" : "Cadastrar motorista"}
             </button>
           </div>
         </form>
@@ -219,11 +219,11 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
               checked={includeInactive}
               onChange={(e) => setIncludeInactive(e.target.checked)}
             />
-            Incluir inactivos
+            Incluir inativos
           </label>
         </div>
         {drivers.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">Nenhum motorista registado.</p>
+          <p className="mt-3 text-sm text-slate-500">Nenhum motorista cadastrado.</p>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {drivers.map((driver) => (
@@ -250,7 +250,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                         : "bg-emerald-500/15 text-emerald-400"
                     }`}
                   >
-                    {driver.active === false ? "Inactivo" : "Disponível"}
+                    {driver.active === false ? "Inativo" : "Disponível"}
                   </span>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-400">

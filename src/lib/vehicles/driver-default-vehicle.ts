@@ -153,7 +153,7 @@ export async function linkVehicleToDriver(opts: {
     .eq("active", true)
     .maybeSingle();
   if (vehicleErr || !vehicle) {
-    throw new Error("Veiculo nao encontrado ou inactivo");
+    throw new Error("Veiculo nao encontrado ou inativo");
   }
 
   const { data: existing } = await db

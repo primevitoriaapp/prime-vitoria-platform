@@ -158,7 +158,7 @@ export function TripAgendaDispatchPanel({
 
   async function dispatchDirected() {
     if (!driverId) {
-      setMessage("Seleccione um motorista.");
+      setMessage("Selecione um motorista.");
       return;
     }
     setLoading(true);
@@ -185,7 +185,7 @@ export function TripAgendaDispatchPanel({
 
   async function sendOffer() {
     if (selected.size === 0) {
-      setMessage("Seleccione pelo menos um motorista.");
+      setMessage("Selecione pelo menos um motorista.");
       return;
     }
     setLoading(true);
@@ -209,7 +209,7 @@ export function TripAgendaDispatchPanel({
       setMessage(humanizeApiMessage(raw, drivers));
       return;
     }
-    setMessage("Oferta enviada aos motoristas seleccionados.");
+    setMessage("Oferta enviada aos motoristas selecionados.");
     setSelected(new Set());
     await loadOffers();
     onDone?.();
@@ -238,7 +238,7 @@ export function TripAgendaDispatchPanel({
 
   async function reassign() {
     if (!reassignDriverId) {
-      setMessage("Seleccione o novo motorista.");
+      setMessage("Selecione o novo motorista.");
       return;
     }
     if (reassignReason.trim().length < 3) {
@@ -335,7 +335,7 @@ export function TripAgendaDispatchPanel({
                 className="rounded-lg border border-prime-border px-3 py-2"
                 disabled={loading || drivers.length === 0}
               >
-                <option value="">— seleccionar —</option>
+                <option value="">— selecionar —</option>
                 {drivers.map((d) => (
                   <option key={d.id} value={d.id}>
                     {driverLabel(d)}
@@ -423,7 +423,7 @@ export function TripAgendaDispatchPanel({
             </div>
             <div className="max-h-48 overflow-y-auto rounded-lg border border-prime-border bg-prime-bg/30 p-2">
               {drivers.length === 0 ? (
-                <p className="text-sm text-prime-muted">Sem motoristas activos.</p>
+                <p className="text-sm text-prime-muted">Sem motoristas ativos.</p>
               ) : (
                 <ul className="space-y-1">
                   {drivers.map((d) => (
@@ -448,7 +448,7 @@ export function TripAgendaDispatchPanel({
               onClick={() => void sendOffer()}
               className="btn-primary mt-3 w-full disabled:opacity-50 sm:w-auto"
             >
-              {loading ? "A enviar…" : "Enviar oferta"}
+              {loading ? "Enviando…" : "Enviar oferta"}
             </button>
           </div>
         )}
@@ -500,7 +500,7 @@ export function TripAgendaDispatchPanel({
                   className="rounded-lg border border-prime-border px-2 py-2"
                   disabled={loading}
                 >
-                  <option value="">— seleccionar —</option>
+                  <option value="">— selecionar —</option>
                   {drivers
                     .filter((d) => d.id !== assignedDriverId)
                     .map((d) => (

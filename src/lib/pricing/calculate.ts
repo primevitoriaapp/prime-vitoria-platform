@@ -243,7 +243,7 @@ function calcCustom(rule: PricingRuleRow, input: PricingTripInput): PricingCalcu
   return { ...calcFixedPrice(patched, input), calculation_type: "custom" };
 }
 
-/** Calcula valores a partir de uma regra activa e dados da corrida (função pura). */
+/** Calcula valores a partir de uma regra ativa e dados da corrida (função pura). */
 export function calculateTripPricing(
   rule: PricingRuleRow,
   input: PricingTripInput

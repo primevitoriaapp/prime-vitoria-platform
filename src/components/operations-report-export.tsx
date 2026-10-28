@@ -76,7 +76,7 @@ export function OperationsReportExport({ devFallbackRole = "admin" }: Props) {
     }
     w.document.write(html);
     w.document.close();
-    setMessage("Relatório aberto — use Imprimir / Guardar como PDF no browser.");
+    setMessage("Relatório aberto — use Imprimir / Salvar como PDF no browser.");
     setLoading(false);
   }
 
@@ -107,7 +107,7 @@ export function OperationsReportExport({ devFallbackRole = "admin" }: Props) {
           onClick={() => void downloadCsv()}
           className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
         >
-          {loading ? "A gerar…" : "Descarregar CSV"}
+          {loading ? "Gerando…" : "Descarregar CSV"}
         </button>
         <button
           type="button"

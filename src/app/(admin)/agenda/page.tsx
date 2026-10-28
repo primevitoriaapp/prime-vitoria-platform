@@ -150,7 +150,7 @@ export default async function AgendaPage({
           </div>
           {focusOutsideRange ? (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              Esta viagem está fora do intervalo de datas filtrado — acções abaixo usam dados actualizados da API.
+              Esta viagem está fora do intervalo de datas filtrado — ações abaixo usam dados atualizados da API.
             </p>
           ) : null}
           <TripFocusHeader
@@ -182,7 +182,7 @@ export default async function AgendaPage({
         <p className="mt-6 text-sm text-red-700">Identificador de viagem inválido na URL.</p>
       ) : (
         <p className="mt-8 text-sm text-slate-500">
-          Clique em <strong>Abrir</strong> numa corrida para aprovar, despachar e registar notas.
+          Clique em <strong>Abrir</strong> numa corrida para aprovar, despachar e cadastrar notas.
         </p>
       )}
     </>

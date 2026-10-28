@@ -35,11 +35,24 @@ export function validateOperationalTransition(
   return { ok: false, message: operationalTransitionMessage(from, to) };
 }
 
-/** Estados em que o portal cliente pode solicitar cancelamento (antes do despacho activo). */
+/** Estados em que o portal cliente pode solicitar cancelamento (antes do despacho ativo). */
 export const CLIENT_CANCELLABLE_STATUSES: TripOperationalStatus[] = ["requested", "approved"];
 
-export function clientMayCancelTrip(status: TripOperationalStatus): boolean {
-  return CLIENT_CANCELLABLE_STATUSES.includes(status);
+/**
+ * Portal do cliente: cancela só antes do despacho e antes do horário marcado.
+ * Depois do horário, quem cancela é a central (pode haver deslocamento a cobrar).
+ */
+export function clientMayCancelTrip(
+  status: TripOperationalStatus,
+  scheduledAt?: string | null,
+  now: Date = new Date()
+): boolean {
+  if (!CLIENT_CANCELLABLE_STATUSES.includes(status)) return false;
+  if (scheduledAt) {
+    const t = new Date(scheduledAt).getTime();
+    if (Number.isFinite(t) && t <= now.getTime()) return false;
+  }
+  return true;
 }
 
 export type OperationalTransitionPlan =

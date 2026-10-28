@@ -26,7 +26,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         {
           client_id: trip.client_id,
           driver_id: trip.driver_id ?? null,
-          tenant_id: trip.tenant_id
+          tenant_id: trip.tenant_id,
+          created_by: (trip.created_by as string | null | undefined) ?? null
         },
         session.driverId
       )

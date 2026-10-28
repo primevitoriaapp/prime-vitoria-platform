@@ -9,6 +9,8 @@ export async function canManageClientTeam(
   if (session.role === "admin" || session.role === "operador") return true;
   if (session.role !== "cliente") return false;
   if (!session.clientId || session.clientId !== clientId) return false;
+  // Funcionário solicitante pede corridas, mas não administra a equipe.
+  if (session.clientAccess === "solicitante") return false;
   const scopedCenter = await resolveCostCenterScopeForEmail(clientId, session.email);
   return !scopedCenter;
 }

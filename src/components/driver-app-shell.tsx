@@ -130,7 +130,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
 
         <section className="driver-card p-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-[#C9A84C]">Ofertas da central</h2>
-          <p className="mt-1 text-xs text-[#AAAAAA]">Aceite ofertas abertas como o motorista seleccionado.</p>
+          <p className="mt-1 text-xs text-[#AAAAAA]">Aceite ofertas abertas como o motorista selecionado.</p>
           <div className="mt-3">
             <DriverOffersPanel
               key={`offers-${driverKey}`}

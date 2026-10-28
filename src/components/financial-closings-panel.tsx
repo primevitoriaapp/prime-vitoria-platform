@@ -216,7 +216,7 @@ export function FinancialClosingsPanel({ tenantId = null, devFallbackRole = "fin
     }
     w.document.write(html);
     w.document.close();
-    setMessage("DRE aberto — use Imprimir / Guardar como PDF.");
+    setMessage("DRE aberto — use Imprimir / Salvar como PDF.");
   }
 
   async function downloadCsv() {
@@ -283,7 +283,7 @@ export function FinancialClosingsPanel({ tenantId = null, devFallbackRole = "fin
           Fechar todos + ERP
         </button>
         <button type="button" onClick={() => void load()} disabled={loading} className="text-sm">
-          Actualizar
+          Atualizar
         </button>
       </div>
 
@@ -336,7 +336,7 @@ export function FinancialClosingsPanel({ tenantId = null, devFallbackRole = "fin
 
       {message ? <p className="mt-2 text-sm text-slate-700">{message}</p> : null}
       {loading ? (
-        <p className="mt-3 text-sm text-slate-600">A carregar…</p>
+        <p className="mt-3 text-sm text-slate-600">Carregando…</p>
       ) : items.length === 0 ? (
         <p className="mt-3 text-sm text-slate-500">Sem fechamentos para o período.</p>
       ) : (
@@ -349,7 +349,7 @@ export function FinancialClosingsPanel({ tenantId = null, devFallbackRole = "fin
                 <th className="py-2 pr-2">Custo</th>
                 <th className="py-2 pr-2">Margem</th>
                 <th className="py-2 pr-2">Estado</th>
-                <th className="py-2">Acção</th>
+                <th className="py-2">Ação</th>
               </tr>
             </thead>
             <tbody>

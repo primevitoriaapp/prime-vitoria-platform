@@ -2,21 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { ClientRequestConsole } from "@/components/client-request-console";
 import { ClientTeamPortalSection } from "@/components/client-team-portal-section";
 import { ClientTripsPanel } from "@/components/client-trips-panel";
 import { ClientContractPortalButton } from "@/components/client-contract-portal-button";
-import { ClientPortalNav } from "@/components/client-portal-nav";
 import { ClientPortalReadonlyNotice } from "@/components/client-portal-readonly-notice";
-import { BrandLogo } from "@/components/brand-logo";
-import { StagingSmokeHints } from "@/components/staging-smoke-hints";
+import { ClientMonthDashboard } from "@/components/client-month-dashboard";
+import { PrimeLogoMark } from "@/components/prime-logo-mark";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { isClientPortalReadOnly } from "@/lib/client/portal-config";
-import { scrollToSolicitar } from "@/lib/client/scroll-to-solicitar";
-import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
+import { logoutAction } from "@/app/login/actions";
 
 type ClientOption = { id: string; name: string; type?: string };
+type Tab = "resumo" | "pedir" | "corridas" | "equipe";
 
 type Props = {
   tenantId: string;
@@ -27,7 +25,15 @@ type Props = {
   initialPortalRequestsEnabled?: boolean | null;
   initialCostCenters?: { id: string; code: string | null; name: string }[];
   canManageTeam?: boolean;
+  /** gestor = responsável pela conta; solicitante = funcionário que só pede corrida. */
+  clientAccess?: "gestor" | "solicitante";
+  userName?: string;
 };
+
+function firstName(name?: string) {
+  const n = (name ?? "").trim().split(/\s+/)[0];
+  return n ? n.charAt(0).toUpperCase() + n.slice(1) : "";
+}
 
 export function ClientAppShell({
   tenantId,
@@ -37,15 +43,33 @@ export function ClientAppShell({
   initialClientName = "Cliente",
   initialPortalRequestsEnabled = null,
   initialCostCenters = [],
-  canManageTeam = false
+  canManageTeam = false,
+  clientAccess = "gestor",
+  userName
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [clients, setClients] = useState(initialClients);
-  const [costCenters, setCostCenters] = useState(initialCostCenters);
   const [clientName, setClientName] = useState(initialClientName);
-  const [portalRequestsEnabled, setPortalRequestsEnabled] = useState<boolean | null>(
-    initialPortalRequestsEnabled
+  const [portalRequestsEnabled, setPortalRequestsEnabled] = useState<boolean | null>(initialPortalRequestsEnabled);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const isSolicitante = mode === "cliente" && clientAccess === "solicitante";
+  const tabs: { id: Tab; label: string }[] = isSolicitante
+    ? [
+        { id: "pedir", label: "Agendar viagem" },
+        { id: "corridas", label: "Minhas viagens" }
+      ]
+    : [
+        { id: "resumo", label: "Resumo" },
+        { id: "pedir", label: "Pedir corrida" },
+        { id: "corridas", label: "Corridas" },
+        { id: "equipe", label: "Equipe" }
+      ];
+
+  const tabFromUrl = searchParams.get("aba") as Tab | null;
+  const [tab, setTabState] = useState<Tab>(
+    tabFromUrl && tabs.some((t) => t.id === tabFromUrl) ? tabFromUrl : isSolicitante ? "pedir" : "resumo"
   );
 
   const selectedClientId = useMemo(() => {
@@ -67,28 +91,27 @@ export function ClientAppShell({
   }, [mode, initialClients.length, reloadClients]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.location.hash === "#solicitar") {
-      window.requestAnimationFrame(() => scrollToSolicitar());
-    }
-  }, [selectedClientId]);
-
-  useEffect(() => {
     if (!selectedClientId) return;
     const hit = clients.find((c) => c.id === selectedClientId);
     if (hit?.name) setClientName(hit.name);
+    if (mode !== "admin") return;
     void fetch(`/api/clients/${selectedClientId}`, { credentials: "include" })
       .then((r) => r.json())
       .then((body) => {
-        if (!body?.success || !body?.data) return;
-        const data = body.data as { name?: string; portal_requests_enabled?: boolean };
-        if (data.name) setClientName(data.name);
-        if (typeof data.portal_requests_enabled === "boolean") {
-          setPortalRequestsEnabled(data.portal_requests_enabled);
-        }
+        const data = body?.data as { name?: string; portal_requests_enabled?: boolean } | undefined;
+        if (data?.name) setClientName(data.name);
+        if (typeof data?.portal_requests_enabled === "boolean") setPortalRequestsEnabled(data.portal_requests_enabled);
       })
       .catch(() => undefined);
-  }, [selectedClientId, clients]);
+  }, [selectedClientId, clients, mode]);
+
+  function setTab(next: Tab) {
+    setTabState(next);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("aba", next);
+    router.replace(`/client?${params.toString()}`, { scroll: false });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   function onClientChange(nextId: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -98,117 +121,194 @@ export function ClientAppShell({
     router.replace(`/client?${params.toString()}`, { scroll: false });
   }
 
-  const readOnly =
-    mode === "admin" ? false : isClientPortalReadOnly({ portalRequestsEnabled });
-  const saudacao =
-    mode === "admin"
-      ? `Preview admin — portal da ${clientName}.`
-      : readOnly
-        ? `Visão consulta — operação executiva da ${clientName}.`
-        : `Olá — aqui está a visão da operação executiva da ${clientName}.`;
+  const readOnly = mode === "admin" ? false : isClientPortalReadOnly({ portalRequestsEnabled });
+  const devRole = mode === "admin" ? "admin" : "cliente";
+  const nome = firstName(userName);
+
+  const greeting = isSolicitante
+    ? {
+        title: nome ? `Olá, ${nome}. Agende sua viagem aqui.` : "Agende sua viagem aqui.",
+        sub: `Escolha data, horário e trajeto. A cobrança vai direto para a ${clientName} — você não paga nada ao motorista.`
+      }
+    : {
+        title: nome ? `Olá, ${nome}.` : "Olá.",
+        sub: `Aqui está o resumo das corridas da ${clientName}.`
+      };
 
   return (
-    <div className="prime-theme min-h-screen bg-prime-bg text-prime-text">
+    <div className="min-h-screen bg-prime-bg pb-24 text-prime-text sm:pb-10">
       <OperationalRealtimeBridge tenantId={tenantId} />
-      <header className="border-b border-prime-border bg-white shadow-prime-card">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-4">
-          <BrandLogo subtitle="PORTAL CORPORATIVO" compact />
-          <div className="flex flex-wrap items-center gap-4">
+
+      <header className="bg-[#111] text-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <PrimeLogoMark size={40} />
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-sm font-semibold">Prime Vitória</p>
+              <p className="truncate text-[11px] text-prime-gold">{clientName}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             {mode === "admin" ? (
-              <label className="grid gap-1 text-xs text-prime-muted">
-                <span>Cliente em preview</span>
-                <select
-                  className={`min-w-[12rem] ${PRIME_INPUT_CLASS} py-1.5`}
-                  value={selectedClientId ?? ""}
-                  onChange={(e) => onClientChange(e.target.value)}
-                >
-                  {clients.length === 0 ? <option value="">— carregando —</option> : null}
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <>
-                <ClientPortalNav readOnly={readOnly} />
-                {selectedClientId ? (
-                  <ClientContractPortalButton
-                    clientId={selectedClientId}
-                    devFallbackRole="cliente"
-                  />
-                ) : null}
-              </>
-            )}
-            {mode === "admin" && selectedClientId ? (
-              <ClientContractPortalButton clientId={selectedClientId} devFallbackRole="admin" />
+              <select
+                className="max-w-[11rem] rounded-md border border-white/20 bg-[#1d1d1d] px-2 py-1.5 text-xs text-white"
+                value={selectedClientId ?? ""}
+                onChange={(e) => onClientChange(e.target.value)}
+                aria-label="Cliente em visualização"
+              >
+                {clients.length === 0 ? <option value="">Carregando…</option> : null}
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             ) : null}
+            {mode === "admin" ? (
+              <a href="/dashboard" className="rounded-md border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">
+                Voltar ao painel
+              </a>
+            ) : (
+              <form action={logoutAction}>
+                <button type="submit" className="rounded-md border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">
+                  Sair
+                </button>
+              </form>
+            )}
           </div>
         </div>
+        <nav className="mx-auto hidden max-w-5xl gap-1 px-4 sm:flex sm:px-6" aria-label="Portal do cliente">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`border-b-2 px-4 py-2.5 text-sm transition ${
+                tab === t.id ? "border-prime-gold font-semibold text-white" : "border-transparent text-white/60 hover:text-white"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-10 px-5 py-8">
-        {mode === "admin" && !selectedClientId ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Selecione um cliente cadastrado para testar solicitações e acompanhamento de corridas.
+      <main className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:px-6">
+        {mode === "admin" ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Você está vendo o portal como o gestor da {clientName} vê.
           </p>
         ) : null}
-
-        <StagingSmokeHints variant="light" />
         {readOnly ? <ClientPortalReadonlyNotice readOnly /> : null}
 
-        <section id="visao" className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-xl">
-            <p className="font-serif text-2xl leading-snug text-prime-text md:text-3xl">{saudacao}</p>
-            <p className="mt-3 text-sm text-prime-muted">
-              {mode === "admin"
-                ? "Visualize e teste o portal como o cliente corporativo — solicitações, corridas e detalhes."
-                : readOnly
-                  ? "Consulte corridas, estados, centros de custo e passageiros."
-                  : "Solicite corridas, acompanhe status e centros de custo."}
-            </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-prime-display text-2xl leading-snug sm:text-3xl">{greeting.title}</h1>
+            <p className="mt-1 max-w-2xl text-sm text-prime-muted">{greeting.sub}</p>
           </div>
-          {!readOnly && selectedClientId ? (
-            <button
-              type="button"
-              className="btn-primary inline-flex shrink-0 items-center justify-center px-5 py-2.5 text-sm"
-              onClick={scrollToSolicitar}
-            >
-              + Nova solicitação
-            </button>
+          {!isSolicitante && selectedClientId ? (
+            <ClientContractPortalButton clientId={selectedClientId} devFallbackRole={devRole} />
           ) : null}
-        </section>
+        </div>
 
-        {selectedClientId ? (
+        {!selectedClientId ? (
+          <p className="text-sm text-prime-muted">Selecione um cliente.</p>
+        ) : (
           <>
-            {!readOnly ? (
-              <section id="solicitar" className="scroll-mt-6 space-y-3">
-                <h2 className="font-serif text-xl text-prime-text">Nova solicitação</h2>
-                <ClientRequestConsole
-                  clientId={selectedClientId}
-                  costCenters={costCenters}
-                  devFallbackRole={mode === "admin" ? "admin" : "cliente"}
+            {tab === "resumo" && !isSolicitante ? (
+              <>
+                <ClientMonthDashboard clientId={mode === "admin" ? selectedClientId : undefined} devFallbackRole={devRole} reloadKey={reloadKey} />
+                {!readOnly ? (
+                  <button
+                    type="button"
+                    onClick={() => setTab("pedir")}
+                    className="w-full rounded-xl bg-[#111] px-4 py-3.5 text-base font-semibold text-white hover:bg-black sm:w-auto"
+                  >
+                    + Pedir corrida
+                  </button>
+                ) : null}
+                <ClientTripsPanel
+                  key={`up-${selectedClientId}`}
+                  tenantId={tenantId}
+                  readOnly={readOnly}
+                  clientIdOverride={mode === "admin" ? selectedClientId : undefined}
+                  devFallbackRole={devRole}
+                  showAmounts
+                  compact
+                  title="Próximas corridas"
+                  reloadKey={reloadKey}
                 />
-              </section>
+              </>
             ) : null}
 
-            <ClientTeamPortalSection
-              clientId={selectedClientId}
-              canManage={mode === "admin" ? true : canManageTeam}
-              devFallbackRole={mode === "admin" ? "admin" : "cliente"}
-            />
+            {tab === "pedir" ? (
+              readOnly ? (
+                <p className="text-sm text-prime-muted">Pedidos pelo portal estão desativados para esta conta.</p>
+              ) : (
+                <>
+                  <ClientRequestConsole
+                    clientId={selectedClientId}
+                    clientName={clientName}
+                    costCenters={initialCostCenters}
+                    devFallbackRole={devRole}
+                    defaultPassengerName={isSolicitante ? userName : ""}
+                    onCreated={() => setReloadKey((k) => k + 1)}
+                  />
+                  {isSolicitante ? (
+                    <ClientTripsPanel
+                      tenantId={tenantId}
+                      devFallbackRole={devRole}
+                      compact
+                      title="Suas próximas viagens"
+                      reloadKey={reloadKey}
+                    />
+                  ) : null}
+                </>
+              )
+            ) : null}
 
-            <ClientTripsPanel
-              key={selectedClientId}
-              tenantId={tenantId}
-              readOnly={readOnly}
-              clientIdOverride={mode === "admin" ? selectedClientId : undefined}
-              devFallbackRole={mode === "admin" ? "admin" : "cliente"}
-            />
+            {tab === "corridas" ? (
+              <ClientTripsPanel
+                key={`all-${selectedClientId}`}
+                tenantId={tenantId}
+                readOnly={readOnly}
+                clientIdOverride={mode === "admin" ? selectedClientId : undefined}
+                devFallbackRole={devRole}
+                showAmounts={!isSolicitante}
+                title={isSolicitante ? "Minhas viagens" : "Corridas da empresa"}
+                reloadKey={reloadKey}
+              />
+            ) : null}
+
+            {tab === "equipe" && !isSolicitante ? (
+              <ClientTeamPortalSection
+                clientId={selectedClientId}
+                canManage={mode === "admin" ? true : canManageTeam}
+                devFallbackRole={devRole}
+              />
+            ) : null}
           </>
-        ) : null}
+        )}
       </main>
+
+      {/* Navegação de baixo no celular */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 grid border-t border-prime-border bg-white sm:hidden"
+        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`, paddingBottom: "env(safe-area-inset-bottom)" }}
+        aria-label="Portal do cliente"
+      >
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={`py-3 text-xs ${tab === t.id ? "font-semibold text-prime-text" : "text-prime-muted"}`}
+          >
+            <span className={`mx-auto mb-1 block h-1 w-6 rounded-full ${tab === t.id ? "bg-prime-gold" : "bg-transparent"}`} />
+            {t.label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

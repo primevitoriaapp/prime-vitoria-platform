@@ -20,7 +20,7 @@ export type UploadDriverPhotoResult = {
   display_url: string | null;
 };
 
-/** Gera URL assinada para exibir foto (path guardado em drivers.photo_url). */
+/** Gera URL assinada para exibir foto (path salvo em drivers.photo_url). */
 export async function resolveDriverPhotoDisplayUrl(
   photoUrlOrPath: string | null | undefined
 ): Promise<string | null> {

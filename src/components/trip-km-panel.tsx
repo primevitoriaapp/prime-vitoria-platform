@@ -72,15 +72,15 @@ export function TripKmPanel({ tripId, devFallbackRole = "operador", canEdit = tr
     );
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha ao guardar KM.");
+      setMessage(json.error?.message ?? "Falha ao salvar KM.");
       return;
     }
-    setMessage("KM actual guardado.");
+    setMessage("KM actual salvo.");
     notifyOperationalClaimChanged(tripId);
     await load();
   }
 
-  if (loading) return <p className="text-sm text-slate-600">A carregar distâncias…</p>;
+  if (loading) return <p className="text-sm text-slate-600">Carregando distâncias…</p>;
   if (!data) return message ? <p className="text-sm text-red-700">{message}</p> : null;
 
   return (
@@ -105,7 +105,7 @@ export function TripKmPanel({ tripId, devFallbackRole = "operador", canEdit = tr
             className="w-32 rounded border border-slate-300 px-2 py-1 text-sm"
           />
           <button type="button" className="text-sm text-amber-800" onClick={() => void saveManual()}>
-            Guardar KM real
+            Salvar KM real
           </button>
         </div>
       ) : null}

@@ -69,10 +69,10 @@ export function VehiclesFleetPanel({ initialVehicles }: Props) {
       });
       const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message ?? "Falha ao actualizar");
+        throw new Error(json.error?.message ?? "Falha ao atualizar");
       }
       setEditingId(null);
-      setMessage("Veículo actualizado.");
+      setMessage("Veículo atualizado.");
       await reload();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erro inesperado.");
@@ -82,7 +82,7 @@ export function VehiclesFleetPanel({ initialVehicles }: Props) {
   }
 
   async function deactivate(vehicle: VehicleRow) {
-    if (!window.confirm(`Desactivar ${vehicle.plate}?`)) return;
+    if (!window.confirm(`Desativar ${vehicle.plate}?`)) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -94,9 +94,9 @@ export function VehiclesFleetPanel({ initialVehicles }: Props) {
       });
       const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message ?? "Falha ao desactivar");
+        throw new Error(json.error?.message ?? "Falha ao desativar");
       }
-      setMessage(`${vehicle.plate} desactivado.`);
+      setMessage(`${vehicle.plate} desativado.`);
       await reload();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erro inesperado.");
@@ -121,10 +121,10 @@ export function VehiclesFleetPanel({ initialVehicles }: Props) {
       />
 
       <section className="card mt-6">
-        <h2 className="text-lg font-semibold text-slate-900">Frota activa</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Frota ativa</h2>
         {message ? <p className="mt-2 text-sm text-slate-700">{message}</p> : null}
         {vehicles.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">Nenhum veículo registado.</p>
+          <p className="mt-3 text-sm text-slate-500">Nenhum veículo cadastrado.</p>
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
@@ -173,7 +173,7 @@ export function VehiclesFleetPanel({ initialVehicles }: Props) {
                         </td>
                         <td className="py-2">
                           <button type="button" disabled={busy} onClick={() => void saveEdit()} className="mr-2 text-amber-800">
-                            Guardar
+                            Salvar
                           </button>
                           <button type="button" onClick={() => setEditingId(null)} className="text-slate-600">
                             Cancelar
@@ -191,7 +191,7 @@ export function VehiclesFleetPanel({ initialVehicles }: Props) {
                             Editar
                           </button>
                           <button type="button" className="text-red-700" disabled={busy} onClick={() => void deactivate(vehicle)}>
-                            Desactivar
+                            Desativar
                           </button>
                         </td>
                       </>

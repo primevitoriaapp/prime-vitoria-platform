@@ -67,6 +67,16 @@ export function SiteHeader() {
     return null;
   }
 
+  // Telas com cabeçalho próprio (portal do cliente, voucher, entrar e senha).
+  if (
+    pathname.startsWith("/client") ||
+    pathname.startsWith("/voucher") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/redefinir-senha")
+  ) {
+    return null;
+  }
+
   if (role === "motorista" && pathname.startsWith("/driver")) {
     return null;
   }
@@ -100,7 +110,7 @@ export function SiteHeader() {
               </Link>
             ))}
             <Link href="/users" style={navLinkStyle(pathname.startsWith("/users"))}>
-              Utilizadores
+              Usuários
             </Link>
           </>
         ) : null}
@@ -147,11 +157,6 @@ export function SiteHeader() {
           <span style={{ color: "#94a3b8" }}>…</span>
         ) : session ? (
           <form action={logoutAction} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {session.tenantId ? (
-              <span style={{ fontSize: 12, color: "#64748b" }} title="Organização (tenant)">
-                Org: {session.tenantId.slice(0, 8)}…
-              </span>
-            ) : null}
             <button type="submit" style={{ fontSize: 14, cursor: "pointer" }}>
               Sair ({papelUsuarioPt(session.role)})
             </button>

@@ -55,7 +55,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         {
           client_id: trip.client_id,
           driver_id: trip.driver_id ?? null,
-          tenant_id: trip.tenant_id
+          tenant_id: trip.tenant_id,
+          created_by: (trip.created_by as string | null | undefined) ?? null
         },
         session.driverId
       )
@@ -74,10 +75,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (body.to_status !== "cancelled") {
         return fail("FORBIDDEN", "Cliente só pode cancelar a solicitação", 403);
       }
-      if (!clientMayCancelTrip(trip.operational_status)) {
+      if (!clientMayCancelTrip(trip.operational_status, trip.scheduled_at as string | null)) {
         return fail(
           "INVALID_STATUS_TRANSITION",
-          "Cancelamento não permitido neste estado da corrida",
+          "Esta corrida não pode mais ser cancelada pelo portal. Fale com a central Prime.",
           409
         );
       }
@@ -92,7 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (session.role === "motorista") {
       if (!session.driverId || trip.driver_id !== session.driverId) {
-        return fail("FORBIDDEN", "Motorista so pode actualizar as proprias corridas", 403);
+        return fail("FORBIDDEN", "Motorista so pode atualizar as proprias corridas", 403);
       }
       const allowed = driverNextStatuses(trip.operational_status);
       if (!allowed.includes(body.to_status)) {

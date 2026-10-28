@@ -28,7 +28,7 @@ type Props = {
   required?: boolean;
   className?: string;
   placeholder?: string;
-  /** Indica que há coordenadas guardadas (seleção Nominatim). */
+  /** Indica que há coordenadas salvas (seleção Nominatim). */
   hasCoords?: boolean;
   devFallbackRole?: "admin" | "operador" | "motorista" | "cliente";
 };
@@ -200,7 +200,7 @@ export function AddressAutocompleteInput({
       />
       {busy ? <p className="text-xs text-slate-500">A buscar endereços…</p> : null}
       {hasCoords ? (
-        <p className="text-xs text-emerald-800">Localização GPS guardada para esta paragem.</p>
+        <p className="text-xs text-emerald-800">Localização GPS salva para esta paragem.</p>
       ) : null}
       {hint && !busy ? <p className="text-xs text-amber-900">{hint}</p> : null}
       {open && suggestions.length > 0 ? (
@@ -225,7 +225,7 @@ export function AddressAutocompleteInput({
           ))}
         </ul>
       ) : null}
-      <p className="text-xs text-slate-500">OpenStreetMap — digite 3+ caracteres e seleccione uma sugestão (Brasil).</p>
+      <p className="text-xs text-slate-500">OpenStreetMap — digite 3+ caracteres e selecione uma sugestão (Brasil).</p>
     </div>
   );
 }

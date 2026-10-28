@@ -198,11 +198,11 @@ export function DriverTripsPanel({
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     setWaitBusy(false);
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha ao registar espera.");
+      setMessage(json.error?.message ?? "Falha ao cadastrar espera.");
       return;
     }
     if (action === "stop") {
-      setMessage("Tempo de espera registado.");
+      setMessage("Tempo de espera cadastrado.");
     }
     await load({ silent: true });
   }
@@ -239,7 +239,7 @@ export function DriverTripsPanel({
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     setBusyTrip(null);
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha ao actualizar estado.");
+      setMessage(json.error?.message ?? "Falha ao atualizar estado.");
       return;
     }
     if (to_status === "completed") {
@@ -335,20 +335,20 @@ export function DriverTripsPanel({
               disabled={loading && trips.length === 0}
               className="min-h-[2.75rem] rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
             >
-              {loading && trips.length > 0 ? "A actualizar…" : "Actualizar"}
+              {loading && trips.length > 0 ? "Atualizando…" : "Atualizar"}
             </button>
             {lastRefreshAt ? (
               <span className="text-[10px] text-slate-500">
                 {active.length > 0 ? "Auto 15s · " : "Auto 15s · "}
                 {lastRefreshAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                {!docVisible ? " · separador inactivo" : null}
+                {!docVisible ? " · separador inativo" : null}
               </span>
             ) : null}
           </div>
         </div>
 
         <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          {loading ? "A carregar corridas…" : message ?? (active.length ? `${active.length} corridas activas` : "Sem corridas activas")}
+          {loading ? "Carregando corridas…" : message ?? (active.length ? `${active.length} corridas ativas` : "Sem corridas ativas")}
         </p>
         {message ? <p className="mt-3 text-sm text-amber-200/90" aria-hidden="true">{message}</p> : null}
 
@@ -357,7 +357,7 @@ export function DriverTripsPanel({
         ) : active.length === 0 ? (
           <p className="mt-4 text-sm text-slate-500">
             Sem corrida actual. Após despacho da central, a corrida aparece aqui — actualização automática a cada 15s
-            (ou notificação push quando activa).
+            (ou notificação push quando ativa).
           </p>
         ) : (
           <div className="mt-4 space-y-4">
@@ -571,7 +571,7 @@ function CompactActiveTripCard({
       {trip.operational_status === "in_progress" ? (
         <p className="mt-2 text-xs text-emerald-300">
           GPS: {formatDriverGpsKm(gps.accumulatedKm)} km
-          {gps.tracking ? " · a registar" : gps.gpsError ? ` · ${gps.gpsError}` : null}
+          {gps.tracking ? " · a cadastrar" : gps.gpsError ? ` · ${gps.gpsError}` : null}
         </p>
       ) : null}
       {completingTrip && !showManualKm && gps.accumulatedKm != null && gps.accumulatedKm > 0 ? (

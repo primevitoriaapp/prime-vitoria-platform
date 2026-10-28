@@ -159,16 +159,16 @@ export function ClientPricingTableSection({ clientId, disabled }: Props) {
     if (!res.ok || !json.success) {
       setMessage({
         kind: "error",
-        text: [json.error?.message, json.error?.hint].filter(Boolean).join(" — ") || "Falha ao guardar."
+        text: [json.error?.message, json.error?.hint].filter(Boolean).join(" — ") || "Falha ao salvar."
       });
       return;
     }
-    setMessage({ kind: "success", text: "Tabela de preços guardada." });
+    setMessage({ kind: "success", text: "Tabela de preços salva." });
     void load();
   }
 
   if (loading) {
-    return <p className="text-sm text-prime-muted">A carregar tabela de preços…</p>;
+    return <p className="text-sm text-prime-muted">Carregando tabela de preços…</p>;
   }
 
   return (
@@ -283,7 +283,7 @@ export function ClientPricingTableSection({ clientId, disabled }: Props) {
       </div>
       <div className="mt-3 flex flex-wrap gap-3">
         <button type="button" className="btn-primary" disabled={busy || !hasAnyValue} onClick={() => void save()}>
-          {busy ? "A guardar…" : "Guardar tabela de preços"}
+          {busy ? "Salvando…" : "Salvar tabela de preços"}
         </button>
       </div>
       {message ? (

@@ -71,7 +71,7 @@ export function DispatchAutomationSettings() {
   if (loading) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-        A carregar automação de despacho…
+        Carregando automação de despacho…
       </div>
     );
   }
@@ -161,14 +161,14 @@ export function DispatchAutomationSettings() {
         </label>
       </div>
       {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
-      {savedOk ? <p className="mt-2 text-sm text-emerald-700">Guardado.</p> : null}
+      {savedOk ? <p className="mt-2 text-sm text-emerald-700">Salvo.</p> : null}
       <button
         type="button"
         disabled={saving}
         onClick={save}
         className="mt-4 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
       >
-        {saving ? "A gravar…" : "Guardar"}
+        {saving ? "A gravar…" : "Salvar"}
       </button>
     </div>
   );

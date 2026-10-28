@@ -14,6 +14,8 @@ const patchSchema = z.object({
   address: z.string().optional().nullable(),
   matricula: z.string().optional().nullable(),
   sector: z.string().optional().nullable(),
+  cpf: z.string().max(20).optional().nullable(),
+  email: z.string().max(254).optional().nullable(),
   active: z.boolean().optional()
 });
 

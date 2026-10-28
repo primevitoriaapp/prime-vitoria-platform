@@ -7,7 +7,7 @@ import type { ClaimGuardResult } from "@/lib/trips/operational-claim-guard";
 import { operationalClaimConflictMessage } from "@/lib/trips/operational-claim-state";
 
 /**
- * Garante claim activo antes de mutações operacionais.
+ * Garante claim ativo antes de mutações operacionais.
  * - Admin: sempre OK.
  * - Operador sem claim + `require_operational_claim=false`: auto-assume (rastreio suave).
  * - Operador sem claim + require=true: CLAIM_REQUIRED.

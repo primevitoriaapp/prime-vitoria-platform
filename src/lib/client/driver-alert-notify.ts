@@ -9,7 +9,7 @@ function ensureBaseTitle() {
   }
 }
 
-/** Beep curto via Web Audio (sem ficheiro externo). */
+/** Beep curto via Web Audio (sem arquivo externo). */
 export function playDriverAlertBeep(): void {
   if (typeof window === "undefined") return;
   try {
@@ -30,7 +30,7 @@ export function playDriverAlertBeep(): void {
     osc.stop(ctx.currentTime + 0.5);
     void ctx.close();
   } catch {
-    /* browsers podem bloquear AudioContext sem gesto do utilizador */
+    /* browsers podem bloquear AudioContext sem gesto do usuário */
   }
 }
 

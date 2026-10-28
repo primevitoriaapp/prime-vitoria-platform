@@ -13,13 +13,13 @@ type Readiness = {
 };
 
 type Props = {
-  /** Preview admin: consulta push do motorista seleccionado. */
+  /** Preview admin: consulta push do motorista selecionado. */
   driverId?: string | null;
   devFallbackRole?: "motorista" | "admin" | "operador";
 };
 
 /**
- * Banner compacto: push activo, fallback realtime, ou passos para activar FCM.
+ * Banner compacto: push ativo, fallback realtime, ou passos para ativar FCM.
  * Sem Firebase Web configurado, não exibe nada (polling silencioso).
  */
 export function DriverPushStatusBanner(props: Props) {
@@ -72,7 +72,7 @@ function DriverPushStatusBannerInner({ driverId, devFallbackRole = "motorista" }
         className="rounded-xl border border-emerald-800/50 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200"
         role="status"
       >
-        <span className="font-medium text-emerald-100">Push activo</span>
+        <span className="font-medium text-emerald-100">Push ativo</span>
         <span className="text-emerald-200/80"> — novas corridas despachadas chegam por notificação. A lista actualiza em tempo real.</span>
       </div>
     );
@@ -81,10 +81,10 @@ function DriverPushStatusBannerInner({ driverId, devFallbackRole = "motorista" }
   if (readiness.tokenRegistered && !readiness.serverConfigured) {
     return (
       <div className="rounded-xl border border-amber-800/50 bg-amber-950/40 px-4 py-3 text-sm text-amber-100" role="status">
-        <p className="font-medium">Token registado — servidor push pendente</p>
+        <p className="font-medium">Token cadastrado — servidor push pendente</p>
         <p className="mt-1 text-amber-200/80">
           O dispositivo está pronto; falta <code className="text-xs">FCM_SERVER_KEY</code> no ambiente (Vercel). Use{" "}
-          <strong>Actualizar</strong> na lista até o envio estar activo.
+          <strong>Atualizar</strong> na lista até o envio estar ativo.
         </p>
       </div>
     );
@@ -98,7 +98,7 @@ function DriverPushStatusBannerInner({ driverId, devFallbackRole = "motorista" }
     <div className="rounded-xl border border-amber-700/60 bg-amber-950/30 px-4 py-3 text-sm text-amber-100" role="status">
       <p className="font-medium">Active notificações para receber despachos</p>
       <p className="mt-1 text-amber-200/80">
-        Sem push, depende de <strong>Actualizar</strong> ou Realtime.{" "}
+        Sem push, depende de <strong>Atualizar</strong> ou Realtime.{" "}
         <Link href="#push-setup" className="font-medium text-amber-300 hover:underline">
           Configurar agora ↓
         </Link>

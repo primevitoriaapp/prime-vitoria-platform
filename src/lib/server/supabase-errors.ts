@@ -15,7 +15,7 @@ export function mapSupabaseError(error: PostgrestError, context: string): Mapped
   if (/column .* does not exist|Could not find the .* column|schema cache/i.test(raw)) {
     return {
       code: "MIGRATION_0044_REQUIRED",
-      message: `Não foi possível guardar ${context}: a base de dados ainda não tem os campos de cadastro P1.`,
+      message: `Não foi possível salvar ${context}: a base de dados ainda não tem os campos de cadastro P1.`,
       hint: "Peça para aplicar a migration 0044 no Supabase de staging (workflow «Staging migration 0044» ou npm run db:apply-0044-staging).",
       status: 503
     };

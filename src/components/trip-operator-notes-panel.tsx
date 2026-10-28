@@ -65,14 +65,14 @@ export function TripOperatorNotesPanel({ tripId, onPosted }: Props) {
       });
       const json = await res.json();
       if (!res.ok || !json?.success) {
-        setError(json?.error?.message ?? "Não foi possível guardar.");
+        setError(json?.error?.message ?? "Não foi possível salvar.");
         return;
       }
       setBody("");
       await load();
       onPosted?.();
     } catch {
-      setError("Falha de rede ao guardar.");
+      setError("Falha de rede ao salvar.");
     } finally {
       setSaving(false);
     }
@@ -80,11 +80,11 @@ export function TripOperatorNotesPanel({ tripId, onPosted }: Props) {
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-base font-semibold text-slate-900">Notas operacionais (equipa)</h2>
+      <h2 className="text-base font-semibold text-slate-900">Notas operacionais (equipe)</h2>
       <p className="mt-1 text-xs text-slate-500">
         Reservado a administradores e operadores, com visão global de viagens. Continuidade entre turnos.
       </p>
-      {loading ? <p className="mt-3 text-sm text-slate-600">A carregar…</p> : null}
+      {loading ? <p className="mt-3 text-sm text-slate-600">Carregando…</p> : null}
       {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
       {!loading && canUse ? (
         <>
@@ -119,7 +119,7 @@ export function TripOperatorNotesPanel({ tripId, onPosted }: Props) {
               disabled={saving || !body.trim()}
               className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
             >
-              {saving ? "A guardar…" : "Adicionar nota"}
+              {saving ? "Salvando…" : "Adicionar nota"}
             </button>
           </form>
         </>

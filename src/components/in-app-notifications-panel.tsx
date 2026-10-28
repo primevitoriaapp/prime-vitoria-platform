@@ -152,7 +152,7 @@ export function InAppNotificationsPanel({
       {collapsed ? (
         <p className="px-4 py-2 text-xs text-slate-500">
           {loading
-            ? "A carregar…"
+            ? "Carregando…"
             : badgeCount > 0
               ? `${badgeCount} notificação${badgeCount === 1 ? "" : "ões"} — expandir para ver`
               : "Sem notificações"}
@@ -160,7 +160,7 @@ export function InAppNotificationsPanel({
       ) : (
         <div className="px-4 pb-4">
           {message ? <p className="mt-2 text-sm text-red-600">{message}</p> : null}
-          {loading ? <p className="mt-3 text-sm text-slate-500">A carregar…</p> : null}
+          {loading ? <p className="mt-3 text-sm text-slate-500">Carregando…</p> : null}
 
           {!loading && items.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Sem notificações{unreadOnly ? " não lidas" : ""}.</p>

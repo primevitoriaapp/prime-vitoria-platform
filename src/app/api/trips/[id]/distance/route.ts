@@ -25,7 +25,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const { data: trip, error } = await db
       .from("trips")
       .select(
-        "id, client_id, driver_id, tenant_id, planned_km, actual_km, km_source, km_updated_at, origin_lat, origin_lng, destination_lat, destination_lng"
+        "id, client_id, driver_id, tenant_id, created_by, planned_km, actual_km, km_source, km_updated_at, origin_lat, origin_lng, destination_lat, destination_lng"
       )
       .eq("id", tripId)
       .eq("tenant_id", tenantId)
@@ -37,7 +37,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       tripGetAccess(session, {
         client_id: trip.client_id,
         driver_id: trip.driver_id ?? null,
-        tenant_id: trip.tenant_id
+        tenant_id: trip.tenant_id,
+        created_by: (trip.created_by as string | null | undefined) ?? null
       })
     );
     if (denied) return denied;
@@ -66,7 +67,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { data: trip, error } = await db
       .from("trips")
-      .select("id, client_id, driver_id, tenant_id, origin_lat, origin_lng, destination_lat, destination_lng")
+      .select("id, client_id, driver_id, tenant_id, created_by, origin_lat, origin_lng, destination_lat, destination_lng")
       .eq("id", tripId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -77,7 +78,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       tripGetAccess(session, {
         client_id: trip.client_id,
         driver_id: trip.driver_id ?? null,
-        tenant_id: trip.tenant_id
+        tenant_id: trip.tenant_id,
+        created_by: (trip.created_by as string | null | undefined) ?? null
       })
     );
     if (denied) return denied;

@@ -9,7 +9,7 @@ type Props = {
 };
 
 /**
- * Dica discreta para smoke em staging. OFF por defeito — activar com NEXT_PUBLIC_STAGING_SMOKE_HINTS=true.
+ * Dica discreta para smoke em staging. OFF por defeito — ativar com NEXT_PUBLIC_STAGING_SMOKE_HINTS=true.
  */
 export function StagingSmokeHints({ variant = "light" }: Props) {
   if (!isStagingSmokeHintsEnabled()) return null;

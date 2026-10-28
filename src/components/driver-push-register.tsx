@@ -19,7 +19,7 @@ async function savePushToken(token: string, platform: "web" | "unknown"): Promis
   );
   const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
   if (!res.ok || !json.success) {
-    return json.error?.message ?? "Falha ao guardar token";
+    return json.error?.message ?? "Falha ao salvar token";
   }
   return null;
 }
@@ -48,7 +48,7 @@ export function DriverPushRegister({ variant = "light" }: Props) {
       return;
     }
     setState("registered");
-    setMessage("Notificações push activas neste dispositivo.");
+    setMessage("Notificações push ativas neste dispositivo.");
   }, []);
 
   const onAutoRegister = useCallback(async () => {
@@ -123,7 +123,7 @@ export function DriverPushRegister({ variant = "light" }: Props) {
             : undefined
         }
       >
-        {state === "loading" ? "A activar…" : "Activar notificações neste dispositivo"}
+        {state === "loading" ? "A ativar…" : "Ativar notificações neste dispositivo"}
       </button>
       <form onSubmit={(e) => void onManualSubmit(e)} className={dark ? "space-y-2" : "grid"} style={dark ? undefined : { marginTop: 8 }}>
         <input
@@ -145,7 +145,7 @@ export function DriverPushRegister({ variant = "light" }: Props) {
               : undefined
           }
         >
-          Guardar token manualmente
+          Salvar token manualmente
         </button>
       </form>
       {message ? (

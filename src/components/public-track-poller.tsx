@@ -157,7 +157,7 @@ export function PublicTrackPoller({ token, initial }: Props) {
         ) : null}
         {data.km_updated_at ? (
           <p className="mt-1 text-xs text-slate-600">
-            KM actualizado:{" "}
+            KM atualizado:{" "}
             {formatBrDateTime(data.km_updated_at)}
           </p>
         ) : null}

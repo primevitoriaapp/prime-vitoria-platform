@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File) || file.size === 0) {
-      return fail("INVALID_FILE", "Seleccione uma imagem.", 400);
+      return fail("INVALID_FILE", "Selecione uma imagem.", 400);
     }
     if (file.size > MAX_BYTES) return fail("INVALID_FILE", "Imagem excede 5 MB.", 400);
     const mime = resolveImageMime(file);

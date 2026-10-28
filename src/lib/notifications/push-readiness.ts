@@ -3,7 +3,7 @@ import { readFirebaseWebConfig } from "../firebase/messaging-config.ts";
 export type PushReadinessSnapshot = {
   /** Servidor pode enviar FCM legacy */
   serverConfigured: boolean;
-  /** Browser pode auto-registar token (env públicas) */
+  /** Browser pode auto-cadastrar token (env públicas) */
   firebaseWebConfigured: boolean;
   /** Pronto para smoke push ponta-a-ponta */
   operationalReady: boolean;

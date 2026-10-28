@@ -62,16 +62,16 @@ export function ClientBillingConfigSection({ clientId, disabled, onSaved }: Prop
     if (!res.ok || !json.success) {
       setMessage({
         kind: "error",
-        text: [json.error?.message, json.error?.hint].filter(Boolean).join(" — ") || "Falha ao guardar cobrança."
+        text: [json.error?.message, json.error?.hint].filter(Boolean).join(" — ") || "Falha ao salvar cobrança."
       });
       return;
     }
-    setMessage({ kind: "success", text: "Configuração de cobrança guardada." });
+    setMessage({ kind: "success", text: "Configuração de cobrança salva." });
     onSaved?.();
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">A carregar configuração de cobrança…</p>;
+    return <p className="text-sm text-slate-500">Carregando configuração de cobrança…</p>;
   }
 
   return (
@@ -167,7 +167,7 @@ export function ClientBillingConfigSection({ clientId, disabled, onSaved }: Prop
           onClick={() => void save()}
           className="rounded-lg border border-amber-700 px-4 py-2 text-sm text-amber-900 hover:bg-amber-50 disabled:opacity-50"
         >
-          {busy ? "A guardar…" : "Guardar configuração de cobrança"}
+          {busy ? "Salvando…" : "Salvar configuração de cobrança"}
         </button>
       </div>
       {message ? (

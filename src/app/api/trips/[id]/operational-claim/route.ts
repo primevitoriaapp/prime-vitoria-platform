@@ -11,7 +11,7 @@ import { operationalClaimAgeMinutes, operationalClaimIsStale } from "@/lib/trips
 async function loadTrip(tenantId: string, tripId: string) {
   const { data: trip, error } = await db
     .from("trips")
-    .select("id, client_id, driver_id, tenant_id")
+    .select("id, client_id, driver_id, tenant_id, created_by")
     .eq("id", tripId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -33,7 +33,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     if (!trip) return fail("TRIP_NOT_FOUND", "Trip not found", 404);
 
     const denied = denyUnlessTripReadable(
-      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null, tenant_id: trip.tenant_id })
+      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null, tenant_id: trip.tenant_id, created_by: (trip.created_by as string | null | undefined) ?? null })
     );
     if (denied) return denied;
 
@@ -87,7 +87,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!trip) return fail("TRIP_NOT_FOUND", "Trip not found", 404);
 
     const denied = denyUnlessTripReadable(
-      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null, tenant_id: trip.tenant_id })
+      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null, tenant_id: trip.tenant_id, created_by: (trip.created_by as string | null | undefined) ?? null })
     );
     if (denied) return denied;
 
@@ -160,7 +160,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!trip) return fail("TRIP_NOT_FOUND", "Trip not found", 404);
 
     const denied = denyUnlessTripReadable(
-      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null, tenant_id: trip.tenant_id })
+      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null, tenant_id: trip.tenant_id, created_by: (trip.created_by as string | null | undefined) ?? null })
     );
     if (denied) return denied;
 

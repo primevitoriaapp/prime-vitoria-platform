@@ -14,7 +14,7 @@ const listSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(30)
 });
 
-/** Lista notificações in-app do utilizador autenticado. */
+/** Lista notificações in-app do usuário autenticado. */
 export async function GET(request: Request) {
   try {
     const session = await getSessionContext();

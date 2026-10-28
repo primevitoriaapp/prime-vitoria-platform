@@ -59,7 +59,7 @@ export async function notifyOperationalClaimTaken(
   );
 }
 
-/** Despacho com motorista atribuído (painel directo ou aprovação de oferta) — visibilidade para equipa operacional. */
+/** Despacho com motorista atribuído (painel directo ou aprovação de oferta) — visibilidade para equipe operacional. */
 export async function notifyTripDispatchedToStaff(
   tenantId: string,
   tripId: string,
@@ -83,7 +83,7 @@ export async function notifyTripDispatchedToStaff(
   );
 }
 
-/** Reatribuição de motorista — aviso in-app à equipa (exclui quem executou a acção). */
+/** Reatribuição de motorista — aviso in-app à equipe (exclui quem executou a ação). */
 export async function notifyTripReassignedToStaff(
   tenantId: string,
   tripId: string,
@@ -108,7 +108,7 @@ export async function notifyTripReassignedToStaff(
   );
 }
 
-/** Mudanças operacionais relevantes para a equipa (cancelamento, deslocamento, chegada, no-show). */
+/** Mudanças operacionais relevantes para a equipe (cancelamento, deslocamento, chegada, no-show). */
 export async function notifyTripStatusToStaff(
   tenantId: string,
   tripId: string,

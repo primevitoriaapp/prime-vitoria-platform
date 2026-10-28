@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
 import { headers } from "next/headers";
-import { resolveEffectiveUserRole } from "../auth/role-from-claims";
+import { resolveEffectiveUserRole, roleFromProfileField } from "../auth/role-from-claims";
 import type { SessionContext, UserRole } from "../domain/types";
 import { DEFAULT_TENANT_ID } from "../tenant/default-tenant";
 import { createSupabaseRouteClient } from "../supabase/server";
@@ -28,10 +28,16 @@ function cpfFromUserMetadata(user: User): string | undefined {
 
 async function sessionContextFromUser(user: User): Promise<SessionContext> {
   const h = await headers();
-  const { data: profile } = await db.from("profiles").select("role, tenant_id, client_id").eq("id", user.id).maybeSingle();
+  const { data: profile } = await db.from("profiles").select("role, tenant_id, client_id, client_access, active")
+    .eq("id", user.id)
+    .maybeSingle();
 
   let tenantId = (profile?.tenant_id as string | undefined) ?? DEFAULT_TENANT_ID;
-  const clientId = h.get("x-client-id") ?? (profile?.client_id as string | undefined) ?? undefined;
+  const profileClientId = (profile?.client_id as string | undefined) ?? undefined;
+  // Login de cliente fica preso à própria empresa: o cabeçalho x-client-id só vale
+  // para a equipe da Prime (admin/operador em modo preview).
+  const isClientProfile = roleFromProfileField(profile?.role) === "cliente";
+  const clientId = isClientProfile ? profileClientId : (h.get("x-client-id") ?? profileClientId);
   const cpf = cpfFromUserMetadata(user);
   let driverId = h.get("x-driver-id") ?? undefined;
   if (!driverId) {
@@ -54,9 +60,17 @@ async function sessionContextFromUser(user: User): Promise<SessionContext> {
     tenantId = await getClientTenantId(clientId, tenantId);
   }
 
+  if (profile && profile.active === false) {
+    return { userId: "anonymous", role: "guest" };
+  }
+
+  const clientAccess =
+    role === "cliente" ? (profile?.client_access === "solicitante" ? "solicitante" : "gestor") : undefined;
+
   return {
     userId: user.id,
     role,
+    clientAccess,
     email: user.email ?? undefined,
     cpf,
     tenantId,

@@ -103,7 +103,7 @@ async function applyOptionalFields(
     return {
       partialSave: true,
       warning:
-        "Ficha guardada parcialmente. Aplique migrations 0044, 0047 e 0049 no Supabase de staging para todos os campos."
+        "Ficha salva parcialmente. Aplique migrations 0044, 0047 e 0049 no Supabase de staging para todos os campos."
     };
   }
   return { partialSave: false };

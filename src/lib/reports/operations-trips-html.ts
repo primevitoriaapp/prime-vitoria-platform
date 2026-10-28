@@ -14,7 +14,7 @@ type TripReportRow = {
   dispatch_mode: string;
 };
 
-/** HTML simples para impressão / “Guardar como PDF” no browser. */
+/** HTML simples para impressão / “Salvar como PDF” no browser. */
 export function operationsTripsReportHtml(items: TripReportRow[], generatedAt: Date): string {
   const rows = items
     .map(

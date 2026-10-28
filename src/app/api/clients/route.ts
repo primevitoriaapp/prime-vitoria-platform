@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     const apiWarning =
       warning ??
       (partialSave
-        ? "Cliente guardado com dados essenciais. Aplique migrations 0044/0046 no Supabase para campos completos."
+        ? "Cliente salvo com dados essenciais. Aplique migrations 0044/0046 no Supabase para campos completos."
         : undefined);
 
     return ok({ ...data, ...(apiWarning ? { _warning: apiWarning } : {}) }, 201);

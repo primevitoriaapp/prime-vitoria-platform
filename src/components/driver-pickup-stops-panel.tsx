@@ -102,7 +102,7 @@ export function DriverPickupStopsPanel({ stops, isBusy = false, onCompleteStop }
             onClick={() => onCompleteStop(currentIdx)}
             className="btn-primary min-h-[2.75rem] w-full rounded-xl px-4 py-2.5 text-base disabled:opacity-50"
           >
-            {isBusy ? "A guardar…" : `Marcar parada ${currentIdx + 1} concluída`}
+            {isBusy ? "Salvando…" : `Marcar parada ${currentIdx + 1} concluída`}
           </button>
         </div>
       ) : allDone ? (

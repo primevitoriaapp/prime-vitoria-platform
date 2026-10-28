@@ -54,7 +54,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
   }, [reload]);
 
   async function deactivate(client: ClientRow) {
-    if (!window.confirm(`Desactivar ${client.name}?`)) return;
+    if (!window.confirm(`Desativar ${client.name}?`)) return;
     setBusy(true);
     try {
       const res = await fetchWithSupabaseSession(
@@ -64,7 +64,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
       );
       const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
       if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha");
-      setMessage(`${client.name} desactivado.`);
+      setMessage(`${client.name} desativado.`);
       setEditingId(null);
       await reload();
     } catch (error) {
@@ -99,10 +99,10 @@ export function ClientsFleetPanel({ initialClients }: Props) {
       )}
 
       <section className="card mt-6">
-        <h2 className="text-lg font-semibold">Clientes activos</h2>
+        <h2 className="text-lg font-semibold">Clientes ativos</h2>
         {message ? <p className="mt-2 text-sm text-slate-400">{message}</p> : null}
         {clients.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">Nenhum cliente registado.</p>
+          <p className="mt-3 text-sm text-slate-500">Nenhum cliente cadastrado.</p>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {clients.map((client) => (
@@ -130,7 +130,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
                         : "bg-slate-700/60 text-slate-400"
                     }`}
                   >
-                    Portal: {client.portal_requests_enabled ? "solicitações activas" : "modo consulta"}
+                    Portal: {client.portal_requests_enabled ? "solicitações ativas" : "modo consulta"}
                   </span>
                 </p>
                 <p className="mt-2 text-xs text-slate-500">
@@ -162,7 +162,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
                     disabled={busy}
                     onClick={() => void deactivate(client)}
                   >
-                    Desactivar
+                    Desativar
                   </button>
                 </div>
                 <button

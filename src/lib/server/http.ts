@@ -18,14 +18,14 @@ export function mapApiError(error: unknown) {
   if (message.startsWith("Forbidden:")) {
     const detail = message.replace(/^Forbidden:\s*/, "");
     const friendly =
-      detail.includes("missing capability") ? "Sem permissão para esta acção." : detail;
+      detail.includes("missing capability") ? "Sem permissão para esta ação." : detail;
     return fail("FORBIDDEN", friendly, 403);
   }
   if (message.includes("autenticacao necessaria")) {
     return fail("UNAUTHORIZED", "Sessão expirada ou inválida. Inicie sessão novamente.", 401);
   }
   if (message.includes("Pricing feature disabled")) {
-    return fail("PRICING_FEATURE_DISABLED", "Funcionalidade de precificação não activa.", 422);
+    return fail("PRICING_FEATURE_DISABLED", "Funcionalidade de precificação não ativa.", 422);
   }
   if (message.includes("no_active_pricing_rule") || message.includes("skipped_reason")) {
     return fail("PRICING_NOT_APPLIED", "Precificação automática não aplicada nesta corrida.", 422);

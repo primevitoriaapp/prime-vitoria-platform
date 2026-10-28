@@ -3,7 +3,7 @@ import { fail, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertCapability } from "@/lib/security/rbac";
 
-/** Marca todas as notificações in-app do utilizador como lidas. */
+/** Marca todas as notificações in-app do usuário como lidas. */
 export async function POST() {
   try {
     const session = await getSessionContext();

@@ -22,7 +22,18 @@ type PassengerForm = {
   matricula: string;
   sector: string;
   postal_code: string;
+  cpf: string;
+  email: string;
+  giveAccess: boolean;
 };
+
+function formatCpf(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
 
 type CenterForm = {
   name: string;
@@ -37,7 +48,10 @@ const emptyPassenger = (): PassengerForm => ({
   address: "",
   matricula: "",
   sector: "",
-  postal_code: ""
+  postal_code: "",
+  cpf: "",
+  email: "",
+  giveAccess: true
 });
 
 const emptyCenter = (): CenterForm => ({
@@ -132,7 +146,10 @@ export function ClientTeamPortalSection({
       address: row.address ?? "",
       matricula: row.matricula ?? "",
       sector: row.sector ?? "",
-      postal_code: ""
+      postal_code: "",
+      cpf: row.cpf ? formatCpf(row.cpf) : "",
+      email: row.email ?? "",
+      giveAccess: !row.profile_id
     });
   }
 
@@ -146,7 +163,9 @@ export function ClientTeamPortalSection({
       phone: pForm.phone.trim() || null,
       address: pForm.address.trim() || null,
       matricula: pForm.matricula.trim() || null,
-      sector: pForm.sector.trim() || null
+      sector: pForm.sector.trim() || null,
+      cpf: pForm.cpf.trim() || null,
+      email: pForm.email.trim() || null
     };
     const res = editingId
       ? await fetchWithSupabaseSession(
@@ -159,16 +178,69 @@ export function ClientTeamPortalSection({
           { method: "POST", body: JSON.stringify(body) },
           devFallbackRole
         );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    const json = (await res.json()) as {
+      success?: boolean;
+      data?: ClientPassengerRow;
+      error?: { message?: string };
+    };
     setBusy(false);
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha ao guardar funcionário.");
+      setMessage(json.error?.message ?? "Falha ao salvar funcionário.");
       return;
     }
-    setMessage(editingId ? "Funcionário actualizado." : "Funcionário adicionado.");
+    const savedRow = json.data;
+    if (pForm.giveAccess && pForm.email.trim() && savedRow && !savedRow.profile_id) {
+      const sent = await grantAccess(savedRow.id, pForm.email.trim());
+      setMessage(
+        sent
+          ? `${savedRow.name} cadastrado. Enviamos um convite para ${pForm.email.trim()} criar a senha.`
+          : `${savedRow.name} cadastrado, mas o convite não foi enviado (veja o aviso acima).`
+      );
+    } else {
+      setMessage(editingId ? "Funcionário atualizado." : "Funcionário adicionado.");
+    }
     setEditingId(null);
     setPForm(emptyPassenger());
     void loadPassengers();
+  }
+
+  async function grantAccess(passengerId: string, email: string): Promise<boolean> {
+    const res = await fetchWithSupabaseSession(
+      `/api/clients/${clientId}/portal-access`,
+      { method: "POST", body: JSON.stringify({ passenger_id: passengerId, email }) },
+      devFallbackRole
+    );
+    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    if (!res.ok || !json.success) {
+      setMessage(json.error?.message ?? "Não foi possível enviar o convite.");
+      return false;
+    }
+    void loadPassengers();
+    return true;
+  }
+
+  async function onGrantClick(p: ClientPassengerRow) {
+    const email = p.email || window.prompt(`E-mail de ${p.name} para acessar o portal:`)?.trim();
+    if (!email) return;
+    setBusy(true);
+    const okSent = await grantAccess(p.id, email);
+    setBusy(false);
+    if (okSent) setMessage(`Convite enviado para ${email}. ${p.name} cria a senha pelo link do e-mail.`);
+  }
+
+  async function onRevokeClick(p: ClientPassengerRow) {
+    if (!window.confirm(`Tirar o acesso de ${p.name} ao portal? O cadastro continua.`)) return;
+    setBusy(true);
+    const res = await fetchWithSupabaseSession(
+      `/api/clients/${clientId}/portal-access`,
+      { method: "DELETE", body: JSON.stringify({ passenger_id: p.id }) },
+      devFallbackRole
+    );
+    setBusy(false);
+    if (res.ok) {
+      setMessage(`${p.name} não acessa mais o portal.`);
+      void loadPassengers();
+    }
   }
 
   async function deactivatePassenger(id: string) {
@@ -181,7 +253,7 @@ export function ClientTeamPortalSection({
     );
     setBusy(false);
     if (res.ok) {
-      setMessage("Funcionário desactivado.");
+      setMessage("Funcionário desativado.");
       void loadPassengers();
     }
   }
@@ -207,7 +279,7 @@ export function ClientTeamPortalSection({
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     setBusy(false);
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha ao guardar centro de custo.");
+      setMessage(json.error?.message ?? "Falha ao salvar centro de custo.");
       return;
     }
     setMessage("Centro de custo adicionado.");
@@ -218,10 +290,10 @@ export function ClientTeamPortalSection({
   return (
     <section id="equipe" className="scroll-mt-6 space-y-4">
       <div>
-        <h2 className="font-serif text-xl text-prime-text">Minha equipe</h2>
+        <h2 className="font-prime-display text-xl text-prime-text">Equipe</h2>
         <p className="mt-1 text-sm text-prime-muted">
           {canManage
-            ? "Cadastre funcionários e centros de custo para uso nas solicitações de corrida."
+            ? "Cadastre os funcionários (nome, CPF e e-mail) e libere o acesso para eles pedirem as próprias corridas."
             : "Consulta dos funcionários e centros de custo da sua empresa."}
         </p>
       </div>
@@ -246,7 +318,7 @@ export function ClientTeamPortalSection({
       {message ? <p className="text-sm text-prime-text">{message}</p> : null}
 
       {loading ? (
-        <p className="text-sm text-prime-muted">A carregar…</p>
+        <p className="text-sm text-prime-muted">Carregando…</p>
       ) : tab === "funcionarios" ? (
         <div className="space-y-4">
           {canManage ? (
@@ -260,6 +332,44 @@ export function ClientTeamPortalSection({
                   onChange={(e) => setPForm((f) => ({ ...f, name: e.target.value }))}
                   disabled={busy}
                 />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>CPF</span>
+                <input
+                  inputMode="numeric"
+                  className={PRIME_INPUT_CLASS}
+                  value={pForm.cpf}
+                  onChange={(e) => setPForm((f) => ({ ...f, cpf: formatCpf(e.target.value) }))}
+                  placeholder="000.000.000-00"
+                  disabled={busy}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>E-mail</span>
+                <input
+                  type="email"
+                  className={PRIME_INPUT_CLASS}
+                  value={pForm.email}
+                  onChange={(e) => setPForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="nome@empresa.com.br"
+                  disabled={busy}
+                />
+              </label>
+              <label className="flex items-start gap-2 rounded-lg bg-prime-bg p-3 text-sm sm:col-span-2">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={pForm.giveAccess}
+                  onChange={(e) => setPForm((f) => ({ ...f, giveAccess: e.target.checked }))}
+                  disabled={busy}
+                />
+                <span>
+                  <span className="font-medium">Liberar acesso ao portal</span>
+                  <span className="block text-xs text-prime-muted">
+                    O funcionário recebe um e-mail para criar a senha e passa a pedir as próprias corridas. A cobrança
+                    continua faturada para a empresa.
+                  </span>
+                </span>
               </label>
               <label className="grid gap-1 text-sm">
                 <span>Telefone</span>
@@ -319,7 +429,7 @@ export function ClientTeamPortalSection({
               </label>
               <div className="flex flex-wrap gap-2 sm:col-span-2">
                 <button type="submit" disabled={busy} className="btn-primary disabled:opacity-50">
-                  {busy ? "A guardar…" : editingId ? "Actualizar" : "Adicionar funcionário"}
+                  {busy ? "Salvando…" : editingId ? "Atualizar" : "Adicionar funcionário"}
                 </button>
                 {editingId ? (
                   <button
@@ -351,12 +461,23 @@ export function ClientTeamPortalSection({
                       <p className="font-medium text-prime-text">
                         {p.name}
                         {!p.active ? (
-                          <span className="ml-2 text-xs text-prime-muted">(inactivo)</span>
+                          <span className="ml-2 text-xs text-prime-muted">(inativo)</span>
                         ) : null}
                       </p>
                       <p className="text-xs text-prime-muted">
-                        {[p.phone, p.matricula, p.sector].filter(Boolean).join(" · ") || "—"}
+                        {[p.cpf ? formatCpf(p.cpf) : null, p.phone, p.matricula, p.sector].filter(Boolean).join(" · ") || "—"}
                       </p>
+                      {canManage ? (
+                        p.profile_id ? (
+                          <p className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                            Acessa o portal · {p.email}
+                          </p>
+                        ) : (
+                          <p className="mt-1 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-prime-muted">
+                            Sem acesso ao portal
+                          </p>
+                        )
+                      ) : null}
                       {p.address ? (
                         <p className="mt-0.5 text-xs text-prime-muted">{p.address}</p>
                       ) : null}
@@ -370,12 +491,26 @@ export function ClientTeamPortalSection({
                         >
                           Editar
                         </button>
+                        {p.profile_id ? (
+                          <>
+                            <button type="button" className="text-xs text-prime-gold hover:underline" onClick={() => void onGrantClick(p)}>
+                              Reenviar convite
+                            </button>
+                            <button type="button" className="text-xs text-red-700 hover:underline" onClick={() => void onRevokeClick(p)}>
+                              Tirar acesso
+                            </button>
+                          </>
+                        ) : (
+                          <button type="button" className="text-xs font-medium text-prime-gold hover:underline" onClick={() => void onGrantClick(p)}>
+                            Dar acesso ao portal
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="text-xs text-red-700 hover:underline"
                           onClick={() => void deactivatePassenger(p.id)}
                         >
-                          Desactivar
+                          Desativar
                         </button>
                       </div>
                     ) : null}
@@ -428,7 +563,7 @@ export function ClientTeamPortalSection({
                 />
               </label>
               <button type="submit" disabled={busy} className="btn-primary sm:col-span-2 disabled:opacity-50">
-                {busy ? "A guardar…" : "Adicionar centro de custo"}
+                {busy ? "Salvando…" : "Adicionar centro de custo"}
               </button>
             </form>
           ) : null}

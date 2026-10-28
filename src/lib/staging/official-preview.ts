@@ -1,4 +1,4 @@
-/** Preview estável PR #2 — actualizar se o alias Vercel git-* mudar. */
+/** Preview estável PR #2 — atualizar se o alias Vercel git-* mudar. */
 export const STAGING_OFFICIAL_PREVIEW_URL =
   "https://prime-vitoria-web-git-cursor-pricing-en-69d26a-rubens-projects2.vercel.app";
 

@@ -45,7 +45,7 @@ export function TripFocusHeader({
   return (
     <div
       className="flex flex-wrap items-center gap-3 rounded-lg border border-prime-border bg-white px-3 py-2 shadow-prime-card"
-      aria-label="Resumo da viagem seleccionada"
+      aria-label="Resumo da viagem selecionada"
     >
       <StatusBadge status={operationalStatus} />
       {scheduledAt ? (

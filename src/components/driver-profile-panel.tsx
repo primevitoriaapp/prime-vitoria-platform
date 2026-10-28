@@ -53,7 +53,7 @@ export function DriverProfilePanel({ devFallbackRole = "motorista" }: Props) {
       <h2 className="text-sm font-semibold uppercase tracking-wide text-[#AAAAAA]">Perfil</h2>
 
       {loading ? (
-        <p className="mt-4 text-sm text-prime-muted">A carregar…</p>
+        <p className="mt-4 text-sm text-prime-muted">Carregando…</p>
       ) : message ? (
         <p className="mt-4 text-sm text-red-400">{message}</p>
       ) : profile ? (

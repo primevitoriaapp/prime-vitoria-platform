@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     assertCapability(session, "location.write");
 
     if (session.role !== "motorista") {
-      return fail("FORBIDDEN", "Apenas motorista pode registar token de push", 403);
+      return fail("FORBIDDEN", "Apenas motorista pode cadastrar token de push", 403);
     }
     if (!session.driverId) {
       return fail("FORBIDDEN", "Motorista precisa de cadastro vinculado a sessao", 403);

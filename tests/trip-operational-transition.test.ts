@@ -78,3 +78,10 @@ test("validateOperationalTransition", () => {
     assert.equal(bad.message, operationalTransitionMessage("dispatched", "completed"));
   }
 });
+
+test("clientMayCancelTrip bloqueia depois do horário marcado", () => {
+  const now = new Date("2026-10-28T12:00:00Z");
+  assert.equal(clientMayCancelTrip("requested", "2026-10-28T13:00:00Z", now), true);
+  assert.equal(clientMayCancelTrip("requested", "2026-10-28T11:59:00Z", now), false);
+  assert.equal(clientMayCancelTrip("approved", "2025-06-10T07:00:00Z", now), false);
+});

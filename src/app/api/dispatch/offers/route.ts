@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
     const { data: trip, error: tripError } = await db
       .from("trips")
-      .select("id, client_id, driver_id, tenant_id, scheduled_at")
+      .select("id, client_id, driver_id, tenant_id, created_by, scheduled_at")
       .eq("id", body.trip_id)
       .eq("tenant_id", tenantId)
       .single();
@@ -41,7 +41,8 @@ export async function POST(request: Request) {
       tripGetAccess(session, {
         client_id: trip.client_id,
         driver_id: trip.driver_id ?? null,
-        tenant_id: trip.tenant_id
+        tenant_id: trip.tenant_id,
+        created_by: (trip.created_by as string | null | undefined) ?? null
       })
     );
     if (tripDenied) return tripDenied;

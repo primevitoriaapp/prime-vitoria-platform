@@ -3,7 +3,8 @@ import { canManageClientTeam } from "@/lib/clients/client-portal-team-access";
 import { getClientTenantId } from "@/lib/clients/client-tenant";
 import {
   createClientPassenger,
-  listClientPassengers
+  listClientPassengers,
+  redactPassengerForColleague
 } from "@/lib/clients/client-passengers";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
@@ -17,6 +18,8 @@ const createSchema = z.object({
   address: z.string().optional().nullable(),
   matricula: z.string().optional().nullable(),
   sector: z.string().optional().nullable(),
+  cpf: z.string().max(20).optional().nullable(),
+  email: z.string().max(254).optional().nullable(),
   active: z.boolean().optional()
 });
 
@@ -59,7 +62,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       q,
       activeOnly: !(includeInactive && canManage)
     });
-    return ok(rows);
+    return ok(canManage ? rows : rows.map(redactPassengerForColleague));
   } catch (error) {
     return mapApiError(error);
   }

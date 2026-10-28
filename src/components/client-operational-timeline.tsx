@@ -12,14 +12,14 @@ export function ClientOperationalTimeline({ current }: Props) {
   if (idx < 0) {
     return (
       <p className="mt-2 text-sm text-slate-400">
-        Estado actual: <span className="font-medium text-amber-300">{STATUS_CORRIDA_PT[current]}</span>
+        Status atual: <span className="font-medium text-amber-300">{STATUS_CORRIDA_PT[current]}</span>
       </p>
     );
   }
 
   return (
     <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Estado actual da corrida</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Status atual da corrida</p>
       <ol className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center" aria-label="Estado da corrida">
       {CLIENT_TRIP_FLOW.map((step, i) => {
         const done = i < idx;

@@ -35,7 +35,7 @@ async function findAuthUserIdByEmail(email: string): Promise<string | null> {
 }
 
 /**
- * Garante utilizador Supabase + perfil motorista para login por PIN.
+ * Garante usuário Supabase + perfil motorista para login por PIN.
  * A senha interna é derivada do id do motorista (não é o PIN).
  */
 export async function ensureDriverAuthAccount(driver: DriverAuthRow): Promise<{

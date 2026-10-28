@@ -147,7 +147,7 @@ async function applyOptionalFields(
   return {
     partialSave: true,
     warning:
-      "Cliente guardado com dados essenciais. Para endereço, WhatsApp e tipos de serviço completos, aplique as migrations 0044 e 0046 no Supabase de staging."
+      "Cliente salvo com dados essenciais. Para endereço, WhatsApp e tipos de serviço completos, aplique as migrations 0044 e 0046 no Supabase de staging."
   };
 }
 

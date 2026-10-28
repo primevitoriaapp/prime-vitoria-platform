@@ -108,6 +108,13 @@ export async function POST(request: Request) {
       if (body.client_id !== session.clientId) {
         return fail("FORBIDDEN", "Nao e possivel solicitar corrida para outro cliente", 403);
       }
+      // Valores são calculados pela Prime (tabela do cliente); o portal não define preço.
+      body.client_amount = undefined;
+      body.driver_amount = undefined;
+      body.margin = undefined;
+      if (body.trip_legs?.length) {
+        return fail("FORBIDDEN", "Trechos múltiplos são cadastrados pela central", 403);
+      }
     }
 
     const { data: clientRow, error: clientErr } = await db

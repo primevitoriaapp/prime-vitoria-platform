@@ -32,6 +32,8 @@ export interface SessionContext {
   /** Organizacao (SaaS). Ausente em `guest`; fallback em API via tenant padrao. */
   tenantId?: string;
   clientId?: string;
+  /** Portal do cliente: gestor (conta toda) ou solicitante (só as próprias corridas). */
+  clientAccess?: "gestor" | "solicitante";
   driverId?: string;
 }
 

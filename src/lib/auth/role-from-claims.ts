@@ -25,7 +25,7 @@ export type ResolveEffectiveRoleInput = {
 };
 
 /**
- * Papel efectivo do utilizador (perfil, vínculo motorista, portal cliente, JWT).
+ * Papel efectivo do usuário (perfil, vínculo motorista, portal cliente, JWT).
  * Partilhado entre login, sessão API e middleware.
  */
 export function resolveEffectiveUserRole(input: ResolveEffectiveRoleInput): UserRole {

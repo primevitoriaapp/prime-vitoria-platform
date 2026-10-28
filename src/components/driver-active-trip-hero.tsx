@@ -205,7 +205,7 @@ export function DriverActiveTripHero({
                 {waitElapsedLabel ?? "00:00"}
               </p>
               {accumulatedWait > 0 ? (
-                <p className="mt-1 text-xs text-prime-muted">Total registado: {accumulatedWait} min</p>
+                <p className="mt-1 text-xs text-prime-muted">Total cadastrado: {accumulatedWait} min</p>
               ) : null}
               <button
                 type="button"
@@ -213,7 +213,7 @@ export function DriverActiveTripHero({
                 onClick={() => onWaitStop(trip.id)}
                 className="btn-primary mt-3 min-h-[2.75rem] w-full rounded-xl px-4 py-2.5 text-base disabled:opacity-50"
               >
-                {waitBusy ? "A guardar…" : "Retomar corrida"}
+                {waitBusy ? "Salvando…" : "Retomar corrida"}
               </button>
             </>
           ) : (
@@ -246,7 +246,7 @@ export function DriverActiveTripHero({
           )}
           <p className="mt-1 text-xs text-emerald-800/80">
             {gps.pointCount > 0
-              ? `${gps.pointCount} pontos registados · actualização a cada 30s`
+              ? `${gps.pointCount} pontos cadastrados · actualização a cada 30s`
               : "Registo automático a cada 30 segundos"}
           </p>
         </div>
@@ -258,7 +258,7 @@ export function DriverActiveTripHero({
           <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-prime-text">
             {formatDriverGpsKm(gps.accumulatedKm)} km
           </p>
-          <p className="mt-1 text-xs text-prime-muted">Será guardado automaticamente ao finalizar.</p>
+          <p className="mt-1 text-xs text-prime-muted">Será salvo automaticamente ao finalizar.</p>
         </div>
       ) : null}
 
@@ -294,7 +294,7 @@ export function DriverActiveTripHero({
             }}
             className="btn-primary min-h-[3.5rem] w-full rounded-xl px-4 py-3 text-xl disabled:opacity-60"
           >
-            {isBusy ? "A processar…" : driverPrimaryActionLabel(trip.operational_status, primaryStep)}
+            {isBusy ? "Processando…" : driverPrimaryActionLabel(trip.operational_status, primaryStep)}
           </button>
         ) : null}
         {blockStartTrip ? (

@@ -15,7 +15,7 @@ export const tripsListQuerySchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "1" || v === "true"),
-  /** Agenda operacional: só status abertos e inclui corridas activas fora do intervalo de datas. */
+  /** Agenda operacional: só status abertos e inclui corridas ativas fora do intervalo de datas. */
   agenda: z
     .string()
     .optional()

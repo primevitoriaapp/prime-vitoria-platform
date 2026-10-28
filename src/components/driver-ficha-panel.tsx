@@ -295,7 +295,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
         setFeedback({
           kind: "error",
           code: json.error?.code,
-          message: json.error?.message ?? "Não foi possível guardar o PIN.",
+          message: json.error?.message ?? "Não foi possível salvar o PIN.",
           hint: json.error?.hint
         });
         return;
@@ -311,7 +311,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
     } catch (error) {
       setFeedback({
         kind: "error",
-        message: error instanceof Error ? error.message : "Erro ao guardar PIN."
+        message: error instanceof Error ? error.message : "Erro ao salvar PIN."
       });
     } finally {
       setPinBusy(false);
@@ -342,7 +342,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       const data = json.data as { _warning?: string };
       setFeedback({
         kind: data._warning ? "info" : "success",
-        message: data._warning ?? "Foto actualizada."
+        message: data._warning ?? "Foto atualizada."
       });
       await loadDetail();
     } catch (error) {
@@ -452,21 +452,21 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
         setFeedback({
           kind: "error",
           code: json.error?.code,
-          message: json.error?.message ?? "Falha ao guardar ficha.",
+          message: json.error?.message ?? "Falha ao salvar ficha.",
           hint: json.error?.hint
         });
         return;
       }
       setFeedback({
         kind: "success",
-        message: "Ficha do motorista guardada com sucesso."
+        message: "Ficha do motorista salva com sucesso."
       });
       await loadDetail();
       onSaved();
     } catch (error) {
       setFeedback({
         kind: "error",
-        message: error instanceof Error ? error.message : "Erro inesperado ao guardar."
+        message: error instanceof Error ? error.message : "Erro inesperado ao salvar."
       });
     } finally {
       setBusy(false);
@@ -517,7 +517,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha");
       await loadDetail();
       onSaved();
-      setFeedback({ kind: "success", message: "Veículo padrão actualizado." });
+      setFeedback({ kind: "success", message: "Veículo padrão atualizado." });
     } catch (error) {
       setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Erro inesperado." });
     } finally {
@@ -528,7 +528,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
   if (loading) {
     return (
       <section className="card mt-6" aria-busy="true">
-        <p className="text-sm text-slate-500">A carregar ficha do motorista…</p>
+        <p className="text-sm text-slate-500">Carregando ficha do motorista…</p>
       </section>
     );
   }
@@ -641,7 +641,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
             ) : null}
           </label>
           <div className="md:col-span-2">
-            <p className="mb-2 text-sm font-medium text-slate-800">Categoria (pode seleccionar várias)</p>
+            <p className="mb-2 text-sm font-medium text-slate-800">Categoria (pode selecionar várias)</p>
             <div className="flex flex-wrap gap-4">
               {CNH_CATEGORY_OPTIONS.map((c) => (
                 <label key={c} className="flex items-center gap-2 text-sm">
@@ -720,7 +720,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
               onClick={() => void saveDriverPin(false)}
               className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
             >
-              {pinBusy ? "A guardar…" : "Definir PIN"}
+              {pinBusy ? "Salvando…" : "Definir PIN"}
             </button>
             {detail.has_pin ? (
               <button
@@ -913,7 +913,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           disabled={busy}
           className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          {busy ? "A guardar…" : "Salvar ficha"}
+          {busy ? "Salvando…" : "Salvar ficha"}
         </button>
       </form>
 
@@ -954,7 +954,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           <label className="grid min-w-[12rem] flex-1 gap-1 text-sm">
             <span>Vincular veículo</span>
             <select className={inputClass} value={linkVehicleId} onChange={(e) => setLinkVehicleId(e.target.value)}>
-              <option value="">— seleccionar da frota —</option>
+              <option value="">— selecionar da frota —</option>
               {vehicles
                 .filter((v) => !detail.linked_vehicles.some((lv) => lv.id === v.id))
                 .map((v) => (

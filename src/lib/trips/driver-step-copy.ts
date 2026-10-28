@@ -2,7 +2,7 @@ import type { TripOperationalStatus } from "../domain/types.ts";
 import { STATUS_CORRIDA_PT } from "../i18n/pt-br.ts";
 import { driverNextStatuses } from "./driver-next-status.ts";
 
-/** Rótulos dos botões de acção no app do motorista (não confundir com badges de estado). */
+/** Rótulos dos botões de ação no app do motorista (não confundir com badges de estado). */
 export const DRIVER_TRIP_ACTION_PT: Partial<Record<TripOperationalStatus, string>> = {
   accepted: "Aceitar corrida",
   on_the_way: "A caminho do passageiro",
@@ -35,14 +35,14 @@ export function driverPrimaryActionLabel(
   status: TripOperationalStatus,
   next: TripOperationalStatus | undefined
 ): string {
-  if (!next) return "Sem acção pendente";
+  if (!next) return "Sem ação pendente";
   return DRIVER_TRIP_ACTION_PT[next] ?? STATUS_CORRIDA_PT[next];
 }
 
 export function driverFlowChip(status: TripOperationalStatus): string {
   if (status === "dispatched") return "Central → Aguarda a sua aceitação";
   if (status === "accepted" || status === "on_the_way") return "Em curso → Cliente acompanha em breve";
-  if (status === "arrived" || status === "in_progress") return "Em curso → Cliente vê tracking activo";
+  if (status === "arrived" || status === "in_progress") return "Em curso → Cliente vê tracking ativo";
   if (status === "completed") return "Concluída → Cliente vê histórico";
   return "Operador → Motorista → Cliente";
 }

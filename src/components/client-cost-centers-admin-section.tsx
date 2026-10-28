@@ -65,10 +65,10 @@ export function ClientCostCentersAdminSection({ clientId, disabled }: Props) {
     setBusy(false);
     if (res.ok && json.success) {
       setForm(emptyForm());
-      setMessage("Centro de custo registado.");
+      setMessage("Centro de custo cadastrado.");
       void load();
     } else {
-      setMessage(json.error?.message ?? "Falha ao guardar.");
+      setMessage(json.error?.message ?? "Falha ao salvar.");
     }
   }
 
@@ -132,14 +132,14 @@ export function ClientCostCentersAdminSection({ clientId, disabled }: Props) {
           />
         </label>
         <button type="submit" disabled={disabled || busy} className="btn-primary sm:col-span-2">
-          {busy ? "A guardar…" : "Adicionar centro de custo"}
+          {busy ? "Salvando…" : "Adicionar centro de custo"}
         </button>
       </form>
 
       {message ? <p className="text-sm text-prime-muted">{message}</p> : null}
 
       {loading ? (
-        <p className="text-sm text-prime-muted">A carregar…</p>
+        <p className="text-sm text-prime-muted">Carregando…</p>
       ) : rows.length === 0 ? (
         <p className="text-sm text-prime-muted">Nenhum centro de custo cadastrado.</p>
       ) : (
@@ -165,10 +165,10 @@ export function ClientCostCentersAdminSection({ clientId, disabled }: Props) {
                   disabled={disabled || busy}
                   onClick={() => void deactivate(r.id)}
                 >
-                  Desactivar
+                  Desativar
                 </button>
               ) : (
-                <span className="text-xs text-prime-muted">Inactivo</span>
+                <span className="text-xs text-prime-muted">Inativo</span>
               )}
             </li>
           ))}

@@ -1,4 +1,4 @@
-/** Converte intervalo de espera activo em minutos acumulados (mínimo 1 min). */
+/** Converte intervalo de espera ativo em minutos acumulados (mínimo 1 min). */
 export function waitMinutesBetween(startIso: string, end: Date): number {
   const start = new Date(startIso).getTime();
   if (!Number.isFinite(start)) return 0;

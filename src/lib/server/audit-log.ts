@@ -12,7 +12,7 @@ export type AuditPayload = {
 };
 
 /**
- * Regista evento de auditoria. Falhas são registadas em consola (não bloqueia a operação principal).
+ * Regista evento de auditoria. Falhas são cadastradas em consola (não bloqueia a operação principal).
  */
 export async function insertAuditEvent(payload: AuditPayload): Promise<void> {
   const { tenantId, actorUserId, action, entityType, entityId, metadata, request } = payload;

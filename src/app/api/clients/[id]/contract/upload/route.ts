@@ -29,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File) || file.size === 0) {
-      return fail("INVALID_FILE", "Seleccione um PDF.", 400);
+      return fail("INVALID_FILE", "Selecione um PDF.", 400);
     }
 
     let uploaded: Awaited<ReturnType<typeof uploadClientContractFile>>;

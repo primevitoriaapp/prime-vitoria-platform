@@ -207,13 +207,13 @@ export function OperationalHistoryPanel({ devFallbackRole = "operador", days = 1
             CSV
           </button>
           <button type="button" onClick={() => void loadPage(1, false)} disabled={loading} className="text-sm text-amber-800">
-            Actualizar
+            Atualizar
           </button>
         </div>
       </div>
       {message ? <p className="mt-2 text-sm text-red-700">{message}</p> : null}
       {loading ? (
-        <p className="mt-3 text-sm text-slate-600">A carregar…</p>
+        <p className="mt-3 text-sm text-slate-600">Carregando…</p>
       ) : items.length === 0 ? (
         <p className="mt-3 text-sm text-slate-500">Sem viagens encerradas no período.</p>
       ) : (
@@ -256,7 +256,7 @@ export function OperationalHistoryPanel({ devFallbackRole = "operador", days = 1
                 onClick={() => void loadPage(page + 1, true)}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
               >
-                {loadingMore ? "A carregar…" : "Carregar mais"}
+                {loadingMore ? "Carregando…" : "Carregar mais"}
               </button>
             </div>
           ) : null}

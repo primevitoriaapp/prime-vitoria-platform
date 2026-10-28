@@ -22,7 +22,7 @@ export type TripGetAccess =
 
 export function tripGetAccess(
   session: SessionContext,
-  trip: { client_id: string; driver_id: string | null; tenant_id?: string },
+  trip: { client_id: string; driver_id: string | null; tenant_id?: string; created_by?: string | null },
   resolvedDriverId?: string | null
 ): TripGetAccess {
   if (trip.tenant_id && trip.tenant_id !== sessionTenantId(session)) {
@@ -34,6 +34,8 @@ export function tripGetAccess(
   if (can(session, "trip.read.own")) {
     if (!session.clientId) return "scope_required_client";
     if (trip.client_id !== session.clientId) return "not_found";
+    // Funcionário solicitante só enxerga as corridas que ele mesmo pediu.
+    if (session.clientAccess === "solicitante" && trip.created_by !== session.userId) return "not_found";
     return "allow";
   }
 

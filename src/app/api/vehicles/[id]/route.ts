@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = patchSchema.parse(await request.json());
 
     if (Object.keys(body).length === 0) {
-      return fail("INVALID_BODY", "Nenhum campo para actualizar", 400);
+      return fail("INVALID_BODY", "Nenhum campo para atualizar", 400);
     }
 
     const { data: existing, error: getErr } = await db

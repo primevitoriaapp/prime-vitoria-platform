@@ -1,7 +1,7 @@
 /** Skeleton de carregamento — painel motorista (tablet-friendly). */
 export function DriverTripSkeleton() {
   return (
-    <ul className="mt-4 space-y-4" aria-busy="true" aria-label="A carregar corridas">
+    <ul className="mt-4 space-y-4" aria-busy="true" aria-label="Carregando corridas">
       {[1, 2].map((i) => (
         <li key={i} className="prime-driver-card animate-pulse p-4">
           <div className="h-5 w-24 rounded bg-slate-700" />

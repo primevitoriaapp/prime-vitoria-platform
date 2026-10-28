@@ -93,13 +93,13 @@ export function DriverOffersPanel({
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">A carregar ofertas…</p>;
+    return <p className="text-sm text-slate-500">Carregando ofertas…</p>;
   }
 
   if (offers.length === 0) {
     return (
       <p className="text-sm text-slate-500">
-        Sem ofertas abertas da central. Corridas já despachadas aparecem em <strong className="text-slate-400">Corridas activas</strong>.
+        Sem ofertas abertas da central. Corridas já despachadas aparecem em <strong className="text-slate-400">Corridas ativas</strong>.
       </p>
     );
   }
@@ -139,7 +139,7 @@ export function DriverOffersPanel({
                 {formatBrDateTime(offer.expires_at)}
               </p>
               {accepted ? (
-                <p className="mt-2 text-xs text-green-400">Aceite registado — aguarde confirmação.</p>
+                <p className="mt-2 text-xs text-green-400">Aceite cadastrado — aguarde confirmação.</p>
               ) : (
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button

@@ -360,3 +360,20 @@ export function tripAgendaDateGroup(scheduledAt: string): BrAgendaDateGroup {
   if (diffDays === 1) return "tomorrow";
   return "upcoming";
 }
+
+/** Data "AAAA-MM-DD" + hora "HH:mm" no horário de Brasília → ISO UTC (campos nativos de data/hora). */
+export function saoPauloDateAndTimeToUtcIso(dateYmd: string, timeHm: string): string | null {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateYmd?.trim() ?? "");
+  const t = /^(\d{1,2}):(\d{2})$/.exec(timeHm?.trim() ?? "");
+  if (!d || !t) return null;
+  const hour = Number(t[1]);
+  const minute = Number(t[2]);
+  if (hour > 23 || minute > 59) return null;
+  return saoPauloLocalToUtcIso(`${d[1]}-${d[2]}-${d[3]}`, hour, minute);
+}
+
+/** Hoje em Brasília como "AAAA-MM-DD" (mínimo do campo de data). */
+export function saoPauloTodayYmd(now: Date = new Date()): string {
+  const { year, month, day } = saoPauloPartsFromDate(now);
+  return `${year}-${month}-${day}`;
+}

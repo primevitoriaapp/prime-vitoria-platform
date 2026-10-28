@@ -4,17 +4,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
-import { DateTimeInput } from "@/components/datetime-input";
-import {
-  defaultScheduledAtIso,
-  normalizeScheduledAtForStorage,
-  validatePortalScheduledAt
-} from "@/lib/dates/br-date";
+import { formatBrDateTime, saoPauloDateAndTimeToUtcIso, saoPauloTodayYmd } from "@/lib/dates/br-date";
 import type { EnabledServiceDto } from "@/app/api/clients/[id]/enabled-services/route";
 import type { PrimeServiceIcon } from "@/lib/pricing/prime-service-catalog";
 import { maxPassengersForService, primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
-import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
+import { shortAddress } from "@/lib/client/short-address";
 import {
   loadTripPresets,
   removeTripPreset,
@@ -24,12 +19,20 @@ import {
 
 type Props = {
   clientId: string;
+  clientName?: string;
   costCenters?: { id: string; code: string | null; name: string }[];
   devFallbackRole?: "cliente" | "admin";
+  /** Funcionário solicitante: o passageiro já vem com o nome dele. */
+  defaultPassengerName?: string;
+  onCreated?: () => void;
 };
 
+const FIELD =
+  "w-full rounded-lg border border-prime-input-border bg-white px-3 py-2.5 text-base text-prime-text outline-none focus:border-prime-gold focus:ring-2 focus:ring-prime-gold/25";
+const LABEL = "grid gap-1.5 text-sm font-medium text-prime-text";
+
 function ServiceIcon({ icon }: { icon: PrimeServiceIcon }) {
-  const cls = "h-8 w-8 shrink-0 text-prime-gold";
+  const cls = "h-7 w-7 shrink-0";
   if (icon === "van") {
     return (
       <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
@@ -63,26 +66,46 @@ function ServiceIcon({ icon }: { icon: PrimeServiceIcon }) {
   );
 }
 
+function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-prime-text">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#111] text-xs text-prime-gold">{n}</span>
+      {children}
+    </h3>
+  );
+}
+
+function brl(n: number) {
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+type Created = { when: string; origin: string; destination: string; service: string; passenger: string };
+
 export function ClientRequestConsole({
   clientId,
+  clientName,
   costCenters = [],
-  devFallbackRole = "cliente"
+  devFallbackRole = "cliente",
+  defaultPassengerName = "",
+  onCreated
 }: Props) {
   const router = useRouter();
-  const [step, setStep] = useState<"pick" | "form">("pick");
   const [services, setServices] = useState<EnabledServiceDto[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [serviceType, setServiceType] = useState("");
-  const [scheduledAt, setScheduledAt] = useState(() => defaultScheduledAtIso());
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
   const [origin, setOrigin] = useState("");
   const [originLat, setOriginLat] = useState<number | null>(null);
   const [originLng, setOriginLng] = useState<number | null>(null);
   const [destination, setDestination] = useState("");
   const [destinationLat, setDestinationLat] = useState<number | null>(null);
   const [destinationLng, setDestinationLng] = useState<number | null>(null);
-  const [passengerName, setPassengerName] = useState("");
+  const [passengerName, setPassengerName] = useState(defaultPassengerName);
   const [passengerPhone, setPassengerPhone] = useState("");
   const [passengerCount, setPassengerCount] = useState(1);
+  const [notes, setNotes] = useState("");
+  const [costCenterId, setCostCenterId] = useState("");
   const [estimateBusy, setEstimateBusy] = useState(false);
   const [estimate, setEstimate] = useState<{
     hasRule: boolean;
@@ -91,29 +114,29 @@ export function ClientRequestConsole({
     chargeType?: string;
     pricePerKm?: number | null;
   } | null>(null);
-  const [notes, setNotes] = useState("");
-  const [costCenterId, setCostCenterId] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [created, setCreated] = useState<Created | null>(null);
   const [presets, setPresets] = useState<ClientTripPreset[]>([]);
-  const [presetLabel, setPresetLabel] = useState("");
 
   useEffect(() => {
     setPresets(loadTripPresets(clientId));
   }, [clientId]);
 
   useEffect(() => {
+    setPassengerName((cur) => cur || defaultPassengerName);
+  }, [defaultPassengerName]);
+
+  useEffect(() => {
     let cancelled = false;
     void (async () => {
       setServicesLoading(true);
-      const res = await fetchWithSupabaseSession(
-        `/api/clients/${clientId}/enabled-services`,
-        {},
-        devFallbackRole
-      );
+      const res = await fetchWithSupabaseSession(`/api/clients/${clientId}/enabled-services`, {}, devFallbackRole);
       const json = (await res.json()) as { success?: boolean; data?: EnabledServiceDto[] };
       if (!cancelled) {
-        setServices(res.ok && json.success ? (json.data ?? []) : []);
+        const list = res.ok && json.success ? (json.data ?? []) : [];
+        setServices(list);
+        if (list.length === 1) setServiceType(list[0].id);
         setServicesLoading(false);
       }
     })();
@@ -122,55 +145,15 @@ export function ClientRequestConsole({
     };
   }, [clientId, devFallbackRole]);
 
-  function applyPreset(p: ClientTripPreset) {
-    setOrigin(p.origin);
-    setDestination(p.destination);
-    if (p.serviceType) {
-      setServiceType(p.serviceType);
-      setStep("form");
-    }
-    setMessage(`Rota «${p.label}» aplicada.`);
-  }
-
-  function onSavePreset() {
-    if (!origin.trim() || !destination.trim()) {
-      setMessage("Preencha origem e destino antes de guardar a rota.");
-      return;
-    }
-    const label = presetLabel.trim() || `${origin.slice(0, 24)} → ${destination.slice(0, 24)}`;
-    const next = upsertTripPreset(clientId, {
-      label,
-      origin,
-      destination,
-      serviceType
-    });
-    setPresets(next);
-    setPresetLabel("");
-    setMessage(`Rota «${label}» guardada neste dispositivo.`);
-  }
-
-  function onRemovePreset(id: string) {
-    setPresets(removeTripPreset(clientId, id));
-  }
-
-  function pickService(id: string) {
-    setServiceType(id);
-    setPassengerCount((c) => Math.min(c, maxPassengersForService(id)));
-    setStep("form");
-    setMessage(null);
-  }
-
+  const scheduledIso = useMemo(() => (date && time ? saoPauloDateAndTimeToUtcIso(date, time) : null), [date, time]);
   const maxPassengers = serviceType ? maxPassengersForService(serviceType) : 4;
-  const hasCoords =
-    originLat != null && originLng != null && destinationLat != null && destinationLng != null;
+  const hasCoords = originLat != null && originLng != null && destinationLat != null && destinationLng != null;
 
   useEffect(() => {
-    if (!serviceType || step !== "form") return;
+    if (!serviceType) return;
     const timer = setTimeout(() => {
       void (async () => {
         setEstimateBusy(true);
-        const scheduledIso =
-          normalizeScheduledAtForStorage(scheduledAt) ?? scheduledAt;
         const res = await fetchWithSupabaseSession(
           "/api/pricing/estimate-trip",
           {
@@ -178,7 +161,7 @@ export function ClientRequestConsole({
             body: JSON.stringify({
               client_id: clientId,
               service_type: serviceType,
-              scheduled_at: scheduledIso,
+              scheduled_at: scheduledIso ?? undefined,
               origin_lat: originLat,
               origin_lng: originLng,
               destination_lat: destinationLat,
@@ -198,68 +181,74 @@ export function ClientRequestConsole({
         };
         if (!res.ok || !json.success) {
           setEstimate(null);
-          setEstimateBusy(false);
-          return;
+        } else {
+          setEstimate({
+            hasRule: json.data?.has_rule !== false && json.data?.estimate != null,
+            plannedKm: json.data?.estimate?.planned_km ?? null,
+            clientAmount: json.data?.estimate?.client_amount ?? null,
+            chargeType: json.data?.charge_type,
+            pricePerKm: json.data?.price_per_km ?? null
+          });
         }
-        const hasRule = json.data?.has_rule !== false && json.data?.estimate != null;
-        setEstimate({
-          hasRule,
-          plannedKm: json.data?.estimate?.planned_km ?? null,
-          clientAmount: json.data?.estimate?.client_amount ?? null,
-          chargeType: json.data?.charge_type,
-          pricePerKm: json.data?.price_per_km ?? null
-        });
         setEstimateBusy(false);
       })();
     }, 450);
     return () => clearTimeout(timer);
-  }, [
-    clientId,
-    serviceType,
-    scheduledAt,
-    originLat,
-    originLng,
-    destinationLat,
-    destinationLng,
-    step,
-    devFallbackRole
-  ]);
+  }, [clientId, serviceType, scheduledIso, originLat, originLng, destinationLat, destinationLng, devFallbackRole]);
 
-  const estimateHint = useMemo(() => {
-    if (estimateBusy) return "A calcular estimativa…";
-    if (!estimate?.hasRule) {
-      return hasCoords
-        ? "Sem tabela de preços para este serviço — a equipa confirmará o valor."
-        : "Selecione origem e destino no mapa para ver distância e estimativa.";
-    }
-    const parts: string[] = [];
-    if (estimate.plannedKm != null) {
-      parts.push(`${estimate.plannedKm.toLocaleString("pt-BR")} km`);
-    }
-    if (estimate.chargeType === "per_km" && estimate.pricePerKm != null) {
-      parts.push(
-        `${estimate.pricePerKm.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/km`
-      );
-    }
-    if (estimate.clientAmount != null) {
-      parts.push(
-        `estimado ${estimate.clientAmount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`
-      );
-    }
-    return parts.length ? parts.join(" · ") : "Estimativa disponível após definir rota.";
-  }, [estimate, estimateBusy, hasCoords]);
+  function applyPreset(p: ClientTripPreset) {
+    setOrigin(p.origin);
+    setDestination(p.destination);
+    setOriginLat(null);
+    setOriginLng(null);
+    setDestinationLat(null);
+    setDestinationLng(null);
+    if (p.serviceType) setServiceType(p.serviceType);
+  }
+
+  function saveCurrentRoute() {
+    if (!origin.trim() || !destination.trim()) return;
+    const label = `${shortAddress(origin).slice(0, 22)} → ${shortAddress(destination).slice(0, 22)}`;
+    setPresets(upsertTripPreset(clientId, { label, origin, destination, serviceType }));
+  }
+
+  function reset() {
+    setCreated(null);
+    setDate("");
+    setTime("");
+    setOrigin("");
+    setDestination("");
+    setOriginLat(null);
+    setOriginLng(null);
+    setDestinationLat(null);
+    setDestinationLng(null);
+    setNotes("");
+    setPassengerName(defaultPassengerName);
+    setPassengerPhone("");
+    setPassengerCount(1);
+    setError(null);
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    setLoading(true);
-    setMessage(null);
-    const scheduleCheck = validatePortalScheduledAt(scheduledAt);
-    if (!scheduleCheck.ok) {
-      setLoading(false);
-      setMessage(scheduleCheck.message);
+    setError(null);
+    if (!serviceType) {
+      setError("Escolha o tipo de serviço.");
       return;
     }
-    const scheduledIso = scheduleCheck.iso;
+    if (!scheduledIso) {
+      setError("Informe a data e o horário da corrida.");
+      return;
+    }
+    if (new Date(scheduledIso).getTime() < Date.now() + 5 * 60_000) {
+      setError("O horário precisa ser no futuro. Para uma corrida imediata, ligue para a central Prime.");
+      return;
+    }
+    if (!origin.trim() || !destination.trim()) {
+      setError("Informe o local de embarque e o destino.");
+      return;
+    }
+    setLoading(true);
     const response = await fetchWithSupabaseSession(
       "/api/trips",
       {
@@ -276,6 +265,7 @@ export function ClientRequestConsole({
           destination_lat: destinationLat,
           destination_lng: destinationLng,
           passenger_name: passengerName || undefined,
+          passenger_phone: passengerPhone || undefined,
           passenger_count: passengerCount,
           notes: notes || undefined,
           dispatch_mode: "directed"
@@ -283,147 +273,168 @@ export function ClientRequestConsole({
       },
       devFallbackRole
     );
-
-    const body = await response.json();
+    const body = (await response.json()) as { success?: boolean; error?: { message?: string } };
     setLoading(false);
-    setMessage(
-      response.ok && body.success
-        ? "Solicitação registada com status Solicitada. A equipa irá aprovar e despachar."
-        : (body.error?.message ?? "Falha ao solicitar corrida.")
-    );
-    if (response.ok && body.success) {
-      setPassengerName("");
-      setNotes("");
-      setStep("pick");
-      setServiceType("");
-      router.refresh();
+    if (!response.ok || !body.success) {
+      setError(body.error?.message ?? "Não foi possível enviar o pedido. Tente de novo.");
+      return;
     }
+    saveCurrentRoute();
+    setCreated({
+      when: formatBrDateTime(scheduledIso),
+      origin: shortAddress(origin),
+      destination: shortAddress(destination),
+      service: primeServiceTypeLabel(serviceType, { audience: "client" }),
+      passenger: passengerName.trim() || "A definir"
+    });
+    onCreated?.();
+    router.refresh();
   }
 
   if (servicesLoading) {
-    return (
-      <section className="card">
-        <p className="text-sm text-prime-muted">A carregar serviços disponíveis…</p>
-      </section>
-    );
+    return <div className="h-64 animate-pulse rounded-2xl border border-prime-border bg-white" />;
   }
 
   if (services.length === 0) {
     return (
-      <section className="card">
-        <h2 className="font-serif text-lg text-prime-text">Nova solicitação</h2>
-        <p className="mt-2 text-sm text-prime-muted">
-          Nenhum serviço habilitado para esta conta. Contacte a Prime Vitória para activar os serviços
-          contratados.
-        </p>
-      </section>
+      <div className="rounded-2xl border border-prime-border bg-white p-6 text-sm text-prime-muted">
+        Nenhum serviço liberado para esta conta ainda. Fale com a central Prime Vitória.
+      </div>
     );
   }
 
-  if (step === "pick") {
+  if (created) {
     return (
-      <section className="card">
-        <h2 className="font-serif text-lg text-prime-text">Escolha o tipo de serviço</h2>
-        <p className="mt-1 text-sm text-prime-muted">Seleccione o serviço contratado para esta solicitação.</p>
-
-        {presets.length > 0 ? (
-          <div className="mb-4 mt-4">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-prime-muted">Rotas rápidas</p>
-            <div className="flex flex-wrap gap-2">
-              {presets.map((p) => (
-                <span
-                  key={p.id}
-                  className="inline-flex items-center gap-1 rounded-lg border border-prime-border bg-white shadow-prime-card"
-                >
-                  <button
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className="px-2 py-1 text-sm font-medium text-prime-gold hover:underline"
-                  >
-                    {p.label}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onRemovePreset(p.id)}
-                    className="px-1.5 py-1 text-xs text-prime-muted hover:text-red-700"
-                    aria-label={`Remover ${p.label}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
+      <div className="rounded-2xl border border-prime-border bg-white p-6 shadow-prime-card">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-xl text-emerald-700">
+            ✓
+          </span>
+          <div>
+            <h3 className="font-prime-display text-xl text-prime-text">Pedido recebido!</h3>
+            <p className="text-sm text-prime-muted">
+              A central Prime vai confirmar e avisar assim que o motorista for definido.
+            </p>
           </div>
-        ) : null}
-
-        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-          {services.map((s) => (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => pickService(s.id)}
-                className="flex w-full items-start gap-3 rounded-lg border border-prime-border bg-white p-4 text-left shadow-prime-card transition hover:border-prime-gold"
-              >
-                <ServiceIcon icon={s.icon} />
-                <span>
-                  <span className="block font-medium text-prime-text">{s.label}</span>
-                  <span className="mt-1 block text-sm text-prime-muted">{s.description}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-    );
-  }
-
-  const selectedLabel = primeServiceTypeLabel(serviceType, { audience: "client" });
-
-  return (
-    <section className="card">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-serif text-lg text-prime-text">{selectedLabel}</h2>
-        <button
-          type="button"
-          className="text-sm text-prime-gold hover:underline"
-          onClick={() => {
-            setStep("pick");
-            setMessage(null);
-          }}
-        >
-          ← Trocar serviço
+        </div>
+        <dl className="mt-5 grid gap-2 rounded-xl bg-prime-bg p-4 text-sm">
+          <div className="flex justify-between gap-4"><dt className="text-prime-muted">Quando</dt><dd className="font-semibold">{created.when}</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-prime-muted">Serviço</dt><dd>{created.service}</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-prime-muted">Passageiro</dt><dd>{created.passenger}</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-prime-muted">Embarque</dt><dd className="text-right">{created.origin}</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-prime-muted">Destino</dt><dd className="text-right">{created.destination}</dd></div>
+        </dl>
+        <button type="button" onClick={reset} className="mt-5 w-full rounded-lg bg-[#111] px-4 py-3 font-semibold text-white hover:bg-black">
+          Pedir outra corrida
         </button>
       </div>
+    );
+  }
 
-      <form onSubmit={(e) => void onSubmit(e)} className="mt-4 grid gap-3 sm:grid-cols-2">
-        <DateTimeInput
-          className={`sm:col-span-2 ${PRIME_INPUT_CLASS}`}
-          value={scheduledAt}
-          onChange={(iso) => setScheduledAt(iso ?? "")}
-          required
-        />
-        {costCenters.length > 0 ? (
-          <select
-            value={costCenterId}
-            onChange={(e) => setCostCenterId(e.target.value)}
-            className={PRIME_INPUT_CLASS}
-          >
-            <option value="">Centro de custo (opcional)</option>
-            {costCenters.map((cc) => (
-              <option key={cc.id} value={cc.id}>
-                {cc.code ? `${cc.code} · ` : ""}
-                {cc.name}
-              </option>
+  const estimateBox = (() => {
+    if (!serviceType) return null;
+    if (estimateBusy) return <p className="text-sm text-prime-muted">Calculando…</p>;
+    if (!hasCoords) {
+      return <p className="text-sm text-prime-muted">Escolha embarque e destino nas sugestões do mapa para ver o valor estimado.</p>;
+    }
+    if (!estimate?.hasRule || estimate.clientAmount == null) {
+      return <p className="text-sm text-prime-muted">A central confirma o valor deste serviço.</p>;
+    }
+    return (
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-prime-muted">Valor estimado</p>
+          <p className="font-prime-display text-3xl text-prime-text">{brl(estimate.clientAmount)}</p>
+        </div>
+        <p className="text-right text-xs text-prime-muted">
+          {estimate.plannedKm != null ? `${estimate.plannedKm.toLocaleString("pt-BR")} km aprox.` : null}
+          {estimate.chargeType === "per_km" && estimate.pricePerKm != null ? ` · ${brl(estimate.pricePerKm)}/km` : null}
+          <br />
+          Valor final conforme KM rodado e espera.
+        </p>
+      </div>
+    );
+  })();
+
+  return (
+    <form onSubmit={(e) => void onSubmit(e)} className="grid gap-6 rounded-2xl border border-prime-border bg-white p-5 shadow-prime-card sm:p-6">
+      {/* 1. Serviço */}
+      <section className="grid gap-3">
+        <StepTitle n={1}>Tipo de serviço</StepTitle>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {services.map((s) => {
+            const active = s.id === serviceType;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setServiceType(s.id);
+                  setPassengerCount((c) => Math.min(c, maxPassengersForService(s.id)));
+                }}
+                className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition ${
+                  active ? "border-prime-gold bg-prime-gold/10 ring-1 ring-prime-gold" : "border-prime-border hover:border-prime-gold"
+                }`}
+                aria-pressed={active}
+              >
+                <span className={active ? "text-prime-gold" : "text-prime-muted"}>
+                  <ServiceIcon icon={s.icon} />
+                </span>
+                <span>
+                  <span className="block font-semibold text-prime-text">{s.label}</span>
+                  <span className="mt-0.5 block text-xs text-prime-muted">{s.description}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 2. Quando */}
+      <section className="grid gap-3">
+        <StepTitle n={2}>Data e horário</StepTitle>
+        <div className="grid grid-cols-2 gap-3">
+          <label className={LABEL}>
+            Data
+            <input type="date" required min={saoPauloTodayYmd()} value={date} onChange={(e) => setDate(e.target.value)} className={FIELD} />
+          </label>
+          <label className={LABEL}>
+            Horário do embarque
+            <input type="time" required value={time} onChange={(e) => setTime(e.target.value)} className={FIELD} />
+          </label>
+        </div>
+        {scheduledIso ? (
+          <p className="text-xs text-prime-muted">Embarque em {formatBrDateTime(scheduledIso)} (horário de Brasília).</p>
+        ) : null}
+      </section>
+
+      {/* 3. Trajeto */}
+      <section className="grid gap-3">
+        <StepTitle n={3}>Trajeto</StepTitle>
+        {presets.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            <span className="self-center text-xs text-prime-muted">Rotas recentes:</span>
+            {presets.slice(0, 6).map((p) => (
+              <span key={p.id} className="inline-flex items-center rounded-full border border-prime-border bg-prime-bg text-xs">
+                <button type="button" onClick={() => applyPreset(p)} className="px-3 py-1 text-prime-text hover:text-prime-gold">
+                  {p.label}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPresets(removeTripPreset(clientId, p.id))}
+                  className="pr-2.5 text-prime-muted hover:text-red-700"
+                  aria-label={`Remover ${p.label}`}
+                >
+                  ×
+                </button>
+              </span>
             ))}
-          </select>
-        ) : (
-          <span />
-        )}
+          </div>
+        ) : null}
         <AddressAutocompleteInput
-          className="sm:col-span-2"
-          label="Origem"
+          label="Embarque"
           required
-          placeholder="Ex.: Aeroporto de Vitória ES"
+          placeholder="Ex.: Aeroporto de Vitória"
           value={origin}
           hasCoords={originLat != null && originLng != null}
           onChange={setOrigin}
@@ -436,12 +447,12 @@ export function ClientRequestConsole({
             setOriginLat(null);
             setOriginLng(null);
           }}
+          devFallbackRole={devFallbackRole}
         />
         <AddressAutocompleteInput
-          className="sm:col-span-2"
           label="Destino"
           required
-          placeholder="Ex.: Shopping Vitória ES"
+          placeholder="Ex.: Hotel Golden Tulip, Enseada do Suá"
           value={destination}
           hasCoords={destinationLat != null && destinationLng != null}
           onChange={setDestination}
@@ -454,70 +465,86 @@ export function ClientRequestConsole({
             setDestinationLat(null);
             setDestinationLng(null);
           }}
-        />
-        <label className="grid gap-1 text-sm">
-          <span>Número de passageiros</span>
-          <input
-            type="number"
-            min={1}
-            max={maxPassengers}
-            required
-            className={PRIME_INPUT_CLASS}
-            value={passengerCount}
-            onChange={(e) =>
-              setPassengerCount(Math.min(maxPassengers, Math.max(1, Number(e.target.value) || 1)))
-            }
-          />
-        </label>
-        <PassengerAutocompleteInput
-          clientId={clientId}
-          value={passengerName}
-          onChange={setPassengerName}
-          onSelect={(p) => {
-            setPassengerName(p.name);
-            if (p.phone) setPassengerPhone(p.phone);
-            const addr = p.address?.trim();
-            if (addr) {
-              if (!origin.trim()) setOrigin(addr);
-              else if (!destination.trim()) setDestination(addr);
-            }
-          }}
           devFallbackRole={devFallbackRole}
         />
-        <input
-          className={PRIME_INPUT_CLASS}
-          type="tel"
-          value={passengerPhone}
-          onChange={(e) => setPassengerPhone(e.target.value)}
-          placeholder="Telefone do passageiro"
-        />
-        <div className="sm:col-span-2 rounded-lg border border-prime-border bg-white px-3 py-2 text-sm text-prime-muted shadow-prime-card">
-          <span className="font-medium text-prime-text">Estimativa: </span>
-          {estimateHint}
-        </div>
-        <textarea
-          className={`sm:col-span-2 ${PRIME_INPUT_CLASS}`}
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Observações (opcional)"
-        />
-        <div className="flex flex-wrap gap-2 sm:col-span-2">
-          <input
-            value={presetLabel}
-            onChange={(e) => setPresetLabel(e.target.value)}
-            placeholder="Nome da rota (opcional)"
-            className={`min-w-[140px] flex-1 ${PRIME_INPUT_CLASS}`}
+      </section>
+
+      {/* 4. Passageiro */}
+      <section className="grid gap-3">
+        <StepTitle n={4}>Passageiro</StepTitle>
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_140px]">
+          <PassengerAutocompleteInput
+            clientId={clientId}
+            label="Nome do passageiro"
+            value={passengerName}
+            onChange={setPassengerName}
+            onSelect={(p) => {
+              setPassengerName(p.name);
+              if (p.phone) setPassengerPhone(p.phone);
+            }}
+            devFallbackRole={devFallbackRole}
           />
-          <button type="button" onClick={onSavePreset} className="btn-outline text-sm">
-            Guardar rota
-          </button>
+          <label className={LABEL}>
+            Celular
+            <input type="tel" inputMode="tel" value={passengerPhone} onChange={(e) => setPassengerPhone(e.target.value)} placeholder="(27) 99999-9999" className={FIELD} />
+          </label>
+          <label className={LABEL}>
+            Passageiros
+            <input
+              type="number"
+              min={1}
+              max={maxPassengers}
+              required
+              value={passengerCount}
+              onChange={(e) => setPassengerCount(Math.min(maxPassengers, Math.max(1, Number(e.target.value) || 1)))}
+              className={FIELD}
+            />
+          </label>
         </div>
-        <button type="submit" disabled={loading} className="btn-primary sm:col-span-2">
-          {loading ? "A enviar…" : "Enviar solicitação"}
+        {costCenters.length > 0 ? (
+          <label className={LABEL}>
+            Centro de custo
+            <select value={costCenterId} onChange={(e) => setCostCenterId(e.target.value)} className={FIELD}>
+              <option value="">Não informar</option>
+              {costCenters.map((cc) => (
+                <option key={cc.id} value={cc.id}>
+                  {cc.code ? `${cc.code} · ` : ""}
+                  {cc.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <label className={LABEL}>
+          Observações
+          <textarea
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Nº do voo, bagagem, ponto de encontro…"
+            className={FIELD}
+          />
+        </label>
+      </section>
+
+      {estimateBox ? <div className="rounded-xl border border-prime-gold/40 bg-prime-gold/5 p-4">{estimateBox}</div> : null}
+
+      {error ? (
+        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="grid gap-2">
+        <button type="submit" disabled={loading} className="w-full rounded-lg bg-[#111] px-4 py-3.5 text-base font-semibold text-white hover:bg-black disabled:opacity-60">
+          {loading ? "Enviando…" : "Solicitar corrida"}
         </button>
-      </form>
-      {message ? <p className="mt-3 text-sm text-prime-muted">{message}</p> : null}
-    </section>
+        {clientName ? (
+          <p className="text-center text-xs text-prime-muted">
+            Cobrança faturada para {clientName}. O passageiro não paga nada ao motorista.
+          </p>
+        ) : null}
+      </div>
+    </form>
   );
 }

@@ -22,7 +22,7 @@ function assertOperationalNotesRole(session: SessionContext): void {
 async function loadTripForAccess(tenantId: string, tripId: string) {
   const { data: trip, error } = await db
     .from("trips")
-    .select("id, client_id, driver_id, tenant_id")
+    .select("id, client_id, driver_id, tenant_id, created_by")
     .eq("id", tripId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -30,13 +30,13 @@ async function loadTripForAccess(tenantId: string, tripId: string) {
   return { trip };
 }
 
-/** Notas internas da equipa operacional (multiatendimento). Exige visão global de viagens (`trip.read`). */
+/** Notas internas da equipe operacional (multiatendimento). Exige visão global de viagens (`trip.read`). */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSessionContext();
     assertOperationalNotesRole(session);
     if (!can(session, "trip.read")) {
-      return fail("FORBIDDEN", "Notas operacionais apenas para equipa com visão global de viagens", 403);
+      return fail("FORBIDDEN", "Notas operacionais apenas para equipe com visão global de viagens", 403);
     }
     assertCapability(session, "trip.read");
     const tenantId = assertTenantScope(session);
@@ -71,7 +71,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     assertOperationalNotesRole(session);
     assertCapability(session, "trip.write");
     if (!can(session, "trip.read")) {
-      return fail("FORBIDDEN", "Apenas operadores com visão global podem registar notas operacionais", 403);
+      return fail("FORBIDDEN", "Apenas operadores com visão global podem cadastrar notas operacionais", 403);
     }
     const tenantId = assertTenantScope(session);
     const { id: tripId } = await params;

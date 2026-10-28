@@ -192,7 +192,7 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
     }
 
     if (!tokenRow?.token?.trim()) {
-      await failJob("NO_DEVICE_PUSH_TOKEN", "Motorista sem token FCM registado (POST /api/drivers/push-token)");
+      await failJob("NO_DEVICE_PUSH_TOKEN", "Motorista sem token FCM cadastrado (POST /api/drivers/push-token)");
       continue;
     }
 
@@ -326,7 +326,7 @@ export async function processErpSyncJobs(limit = 20) {
 }
 
 export type ReconciliationRunOptions = {
-  /** Se definido, apenas mapeamentos deste tenant (utilizador ou `?tenant_id=` em job maquina). */
+  /** Se definido, apenas mapeamentos deste tenant (usuário ou `?tenant_id=` em job maquina). */
   tenantId?: string;
   limit?: number;
 };

@@ -113,7 +113,7 @@ export function ErpWebhookInboxPanel({ tenantId = null, devFallbackRole = "finan
             <option value="error">Erro</option>
           </select>
           <button type="button" onClick={() => void load()} disabled={loading} className="text-sm">
-            Actualizar
+            Atualizar
           </button>
           <button type="button" onClick={() => void onProcessPending()} className="text-sm font-medium text-amber-800">
             Processar pendentes
@@ -122,7 +122,7 @@ export function ErpWebhookInboxPanel({ tenantId = null, devFallbackRole = "finan
       </div>
       {message ? <p className="mt-2 text-sm text-slate-700">{message}</p> : null}
       {loading ? (
-        <p className="mt-3 text-sm text-slate-600">A carregar…</p>
+        <p className="mt-3 text-sm text-slate-600">Carregando…</p>
       ) : items.length === 0 ? (
         <p className="mt-3 text-sm text-slate-500">Sem webhooks ({total} no total).</p>
       ) : (

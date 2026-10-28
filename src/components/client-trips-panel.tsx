@@ -4,86 +4,91 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatBrDateTime, scheduledAtSortMs } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
-import { TripTrackingLinkButton } from "@/components/trip-tracking-link-button";
-import { StatusBadge } from "@/components/status-badge";
-import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
+import type { Trip } from "@/lib/domain/types";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
-import { clientShowsAwaitingApproval } from "@/lib/client/trip-status-ui";
 import { clientMayCancelTrip } from "@/lib/domain/status";
-import { PRIME_SURFACE_CARD } from "@/lib/ui/prime-surface-card";
+import { shortAddress } from "@/lib/client/short-address";
+import {
+  CLIENT_STATUS,
+  CLIENT_STATUS_TONE_CLASS,
+  isUpcomingForClient,
+  tripShortNumber
+} from "@/lib/client/client-status";
 
-const EM_ANDAMENTO: TripOperationalStatus[] = [
-  "dispatched",
-  "accepted",
-  "on_the_way",
-  "arrived",
-  "in_progress"
-];
+type TripRow = Trip & { driver_name?: string | null; vehicle_label?: string | null };
 
 type Props = {
   tenantId: string;
   readOnly?: boolean;
   clientIdOverride?: string;
   devFallbackRole?: "cliente" | "admin";
+  /** Mostra o valor das corridas concluídas (gestor). */
+  showAmounts?: boolean;
+  /** Versão enxuta (funcionário): só próximas, sem abas. */
+  compact?: boolean;
+  title?: string;
+  /** Muda quando uma corrida nova é pedida, para recarregar. */
+  reloadKey?: number;
 };
 
-function inicioMesUtc(d: Date) {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+function brl(v: unknown) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : null;
 }
 
 export function ClientTripsPanel({
   tenantId,
   readOnly = false,
   clientIdOverride,
-  devFallbackRole = "cliente"
+  devFallbackRole = "cliente",
+  showAmounts = false,
+  compact = false,
+  title,
+  reloadKey = 0
 }: Props) {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [total, setTotal] = useState(0);
+  const [trips, setTrips] = useState<TripRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "active">("all");
+  const [tab, setTab] = useState<"upcoming" | "history">("upcoming");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const load = useCallback(async (opts?: { silent?: boolean }) => {
-    if (!opts?.silent) setLoading(true);
-    setLoadError(null);
-    const params = new URLSearchParams({ page: "1", pageSize: "100", sortDir: "desc" });
-    if (clientIdOverride) params.set("clientId", clientIdOverride);
-    const res = await fetchWithSupabaseSession(`/api/trips?${params}`, {}, devFallbackRole);
-    const json = (await res.json()) as {
-      success?: boolean;
-      data?: { items: Trip[]; total: number };
-      error?: { message?: string };
-    };
-    if (!res.ok || !json.success) {
-      setTrips([]);
-      setTotal(0);
-      setLoadError(json.error?.message ?? "Não foi possível carregar as corridas. Verifique a sessão.");
+  const load = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!opts?.silent) setLoading(true);
+      setLoadError(null);
+      const params = new URLSearchParams({ page: "1", pageSize: "100", sortDir: "desc" });
+      if (clientIdOverride) params.set("clientId", clientIdOverride);
+      const res = await fetchWithSupabaseSession(`/api/trips?${params}`, {}, devFallbackRole);
+      const json = (await res.json()) as {
+        success?: boolean;
+        data?: { items: TripRow[]; total: number };
+        error?: { message?: string };
+      };
+      if (!res.ok || !json.success) {
+        setTrips([]);
+        setLoadError(json.error?.message ?? "Não foi possível carregar as corridas.");
+        setLoading(false);
+        return;
+      }
+      setTrips(json.data?.items ?? []);
       setLoading(false);
-      return;
-    }
-    setTrips(json.data?.items ?? []);
-    setTotal(json.data?.total ?? 0);
-    setLoading(false);
-  }, [clientIdOverride, devFallbackRole]);
+    },
+    [clientIdOverride, devFallbackRole]
+  );
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, reloadKey]);
 
   useTenantTableRefresh(tenantId, ["trips"], load);
 
   async function cancelTrip(tripId: string) {
-    if (!window.confirm("Cancelar esta solicitação? Esta acção não pode ser desfeita.")) return;
+    if (!window.confirm("Cancelar este pedido de corrida?")) return;
     setCancellingId(tripId);
     const res = await fetchWithSupabaseSession(
       `/api/trips/${tripId}/status`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to_status: "cancelled" })
-      },
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to_status: "cancelled" }) },
       devFallbackRole
     );
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
@@ -92,174 +97,124 @@ export function ClientTripsPanel({
       window.alert(json.error?.message ?? "Não foi possível cancelar.");
       return;
     }
-    await load();
+    await load({ silent: true });
   }
 
-  const agora = new Date();
-  const mesIni = inicioMesUtc(agora);
-  const mesIniMs = mesIni.getTime();
-  const corridasMes = trips.filter((t) => scheduledAtSortMs(t.scheduled_at) >= mesIniMs).length;
-  const emAndamento = trips.filter((t) => EM_ANDAMENTO.includes(t.operational_status)).length;
-  const aguardandoAprovacao = trips.filter((t) => clientShowsAwaitingApproval(t.operational_status)).length;
-
-  const visible = useMemo(() => {
-    const sorted = [...trips].sort(
-      (a, b) => scheduledAtSortMs(b.scheduled_at) - scheduledAtSortMs(a.scheduled_at)
-    );
-    if (filter === "active") {
-      return sorted.filter((t) => EM_ANDAMENTO.includes(t.operational_status));
+  const { upcoming, history } = useMemo(() => {
+    const now = new Date();
+    const up: TripRow[] = [];
+    const hist: TripRow[] = [];
+    for (const t of trips) {
+      (isUpcomingForClient(t.operational_status, t.scheduled_at, now) ? up : hist).push(t);
     }
-    return sorted;
-  }, [trips, filter]);
+    up.sort((a, b) => scheduledAtSortMs(a.scheduled_at) - scheduledAtSortMs(b.scheduled_at));
+    hist.sort((a, b) => scheduledAtSortMs(b.scheduled_at) - scheduledAtSortMs(a.scheduled_at));
+    return { upcoming: up, history: hist };
+  }, [trips]);
+
+  const visible = compact || tab === "upcoming" ? upcoming : history;
 
   return (
-    <>
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-busy={loading}>
-        {loading && trips.length === 0 ? (
-          <>
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className={`animate-pulse ${PRIME_SURFACE_CARD}`}>
-                <div className="h-3 w-24 rounded bg-gray-200" />
-                <div className="mt-3 h-8 w-16 rounded bg-gray-200" />
-              </div>
+    <section className="grid gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-prime-display text-xl text-prime-text">{title ?? "Corridas"}</h2>
+        {!compact ? (
+          <div className="inline-flex rounded-lg border border-prime-border bg-white p-0.5 text-sm">
+            {(
+              [
+                ["upcoming", `Próximas (${upcoming.length})`],
+                ["history", `Histórico (${history.length})`]
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={`rounded-md px-3 py-1.5 ${tab === id ? "bg-[#111] font-medium text-white" : "text-prime-muted hover:text-prime-text"}`}
+              >
+                {label}
+              </button>
             ))}
-          </>
-        ) : (
-          <>
-        <div className={PRIME_SURFACE_CARD}>
-          <p className="text-xs uppercase tracking-wide text-prime-muted">Corridas (mês)</p>
-          <p className="mt-1 font-serif text-3xl text-prime-gold">{corridasMes}</p>
-        </div>
-        <div className={PRIME_SURFACE_CARD}>
-          <p className="text-xs uppercase tracking-wide text-prime-muted">Em andamento</p>
-          <p className="mt-1 font-serif text-3xl text-prime-gold">{emAndamento}</p>
-        </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <p className="text-xs uppercase tracking-wide text-amber-900/80">Aguarda aprovação</p>
-          <p className="mt-1 font-serif text-3xl text-prime-gold">{aguardandoAprovacao}</p>
-        </div>
-        <div className={PRIME_SURFACE_CARD}>
-          <p className="text-xs uppercase tracking-wide text-prime-muted">Total no histórico</p>
-          <p className="mt-1 font-serif text-3xl text-prime-gold">{total}</p>
-        </div>
-          </>
-        )}
-      </section>
+          </div>
+        ) : null}
+      </div>
 
-      <section id="corridas" className="space-y-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-4">
-            <h2 className="font-serif text-xl text-prime-text">
-              Minhas corridas
-              {total > 0 ? <span className="ml-2 text-sm font-normal text-prime-muted">({total})</span> : null}
-            </h2>
-            <div className="flex items-center gap-2 text-sm">
-              <button
-                type="button"
-                onClick={() => setFilter("all")}
-                className={`rounded-lg px-3 py-1 ${filter === "all" ? "bg-prime-gold font-medium text-prime-text" : "text-prime-muted hover:text-prime-text"}`}
-              >
-                Todas
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilter("active")}
-                className={`rounded-lg px-3 py-1 ${filter === "active" ? "bg-prime-gold font-medium text-prime-text" : "text-prime-muted hover:text-prime-text"}`}
-              >
-                Em andamento
-              </button>
-              <button
-                type="button"
-                onClick={() => void load()}
-                disabled={loading}
-                className="btn-outline px-3 py-1 text-sm disabled:opacity-50"
-              >
-                Actualizar
-              </button>
-            </div>
-          </div>
-          <div className={`overflow-hidden ${PRIME_SURFACE_CARD} p-0`}>
-            {loadError ? (
-              <div className="space-y-3 p-6">
-                <p className="text-sm text-red-700">{loadError}</p>
-                <button type="button" onClick={() => void load()} className="btn-outline text-sm">
-                  Tentar novamente
-                </button>
-              </div>
-            ) : loading && visible.length === 0 ? (
-              <p className="p-6 text-sm text-prime-muted">A carregar corridas…</p>
-            ) : visible.length === 0 ? (
-              <p className="p-6 text-sm text-prime-muted">
-                {filter === "active"
-                  ? "Nenhuma corrida em andamento."
-                  : readOnly
-                    ? "Nenhuma corrida no histórico."
-                    : "Nenhuma corrida. Faça uma solicitação acima."}
-              </p>
-            ) : (
-              <ul className="divide-y divide-gray-200">
-                {visible.map((trip) => (
-                  <li
-                    key={trip.id}
-                    className="flex flex-col gap-2 p-4 hover:bg-gray-50 sm:flex-row sm:items-start sm:justify-between"
-                  >
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <StatusBadge status={trip.operational_status} variant="portal" />
-                        <span className="font-mono text-xs text-prime-gold">{trip.id.slice(0, 8)}…</span>
-                        {clientShowsAwaitingApproval(trip.operational_status) ? (
-                          <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">
-                            Aguarda aprovação
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="text-sm font-medium text-prime-text">
-                        {trip.passenger_name?.trim() || "Passageiro a definir"}
-                        {trip.service_type ? (
-                          <span className="font-normal text-prime-muted">
-                            {" "}
-                            ·{" "}
-                            {primeServiceTypeLabel(trip.service_type, { audience: "client" })}
-                          </span>
-                        ) : null}
-                        {trip.passenger_count != null && trip.passenger_count > 1 ? (
-                          <span className="font-normal text-prime-muted">
-                            {" "}
-                            · {trip.passenger_count} passageiros
-                          </span>
-                        ) : null}
-                      </p>
-                      <p className="text-sm text-prime-muted">
-                        {trip.origin_text} → {trip.destination_text}
-                      </p>
-                      <p className="text-xs text-prime-muted">{formatBrDateTime(trip.scheduled_at)}</p>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-stretch gap-2 pt-1 sm:items-end sm:pt-0">
-                      <Link
-                        href={`/client/viagens/${trip.id}`}
-                        className="btn-outline px-3 py-2 text-center text-xs"
+      {loadError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {loadError}{" "}
+          <button type="button" onClick={() => void load()} className="underline">
+            Tentar de novo
+          </button>
+        </div>
+      ) : loading && trips.length === 0 ? (
+        <div className="h-28 animate-pulse rounded-2xl border border-prime-border bg-white" />
+      ) : visible.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-prime-border bg-white p-6 text-center text-sm text-prime-muted">
+          {compact || tab === "upcoming" ? "Nenhuma corrida agendada." : "Nenhuma corrida no histórico ainda."}
+        </div>
+      ) : (
+        <ul className="grid gap-3">
+          {visible.map((trip) => {
+            const st = CLIENT_STATUS[trip.operational_status] ?? { label: trip.operational_status, tone: "done" as const };
+            const amount = showAmounts && trip.operational_status === "completed" ? brl(trip.client_amount) : null;
+            const canCancel = !readOnly && clientMayCancelTrip(trip.operational_status, trip.scheduled_at);
+            return (
+              <li key={trip.id} className="rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-lg font-semibold text-prime-text">{formatBrDateTime(trip.scheduled_at)}</p>
+                    <p className="text-xs text-prime-muted">
+                      Nº {tripShortNumber(trip.id)} ·{" "}
+                      {trip.service_type ? primeServiceTypeLabel(trip.service_type, { audience: "client" }) : "Serviço"}
+                    </p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${CLIENT_STATUS_TONE_CLASS[st.tone]}`}>
+                    {st.label}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid gap-1.5 text-sm">
+                  <p className="flex gap-2">
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-prime-gold" aria-hidden />
+                    <span className="text-prime-text">{shortAddress(trip.origin_text)}</span>
+                  </p>
+                  <p className="flex gap-2">
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full border-2 border-[#111]" aria-hidden />
+                    <span className="text-prime-text">{shortAddress(trip.destination_text)}</span>
+                  </p>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-prime-border pt-3 text-sm">
+                  <p className="text-prime-muted">
+                    {trip.passenger_name?.trim() || "Passageiro a definir"}
+                    {trip.passenger_count != null && trip.passenger_count > 1 ? ` · ${trip.passenger_count} pessoas` : ""}
+                    {trip.driver_name ? <span className="text-prime-text"> · Motorista: {trip.driver_name}</span> : null}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    {amount ? <span className="font-semibold text-prime-text">{amount}</span> : null}
+                    <Link href={`/client/viagens/${trip.id}`} className="font-medium text-prime-gold hover:underline">
+                      Detalhes
+                    </Link>
+                    <Link href={`/voucher/${trip.id}`} className="font-medium text-prime-gold hover:underline">
+                      Voucher
+                    </Link>
+                    {canCancel ? (
+                      <button
+                        type="button"
+                        disabled={cancellingId === trip.id}
+                        onClick={() => void cancelTrip(trip.id)}
+                        className="text-red-700 hover:underline disabled:opacity-50"
                       >
-                        Ver detalhe
-                      </Link>
-                      {!readOnly ? (
-                        <TripTrackingLinkButton tripId={trip.id} devFallbackRole={devFallbackRole} />
-                      ) : null}
-                      {!readOnly && clientMayCancelTrip(trip.operational_status) ? (
-                        <button
-                          type="button"
-                          disabled={cancellingId === trip.id}
-                          onClick={() => void cancelTrip(trip.id)}
-                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
-                        >
-                          {cancellingId === trip.id ? "A cancelar…" : "Cancelar solicitação"}
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-      </section>
-    </>
+                        {cancellingId === trip.id ? "Cancelando…" : "Cancelar"}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

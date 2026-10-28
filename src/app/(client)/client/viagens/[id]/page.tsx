@@ -14,8 +14,8 @@ export default async function ClientTripDetailPage({ params }: { params: Promise
 
   if (!isCliente && !isAdmin) {
     return (
-      <div className="min-h-screen bg-slate-950 px-5 py-16 text-slate-100">
-        <Link href="/login?next=/client" className="text-amber-400 hover:underline">
+      <div className="min-h-screen bg-prime-bg px-5 py-16 text-prime-text">
+        <Link href="/login?next=/client" className="text-prime-gold hover:underline">
           Entrar no portal
         </Link>
       </div>
@@ -24,9 +24,9 @@ export default async function ClientTripDetailPage({ params }: { params: Promise
 
   if (!valid.success) {
     return (
-      <div className="min-h-screen bg-slate-950 px-5 py-16 text-slate-100">
-        <p className="text-red-300">Identificador de corrida inválido.</p>
-        <Link href="/client" className="mt-4 inline-block text-amber-400">
+      <div className="min-h-screen bg-prime-bg px-5 py-16 text-prime-text">
+        <p className="text-red-700">Identificador de corrida inválido.</p>
+        <Link href="/client" className="mt-4 inline-block text-prime-gold">
           Voltar
         </Link>
       </div>
@@ -56,6 +56,7 @@ export default async function ClientTripDetailPage({ params }: { params: Promise
       tripId={id}
       costCenters={costCenters}
       devFallbackRole={isAdmin ? "admin" : "cliente"}
+      tenantId={tenantId}
     />
   );
 }

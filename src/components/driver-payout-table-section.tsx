@@ -117,16 +117,16 @@ export function DriverPayoutTableSection({ driverId, disabled }: Props) {
     if (!res.ok || !json.success) {
       setMessage({
         kind: "error",
-        text: [json.error?.message, json.error?.hint].filter(Boolean).join(" — ") || "Falha ao guardar."
+        text: [json.error?.message, json.error?.hint].filter(Boolean).join(" — ") || "Falha ao salvar."
       });
       return;
     }
-    setMessage({ kind: "success", text: "Repasse por tipo de serviço guardado." });
+    setMessage({ kind: "success", text: "Repasse por tipo de serviço salvo." });
     void load();
   }
 
   if (loading) {
-    return <p className="text-sm text-prime-muted">A carregar repasse…</p>;
+    return <p className="text-sm text-prime-muted">Carregando repasse…</p>;
   }
 
   return (
@@ -136,7 +136,7 @@ export function DriverPayoutTableSection({ driverId, disabled }: Props) {
       </legend>
       <p className="text-xs text-prime-muted md:col-span-2">
         Valores pagos ao motorista por tipo de serviço (independente da tabela do cliente). Usado na estimativa da
-        corrida quando este motorista estiver seleccionado.
+        corrida quando este motorista estiver selecionado.
       </p>
       <div className="overflow-x-auto rounded-prime-card border border-prime-border bg-prime-card shadow-prime-card md:col-span-2">
         <table className="w-full min-w-[640px] text-left text-sm">
@@ -212,7 +212,7 @@ export function DriverPayoutTableSection({ driverId, disabled }: Props) {
       </div>
       <div className="md:col-span-2">
         <button type="button" className="btn-primary" disabled={busy} onClick={() => void save()}>
-          {busy ? "A guardar…" : "Guardar repasse por serviço"}
+          {busy ? "Salvando…" : "Salvar repasse por serviço"}
         </button>
       </div>
       {message ? (

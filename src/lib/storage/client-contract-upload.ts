@@ -32,7 +32,7 @@ export async function uploadClientContractFile(
   }
   const mime = file.type || "application/octet-stream";
   if (mime !== "application/pdf") {
-    throw new Error("Envie um ficheiro PDF.");
+    throw new Error("Envie um arquivo PDF.");
   }
 
   const path = `${tenantId}/${clientId}/${crypto.randomUUID()}.pdf`;

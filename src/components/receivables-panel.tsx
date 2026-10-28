@@ -137,13 +137,13 @@ export function ReceivablesPanel({ tenantId, devFallbackRole = "financeiro" }: P
             <option value="">Todos</option>
           </select>
           <button type="button" onClick={() => void load()} disabled={loading} className="text-sm">
-            Actualizar
+            Atualizar
           </button>
         </div>
       </div>
       {message ? <p className="mt-2 text-sm text-slate-700">{message}</p> : null}
       {loading ? (
-        <p className="mt-3 text-sm text-slate-600">A carregar…</p>
+        <p className="mt-3 text-sm text-slate-600">Carregando…</p>
       ) : items.length === 0 ? (
         <p className="mt-3 text-sm text-slate-500">Sem títulos ({total} no total).</p>
       ) : (

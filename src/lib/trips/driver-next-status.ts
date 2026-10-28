@@ -10,7 +10,7 @@ const DRIVER_ACTION_ORDER: TripOperationalStatus[] = [
   "no_show"
 ];
 
-/** Próximos estados que o motorista pode aplicar na corrida activa. */
+/** Próximos estados que o motorista pode aplicar na corrida ativa. */
 export function driverNextStatuses(current: TripOperationalStatus): TripOperationalStatus[] {
   return DRIVER_ACTION_ORDER.filter((to) => canTransition(current, to));
 }

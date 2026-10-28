@@ -10,6 +10,11 @@ export type ClientPassengerRow = {
   matricula: string | null;
   sector: string | null;
   active: boolean;
+  cpf?: string | null;
+  /** E-mail de acesso ao portal (funcionário solicitante). */
+  email?: string | null;
+  /** Login do funcionário no portal, quando tem acesso. */
+  profile_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -20,8 +25,20 @@ export type ClientPassengerInput = {
   address?: string | null;
   matricula?: string | null;
   sector?: string | null;
+  cpf?: string | null;
+  email?: string | null;
   active?: boolean;
 };
+
+export function normalizeCpf(raw: string | null | undefined): string | null {
+  const digits = (raw ?? "").replace(/\D/g, "");
+  return digits.length ? digits.slice(0, 11) : null;
+}
+
+/** Colegas não veem CPF, e-mail nem login uns dos outros. */
+export function redactPassengerForColleague(row: ClientPassengerRow): ClientPassengerRow {
+  return { ...row, cpf: null, email: null, profile_id: null };
+}
 
 export async function listClientPassengers(
   clientId: string,
@@ -67,6 +84,8 @@ export async function createClientPassenger(
       address: body.address?.trim() || null,
       matricula: body.matricula?.trim() || null,
       sector: body.sector?.trim() || null,
+      cpf: normalizeCpf(body.cpf),
+      email: body.email?.trim().toLowerCase() || null,
       active: body.active !== false,
       updated_at: new Date().toISOString()
     })
@@ -89,6 +108,8 @@ export async function updateClientPassenger(
   if (body.address !== undefined) patch.address = body.address?.trim() || null;
   if (body.matricula !== undefined) patch.matricula = body.matricula?.trim() || null;
   if (body.sector !== undefined) patch.sector = body.sector?.trim() || null;
+  if (body.cpf !== undefined) patch.cpf = normalizeCpf(body.cpf);
+  if (body.email !== undefined) patch.email = body.email?.trim().toLowerCase() || null;
   if (body.active !== undefined) patch.active = body.active;
 
   const { data, error } = await db

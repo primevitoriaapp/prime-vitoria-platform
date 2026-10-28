@@ -82,7 +82,7 @@ async function mapTripsWithClaims(
   });
 }
 
-/** Fila operacional: viagens activas com estado de multiatendimento (claim). */
+/** Fila operacional: viagens ativas com estado de multiatendimento (claim). */
 export async function GET(request: Request) {
   try {
     const session = await getSessionContext();

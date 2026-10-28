@@ -17,11 +17,11 @@ export async function uploadPaymentProofFile(input: UploadPaymentProofInput): Pr
   const { tenantId, payableId, file } = input;
 
   if (file.size > MAX_BYTES) {
-    throw new Error("Ficheiro excede 5 MB.");
+    throw new Error("Arquivo excede 5 MB.");
   }
   const mime = file.type || "application/octet-stream";
   if (!ALLOWED.has(mime)) {
-    throw new Error("Tipo de ficheiro não permitido (JPEG, PNG, WebP ou PDF).");
+    throw new Error("Tipo de arquivo não permitido (JPEG, PNG, WebP ou PDF).");
   }
 
   const ext =

@@ -98,15 +98,15 @@ export function TenantCompanySettingsForm() {
     setBusy(false);
 
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha ao guardar.");
+      setMessage(json.error?.message ?? "Falha ao salvar.");
       return;
     }
 
-    setMessage(pendingLogo ? "Dados e logo guardados." : "Dados guardados.");
+    setMessage(pendingLogo ? "Dados e logo salvos." : "Dados salvos.");
   }
 
   if (!form) {
-    return <p className="text-sm text-prime-muted">A carregar…</p>;
+    return <p className="text-sm text-prime-muted">Carregando…</p>;
   }
 
   const inputClass = PRIME_INPUT_CLASS;
@@ -130,8 +130,8 @@ export function TenantCompanySettingsForm() {
         />
         {logoFile ? (
           <p className="text-xs text-prime-muted">
-            Ficheiro seleccionado: <span className="text-prime-text">{logoFile.name}</span> — será enviado ao
-            guardar.
+            Arquivo selecionado: <span className="text-prime-text">{logoFile.name}</span> — será enviado ao
+            salvar.
           </p>
         ) : null}
         {previewSrc ? (
@@ -184,7 +184,7 @@ export function TenantCompanySettingsForm() {
         />
       </label>
       <button type="submit" disabled={busy} className="btn-primary px-4 py-2 text-sm disabled:opacity-50">
-        {busy ? "A guardar…" : "Guardar dados"}
+        {busy ? "Salvando…" : "Salvar dados"}
       </button>
       {message ? <p className="text-sm text-prime-text">{message}</p> : null}
     </form>

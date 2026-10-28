@@ -41,7 +41,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         {
           client_id: trip.client_id,
           driver_id: trip.driver_id ?? null,
-          tenant_id: trip.tenant_id
+          tenant_id: trip.tenant_id,
+          created_by: (trip.created_by as string | null | undefined) ?? null
         },
         session.driverId
       )
@@ -49,7 +50,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (denied) return denied;
 
     if (trip.driver_id !== session.driverId) {
-      return fail("FORBIDDEN", "Motorista so pode actualizar as proprias corridas", 403);
+      return fail("FORBIDDEN", "Motorista so pode atualizar as proprias corridas", 403);
     }
 
     const stops = parseTripPickupStops(trip.trip_pickup_stops);

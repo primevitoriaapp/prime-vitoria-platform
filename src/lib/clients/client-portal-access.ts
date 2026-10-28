@@ -20,6 +20,6 @@ export async function getClientPortalRequestsEnabled(
 export async function assertClientMayUsePortalWrites(clientId: string, tenantId: string): Promise<void> {
   const enabled = await getClientPortalRequestsEnabled(clientId, tenantId);
   if (isClientPortalReadOnly({ portalRequestsEnabled: enabled })) {
-    throw new Error("Forbidden: solicitações no portal desactivadas para este cliente");
+    throw new Error("Forbidden: solicitações no portal desativadas para este cliente");
   }
 }

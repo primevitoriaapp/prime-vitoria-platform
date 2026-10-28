@@ -430,7 +430,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
             value={form.client_id}
             onChange={(e) => setForm((f) => ({ ...f, client_id: e.target.value, cost_center_id: "" }))}
           >
-            <option value="">— seleccionar —</option>
+            <option value="">— selecionar —</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -705,7 +705,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
               </p>
             ) : null}
             {estimateBusy ? (
-              <p className="mt-2 text-xs text-prime-muted">A calcular…</p>
+              <p className="mt-2 text-xs text-prime-muted">Calculando…</p>
             ) : (
               <p className="mt-1 text-xs text-prime-muted">
                 {form.planned_km != null

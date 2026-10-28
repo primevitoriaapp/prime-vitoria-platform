@@ -8,7 +8,7 @@ type Props = {
   fallbackHref: string;
   label?: string;
   className?: string;
-  /** Acção customizada (ex.: fechar painel inline) em vez de navegar. */
+  /** Ação customizada (ex.: fechar painel inline) em vez de navegar. */
   onClick?: () => void;
 };
 

@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!trip) return fail("TRIP_NOT_FOUND", "Trip not found", 404);
 
     const denied = denyUnlessTripReadable(
-      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null, tenant_id: trip.tenant_id })
+      tripGetAccess(session, { client_id: trip.client_id, driver_id: trip.driver_id ?? null, tenant_id: trip.tenant_id, created_by: (trip.created_by as string | null | undefined) ?? null })
     );
     if (denied) return denied;
 

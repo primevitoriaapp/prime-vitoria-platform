@@ -9,6 +9,7 @@ export async function GET() {
       role: session.role,
       tenantId: session.tenantId ?? null,
       clientId: session.clientId ?? null,
+      clientAccess: session.clientAccess ?? null,
       driverId: session.driverId ?? null
     });
   } catch (error) {

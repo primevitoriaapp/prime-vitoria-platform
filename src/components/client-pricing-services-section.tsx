@@ -313,17 +313,17 @@ export function ClientPricingServicesSection({ clientId, disabled }: Props) {
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     setBusy(false);
     if (res.ok && json.success) {
-      setMessage({ kind: "success", text: "Serviços e valores guardados." });
+      setMessage({ kind: "success", text: "Serviços e valores salvos." });
       void load();
     } else {
-      setMessage({ kind: "error", text: json.error?.message ?? "Falha ao guardar." });
+      setMessage({ kind: "error", text: json.error?.message ?? "Falha ao salvar." });
     }
   }
 
   if (loading) {
     return (
       <section className="card">
-        <p className="text-sm text-prime-muted">A carregar serviços…</p>
+        <p className="text-sm text-prime-muted">Carregando serviços…</p>
       </section>
     );
   }
@@ -397,7 +397,7 @@ export function ClientPricingServicesSection({ clientId, disabled }: Props) {
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="btn-primary" disabled={disabled || busy} onClick={() => void onSave()}>
-          {busy ? "A guardar…" : "Guardar serviços e valores"}
+          {busy ? "Salvando…" : "Salvar serviços e valores"}
         </button>
         {message ? (
           <p className={`text-sm ${message.kind === "success" ? "text-green-800" : "text-red-700"}`}>

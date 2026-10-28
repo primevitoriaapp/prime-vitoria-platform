@@ -147,7 +147,7 @@ async function checkStagingUsers(): Promise<{ found: number; detail: string }> {
     found: found.size,
     detail:
       found.size === STAGING_EMAILS.length
-        ? "Todos os utilizadores staging encontrados"
+        ? "Todos os usuários staging encontrados"
         : `Encontrados ${found.size}/${STAGING_EMAILS.length} — correr seed`
   };
 }
@@ -236,7 +236,7 @@ export async function buildStagingStatusPayload(): Promise<StagingStatusPayload>
   }
 
   if (blockers.length > 0) {
-    next_steps.push("Rubens: desactivar Vercel Authentication no preview (docs/P1_VERCEL_PREVIEW_ACESSO.md)");
+    next_steps.push("Rubens: desativar Vercel Authentication no preview (docs/P1_VERCEL_PREVIEW_ACESSO.md)");
     next_steps.push("Configurar secrets: docs/P1_SECRETS_CHECKLIST.md");
     next_steps.push("Correr workflows 0044 + 0045 + seed; depois abrir docs/AMANHA_P1.md");
   } else if (!isP1Environment) {

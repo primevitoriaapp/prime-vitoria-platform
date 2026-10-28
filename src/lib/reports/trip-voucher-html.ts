@@ -27,7 +27,7 @@ function fmtMoney(n: number | null): string {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** HTML imprimível — «Guardar como PDF» no browser. */
+/** HTML imprimível — «Salvar como PDF» no browser. */
 export function tripVoucherHtml(company: TenantCompanyProfile, trip: TripVoucherData): string {
   const when = formatBrDateTime(trip.scheduledAt) || trip.scheduledAt;
   const logoBlock = company.logo_storage_path
@@ -52,7 +52,7 @@ export function tripVoucherHtml(company: TenantCompanyProfile, trip: TripVoucher
 </head>
 <body>
   <div class="no-print" style="margin-bottom:16px">
-    <button onclick="window.print()" style="padding:8px 16px;cursor:pointer">Imprimir / Guardar PDF</button>
+    <button onclick="window.print()" style="padding:8px 16px;cursor:pointer">Imprimir / Salvar PDF</button>
   </div>
   <header class="header">
     ${logoBlock}
