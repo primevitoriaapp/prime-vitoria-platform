@@ -58,6 +58,8 @@ export interface Trip {
   passenger_name?: string | null;
   passenger_phone?: string | null;
   passenger_count?: number | null;
+  /** Número do voo (busca no aeroporto). */
+  flight_number?: string | null;
   cost_center_id?: string | null;
   /** Corrida de volta vinculada (ida aponta para volta). */
   trip_id_return?: string | null;

@@ -136,6 +136,7 @@ export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRol
                 <p className="mt-1 font-medium">{trip.passenger_name?.trim() || "A definir"}</p>
                 {trip.passenger_phone?.trim() ? <p className="text-prime-muted">{trip.passenger_phone.trim()}</p> : null}
                 {trip.passenger_count && trip.passenger_count > 1 ? <p className="text-prime-muted">{trip.passenger_count} pessoas</p> : null}
+                {trip.flight_number ? <p className="text-prime-muted">Voo {trip.flight_number}</p> : null}
                 {cc ? <p className="mt-1 text-prime-muted">Centro de custo: {cc.code ? `${cc.code} · ` : ""}{cc.name}</p> : null}
               </div>
               <div className="rounded-2xl border border-prime-border bg-white p-4 text-sm">

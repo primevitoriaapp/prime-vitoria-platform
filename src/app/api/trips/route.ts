@@ -1,3 +1,4 @@
+import { normalizeFlightNumber } from "@/lib/trips/flight";
 import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, ok } from "@/lib/server/http";
@@ -55,6 +56,7 @@ const createTripSchema = z.object({
   passenger_phone: z.string().optional(),
   passenger_count: z.coerce.number().int().min(1).optional(),
   notes: z.string().optional(),
+  flight_number: z.string().max(12).optional().nullable(),
   client_amount: z.coerce.number().nonnegative().optional(),
   driver_amount: z.coerce.number().nonnegative().optional(),
   margin: z.coerce.number().optional(),
@@ -245,6 +247,7 @@ export async function POST(request: Request) {
           : body.passenger_phone ?? null,
         passenger_count: passengerCount,
         notes: body.notes ?? null,
+        flight_number: normalizeFlightNumber(body.flight_number),
         client_amount: clientAmount,
         driver_amount: driverAmount,
         margin,
@@ -306,6 +309,8 @@ export async function POST(request: Request) {
           passenger_phone: body.passenger_phone ?? null,
           passenger_count: passengerCount,
           notes: body.notes ?? null,
+          flight_number: normalizeFlightNumber(body.flight_number),
+        flight_number: normalizeFlightNumber(body.flight_number),
           client_amount: clientAmount,
           driver_amount: driverAmount,
           margin,

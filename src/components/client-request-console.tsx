@@ -10,6 +10,7 @@ import type { PrimeServiceIcon } from "@/lib/pricing/prime-service-catalog";
 import { maxPassengersForService, primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { shortAddress } from "@/lib/client/short-address";
+import { normalizeFlightNumber } from "@/lib/trips/flight";
 import {
   loadTripPresets,
   removeTripPreset,
@@ -79,6 +80,43 @@ function brl(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Serviços agrupados por veículo: o cliente escolhe o carro e depois "só o trajeto" ou "à disposição". */
+const SERVICE_GROUPS: {
+  id: string;
+  label: string;
+  description: string;
+  icon: PrimeServiceIcon;
+  modes: { id: string; label: string; hint: string }[];
+}[] = [
+  {
+    id: "carro",
+    label: "Carro executivo",
+    description: "Sedã executivo, até 4 passageiros",
+    icon: "car",
+    modes: [
+      { id: "transfer_seda", label: "Só o trajeto", hint: "Leva de um ponto a outro (ex.: aeroporto → hotel)." },
+      { id: "diaria_seda", label: "À disposição", hint: "Carro e motorista ficam com o passageiro (diária de 10h / 110 km)." }
+    ]
+  },
+  {
+    id: "van",
+    label: "Van executiva",
+    description: "Para grupos, até 15 passageiros",
+    icon: "van",
+    modes: [
+      { id: "transfer_van", label: "Só o trajeto", hint: "Leva o grupo de um ponto a outro." },
+      { id: "diaria_van", label: "À disposição", hint: "Van e motorista à disposição (diária de 10h / 110 km)." }
+    ]
+  },
+  {
+    id: "corporativo",
+    label: "Corporativo",
+    description: "Cobrado por km rodado, conforme o horário",
+    icon: "building",
+    modes: [{ id: "corporativo", label: "Por km", hint: "" }]
+  }
+];
+
 type Created = { when: string; origin: string; destination: string; service: string; passenger: string };
 
 export function ClientRequestConsole({
@@ -105,6 +143,8 @@ export function ClientRequestConsole({
   const [passengerPhone, setPassengerPhone] = useState("");
   const [passengerCount, setPassengerCount] = useState(1);
   const [notes, setNotes] = useState("");
+  const [untilTime, setUntilTime] = useState("");
+  const [flight, setFlight] = useState("");
   const [costCenterId, setCostCenterId] = useState("");
   const [estimateBusy, setEstimateBusy] = useState(false);
   const [estimate, setEstimate] = useState<{
@@ -147,6 +187,17 @@ export function ClientRequestConsole({
 
   const scheduledIso = useMemo(() => (date && time ? saoPauloDateAndTimeToUtcIso(date, time) : null), [date, time]);
   const maxPassengers = serviceType ? maxPassengersForService(serviceType) : 4;
+  const enabledIds = new Set(services.map((sv) => sv.id));
+  const groups = SERVICE_GROUPS.map((g) => ({ ...g, modes: g.modes.filter((m) => enabledIds.has(m.id)) })).filter(
+    (g) => g.modes.length > 0
+  );
+  const activeGroup = groups.find((g) => g.modes.some((m) => m.id === serviceType)) ?? null;
+  const isDisposicao = serviceType.startsWith("diaria_");
+
+  function pickService(id: string) {
+    setServiceType(id);
+    setPassengerCount((c) => Math.min(c, maxPassengersForService(id)));
+  }
   const hasCoords = originLat != null && originLng != null && destinationLat != null && destinationLng != null;
 
   useEffect(() => {
@@ -223,6 +274,8 @@ export function ClientRequestConsole({
     setDestinationLat(null);
     setDestinationLng(null);
     setNotes("");
+    setFlight("");
+    setUntilTime("");
     setPassengerName(defaultPassengerName);
     setPassengerPhone("");
     setPassengerCount(1);
@@ -267,7 +320,11 @@ export function ClientRequestConsole({
           passenger_name: passengerName || undefined,
           passenger_phone: passengerPhone || undefined,
           passenger_count: passengerCount,
-          notes: notes || undefined,
+          notes:
+            [isDisposicao && untilTime ? `À disposição até ${untilTime}.` : null, notes.trim() || null]
+              .filter(Boolean)
+              .join(" ") || undefined,
+          flight_number: normalizeFlightNumber(flight) ?? undefined,
           dispatch_mode: "directed"
         })
       },
@@ -361,33 +418,50 @@ export function ClientRequestConsole({
       {/* 1. Serviço */}
       <section className="grid gap-3">
         <StepTitle n={1}>Tipo de serviço</StepTitle>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {services.map((s) => {
-            const active = s.id === serviceType;
+        <div className="grid gap-2 sm:grid-cols-3">
+          {groups.map((g) => {
+            const active = activeGroup?.id === g.id;
             return (
               <button
-                key={s.id}
+                key={g.id}
                 type="button"
-                onClick={() => {
-                  setServiceType(s.id);
-                  setPassengerCount((c) => Math.min(c, maxPassengersForService(s.id)));
-                }}
+                onClick={() => pickService(active ? serviceType : g.modes[0].id)}
                 className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition ${
                   active ? "border-prime-gold bg-prime-gold/10 ring-1 ring-prime-gold" : "border-prime-border hover:border-prime-gold"
                 }`}
                 aria-pressed={active}
               >
                 <span className={active ? "text-prime-gold" : "text-prime-muted"}>
-                  <ServiceIcon icon={s.icon} />
+                  <ServiceIcon icon={g.icon} />
                 </span>
                 <span>
-                  <span className="block font-semibold text-prime-text">{s.label}</span>
-                  <span className="mt-0.5 block text-xs text-prime-muted">{s.description}</span>
+                  <span className="block font-semibold text-prime-text">{g.label}</span>
+                  <span className="mt-0.5 block text-xs text-prime-muted">{g.description}</span>
                 </span>
               </button>
             );
           })}
         </div>
+        {activeGroup && activeGroup.modes.length > 1 ? (
+          <div className="grid gap-2">
+            <div className="inline-flex w-full rounded-lg border border-prime-border bg-prime-bg p-1 sm:w-auto">
+              {activeGroup.modes.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => pickService(m.id)}
+                  className={`flex-1 rounded-md px-4 py-2 text-sm sm:flex-none ${
+                    serviceType === m.id ? "bg-[#111] font-semibold text-[#fff]" : "text-prime-muted hover:text-prime-text"
+                  }`}
+                  aria-pressed={serviceType === m.id}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-prime-muted">{activeGroup.modes.find((m) => m.id === serviceType)?.hint}</p>
+          </div>
+        ) : null}
       </section>
 
       {/* 2. Quando */}
@@ -403,6 +477,12 @@ export function ClientRequestConsole({
             <input type="time" required value={time} onChange={(e) => setTime(e.target.value)} className={FIELD} />
           </label>
         </div>
+        {isDisposicao ? (
+          <label className={LABEL}>
+            Até que horas vai precisar do veículo? (previsão)
+            <input type="time" value={untilTime} onChange={(e) => setUntilTime(e.target.value)} className={FIELD} />
+          </label>
+        ) : null}
         {scheduledIso ? (
           <p className="text-xs text-prime-muted">Embarque em {formatBrDateTime(scheduledIso)} (horário de Brasília).</p>
         ) : null}
@@ -467,6 +547,21 @@ export function ClientRequestConsole({
           }}
           devFallbackRole={devFallbackRole}
         />
+        <label className={LABEL}>
+          Número do voo <span className="font-normal text-prime-muted">(se for buscar no aeroporto)</span>
+          <input
+            value={flight}
+            onChange={(e) => setFlight(e.target.value.toUpperCase())}
+            placeholder="Ex.: LA3345"
+            maxLength={10}
+            className={FIELD}
+          />
+          {flight.trim() && !normalizeFlightNumber(flight) ? (
+            <span className="text-xs font-normal text-amber-800">Confira o número: 2 letras da companhia + números (ex.: G31450).</span>
+          ) : flight.trim() ? (
+            <span className="text-xs font-normal text-prime-muted">O motorista acompanha o voo e chega no horário certo se houver atraso.</span>
+          ) : null}
+        </label>
       </section>
 
       {/* 4. Passageiro */}

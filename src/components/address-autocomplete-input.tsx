@@ -11,13 +11,32 @@ export type AddressPlaceSelection = {
 };
 
 type ApiHit = {
-  place_id: number;
+  provider?: "google";
+  place_id: number | string;
   display_name: string;
-  lat: number;
-  lng: number;
+  main_text?: string;
+  secondary_text?: string;
+  lat: number | null;
+  lng: number | null;
 };
 
-type Suggestion = AddressPlaceSelection & { place_id: number };
+type Suggestion = {
+  place_id: number | string;
+  provider?: "google";
+  displayName: string;
+  mainText?: string;
+  secondaryText?: string;
+  lat: number | null;
+  lng: number | null;
+};
+
+function newSessionToken(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+}
 
 type Props = {
   label: string;
@@ -72,6 +91,9 @@ export function AddressAutocompleteInput({
   const [hint, setHint] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
   const lastSelectedText = useRef<string | null>(null);
+  /** Uma sessão por endereço: sugestões + escolha (cobrança do Google por sessão). */
+  const sessionToken = useRef<string>(newSessionToken());
+  const [usingGoogle, setUsingGoogle] = useState(false);
 
   const runSearch = useCallback(
     async (query: string) => {
@@ -86,18 +108,23 @@ export function AddressAutocompleteInput({
       setHint(null);
       try {
         const res = await fetchWithSupabaseSession(
-          `/api/integrations/address-search?q=${encodeURIComponent(q)}`,
+          `/api/integrations/address-search?q=${encodeURIComponent(q)}&session=${encodeURIComponent(sessionToken.current)}`,
           {},
           devFallbackRole
         );
         const json = await parseApiResponse(res);
         if (res.ok && json.success && json.data.length > 0) {
+          const hits = json.data as unknown as ApiHit[];
+          setUsingGoogle(hits.some((d) => d.provider === "google"));
           setSuggestions(
-            json.data.map((d) => ({
+            hits.map((d) => ({
               place_id: d.place_id,
+              provider: d.provider,
               displayName: d.display_name,
-              lat: Number(d.lat),
-              lng: Number(d.lng)
+              mainText: d.main_text,
+              secondaryText: d.secondary_text,
+              lat: d.lat == null ? null : Number(d.lat),
+              lng: d.lng == null ? null : Number(d.lng)
             }))
           );
           setOpen(true);
@@ -105,7 +132,7 @@ export function AddressAutocompleteInput({
         } else {
           setSuggestions([]);
           setOpen(false);
-          setHint("Nenhuma sugestão — pode usar texto livre.");
+          setHint("Nenhuma sugestão. Tente outro nome ou escreva o endereço completo.");
         }
       } catch {
         setSuggestions([]);
@@ -142,14 +169,43 @@ export function AddressAutocompleteInput({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  function selectSuggestion(s: Suggestion) {
-    lastSelectedText.current = s.displayName;
-    onChange(s.displayName);
-    onPlaceSelect?.({ displayName: s.displayName, lat: s.lat, lng: s.lng });
+  async function selectSuggestion(s: Suggestion) {
     setSuggestions([]);
     setOpen(false);
     setHint(null);
     setActiveIndex(-1);
+
+    if (s.provider === "google" && (s.lat == null || s.lng == null)) {
+      lastSelectedText.current = s.displayName;
+      onChange(s.displayName);
+      setBusy(true);
+      try {
+        const res = await fetchWithSupabaseSession(
+          `/api/integrations/address-details?place_id=${encodeURIComponent(String(s.place_id))}&session=${encodeURIComponent(sessionToken.current)}`,
+          {},
+          devFallbackRole
+        );
+        const json = (await res.json()) as { success?: boolean; data?: { display_name: string; lat: number; lng: number } };
+        if (res.ok && json.success && json.data) {
+          lastSelectedText.current = json.data.display_name;
+          onChange(json.data.display_name);
+          onPlaceSelect?.({ displayName: json.data.display_name, lat: json.data.lat, lng: json.data.lng });
+        } else {
+          setHint("Não foi possível localizar este endereço no mapa. Ele fica salvo como texto.");
+        }
+      } catch {
+        setHint("Não foi possível localizar este endereço no mapa. Ele fica salvo como texto.");
+      } finally {
+        setBusy(false);
+        sessionToken.current = newSessionToken();
+      }
+      return;
+    }
+
+    lastSelectedText.current = s.displayName;
+    onChange(s.displayName);
+    if (s.lat != null && s.lng != null) onPlaceSelect?.({ displayName: s.displayName, lat: s.lat, lng: s.lng });
+    sessionToken.current = newSessionToken();
   }
 
   function handleInputChange(next: string) {
@@ -170,7 +226,7 @@ export function AddressAutocompleteInput({
       setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
     } else if (e.key === "Enter" && activeIndex >= 0) {
       e.preventDefault();
-      selectSuggestion(suggestions[activeIndex]!);
+      void selectSuggestion(suggestions[activeIndex]!);
     } else if (e.key === "Escape") {
       setOpen(false);
     }
@@ -198,10 +254,8 @@ export function AddressAutocompleteInput({
         aria-controls={listId}
         aria-autocomplete="list"
       />
-      {busy ? <p className="text-xs text-slate-500">A buscar endereços…</p> : null}
-      {hasCoords ? (
-        <p className="text-xs text-emerald-800">Localização GPS salva para esta paragem.</p>
-      ) : null}
+      {busy ? <p className="text-xs text-slate-500">Buscando…</p> : null}
+      {hasCoords ? <p className="text-xs text-emerald-800">✓ Local encontrado no mapa.</p> : null}
       {hint && !busy ? <p className="text-xs text-amber-900">{hint}</p> : null}
       {open && suggestions.length > 0 ? (
         <ul
@@ -210,22 +264,31 @@ export function AddressAutocompleteInput({
           className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
         >
           {suggestions.map((s, idx) => (
-            <li key={s.place_id} role="option" aria-selected={idx === activeIndex}>
+            <li key={String(s.place_id)} role="option" aria-selected={idx === activeIndex}>
               <button
                 type="button"
                 className={`w-full px-3 py-2 text-left text-sm hover:bg-amber-50 ${
                   idx === activeIndex ? "bg-amber-50" : ""
                 }`}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => selectSuggestion(s)}
+                onClick={() => void selectSuggestion(s)}
               >
-                {s.displayName}
+                {s.mainText ? (
+                  <>
+                    <span className="block font-medium text-prime-text">{s.mainText}</span>
+                    {s.secondaryText ? <span className="block text-xs text-prime-muted">{s.secondaryText}</span> : null}
+                  </>
+                ) : (
+                  s.displayName
+                )}
               </button>
             </li>
           ))}
         </ul>
       ) : null}
-      <p className="text-xs text-slate-500">OpenStreetMap — digite 3+ caracteres e selecione uma sugestão (Brasil).</p>
+      <p className="text-xs text-slate-500">
+        Digite o nome do local ou o endereço e escolha uma sugestão.{usingGoogle ? "" : " (mapa OpenStreetMap)"}
+      </p>
     </div>
   );
 }
