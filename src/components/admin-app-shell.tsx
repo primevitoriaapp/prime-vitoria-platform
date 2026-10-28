@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logoutAction } from "@/app/login/actions";
 import { BrandLogo } from "@/components/brand-logo";
+import { NewTripRequestAlert } from "@/components/new-trip-request-alert";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
 
 const NAV = [
@@ -127,6 +128,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
               <div className="flex items-center gap-3">
+                {showFullNav ? <NewTripRequestAlert tenantId={session?.tenantId ?? null} /> : null}
                 {session?.tenantId ? (
                   <span className="hidden text-xs text-prime-muted sm:inline" title="Tenant">
                     {session.tenantId.slice(0, 8)}…
