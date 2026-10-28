@@ -50,7 +50,7 @@ export async function applyTripPricingOnCompletion(
 ): Promise<ApplyTripPricingResult> {
   const { data: tripRow } = await db
     .from("trips")
-    .select("driver_id, service_type, scheduled_at, wait_minutes")
+    .select("driver_id, service_type, scheduled_at, wait_minutes, client_amount, driver_amount")
     .eq("id", input.tripId)
     .eq("tenant_id", input.tenantId)
     .maybeSingle();
@@ -103,7 +103,26 @@ export async function applyTripPricingOnCompletion(
     duration_hours: durationHours(input.scheduledAt, input.completedAt)
   };
 
-  const baseResult = calculateTripPricing(rule, pricingInput);
+  const computed = calculateTripPricing(rule, pricingInput);
+
+  // Transfer e diária são orçados pela central: o valor digitado na corrida vale mais que a tabela.
+  // Sem valor na corrida e tabela zerada, não grava zero (a fatura acusa "sem valor").
+  const isQuotedService = Boolean(serviceKey) && !String(serviceKey).startsWith("corporativo");
+  const quotedClient = Number(tripRow?.client_amount) || 0;
+  const quotedDriver = Number(tripRow?.driver_amount) || 0;
+  if (isQuotedService && quotedClient <= 0 && !(computed.amount_client > 0)) {
+    return { applied: false, skipped_reason: "valor_a_combinar_sem_valor" };
+  }
+  const baseResult =
+    isQuotedService && quotedClient > 0
+      ? {
+          ...computed,
+          amount_client: roundMoney(quotedClient),
+          amount_driver: roundMoney(quotedDriver > 0 ? quotedDriver : computed.amount_driver),
+          net_margin: roundMoney(quotedClient - (quotedDriver > 0 ? quotedDriver : computed.amount_driver)),
+          breakdown: { ...computed.breakdown, source: "valor_orcado_na_corrida" }
+        }
+      : computed;
 
   // Hora parada do cadastro do cliente: tolerância + valor proporcional ao tempo.
   const terms = await getClientBillingTerms(input.clientId, input.tenantId);
