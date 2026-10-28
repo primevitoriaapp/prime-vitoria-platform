@@ -14,7 +14,7 @@ export function LoginForm({ defaultNext }: { defaultNext?: string }) {
   return (
     <section className="card" style={{ maxWidth: 420 }}>
       <h1>Entrar</h1>
-      <p className="text-sm text-prime-muted">Use a conta Supabase (email e senha).</p>
+      <p className="text-sm text-prime-muted">Entre com seu e-mail e senha.</p>
       {isStagingSmokeHintsEnabled() ? (
         <p style={{ fontSize: 12, marginTop: 8 }}>
           <Link href="/p1-homologacao" style={{ color: "#6d28d9", textDecoration: "underline" }}>
@@ -39,7 +39,7 @@ export function LoginForm({ defaultNext }: { defaultNext?: string }) {
         {state.error ? (
           <p role="alert" style={{ color: "#b91c1c", fontSize: 14 }}>
             {state.error}
-            {state.error.toLowerCase().includes("invalid login") ? (
+            {isStagingSmokeHintsEnabled() && state.error.toLowerCase().includes("incorretos") ? (
               <span style={{ display: "block", marginTop: 8, fontSize: 12, color: "#475569" }}>
                 Staging: use staging-*@example.com e a senha do seed. Se o utilizador já existia, corra o seed com
                 STAGING_SEED_RESET_PASSWORD=true.
@@ -51,6 +51,11 @@ export function LoginForm({ defaultNext }: { defaultNext?: string }) {
           {pending ? "Entrando…" : "Entrar"}
         </button>
       </form>
+      <p style={{ marginTop: 12, fontSize: 14 }}>
+        <Link href="/login/esqueci-senha" style={{ textDecoration: "underline" }}>
+          Esqueci minha senha
+        </Link>
+      </p>
       <LoginStagingAccounts defaultNext={defaultNext} />
     </section>
   );
