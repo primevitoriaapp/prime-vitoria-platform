@@ -2,11 +2,30 @@
 
 export type BillingIssuer = "rj_prime" | "prime_servicos" | "ilha_prime";
 
-export const BILLING_ISSUER_OPTIONS: ReadonlyArray<{ id: BillingIssuer; label: string }> = [
-  { id: "rj_prime", label: "R J Prime Transporte" },
-  { id: "prime_servicos", label: "Prime Locadora & Serviços" },
-  { id: "ilha_prime", label: "Ilha Prime Fretamento e Turismo" }
+export const BILLING_ISSUER_OPTIONS: ReadonlyArray<{
+  id: BillingIssuer;
+  label: string;
+  legal_name: string;
+  cnpj: string;
+}> = [
+  { id: "rj_prime", label: "R J Prime Transporte", legal_name: "R J Prime Transporte LTDA", cnpj: "49.126.277/0001-54" },
+  {
+    id: "prime_servicos",
+    label: "Prime Locadora & Serviços",
+    legal_name: "Prime Locadora & Serviços LTDA",
+    cnpj: "65.710.916/0001-80"
+  },
+  {
+    id: "ilha_prime",
+    label: "Ilha Prime Fretamento e Turismo",
+    legal_name: "Ilha Prime Fretamento e Turismo LTDA",
+    cnpj: "65.020.288/0001-01"
+  }
 ];
+
+export function billingIssuerById(id: string | null | undefined) {
+  return BILLING_ISSUER_OPTIONS.find((o) => o.id === id) ?? null;
+}
 
 export type ClientBillingTerms = {
   wait_tolerance_minutes: number;

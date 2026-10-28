@@ -81,6 +81,14 @@ export function ClientTripDetailPanel({
                 label="Copiar ID"
                 className="border-slate-600 text-amber-200/90"
               />
+              <a
+                href={`/voucher/${trip.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-amber-500/60 px-3 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/10"
+              >
+                Voucher (PDF)
+              </a>
             </div>
             <ClientOperationalTimeline current={trip.operational_status} />
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3 text-sm">
