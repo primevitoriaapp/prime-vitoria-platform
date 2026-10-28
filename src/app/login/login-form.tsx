@@ -12,7 +12,7 @@ const initial: LoginState = {};
 const FIELD =
   "w-full rounded-lg border border-prime-input-border bg-white px-3.5 py-3 text-base text-prime-text outline-none transition placeholder:text-gray-400 focus:border-prime-gold focus:ring-2 focus:ring-prime-gold/25 disabled:opacity-60";
 
-export function LoginForm({ defaultNext }: { defaultNext?: string }) {
+export function LoginForm({ defaultNext, switchAccount }: { defaultNext?: string; switchAccount?: boolean }) {
   const [state, formAction, pending] = useActionState(loginAction, initial);
   const [showPassword, setShowPassword] = useState(false);
   const staging = isStagingSmokeHintsEnabled();
@@ -28,6 +28,11 @@ export function LoginForm({ defaultNext }: { defaultNext?: string }) {
       <section className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
         <h1 className="font-prime-display text-2xl text-prime-text">Entrar</h1>
         <p className="mt-1 text-sm text-prime-muted">Use o e-mail e a senha da sua conta.</p>
+        {switchAccount ? (
+          <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            O painel da Prime é só para a equipe da central. Entre com a conta da Prime (ex.: contato@primevitoria.com).
+          </p>
+        ) : null}
 
         <form action={formAction} className="mt-6 grid gap-4">
           <input type="hidden" name="next" value={defaultNext ?? ""} />

@@ -153,6 +153,19 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
           </header>
 
           <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 lg:px-8 lg:py-8">
+            {session && !showFullNav && !isFinanceiro ? (
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+                <span>
+                  Você está conectado com uma conta de <b>{session.role === "cliente" ? "cliente" : session.role}</b>, não com a conta da central.
+                  Saia e entre com o e-mail da Prime para usar o painel.
+                </span>
+                <form action={logoutAction}>
+                  <button type="submit" className="rounded-lg bg-[#111] px-3 py-1.5 text-xs font-semibold text-[#fff]">
+                    Sair e entrar de novo
+                  </button>
+                </form>
+              </div>
+            ) : null}
             {children}
           </main>
         </div>

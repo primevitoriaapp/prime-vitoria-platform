@@ -11,6 +11,13 @@ import { enforceRateLimit } from "@/lib/security/rate-limit";
 
 export type LoginState = { error?: string };
 
+/** Apaga todos os cookies de sessão do Supabase (evita duas contas misturadas no mesmo navegador). */
+function clearSupabaseAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
+  for (const c of cookieStore.getAll()) {
+    if (c.name.startsWith("sb-")) cookieStore.delete(c.name);
+  }
+}
+
 function isSafeInternalPath(path: string): boolean {
   if (!path.startsWith("/") || path.startsWith("//")) return false;
   if (path.includes("://") || path.includes("@")) return false;
@@ -37,10 +44,11 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   }
 
   const cookieStore = await cookies();
+  clearSupabaseAuthCookies(cookieStore);
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll() {
-        return cookieStore.getAll();
+        return cookieStore.getAll().filter((c) => !c.name.startsWith("sb-"));
       },
       setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value, options }) =>
@@ -98,8 +106,9 @@ export async function logoutAction(): Promise<void> {
     }
   });
 
-  await supabase.auth.signOut();
-  redirect("/");
+  await supabase.auth.signOut().catch(() => undefined);
+  clearSupabaseAuthCookies(cookieStore);
+  redirect("/login");
 }
 
 export type PasswordResetState = { sent?: boolean; error?: string };
