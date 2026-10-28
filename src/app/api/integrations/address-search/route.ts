@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { searchNominatimBrazil } from "@/lib/integrations/nominatim-search";
-import { googleAutocomplete, googlePlacesKey } from "@/lib/integrations/google-places";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
@@ -8,8 +7,7 @@ import { enforceRateLimit } from "@/lib/security/rate-limit";
 export const runtime = "nodejs";
 
 const querySchema = z.object({
-  q: z.string().trim().min(3, "Mínimo 3 caracteres").max(200),
-  session: z.string().max(64).optional()
+  q: z.string().trim().min(3, "Mínimo 3 caracteres")
 });
 
 /** GET /api/integrations/address-search?q=... — Nominatim (Brasil). */
@@ -33,35 +31,7 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
-    const { q, session: sessionToken } = querySchema.parse({
-      q: url.searchParams.get("q") ?? "",
-      session: url.searchParams.get("session") ?? undefined
-    });
-
-    // Google (acha empresas, hotéis, condomínios). Sem chave ou com falha, cai no OpenStreetMap.
-    const googleKey = googlePlacesKey();
-    if (googleKey) {
-      try {
-        const hits = await googleAutocomplete(q, sessionToken ?? crypto.randomUUID(), googleKey);
-        if (hits.length > 0) {
-          return ok(
-            hits.map((h) => ({
-              provider: "google" as const,
-              place_id: h.place_id,
-              display_name: h.secondary_text ? `${h.main_text}, ${h.secondary_text}` : h.main_text,
-              main_text: h.main_text,
-              secondary_text: h.secondary_text,
-              lat: null,
-              lng: null
-            }))
-          );
-        }
-      } catch (err) {
-        console.warn("[address-search] Google falhou, usando OpenStreetMap", {
-          message: err instanceof Error ? err.message : String(err)
-        });
-      }
-    }
+    const { q } = querySchema.parse({ q: url.searchParams.get("q") ?? "" });
 
     const outcome = await searchNominatimBrazil(q);
     if (!outcome.ok) {
