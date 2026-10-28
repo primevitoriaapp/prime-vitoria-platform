@@ -71,6 +71,7 @@ export function SiteHeader() {
   if (
     pathname.startsWith("/client") ||
     pathname.startsWith("/voucher") ||
+    pathname.startsWith("/fatura") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/redefinir-senha")
   ) {

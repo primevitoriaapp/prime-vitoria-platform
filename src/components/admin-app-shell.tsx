@@ -7,6 +7,7 @@ import { logoutAction } from "@/app/login/actions";
 import { BrandLogo } from "@/components/brand-logo";
 import { NewTripRequestAlert } from "@/components/new-trip-request-alert";
 import { ReceivablesAlertPill } from "@/components/receivables-alert-pill";
+import { PendingRequestsPill } from "@/components/pending-requests-pill";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
 
 const NAV = [
@@ -130,6 +131,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
               </nav>
               <div className="flex items-center gap-3">
                 {isAdmin || isFinanceiro ? <ReceivablesAlertPill /> : null}
+                {showFullNav ? <PendingRequestsPill tenantId={session?.tenantId ?? null} /> : null}
                 {showFullNav ? <NewTripRequestAlert tenantId={session?.tenantId ?? null} /> : null}
                 {session?.tenantId ? (
                   <span className="hidden text-xs text-prime-muted sm:inline" title="Tenant">

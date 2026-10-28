@@ -4,6 +4,7 @@ import { FinancialClosingsPanel } from "@/components/financial-closings-panel";
 import { FinanceConsole } from "@/components/finance-console";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { ReceivablesPanel } from "@/components/receivables-panel";
+import { ClientInvoicesAdminPanel } from "@/components/client-invoices-admin-panel";
 import { ErpWebhookInboxPanel } from "@/components/erp-webhook-inbox-panel";
 import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { ReconciliationIssuesPanel } from "@/components/reconciliation-issues-panel";
@@ -25,6 +26,9 @@ export default async function FinancePage() {
       <div className="card mb-6 text-sm text-slate-400">
         Contas a receber, contas a pagar, margem operacional e fechamento mensal.
       </div>
+      {session.role === "admin" || session.role === "financeiro" ? (
+        <ClientInvoicesAdminPanel devFallbackRole={session.role === "financeiro" ? "financeiro" : "admin"} />
+      ) : null}
       <FinanceConsole />
       {session.role === "admin" || session.role === "financeiro" ? (
         <InAppNotificationsPanel

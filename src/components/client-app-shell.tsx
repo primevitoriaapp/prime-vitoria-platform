@@ -8,13 +8,14 @@ import { ClientTripsPanel } from "@/components/client-trips-panel";
 import { ClientContractPortalButton } from "@/components/client-contract-portal-button";
 import { ClientPortalReadonlyNotice } from "@/components/client-portal-readonly-notice";
 import { ClientMonthDashboard } from "@/components/client-month-dashboard";
+import { ClientInvoicesPortalPanel } from "@/components/client-invoices-portal-panel";
 import { PrimeLogoMark } from "@/components/prime-logo-mark";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { isClientPortalReadOnly } from "@/lib/client/portal-config";
 import { logoutAction } from "@/app/login/actions";
 
 type ClientOption = { id: string; name: string; type?: string };
-type Tab = "resumo" | "pedir" | "corridas" | "equipe";
+type Tab = "resumo" | "pedir" | "corridas" | "faturas" | "equipe";
 
 type Props = {
   tenantId: string;
@@ -64,6 +65,7 @@ export function ClientAppShell({
         { id: "resumo", label: "Resumo" },
         { id: "pedir", label: "Pedir corrida" },
         { id: "corridas", label: "Corridas" },
+        { id: "faturas", label: "Faturas" },
         { id: "equipe", label: "Equipe" }
       ];
 
@@ -279,6 +281,8 @@ export function ClientAppShell({
                 reloadKey={reloadKey}
               />
             ) : null}
+
+            {tab === "faturas" && !isSolicitante ? <ClientInvoicesPortalPanel devFallbackRole={devRole} /> : null}
 
             {tab === "equipe" && !isSolicitante ? (
               <ClientTeamPortalSection
