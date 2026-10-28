@@ -3,7 +3,6 @@
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
-import { flightTrackerUrl } from "@/lib/trips/flight";
 import { StatusBadge } from "@/components/status-badge";
 import { TripLegLabelBadge } from "@/components/trip-leg-label-badge";
 import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
@@ -139,20 +138,6 @@ export function DriverActiveTripHero({
           Telefone:{" "}
           <a href={`tel:${trip.passenger_phone.trim()}`} className="font-medium text-prime-gold hover:underline">
             {trip.passenger_phone.trim()}
-          </a>
-        </p>
-      ) : null}
-
-      {trip.flight_number ? (
-        <p className="mt-1 text-sm text-prime-muted">
-          Voo <span className="font-semibold text-prime-text">{trip.flight_number}</span> ·{" "}
-          <a
-            href={flightTrackerUrl(trip.flight_number)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-prime-gold hover:underline"
-          >
-            ver horário e atraso
           </a>
         </p>
       ) : null}
