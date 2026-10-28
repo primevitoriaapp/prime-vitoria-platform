@@ -24,6 +24,7 @@ type AgendaTrip = TripRow & {
 import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { OperadorTripCreatePanel } from "@/components/operador-trip-create-panel";
 import { TripFocusHeader } from "@/components/trip-focus-header";
+import { TripWhatsappMessages } from "@/components/trip-whatsapp-messages";
 import { defaultAgendaRangeIso } from "@/lib/operations/agenda-default-range";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
@@ -164,6 +165,7 @@ export default async function AgendaPage({
             driverAmount={focusTrip?.driver_amount}
             margin={focusTrip?.margin}
           />
+          {showClaimBar ? <TripWhatsappMessages tripId={focusTripId} /> : null}
           <TripAgendaFocusPanel
             tripId={focusTripId}
             operationalStatus={focusTrip?.operational_status ?? "requested"}

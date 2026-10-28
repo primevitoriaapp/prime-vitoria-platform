@@ -1,14 +1,16 @@
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { TenantCompanySettingsForm } from "@/components/tenant-company-settings-form";
+import { MessageTemplatesEditor } from "@/components/message-templates-editor";
 
 export default function ConfiguracoesPage() {
   return (
     <div className="pb-10">
       <AdminPageHeader
         title="Configurações"
-        subtitle="Dados da empresa, logo e informações para documentos"
+        subtitle="Dados da empresa, documentos e mensagens de WhatsApp"
       />
       <TenantCompanySettingsForm />
+      <MessageTemplatesEditor />
     </div>
   );
 }
