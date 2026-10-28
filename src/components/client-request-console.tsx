@@ -324,7 +324,7 @@ export function ClientRequestConsole({
           <div className="flex justify-between gap-4"><dt className="text-prime-muted">Embarque</dt><dd className="text-right">{created.origin}</dd></div>
           <div className="flex justify-between gap-4"><dt className="text-prime-muted">Destino</dt><dd className="text-right">{created.destination}</dd></div>
         </dl>
-        <button type="button" onClick={reset} className="mt-5 w-full rounded-lg bg-[#111] px-4 py-3 font-semibold text-white hover:bg-black">
+        <button type="button" onClick={reset} className="mt-5 w-full rounded-lg bg-[#111] px-4 py-3 font-semibold text-[#fff] hover:bg-black">
           Pedir outra corrida
         </button>
       </div>
@@ -536,7 +536,7 @@ export function ClientRequestConsole({
       ) : null}
 
       <div className="grid gap-2">
-        <button type="submit" disabled={loading} className="w-full rounded-lg bg-[#111] px-4 py-3.5 text-base font-semibold text-white hover:bg-black disabled:opacity-60">
+        <button type="submit" disabled={loading} className="w-full rounded-lg bg-[#111] px-4 py-3.5 text-base font-semibold text-[#fff] hover:bg-black disabled:opacity-60">
           {loading ? "Enviando…" : "Solicitar corrida"}
         </button>
         {clientName ? (

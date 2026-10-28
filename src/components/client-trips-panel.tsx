@@ -130,7 +130,7 @@ export function ClientTripsPanel({
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
-                className={`rounded-md px-3 py-1.5 ${tab === id ? "bg-[#111] font-medium text-white" : "text-prime-muted hover:text-prime-text"}`}
+                className={`rounded-md px-3 py-1.5 ${tab === id ? "bg-[#111] font-medium text-[#fff]" : "text-prime-muted hover:text-prime-text"}`}
               >
                 {label}
               </button>

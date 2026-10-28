@@ -139,7 +139,7 @@ export function ClientAppShell({
     <div className="min-h-screen bg-prime-bg pb-24 text-prime-text sm:pb-10">
       <OperationalRealtimeBridge tenantId={tenantId} />
 
-      <header className="bg-[#111] text-white">
+      <header className="bg-[#111] text-[#fff]">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <PrimeLogoMark size={40} />
@@ -151,7 +151,7 @@ export function ClientAppShell({
           <div className="flex items-center gap-2">
             {mode === "admin" ? (
               <select
-                className="max-w-[11rem] rounded-md border border-white/20 bg-[#1d1d1d] px-2 py-1.5 text-xs text-white"
+                className="max-w-[11rem] rounded-md border border-white/20 bg-[#1d1d1d] px-2 py-1.5 text-xs text-[#fff]"
                 value={selectedClientId ?? ""}
                 onChange={(e) => onClientChange(e.target.value)}
                 aria-label="Cliente em visualização"
@@ -184,7 +184,7 @@ export function ClientAppShell({
               type="button"
               onClick={() => setTab(t.id)}
               className={`border-b-2 px-4 py-2.5 text-sm transition ${
-                tab === t.id ? "border-prime-gold font-semibold text-white" : "border-transparent text-white/60 hover:text-white"
+                tab === t.id ? "border-prime-gold font-semibold text-[#fff]" : "border-transparent text-white/60 hover:text-[#fff]"
               }`}
             >
               {t.label}
@@ -193,7 +193,7 @@ export function ClientAppShell({
         </nav>
       </header>
 
-      <main className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:px-6">
+      <div role="main" className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:px-6">
         {mode === "admin" ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
             Você está vendo o portal como o gestor da {clientName} vê.
@@ -222,7 +222,7 @@ export function ClientAppShell({
                   <button
                     type="button"
                     onClick={() => setTab("pedir")}
-                    className="w-full rounded-xl bg-[#111] px-4 py-3.5 text-base font-semibold text-white hover:bg-black sm:w-auto"
+                    className="w-full rounded-xl bg-[#111] px-4 py-3.5 text-base font-semibold text-[#fff] hover:bg-black sm:w-auto"
                   >
                     + Pedir corrida
                   </button>
@@ -289,7 +289,7 @@ export function ClientAppShell({
             ) : null}
           </>
         )}
-      </main>
+      </div>
 
       {/* Navegação de baixo no celular */}
       <nav

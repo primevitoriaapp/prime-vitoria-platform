@@ -23,4 +23,4 @@ export const AUTH_FIELD =
   "w-full rounded-lg border border-prime-input-border bg-white px-3.5 py-3 text-base text-prime-text outline-none focus:border-prime-gold focus:ring-2 focus:ring-prime-gold/25 disabled:opacity-60";
 
 export const AUTH_BUTTON =
-  "w-full rounded-lg bg-[#111] px-4 py-3 text-base font-semibold text-white hover:bg-black disabled:opacity-60";
+  "w-full rounded-lg bg-[#111] px-4 py-3 text-base font-semibold text-[#fff] hover:bg-black disabled:opacity-60";

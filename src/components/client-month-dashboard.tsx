@@ -26,7 +26,8 @@ function shiftMonth(key: string, delta: number) {
 
 function monthLabel(key: string) {
   const [y, m] = key.split("-").map(Number);
-  return `${MONTHS[m - 1]} de ${y}`;
+  const name = MONTHS[m - 1];
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)} de ${y}`;
 }
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -61,7 +62,7 @@ export function ClientMonthDashboard({ clientId, devFallbackRole = "cliente", re
           <button type="button" onClick={() => setMonth((m) => shiftMonth(m, -1))} className="rounded-md px-2 py-1 hover:bg-prime-bg" aria-label="Mês anterior">
             ‹
           </button>
-          <span className="min-w-[9.5rem] text-center font-medium capitalize">{monthLabel(month)}</span>
+          <span className="min-w-[9.5rem] text-center font-medium">{monthLabel(month)}</span>
           <button
             type="button"
             onClick={() => setMonth((m) => shiftMonth(m, 1))}
@@ -81,7 +82,7 @@ export function ClientMonthDashboard({ clientId, devFallbackRole = "cliente", re
       ) : (
         <>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl bg-[#111] p-4 text-white sm:col-span-2">
+            <div className="rounded-xl bg-[#111] p-4 text-[#fff] sm:col-span-2">
               <p className="text-xs uppercase tracking-wide text-white/60">{isCurrent ? "Valor até agora" : "Valor do mês"}</p>
               <p className="mt-1 font-prime-display text-3xl text-prime-gold">{brl(data.amount_completed)}</p>
               <p className="mt-1 text-xs text-white/50">Corridas concluídas{data.completed_without_amount ? ` · ${data.completed_without_amount} em fechamento` : ""}</p>

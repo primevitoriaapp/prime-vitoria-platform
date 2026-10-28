@@ -69,16 +69,16 @@ export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRol
 
   return (
     <div className="min-h-screen bg-prime-bg text-prime-text">
-      <header className="bg-[#111] text-white">
+      <header className="bg-[#111] text-[#fff]">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
-          <Link href="/client?aba=corridas" className="text-sm text-white/80 hover:text-white">
+          <Link href="/client?aba=corridas" className="text-sm text-white/80 hover:text-[#fff]">
             ← Voltar
           </Link>
           <PrimeLogoMark size={32} />
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-3xl gap-4 px-4 py-6">
+      <div role="main" className="mx-auto grid max-w-3xl gap-4 px-4 py-6">
         {loading ? (
           <div className="h-48 animate-pulse rounded-2xl border border-prime-border bg-white" />
         ) : error ? (
@@ -160,13 +160,13 @@ export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRol
 
             <a
               href={`/voucher/${trip.id}`}
-              className="rounded-xl bg-[#111] px-4 py-3 text-center text-sm font-semibold text-white hover:bg-black"
+              className="rounded-xl bg-[#111] px-4 py-3 text-center text-sm font-semibold text-[#fff] hover:bg-black"
             >
               Abrir voucher (PDF)
             </a>
           </>
         ) : null}
-      </main>
+      </div>
     </div>
   );
 }

@@ -21,7 +21,7 @@ export function LoginForm({ defaultNext }: { defaultNext?: string }) {
     <div className="flex min-h-screen flex-col items-center bg-[#111] px-5 py-10 sm:justify-center">
       <div className="mb-6 flex flex-col items-center text-center">
         <PrimeLogoMark size={72} />
-        <p className="mt-3 text-lg font-semibold tracking-tight text-white">Prime Vitória</p>
+        <p className="mt-3 text-lg font-semibold tracking-tight text-[#fff]">Prime Vitória</p>
         <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-prime-gold">Transporte executivo</p>
       </div>
 
