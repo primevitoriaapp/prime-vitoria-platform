@@ -16,7 +16,8 @@ function encodePoint(point: NavPoint): string | null {
     return `${point.lat},${point.lng}`;
   }
   const q = (point.label ?? "").trim();
-  return q ? encodeURIComponent(q) : null;
+  // URLSearchParams já codifica; codificar aqui deixava "%20" no endereço do mapa.
+  return q ? q : null;
 }
 
 function encodeWaypoint(point: NavPoint): string | null {
@@ -48,10 +49,12 @@ export function buildGoogleMapsDirectionsUrl(route: DriverNavigationRoute): stri
  * Waze deep link — navega para um ponto (embarque ou destino).
  */
 export function buildWazeNavigateUrl(point: NavPoint): string | null {
-  if (point.lat == null || point.lng == null || Number.isNaN(point.lat) || Number.isNaN(point.lng)) {
-    return null;
+  // Link universal: abre o app Waze no celular (ou o site, se não tiver o app).
+  if (point.lat != null && point.lng != null && !Number.isNaN(point.lat) && !Number.isNaN(point.lng)) {
+    return `https://waze.com/ul?ll=${point.lat},${point.lng}&navigate=yes`;
   }
-  return `waze://?ll=${point.lat},${point.lng}&navigate=yes`;
+  const q = (point.label ?? "").trim();
+  return q ? `https://waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes` : null;
 }
 
 /** Google Maps — direcções até um único ponto. */

@@ -21,9 +21,10 @@ test("buildGoogleMapsDirectionsUrl with origin, destination and waypoint", () =>
   assert.match(url, /waypoints=-20\.315%2C-40\.315/);
 });
 
-test("buildWazeNavigateUrl requires coordinates", () => {
-  assert.equal(buildWazeNavigateUrl({ lat: 1, lng: 2 }), "waze://?ll=1,2&navigate=yes");
-  assert.equal(buildWazeNavigateUrl({ label: "Vitória" }), null);
+test("buildWazeNavigateUrl usa coordenadas ou endereço", () => {
+  assert.equal(buildWazeNavigateUrl({ lat: 1, lng: 2 }), "https://waze.com/ul?ll=1,2&navigate=yes");
+  assert.equal(buildWazeNavigateUrl({ label: "Vitória" }), "https://waze.com/ul?q=Vit%C3%B3ria&navigate=yes");
+  assert.equal(buildWazeNavigateUrl({}), null);
 });
 
 test("buildAppleMapsNavigateUrl with origin and destination", () => {
