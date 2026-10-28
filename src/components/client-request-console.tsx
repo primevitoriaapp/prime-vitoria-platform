@@ -145,6 +145,8 @@ export function ClientRequestConsole({
   const [notes, setNotes] = useState("");
   const [untilTime, setUntilTime] = useState("");
   const [pacote, setPacote] = useState<"5h" | "10h" | "12h">("10h");
+  const [area, setArea] = useState<"local" | "fora">("local");
+  const [areaCities, setAreaCities] = useState("");
   const [flight, setFlight] = useState("");
   const [costCenterId, setCostCenterId] = useState("");
   const [estimateBusy, setEstimateBusy] = useState(false);
@@ -278,6 +280,8 @@ export function ClientRequestConsole({
     setFlight("");
     setUntilTime("");
     setPacote("10h");
+    setArea("local");
+    setAreaCities("");
     setPassengerName(defaultPassengerName);
     setPassengerPhone("");
     setPassengerCount(1);
@@ -326,6 +330,11 @@ export function ClientRequestConsole({
             [
               isDisposicao ? `Diária de ${pacote}.` : null,
               isDisposicao && untilTime ? `À disposição até ${untilTime}.` : null,
+              isDisposicao
+                ? area === "local"
+                  ? "Uso só na Grande Vitória."
+                  : `Vai para outras cidades: ${areaCities.trim() || "a informar"}.`
+                : null,
               notes.trim() || null
             ]
               .filter(Boolean)
@@ -400,7 +409,8 @@ export function ClientRequestConsole({
     if (serviceType !== "corporativo") {
       return (
         <p className="text-sm text-prime-muted">
-          O valor {isDisposicao ? "da diária" : "do transfer"} é confirmado pela central Prime junto com a confirmação da corrida.
+          Valor a ser informado pela central Prime de acordo com o serviço escolhido
+          {isDisposicao ? " (pacote de horas e cidades)" : " (trajeto)"}. Você recebe junto com a confirmação da corrida.
         </p>
       );
     }
@@ -508,6 +518,35 @@ export function ClientRequestConsole({
                   </button>
                 ))}
               </div>
+            </div>
+            <div className={`${LABEL} sm:col-span-2`}>
+              Onde o veículo vai rodar?
+              <div className="inline-flex rounded-lg border border-prime-border bg-prime-bg p-1">
+                {(
+                  [
+                    ["local", "Só na Grande Vitória"],
+                    ["fora", "Vai para outras cidades"]
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setArea(id)}
+                    className={`flex-1 rounded-md px-3 py-2 text-sm ${area === id ? "bg-[#111] font-semibold text-[#fff]" : "text-prime-muted"}`}
+                    aria-pressed={area === id}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {area === "fora" ? (
+                <input
+                  value={areaCities}
+                  onChange={(e) => setAreaCities(e.target.value)}
+                  placeholder="Quais cidades? Ex.: Guarapari e Linhares"
+                  className={FIELD}
+                />
+              ) : null}
             </div>
             <label className={LABEL}>
               Até que horas? (previsão, opcional)
