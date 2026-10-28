@@ -32,6 +32,8 @@ type PayableRow = {
   amount: number;
   due_date: string;
   status: string;
+  payout_stage?: string;
+  payout_stage_label?: string;
   days_until_due?: number;
   overdue?: boolean;
   due_label?: string;
@@ -346,7 +348,7 @@ export function DriverPayablesPanel({
                   <td className="py-2 pr-2">
                     {Number(row.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </td>
-                  <td className="py-2 pr-2">{row.status}</td>
+                  <td className="py-2 pr-2">{row.payout_stage_label ?? row.status}</td>
                   <td className="py-2 pr-2">
                     <input
                       type="file"
@@ -435,8 +437,16 @@ function DriverPayableTripCard({ row }: { row: PayableRow }) {
             <p className="mt-0.5 text-xs text-prime-muted">Agendada {row.trip.scheduled_label}</p>
           ) : null}
         </div>
-        <span className="shrink-0 rounded-full border border-prime-border px-2 py-0.5 text-[10px] uppercase text-prime-muted">
-          {row.status}
+        <span
+          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+            row.payout_stage === "pago"
+              ? "border-emerald-400 text-emerald-600"
+              : row.payout_stage === "liberado"
+                ? "border-prime-gold text-prime-gold"
+                : "border-prime-border text-prime-muted"
+          }`}
+        >
+          {row.payout_stage_label ?? row.status}
         </span>
       </div>
 

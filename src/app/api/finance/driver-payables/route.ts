@@ -6,6 +6,7 @@ import { assertCapability } from "@/lib/security/rbac";
 import { driverPayableForecast } from "@/lib/finance/driver-payable-forecast";
 import { enrichDriverPayablesWithTrips } from "@/lib/finance/enrich-driver-payables";
 import { parseDriverPayablesListQuery } from "@/lib/finance/driver-payables-query";
+import { payoutStage, payoutStageLabel } from "@/lib/finance/payout-stage";
 
 /** Lista contas a pagar (motorista) do tenant via viagem. */
 export async function GET(request: Request) {
@@ -54,10 +55,27 @@ export async function GET(request: Request) {
     const { data, error, count } = await query;
     if (error) return fail("DRIVER_PAYABLES_LIST_FAILED", error.message, 500);
 
-    const baseItems = (data ?? []).map((row) => ({
-      ...row,
-      ...driverPayableForecast({ due_date: row.due_date as string, status: row.status as string })
-    }));
+    // Situação do repasse depende do recebimento do cliente da mesma corrida.
+    const tripIds = [...new Set((data ?? []).map((r) => r.trip_id as string).filter(Boolean))];
+    const receivableByTrip = new Map<string, string>();
+    if (tripIds.length) {
+      const { data: recs } = await db
+        .from("accounts_receivable")
+        .select("trip_id, status")
+        .eq("tenant_id", tenantId)
+        .in("trip_id", tripIds);
+      for (const r of recs ?? []) receivableByTrip.set(r.trip_id as string, r.status as string);
+    }
+
+    const baseItems = (data ?? []).map((row) => {
+      const stage = payoutStage(row.status as string, receivableByTrip.get(row.trip_id as string));
+      return {
+        ...row,
+        ...driverPayableForecast({ due_date: row.due_date as string, status: row.status as string }),
+        payout_stage: stage,
+        payout_stage_label: payoutStageLabel(stage, row.paid_at as string | null)
+      };
+    });
     const items =
       session.role === "motorista"
         ? await enrichDriverPayablesWithTrips(baseItems)
