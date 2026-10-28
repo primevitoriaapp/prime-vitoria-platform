@@ -120,6 +120,19 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
           </div>
         </section>
 
+        {invoice.nf_number ? (
+          <p style={{ margin: "0 24px 12px", fontSize: 13 }}>
+            <b>Nota fiscal:</b> nº {invoice.nf_number}
+            {invoice.nf_url ? (
+              <>
+                {" · "}
+                <a href={invoice.nf_url} target="_blank" rel="noopener noreferrer" className="invoice-actions" style={{ color: "#111", fontWeight: 600 }}>
+                  abrir PDF
+                </a>
+              </>
+            ) : null}
+          </p>
+        ) : null}
         {invoice.boleto_url || invoice.boleto_line ? (
           <section style={{ margin: "0 24px 12px", padding: 14, border: `1px dashed ${GOLD}`, borderRadius: 8 }}>
             <div style={{ fontSize: 10, letterSpacing: ".08em", color: "#7A6A3A", textTransform: "uppercase" }}>Boleto</div>

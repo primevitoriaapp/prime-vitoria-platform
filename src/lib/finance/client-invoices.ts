@@ -22,6 +22,8 @@ export type ClientInvoiceRow = {
   status: "aberta" | "enviada" | "paga" | "cancelada";
   boleto_url: string | null;
   boleto_line: string | null;
+  nf_number: string | null;
+  nf_url: string | null;
   notes: string | null;
   sent_at: string | null;
   paid_at: string | null;
@@ -73,7 +75,7 @@ export async function generateClientInvoices(input: {
 
   const { data: clients } = await db
     .from("clients")
-    .select("id, name, trade_name, payment_term_days, billing_issuer")
+    .select("id, name, trade_name, payment_term_days, billing_issuer, invoiced")
     .in("id", [...byClient.keys()]);
   const clientById = new Map((clients ?? []).map((c) => [c.id as string, c]));
 
@@ -82,6 +84,17 @@ export async function generateClientInvoices(input: {
     const c = clientById.get(clientId);
     const name = ((c?.trade_name as string | null) || (c?.name as string | null) || "Cliente") as string;
     const summary = summarizeInvoice(list);
+    if (c && c.invoiced === false) {
+      results.push({
+        client_id: clientId,
+        client_name: name,
+        trip_count: summary.trip_count,
+        total_amount: summary.total_amount,
+        trips_without_amount: summary.trips_without_amount,
+        skipped: "Cliente não faturado (paga antes do serviço)"
+      });
+      continue;
+    }
     const due = invoiceDueDate(input.periodEnd, (c?.payment_term_days as number | null) ?? null);
 
     const { data: inv, error: invErr } = await db
@@ -172,12 +185,21 @@ export async function listInvoiceTrips(invoiceId: string) {
 export async function updateClientInvoiceStatus(
   tenantId: string,
   id: string,
-  patch: { status?: "aberta" | "enviada" | "paga" | "cancelada"; boleto_url?: string | null; boleto_line?: string | null; notes?: string | null }
+  patch: {
+    status?: "aberta" | "enviada" | "paga" | "cancelada";
+    boleto_url?: string | null;
+    boleto_line?: string | null;
+    nf_number?: string | null;
+    nf_url?: string | null;
+    notes?: string | null;
+  }
 ) {
   const update: Record<string, unknown> = {};
   if (patch.boleto_url !== undefined) update.boleto_url = patch.boleto_url;
   if (patch.boleto_line !== undefined) update.boleto_line = patch.boleto_line;
   if (patch.notes !== undefined) update.notes = patch.notes;
+  if (patch.nf_number !== undefined) update.nf_number = patch.nf_number;
+  if (patch.nf_url !== undefined) update.nf_url = patch.nf_url;
   if (patch.status) {
     update.status = patch.status;
     if (patch.status === "enviada") update.sent_at = new Date().toISOString();

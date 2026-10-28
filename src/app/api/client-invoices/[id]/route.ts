@@ -8,6 +8,8 @@ const patchSchema = z.object({
   status: z.enum(["aberta", "enviada", "paga", "cancelada"]).optional(),
   boleto_url: z.string().url().max(2000).nullable().optional(),
   boleto_line: z.string().max(120).nullable().optional(),
+  nf_number: z.string().max(40).nullable().optional(),
+  nf_url: z.string().url().max(2000).nullable().optional(),
   notes: z.string().max(1000).nullable().optional()
 });
 

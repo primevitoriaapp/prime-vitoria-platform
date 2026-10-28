@@ -20,6 +20,7 @@ export async function GET(request: Request) {
       .select("id, tenant_id, invoice_closing_day")
       .eq("active", true)
       .eq("invoice_auto_close", true)
+      .eq("invoiced", true)
       .limit(2000);
     if (error) return fail("CRON_CLIENTS_FAILED", error.message, 500);
 

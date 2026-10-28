@@ -37,6 +37,8 @@ export type ClientBillingTerms = {
   invoice_closing_day: number;
   /** Fecha a fatura sozinho no dia seguinte ao fechamento. */
   invoice_auto_close: boolean;
+  /** false = cliente paga antes do serviço (não entra em fatura). */
+  invoiced: boolean;
 };
 
 export const DEFAULT_WAIT_TOLERANCE_MINUTES = 15;
@@ -49,7 +51,8 @@ export function emptyClientBillingTerms(): ClientBillingTerms {
     payment_term_days: 30,
     billing_issuer: null,
     invoice_closing_day: 0,
-    invoice_auto_close: true
+    invoice_auto_close: true,
+    invoiced: true
   };
 }
 

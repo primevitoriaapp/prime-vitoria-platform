@@ -15,6 +15,8 @@ type Row = {
   total_amount: number;
   status: "aberta" | "enviada" | "paga" | "cancelada";
   boleto_url: string | null;
+  nf_number: string | null;
+  nf_url: string | null;
 };
 
 const brl = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -77,6 +79,13 @@ export function ClientInvoicesPortalPanel({ devFallbackRole = "cliente" }: { dev
                   <a href={`/api/client-invoices/${r.id}/csv`} className="font-medium text-prime-gold hover:underline">
                     Planilha (Excel)
                   </a>
+                  {r.nf_url ? (
+                    <a href={r.nf_url} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold hover:underline">
+                      Nota fiscal {r.nf_number ? `nº ${r.nf_number}` : ""}
+                    </a>
+                  ) : r.nf_number ? (
+                    <span className="text-prime-muted">NF nº {r.nf_number}</span>
+                  ) : null}
                   {r.boleto_url && r.status !== "paga" ? (
                     <a href={r.boleto_url} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold hover:underline">
                       2ª via do boleto

@@ -18,10 +18,12 @@ type FormState = {
   billing_issuer: string;
   invoice_closing_day: string;
   invoice_auto_close: boolean;
+  invoiced: boolean;
 };
 
 const TERM_PRESETS = [
   { value: "0", label: "À vista" },
+  { value: "10", label: "10 dias" },
   { value: "15", label: "15 dias" },
   { value: "20", label: "20 dias" },
   { value: "30", label: "30 dias" },
@@ -38,7 +40,8 @@ function toForm(d: Record<string, unknown> | undefined): FormState {
     payment_term_days: s(d?.payment_term_days, "30"),
     billing_issuer: s(d?.billing_issuer),
     invoice_closing_day: s(d?.invoice_closing_day, "0"),
-    invoice_auto_close: d?.invoice_auto_close !== false
+    invoice_auto_close: d?.invoice_auto_close !== false,
+    invoiced: d?.invoiced !== false
   };
 }
 
@@ -83,7 +86,8 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
       payment_term_days: numOrNull(form.payment_term_days) == null ? null : Math.round(numOrNull(form.payment_term_days)!),
       billing_issuer: form.billing_issuer || null,
       invoice_closing_day: Number(form.invoice_closing_day) || 0,
-      invoice_auto_close: form.invoice_auto_close
+      invoice_auto_close: form.invoice_auto_close,
+      invoiced: form.invoiced
     };
     const res = await fetchWithSupabaseSession(
       `/api/clients/${clientId}/billing-terms`,
@@ -196,6 +200,19 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
           </select>
         </label>
 
+        <label className="grid gap-1 text-sm sm:col-span-2">
+          <span>Forma de cobrança</span>
+          <select
+            id="invoiced"
+            className={PRIME_INPUT_CLASS}
+            value={form.invoiced ? "sim" : "nao"}
+            onChange={(e) => setForm((f) => ({ ...f, invoiced: e.target.value === "sim" }))}
+            disabled={off}
+          >
+            <option value="sim">Faturado — as corridas entram na fatura do período</option>
+            <option value="nao">Não faturado — o cliente paga antes do serviço</option>
+          </select>
+        </label>
         <label className="grid gap-1 text-sm">
           <span>Fechamento da fatura</span>
           <select

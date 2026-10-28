@@ -50,6 +50,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       `Corridas: ${invoice.trip_count} · Total: ${brl(invoice.total_amount)} · Vencimento: ${brDate(invoice.due_date)}.`,
       invoice.boleto_url ? `Boleto: ${invoice.boleto_url}` : null,
       invoice.boleto_line ? `Linha digitável: ${invoice.boleto_line}` : null,
+      invoice.nf_number ? `Nota fiscal nº ${invoice.nf_number}${invoice.nf_url ? `: ${invoice.nf_url}` : ""}` : null,
       `Relatório completo e 2ª via: ${link}`,
       "",
       "Prime Vitória — Transporte Executivo"
@@ -65,6 +66,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 <tr><td style="padding:4px 16px 4px 0;color:#666">Vencimento</td><td>${brDate(invoice.due_date)}</td></tr></table>
 ${invoice.boleto_url ? `<p><a href="${invoice.boleto_url}" style="background:#111;color:#C9A84C;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Abrir boleto</a></p>` : ""}
 ${invoice.boleto_line ? `<p style="font-family:monospace;font-size:13px">${invoice.boleto_line}</p>` : ""}
+${invoice.nf_number ? `<p>Nota fiscal nº ${invoice.nf_number}${invoice.nf_url ? ` · <a href="${invoice.nf_url}" style="color:#B8943E">abrir PDF</a>` : ""}</p>` : ""}
 <p><a href="${link}" style="color:#B8943E">Ver relatório completo e 2ª via no portal</a></p></div></div>`;
 
     const sent = await sendOperationalEmail({ to: [...recipients], subject: `Fatura ${num} — Prime Vitória`, text, html });

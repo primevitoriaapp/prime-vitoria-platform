@@ -18,6 +18,8 @@ type Row = {
   status: "aberta" | "enviada" | "paga" | "cancelada";
   boleto_url: string | null;
   boleto_line: string | null;
+  nf_number: string | null;
+  nf_url: string | null;
 };
 
 type Props = { devFallbackRole?: "admin" | "financeiro" };
@@ -118,6 +120,13 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
     void patch(r.id, { boleto_url: url ? url : null, boleto_line: line ? line : null }, "Boleto salvo na fatura.");
   }
 
+  function attachNf(r: Row) {
+    const number = window.prompt("Número da nota fiscal:", r.nf_number ?? "")?.trim();
+    if (number === undefined) return;
+    const url = window.prompt("Link do PDF da nota (opcional):", r.nf_url ?? "")?.trim();
+    void patch(r.id, { nf_number: number || null, nf_url: url ? url : null }, "Nota fiscal vinculada à fatura.");
+  }
+
   return (
     <section className="card mb-6 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -171,6 +180,7 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                   <td>
                     {INVOICE_STATUS_LABEL[r.status]}
                     {r.boleto_url || r.boleto_line ? " · boleto" : ""}
+                    {r.nf_number ? ` · NF ${r.nf_number}` : ""}
                   </td>
                   <td className="whitespace-nowrap text-right text-xs">
                     <a href={`/fatura/${r.id}`} target="_blank" rel="noopener noreferrer" className="text-prime-gold hover:underline">
@@ -181,6 +191,10 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                         {" · "}
                         <button type="button" disabled={busy} onClick={() => attachBoleto(r)} className="text-prime-gold hover:underline">
                           Boleto
+                        </button>
+                        {" · "}
+                        <button type="button" disabled={busy} onClick={() => attachNf(r)} className="text-prime-gold hover:underline">
+                          Nota fiscal
                         </button>
                         {" · "}
                         <button type="button" disabled={busy} onClick={() => void send(r.id)} className="text-prime-gold hover:underline">
