@@ -95,7 +95,7 @@ const SERVICE_GROUPS: {
     icon: "car",
     modes: [
       { id: "transfer_seda", label: "Só o trajeto", hint: "Leva de um ponto a outro (ex.: aeroporto → hotel)." },
-      { id: "diaria_seda", label: "À disposição", hint: "Carro e motorista ficam com o passageiro (diária de 10h / 110 km)." }
+      { id: "diaria_seda", label: "À disposição", hint: "Carro e motorista ficam com o passageiro pelo período escolhido." }
     ]
   },
   {
@@ -105,7 +105,7 @@ const SERVICE_GROUPS: {
     icon: "van",
     modes: [
       { id: "transfer_van", label: "Só o trajeto", hint: "Leva o grupo de um ponto a outro." },
-      { id: "diaria_van", label: "À disposição", hint: "Van e motorista à disposição (diária de 10h / 110 km)." }
+      { id: "diaria_van", label: "À disposição", hint: "Van e motorista ficam com o grupo pelo período escolhido." }
     ]
   },
   {
@@ -144,6 +144,7 @@ export function ClientRequestConsole({
   const [passengerCount, setPassengerCount] = useState(1);
   const [notes, setNotes] = useState("");
   const [untilTime, setUntilTime] = useState("");
+  const [pacote, setPacote] = useState<"5h" | "10h" | "12h">("10h");
   const [flight, setFlight] = useState("");
   const [costCenterId, setCostCenterId] = useState("");
   const [estimateBusy, setEstimateBusy] = useState(false);
@@ -276,6 +277,7 @@ export function ClientRequestConsole({
     setNotes("");
     setFlight("");
     setUntilTime("");
+    setPacote("10h");
     setPassengerName(defaultPassengerName);
     setPassengerPhone("");
     setPassengerCount(1);
@@ -321,7 +323,11 @@ export function ClientRequestConsole({
           passenger_phone: passengerPhone || undefined,
           passenger_count: passengerCount,
           notes:
-            [isDisposicao && untilTime ? `À disposição até ${untilTime}.` : null, notes.trim() || null]
+            [
+              isDisposicao ? `Diária de ${pacote}.` : null,
+              isDisposicao && untilTime ? `À disposição até ${untilTime}.` : null,
+              notes.trim() || null
+            ]
               .filter(Boolean)
               .join(" ") || undefined,
           flight_number: normalizeFlightNumber(flight) ?? undefined,
@@ -390,6 +396,14 @@ export function ClientRequestConsole({
 
   const estimateBox = (() => {
     if (!serviceType) return null;
+    // Transfer e diária: valor combinado com a central (varia por trajeto e pacote).
+    if (serviceType !== "corporativo") {
+      return (
+        <p className="text-sm text-prime-muted">
+          O valor {isDisposicao ? "da diária" : "do transfer"} é confirmado pela central Prime junto com a confirmação da corrida.
+        </p>
+      );
+    }
     if (estimateBusy) return <p className="text-sm text-prime-muted">Calculando…</p>;
     if (!hasCoords) {
       return <p className="text-sm text-prime-muted">Escolha embarque e destino nas sugestões do mapa para ver o valor estimado.</p>;
@@ -478,10 +492,28 @@ export function ClientRequestConsole({
           </label>
         </div>
         {isDisposicao ? (
-          <label className={LABEL}>
-            Até que horas vai precisar do veículo? (previsão)
-            <input type="time" value={untilTime} onChange={(e) => setUntilTime(e.target.value)} className={FIELD} />
-          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className={LABEL}>
+              Pacote
+              <div className="inline-flex rounded-lg border border-prime-border bg-prime-bg p-1">
+                {(["5h", "10h", "12h"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPacote(p)}
+                    className={`flex-1 rounded-md px-3 py-2 text-sm ${pacote === p ? "bg-[#111] font-semibold text-[#fff]" : "text-prime-muted"}`}
+                    aria-pressed={pacote === p}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className={LABEL}>
+              Até que horas? (previsão, opcional)
+              <input type="time" value={untilTime} onChange={(e) => setUntilTime(e.target.value)} className={FIELD} />
+            </label>
+          </div>
         ) : null}
         {scheduledIso ? (
           <p className="text-xs text-prime-muted">Embarque em {formatBrDateTime(scheduledIso)} (horário de Brasília).</p>

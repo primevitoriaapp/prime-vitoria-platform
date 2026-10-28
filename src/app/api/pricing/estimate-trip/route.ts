@@ -97,6 +97,10 @@ export async function POST(request: Request) {
     );
 
     if (isClientPortal) {
+      // Portal: só o corporativo (por km) mostra estimativa; transfer e diária a central confirma.
+      if (clientRule.charge_type !== "per_km") {
+        return ok({ service_type: uiServiceType, has_rule: false, estimate: null });
+      }
       return ok({
         service_type: uiServiceType,
         has_rule: true,
