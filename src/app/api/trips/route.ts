@@ -310,7 +310,6 @@ export async function POST(request: Request) {
           passenger_count: passengerCount,
           notes: body.notes ?? null,
           flight_number: normalizeFlightNumber(body.flight_number),
-        flight_number: normalizeFlightNumber(body.flight_number),
           client_amount: clientAmount,
           driver_amount: driverAmount,
           margin,
