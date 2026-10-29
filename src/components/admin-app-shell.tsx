@@ -8,12 +8,14 @@ import { BrandLogo } from "@/components/brand-logo";
 import { NewTripRequestAlert } from "@/components/new-trip-request-alert";
 import { ReceivablesAlertPill } from "@/components/receivables-alert-pill";
 import { PendingRequestsPill } from "@/components/pending-requests-pill";
+import { NotificationsBell } from "@/components/notifications-bell";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "▣" },
   { href: "/ao-vivo", label: "Ao vivo", icon: "◍" },
   { href: "/dispatch", label: "Despacho", icon: "◎" },
+  { href: "/agendamentos", label: "Agendamentos", icon: "☰" },
   { href: "/agenda", label: "Agenda", icon: "◷" },
   { href: "/whatsapp", label: "WhatsApp", icon: "✆" },
   { href: "/drivers", label: "Motoristas", icon: "◉" },
@@ -62,6 +64,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
 
   const isAdmin = session?.role === "admin";
   const isFinanceiro = session?.role === "financeiro";
+  const isOperador = session?.role === "operador";
   const showFullNav = session?.role === "admin" || session?.role === "operador";
 
   const visibleNav = showFullNav
@@ -84,7 +87,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
               Operação
             </p>
             {visibleNav.map((item) => (
-              <Link key={item.href} href={item.href} className={navClass(pathname.startsWith(item.href))}>
+              <Link key={item.href} href={item.href} className={navClass(isActivePath(pathname, item.href))}>
                 <span className="w-5 text-center text-xs opacity-70" aria-hidden>
                   {item.icon}
                 </span>
@@ -95,7 +98,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
           <div className="space-y-1 border-t border-white/10 px-3 py-4">
             {isAdmin
               ? ADMIN_EXTRA.map((item) => (
-                  <Link key={item.href} href={item.href} className={navClass(pathname.startsWith(item.href))}>
+                  <Link key={item.href} href={item.href} className={navClass(isActivePath(pathname, item.href))}>
                     {item.label}
                   </Link>
                 ))
@@ -123,7 +126,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     className={`shrink-0 rounded-md px-2 py-1 text-xs ${
-                      pathname.startsWith(item.href)
+                      isActivePath(pathname, item.href)
                         ? "bg-prime-gold/15 font-medium text-prime-gold"
                         : "text-prime-muted"
                     }`}
@@ -136,10 +139,11 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
                 {isAdmin || isFinanceiro ? <ReceivablesAlertPill /> : null}
                 {showFullNav ? <PendingRequestsPill tenantId={session?.tenantId ?? null} /> : null}
                 {showFullNav ? <NewTripRequestAlert tenantId={session?.tenantId ?? null} /> : null}
-                {session?.tenantId ? (
-                  <span className="hidden text-xs text-prime-muted sm:inline" title="Tenant">
-                    {session.tenantId.slice(0, 8)}…
-                  </span>
+                {isAdmin || isFinanceiro || isOperador ? (
+                  <NotificationsBell
+                    tenantId={session?.tenantId ?? null}
+                    role={isAdmin ? "admin" : isFinanceiro ? "financeiro" : "operador"}
+                  />
                 ) : null}
                 <span className="rounded-full border border-prime-border bg-prime-bg px-3 py-1 text-xs text-prime-text">
                   {session ? papelUsuarioPt(session.role) : "…"}
@@ -174,4 +178,9 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+function isActivePath(pathname: string | null, href: string): boolean {
+  if (!pathname) return false;
+  return pathname === href || pathname.startsWith(`${href}/`);
 }

@@ -1,105 +1,23 @@
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin-page-header";
-import { KpiCard } from "@/components/kpi-card";
-import { formatBrDateTime } from "@/lib/dates/br-date";
 import { LiveMap } from "@/components/live-map";
 import { OperationsReportExport } from "@/components/operations-report-export";
-import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
-import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
-import type { SessionContext } from "@/lib/domain/types";
+import { DashboardOverview } from "@/components/dashboard-overview";
 import { can } from "@/lib/security/rbac";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
-import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
-
-function fmtMoney(n: number) {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-async function getData() {
-  const response = await fetchInternalApi("/api/reports/operations");
-  if (!response.ok) {
-    return { totalTrips: 0, completedTrips: 0, activeDrivers: 0, monthRevenue: 0, receivable: 0 };
-  }
-  const payload = (await response.json().catch(() => null)) as { data?: unknown } | null;
-  return (payload?.data ?? { totalTrips: 0, completedTrips: 0, activeDrivers: 0, monthRevenue: 0, receivable: 0 }) as {
-    totalTrips: number;
-    completedTrips: number;
-    activeDrivers: number;
-    monthRevenue: number;
-    receivable: number;
-  };
-}
-
-type AuditRow = {
-  id: number;
-  action: string;
-  entity_type: string;
-  entity_id: string | null;
-  created_at: string;
-};
-
-async function getRecentAudit(session: SessionContext): Promise<AuditRow[]> {
-  if (!can(session, "trip.read")) return [];
-  const response = await fetchInternalApi("/api/audit-events?pageSize=8");
-  if (!response.ok) return [];
-  const payload = (await response.json().catch(() => null)) as { data?: { items?: AuditRow[] } } | null;
-  return (payload?.data?.items ?? []) as AuditRow[];
-}
 
 export default async function DashboardPage() {
   const session = await getSessionContext();
   const realtimeTenantId =
     session.role === "guest" || session.userId === "anonymous" ? null : (session.tenantId ?? DEFAULT_TENANT_ID);
-
-  const data = await getData();
-  const auditItems = await getRecentAudit(session);
+  const showMoney = session.role === "admin" || can(session, "finance.read");
 
   return (
     <>
-      <OperationalRealtimeBridge tenantId={realtimeTenantId} />
-      <AdminPageHeader title="Visão geral" subtitle="Painel operacional em tempo real" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <KpiCard label="Corridas" value={data.totalTrips} />
-        <KpiCard label="Finalizadas" value={data.completedTrips} />
-        <KpiCard label="Motoristas ativos" value={data.activeDrivers} />
-        <KpiCard label="Receita do mês" value={fmtMoney(data.monthRevenue ?? 0)} hint="Corridas finalizadas no mês" />
-        <KpiCard label="A receber" value={fmtMoney(data.receivable ?? 0)} hint="Finalizadas com cobrança pendente" />
-      </div>
-      {session.role === "admin" || session.role === "financeiro" ? (
-        <InAppNotificationsPanel
-          tenantId={realtimeTenantId}
-          devFallbackRole={session.role === "financeiro" ? "financeiro" : "admin"}
-          compact
-        />
-      ) : null}
-      {auditItems.length > 0 ? (
-        <section className="card mt-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">Auditoria recente</h2>
-            <Link href="/audit" className="text-sm font-medium text-prime-gold hover:underline">
-              Ver tudo
-            </Link>
-          </div>
-          <ul className="mt-3 divide-y divide-prime-input-border text-sm">
-            {auditItems.map((row) => (
-              <li key={row.id} className="flex flex-wrap gap-2 py-2 text-prime-text">
-                <span className="font-mono text-xs text-prime-muted">{formatBrDateTime(row.created_at)}</span>
-                <span className="font-medium text-prime-gold">{row.action}</span>
-                <span>
-                  {row.entity_type}
-                  {row.entity_id ? ` · ${row.entity_id.slice(0, 8)}…` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {can(session, "report.read") ? (
-        <OperationsReportExport
-          devFallbackRole={session.role === "financeiro" ? "financeiro" : session.role === "operador" ? "operador" : "admin"}
-        />
-      ) : null}
+      <AdminPageHeader title="Visão geral" subtitle="Como está a operação agora e no período escolhido" />
+      <DashboardOverview tenantId={realtimeTenantId} showMoney={showMoney} />
+
       <div className="mb-3 mt-8 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Motoristas agora</h2>
         <Link href="/ao-vivo" className="text-sm font-medium text-prime-gold hover:underline">
@@ -107,6 +25,14 @@ export default async function DashboardPage() {
         </Link>
       </div>
       <LiveMap tenantId={realtimeTenantId} />
+
+      {can(session, "report.read") ? (
+        <div className="mt-8">
+          <OperationsReportExport
+            devFallbackRole={session.role === "financeiro" ? "financeiro" : session.role === "operador" ? "operador" : "admin"}
+          />
+        </div>
+      ) : null}
     </>
   );
 }
