@@ -27,7 +27,8 @@ const NAV = [
   { href: "/clients", label: "Clientes", icon: "▦" },
   { href: "/clients/relatorio", label: "Relatório por cliente", icon: "▧" },
   { href: "/finance", label: "Financeiro", icon: "◈" },
-  { href: "/contas-a-pagar", label: "Contas a pagar", icon: "◆" }
+  { href: "/contas-a-pagar", label: "Contas a pagar", icon: "◆" },
+  { href: "/conciliacao", label: "Conciliação bancária", icon: "⇄" }
 ] as const;
 
 const ADMIN_EXTRA = [
@@ -77,7 +78,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
   const visibleNav = showFullNav
     ? NAV
     : isFinanceiro
-      ? NAV.filter((n) => ["/finance", "/dashboard", "/clients/relatorio", "/contas-a-pagar"].includes(n.href))
+      ? NAV.filter((n) => ["/finance", "/dashboard", "/clients/relatorio", "/contas-a-pagar", "/conciliacao"].includes(n.href))
       : NAV;
 
   return (
