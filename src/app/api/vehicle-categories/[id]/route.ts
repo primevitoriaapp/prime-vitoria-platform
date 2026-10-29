@@ -10,7 +10,8 @@ const patchSchema = z.object({
   passengers: z.coerce.number().int().min(1).max(80).optional(),
   kind: z.enum(["carro", "van", "onibus"]).optional(),
   sort: z.coerce.number().int().min(0).max(9999).optional(),
-  active: z.boolean().optional()
+  active: z.boolean().optional(),
+  allows_km: z.boolean().optional()
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -22,6 +23,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = patchSchema.parse(await request.json());
     const { data, error } = await db.from("vehicle_categories").update(body).eq("id", id).eq("tenant_id", tenantId).select("*").single();
     if (error) return fail("CATEGORY_UPDATE_FAILED", error.message, 500);
+    // Desligou o km da categoria: desliga o km dela em todas as empresas (valores ficam guardados).
+    if (body.allows_km === false) {
+      await db.from("client_category_prices").update({ enabled: false }).eq("category_id", id).in("service", ["km_b1", "km_b2"]);
+    }
     return ok(data);
   } catch (error) {
     return mapApiError(error);

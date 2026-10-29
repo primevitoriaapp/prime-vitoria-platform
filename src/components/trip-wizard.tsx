@@ -13,7 +13,7 @@ import { PRESENTATION_OPTIONS, SERVICE_EXTRAS, presentationAtIso, serviceExtrasL
 import { SERVICE_MODE_LABEL, legacyServiceType, type CategoryKind, type ServiceMode } from "@/lib/pricing/category-catalog";
 
 type Client = { id: string; name: string; trade_name?: string | null; type: string; document?: string | null; phone?: string | null; whatsapp?: string | null; email?: string | null };
-type Category = { id: string; name: string; description: string | null; passengers: number; kind: CategoryKind; photo_url: string | null };
+type Category = { id: string; name: string; description: string | null; passengers: number; kind: CategoryKind; photo_url: string | null; allows_km?: boolean };
 type PriceRow = { category_id: string; service: string; enabled: boolean; client_price: number | null; partner_price: number | null };
 
 const STEPS = ["Cliente", "Data e hora", "Veículo", "Detalhes", "Resumo"] as const;
@@ -520,7 +520,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               <div className="space-y-2">
                 <p className="text-sm font-semibold">Tipo de serviço</p>
                 <div className="flex flex-wrap gap-2">
-                  {ALL_MODES.map((m) => {
+                  {ALL_MODES.filter((m) => m !== "km" || category.allows_km).map((m) => {
                     const released = enabledFor(category.id).includes(m);
                     return (
                       <button

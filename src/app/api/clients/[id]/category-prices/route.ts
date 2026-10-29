@@ -7,7 +7,9 @@ import { getClientCategoryPrices, saveClientCategoryPrices } from "@/lib/pricing
 
 const money = z.union([z.number(), z.string(), z.null()]).transform((v) => {
   if (v === null || v === "") return null;
-  const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
+  const t = String(v).trim();
+  // "1.234,50" → 1234.5 ; "3,00" → 3 ; "3.5" → 3.5
+  const n = typeof v === "number" ? v : Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t);
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
 });
 
@@ -46,7 +48,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const g = await guard(id, true);
     if ("denied" in g) return g.denied;
-    const rows = z.array(rowSchema).max(1000).parse(await request.json());
+    const parsed = z.array(rowSchema).max(1000).parse(await request.json());
+    // Regra da Prime: só categoria marcada "cobra por km" pode ter km ligado.
+    const { data: cats } = await db.from("vehicle_categories").select("id, allows_km").eq("tenant_id", g.tenantId);
+    const kmOk = new Set((cats ?? []).filter((c) => c.allows_km).map((c) => c.id as string));
+    const rows = parsed.map((r) =>
+      (r.service === "km_b1" || r.service === "km_b2") && !kmOk.has(r.category_id) ? { ...r, enabled: false } : r
+    );
     await saveClientCategoryPrices(g.tenantId, id, rows);
     return ok(await getClientCategoryPrices(id));
   } catch (error) {

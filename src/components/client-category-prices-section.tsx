@@ -3,11 +3,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CATEGORY_SERVICES, type CategoryService } from "@/lib/pricing/category-catalog";
 
-type Category = { id: string; name: string; passengers: number; photo_url: string | null; active: boolean };
+type Category = { id: string; name: string; passengers: number; photo_url: string | null; active: boolean; allows_km?: boolean };
 type Cell = { category_id: string; service: CategoryService; enabled: boolean; client_price: string; partner_price: string };
 
 const key = (c: string, s: string) => `${c}:${s}`;
-const toText = (n: number | null | undefined) => (n == null ? "" : String(n).replace(".", ","));
+const toText = (n: number | null | undefined) => (n == null ? "" : Number(n).toFixed(2).replace(".", ","));
+/** "3" → "3,00"; "3,5" → "3,50"; "1.234,5" → "1234,50"; vazio continua vazio. */
+const moneyText = (raw: string) => {
+  const t = raw.trim();
+  if (!t) return "";
+  const n = Number(t.replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : t;
+};
 
 /** Cadastro da empresa → veículos liberados e preços por serviço (tudo editável; vazio = a combinar). */
 export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: string; disabled?: boolean }) {
@@ -110,6 +117,7 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
                   <span className="block font-medium">{c.name}</span>
                   <span className="text-xs text-prime-muted">
                     {c.passengers} lugares · {n > 0 ? `${n} serviço(s) liberado(s)` : "não liberado"}
+                    {c.allows_km ? " · cobra por km" : " · só transfer e diárias"}
                   </span>
                 </span>
                 <span className="text-prime-muted">{isOpen ? "▲" : "▼"}</span>
@@ -126,7 +134,7 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
                       </tr>
                     </thead>
                     <tbody>
-                      {CATEGORY_SERVICES.map((s) => {
+                      {CATEGORY_SERVICES.filter((s) => c.allows_km || (s.id !== "km_b1" && s.id !== "km_b2")).map((s) => {
                         const v = cell(c.id, s.id);
                         return (
                           <tr key={s.id} className="border-t border-prime-border">
@@ -143,24 +151,32 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
                               <span className="block text-xs text-prime-muted">{s.unit}</span>
                             </td>
                             <td className="py-2 pr-2">
-                              <input
-                                inputMode="decimal"
-                                className={input}
-                                placeholder="a combinar"
-                                value={v.client_price}
-                                disabled={disabled || busy}
-                                onChange={(e) => setCell(c.id, s.id, { client_price: e.target.value })}
-                              />
+                              <div className="relative">
+                                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-prime-muted">R$</span>
+                                <input
+                                  inputMode="decimal"
+                                  className={`${input} pl-8 text-right`}
+                                  placeholder="a combinar"
+                                  value={v.client_price}
+                                  disabled={disabled || busy}
+                                  onChange={(e) => setCell(c.id, s.id, { client_price: e.target.value.replace(/[^0-9.,]/g, "") })}
+                                  onBlur={(e) => setCell(c.id, s.id, { client_price: moneyText(e.target.value) })}
+                                />
+                              </div>
                             </td>
                             <td className="py-2">
-                              <input
-                                inputMode="decimal"
-                                className={input}
-                                placeholder="a combinar"
-                                value={v.partner_price}
-                                disabled={disabled || busy}
-                                onChange={(e) => setCell(c.id, s.id, { partner_price: e.target.value })}
-                              />
+                              <div className="relative">
+                                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-prime-muted">R$</span>
+                                <input
+                                  inputMode="decimal"
+                                  className={`${input} pl-8 text-right`}
+                                  placeholder="a combinar"
+                                  value={v.partner_price}
+                                  disabled={disabled || busy}
+                                  onChange={(e) => setCell(c.id, s.id, { partner_price: e.target.value.replace(/[^0-9.,]/g, "") })}
+                                  onBlur={(e) => setCell(c.id, s.id, { partner_price: moneyText(e.target.value) })}
+                                />
+                              </div>
                             </td>
                           </tr>
                         );

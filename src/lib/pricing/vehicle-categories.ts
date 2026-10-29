@@ -11,6 +11,7 @@ export type VehicleCategory = {
   photo_path: string | null;
   sort: number;
   active: boolean;
+  allows_km?: boolean;
 };
 
 export async function listVehicleCategories(tenantId: string, includeInactive = false): Promise<VehicleCategory[]> {

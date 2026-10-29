@@ -12,6 +12,7 @@ type Category = {
   sort: number;
   active: boolean;
   photo_url: string | null;
+  allows_km?: boolean;
 };
 
 const KIND_LABEL = { carro: "Carro", van: "Van", onibus: "Ônibus" } as const;
@@ -103,13 +104,19 @@ function CategoryCard({ c, onChanged }: { c: Category; onChanged: () => void }) 
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Descrição curta (aparece para o cliente)"
           />
+          <label className="flex items-center gap-2 text-sm sm:col-span-3">
+            <input type="checkbox" checked={Boolean(form.allows_km)} onChange={(e) => setForm({ ...form, allows_km: e.target.checked })} />
+            Pode ser cobrada por km (bandeira 1 e 2). Desmarcado = só transfer e diárias.
+          </label>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
         <button
           type="button"
           disabled={busy}
-          onClick={() => void save({ name: form.name, passengers: form.passengers, kind: form.kind, description: form.description || null })}
+          onClick={() =>
+            void save({ name: form.name, passengers: form.passengers, kind: form.kind, description: form.description || null, allows_km: Boolean(form.allows_km) })
+          }
           className="btn-primary disabled:opacity-50"
         >
           Salvar
