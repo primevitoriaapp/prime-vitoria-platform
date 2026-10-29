@@ -21,6 +21,7 @@ const NAV = [
   { href: "/categorias", label: "Categorias", icon: "◇" },
   { href: "/vehicles", label: "Veículos", icon: "▤" },
   { href: "/clients", label: "Clientes", icon: "▦" },
+  { href: "/clients/relatorio", label: "Relatório por cliente", icon: "▧" },
   { href: "/finance", label: "Financeiro", icon: "◈" }
 ] as const;
 
@@ -70,7 +71,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
   const visibleNav = showFullNav
     ? NAV
     : isFinanceiro
-      ? NAV.filter((n) => n.href === "/finance" || n.href === "/dashboard")
+      ? NAV.filter((n) => n.href === "/finance" || n.href === "/dashboard" || n.href === "/clients/relatorio")
       : NAV;
 
   return (
@@ -78,7 +79,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-0 flex-1">
         <aside className="prime-sidebar hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-prime-sidebar md:flex">
           <div className="border-b border-white/10 px-4 py-5">
-            <Link href="/dashboard">
+            <Link href="/dashboard" aria-label="Voltar ao início">
               <BrandLogo variant="dark" />
             </Link>
           </div>
@@ -117,10 +118,10 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <header className="z-40 shrink-0 border-b border-prime-border bg-prime-card/95 backdrop-blur">
             <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
-              <div className="flex items-center gap-3 lg:hidden">
+              <Link href="/dashboard" className="flex items-center gap-3 md:hidden" aria-label="Voltar ao início">
                 <BrandLogo compact subtitle="OPERAÇÃO" variant="light" />
-              </div>
-              <nav className="flex flex-1 flex-wrap gap-1 overflow-x-auto lg:hidden" aria-label="Menu móvel">
+              </Link>
+              <nav className="flex flex-1 flex-wrap gap-1 overflow-x-auto md:hidden" aria-label="Menu móvel">
                 {visibleNav.slice(0, 5).map((item) => (
                   <Link
                     key={item.href}
@@ -182,5 +183,6 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
 
 function isActivePath(pathname: string | null, href: string): boolean {
   if (!pathname) return false;
+  if (href === "/clients" && pathname.startsWith("/clients/relatorio")) return false;
   return pathname === href || pathname.startsWith(`${href}/`);
 }

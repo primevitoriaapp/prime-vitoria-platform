@@ -1,6 +1,6 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { AdminPageHeader } from "@/components/admin-page-header";
-import { LiveMap } from "@/components/live-map";
 import { OperationsReportExport } from "@/components/operations-report-export";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { can } from "@/lib/security/rbac";
@@ -16,15 +16,27 @@ export default async function DashboardPage() {
   return (
     <>
       <AdminPageHeader title="Visão geral" subtitle="Como está a operação agora e no período escolhido" />
+      <nav className="mb-5 flex flex-wrap gap-2" aria-label="Atalhos">
+        <Link href={"/agenda?nova=1" as Route} className="btn-primary">
+          + Nova corrida
+        </Link>
+        {[
+          ["/agenda", "Agenda"],
+          ["/ao-vivo", "Motoristas ao vivo"],
+          ["/clients/relatorio", "Relatório por cliente"],
+          ["/finance", "Faturas"]
+        ].map(([href, label]) => (
+          <Link
+            key={href}
+            href={href as Route}
+            className="rounded-lg bg-white px-4 py-2 text-sm font-medium ring-1 ring-prime-border hover:ring-prime-gold"
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
       <DashboardOverview tenantId={realtimeTenantId} showMoney={showMoney} />
 
-      <div className="mb-3 mt-8 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Motoristas agora</h2>
-        <Link href="/ao-vivo" className="text-sm font-medium text-prime-gold hover:underline">
-          Abrir em tela cheia →
-        </Link>
-      </div>
-      <LiveMap tenantId={realtimeTenantId} />
 
       {can(session, "report.read") ? (
         <div className="mt-8">

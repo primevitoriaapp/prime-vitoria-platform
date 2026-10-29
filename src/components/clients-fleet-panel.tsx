@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import type { Route } from "next";
 import { BackButton } from "@/components/back-button";
 import { ClientCadastroForm, clientRowToForm } from "@/components/client-cadastro-form";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
@@ -163,7 +165,10 @@ export function ClientsFleetPanel({ initialClients }: Props) {
           <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
           Mostrar desativadas
         </label>
-        <button type="button" className="btn-primary ml-auto" onClick={() => setCreating(true)}>
+        <Link href={"/clients/relatorio" as Route} className="ml-auto rounded-lg px-3 py-2 text-sm ring-1 ring-prime-border hover:ring-prime-gold">
+          Relatório por cliente
+        </Link>
+        <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
           + Nova empresa
         </button>
       </div>
@@ -229,16 +234,21 @@ export function ClientsFleetPanel({ initialClients }: Props) {
                 </dl>
 
                 <div className="mt-auto flex items-center justify-between gap-2 border-t border-prime-border pt-3 text-sm">
-                  <button
-                    type="button"
-                    className="font-semibold text-prime-gold hover:underline"
-                    onClick={() => {
-                      setEditingId(client.id);
-                      setMessage(null);
-                    }}
-                  >
-                    Editar
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="font-semibold text-prime-gold hover:underline"
+                      onClick={() => {
+                        setEditingId(client.id);
+                        setMessage(null);
+                      }}
+                    >
+                      Editar
+                    </button>
+                    <Link href={`/clients/relatorio?cliente=${client.id}` as Route} className="font-semibold text-prime-gold hover:underline">
+                      Relatório
+                    </Link>
+                  </div>
                   <div className="flex items-center gap-3">
                     {inactive ? (
                       <button type="button" disabled={busy} className="text-emerald-700 hover:underline" onClick={() => void setActive(client, true)}>
