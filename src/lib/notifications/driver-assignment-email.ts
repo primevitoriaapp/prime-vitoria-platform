@@ -116,7 +116,7 @@ export async function emailDriverAssignment(
     <div style="font-size:11px;letter-spacing:.16em;color:#C9A84C">NOVA CORRIDA PARA VOCÊ</div>
   </div>
   <div style="background:#fff;padding:20px;border-radius:0 0 12px 12px">
-    <p style="margin:0 0 12px;font-size:15px;color:#111">Olá, ${escapeHtml(firstName)}! Você foi escalado para esta corrida:</p>
+    <p style="margin:0 0 12px;font-size:15px;color:#111">Olá, ${escapeHtml(firstName)}! Você foi indicado para o atendimento abaixo. Seguem as informações:</p>
     <table style="border-collapse:collapse;width:100%">${rowsHtml}</table>
     <p style="margin:20px 0 8px">
       <a href="${gcal}" style="display:inline-block;background:#111;color:#C9A84C;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:bold">Adicionar ao Google Agenda</a>
@@ -126,7 +126,7 @@ export async function emailDriverAssignment(
   </div>
 </div></body></html>`;
 
-  const text = [`Olá, ${firstName}! Você foi escalado para uma corrida Prime Vitória.`, `Data e horário: ${when}`, `Serviço: ${service}`, ...descriptionLines, `Adicionar ao Google Agenda: ${gcal}`].join("\n");
+  const text = [`Olá, ${firstName}! Você foi indicado para um atendimento Prime Vitória.`, `Data e horário: ${when}`, `Serviço: ${service}`, ...descriptionLines, `Adicionar ao Google Agenda: ${gcal}`].join("\n");
 
   const result = await sendOperationalEmail({
     to: email,

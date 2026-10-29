@@ -29,7 +29,11 @@ const SAMPLE = {
   cor: "preto",
   placa: "ABC1D23",
   observacoes: "Placa de recepção com o nome",
-  linha_valor_parceiro: "\n💰 Seu repasse: R$ 154,00"
+  linha_valor_parceiro: "\n💰 Seu repasse: R$ 154,00",
+  voo: "Voo LA3456",
+  apresentacao: "Chegar no local às 13:45",
+  servicos: "Placa com o nome, Água a bordo",
+  link_corrida: "https://prime-vitoria-web.vercel.app/driver?trip=…"
 };
 
 function key(e: string, a: string) {

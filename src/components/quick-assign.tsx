@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
 export type AssignDriver = {
@@ -45,16 +45,20 @@ export function QuickAssign({
   currentDriverId,
   drivers,
   onDone,
-  categoryId
+  categoryId,
+  inline = false
 }: {
   categoryId?: string | null;
+  /** Lista sempre aberta (tela da corrida), em vez do botão com balão. */
+  inline?: boolean;
   tripId: string;
   status: string;
   currentDriverId: string | null;
   drivers: AssignDriver[];
   onDone: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpen] = useState(false);
+  const open = inline || openState;
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -118,7 +122,8 @@ export function QuickAssign({
     .filter((d) => !q.trim() || [d.name, d.vehicle?.plate, d.vehicle?.model].filter(Boolean).some((v) => String(v).toLowerCase().includes(q.toLowerCase())));
 
   return (
-    <div ref={boxRef} className="relative">
+    <div ref={boxRef} className={inline ? "" : "relative"}>
+      {inline ? null : (
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -128,17 +133,24 @@ export function QuickAssign({
       >
         {isSwap ? "Trocar motorista" : "Definir motorista"}
       </button>
+      )}
       {open ? (
-        <div className="absolute right-0 z-30 mt-2 w-[min(360px,calc(100vw-32px))] rounded-2xl border border-prime-border bg-white p-3 shadow-xl">
+        <div
+          className={
+            inline
+              ? "w-full"
+              : "absolute right-0 z-30 mt-2 w-[min(360px,calc(100vw-32px))] rounded-2xl border border-prime-border bg-white p-3 shadow-xl"
+          }
+        >
           <input
-            autoFocus
+            autoFocus={!inline}
             className="prime-input mb-2 w-full text-sm"
             placeholder="Buscar motorista ou placa"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
           {error ? <p className="mb-2 rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-800">{error}</p> : null}
-          <ul className="max-h-72 space-y-1 overflow-y-auto">
+          <ul className={inline ? "grid max-h-[420px] gap-1 overflow-y-auto sm:grid-cols-2" : "max-h-72 space-y-1 overflow-y-auto"}>
             {list.length === 0 ? <li className="px-2 py-3 text-sm text-prime-muted">Nenhum motorista ativo.</li> : null}
             {list.map((d) => {
               const st = STATUS_TEXT[d.status ?? ""] ?? { label: d.status ?? "—", cls: "text-prime-muted" };
@@ -171,4 +183,43 @@ export function QuickAssign({
       ) : null}
     </div>
   );
+}
+
+
+/** Carrega os motoristas ativos para atribuir (livres primeiro). */
+export function useAssignDrivers(): { drivers: AssignDriver[]; reload: () => Promise<void> } {
+  const [drivers, setDrivers] = useState<AssignDriver[]>([]);
+  const reload = useCallback(async () => {
+    const res = await fetchWithSupabaseSession("/api/drivers", {}, "admin");
+    const json = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      data?: {
+        id: string;
+        full_name?: string | null;
+        profile_name?: string | null;
+        operational_status?: string | null;
+        employment_type?: string | null;
+        default_vehicle?: { id: string; model: string; plate: string } | null;
+        vehicle_category_ids?: string[] | null;
+      }[];
+    };
+    if (!res.ok || !json.success) return;
+    const order: Record<string, number> = { online: 0, deslocando: 1, no_local: 1, ocupado: 2, em_atendimento: 2, offline: 3 };
+    setDrivers(
+      (json.data ?? [])
+        .map((d) => ({
+          id: d.id,
+          name: d.profile_name ?? d.full_name ?? "Motorista",
+          status: d.operational_status ?? null,
+          employment: d.employment_type ?? null,
+          vehicle: d.default_vehicle ?? null,
+          categoryIds: d.vehicle_category_ids ?? []
+        }))
+        .sort((a, b) => (order[a.status ?? "offline"] ?? 3) - (order[b.status ?? "offline"] ?? 3) || a.name.localeCompare(b.name))
+    );
+  }, []);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+  return { drivers, reload };
 }

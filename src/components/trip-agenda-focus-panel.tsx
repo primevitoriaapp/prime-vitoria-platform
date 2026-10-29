@@ -34,6 +34,11 @@ export function TripAgendaFocusPanel({
     <div className="space-y-4">
       {showClaimBar ? <TripAmountsEditor tripId={tripId} /> : null}
       {showClaimBar ? (
+        <details className="rounded-2xl border border-prime-border bg-white shadow-prime-card">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
+            Mais ações da corrida: confirmar, oferecer a vários motoristas, mudar situação, cancelar
+          </summary>
+          <div className="border-t border-prime-border p-2">
         <TripOperationalWorkflowPanel
           tripId={tripId}
           operationalStatus={operationalStatus}
@@ -42,6 +47,8 @@ export function TripAgendaFocusPanel({
           assignedVehicle={assignedVehicle}
           devFallbackRole={dispatchRole}
         />
+          </div>
+        </details>
       ) : null}
       <TripAgendaOperationalStack
         tripId={tripId}

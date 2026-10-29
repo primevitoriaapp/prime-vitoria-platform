@@ -27,6 +27,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { BookingsBoard } from "@/components/bookings-board";
 import { TripWizard } from "@/components/trip-wizard";
 import { TripEditPanel } from "@/components/trip-edit-panel";
+import { TripAssignCard } from "@/components/trip-assign-card";
 export default async function AgendaPage({
   searchParams
 }: {
@@ -76,6 +77,7 @@ export default async function AgendaPage({
             driverAmount={focusTrip?.driver_amount}
             margin={focusTrip?.margin}
           />
+          {showClaimBar ? <TripAssignCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripEditPanel tripId={focusTripId} /> : null}
           <TripAgendaFocusPanel
             tripId={focusTripId}

@@ -5,6 +5,15 @@ import { loadEffectiveTemplates } from "@/lib/messages/template-db";
 import { presentationAtIso, serviceExtrasLabel } from "@/lib/trips/service-extras";
 import { normalizeWhatsappPhone, partnerValueLine, type MessageAudience, type TemplateVars } from "@/lib/messages/templates";
 
+/** Endereço público da plataforma (para links em mensagens). */
+export function publicAppUrl(): string {
+  const prod = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (prod) return `https://${prod.replace(/^https?:\/\//, "")}`;
+  const configured = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  if (configured && !configured.includes("localhost")) return configured.replace(/\/$/, "");
+  return "https://prime-vitoria-web.vercel.app";
+}
+
 function presentationLine(scheduledAt: string | null | undefined, minutes: number | null | undefined): string {
   if (!scheduledAt) return "";
   const at = presentationAtIso(scheduledAt, minutes);
@@ -68,6 +77,8 @@ export async function loadTripMessageContext(tenantId: string, tripId: string): 
     placa: vehicle?.plate ?? "",
     apresentacao: presentationLine(trip.scheduled_at as string, trip.presentation_minutes as number | null),
     servicos: serviceExtrasLabel(trip.service_extras as string[] | null),
+    voo: trip.flight_number ? `Voo ${String(trip.flight_number)}` : "",
+    link_corrida: `${publicAppUrl()}/driver?trip=${String(trip.id)}`,
     // Na O.S. as marcações e a chegada antecipada vão junto das observações, para o motorista não perder.
     observacoes: [
       presentationLine(trip.scheduled_at as string, trip.presentation_minutes as number | null),

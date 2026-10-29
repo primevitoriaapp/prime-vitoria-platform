@@ -32,6 +32,15 @@ export const AUDIENCE_LABEL: Record<MessageAudience, string> = {
 
 export const MESSAGE_EVENTS: readonly MessageEventDef[] = [
   {
+    id: "os_motorista",
+    label: "Atribuição ao motorista (ordem de serviço)",
+    when: "Quando a central define o motorista da corrida (vai também por e-mail, com convite de agenda).",
+    defaults: {
+      motorista:
+        "Olá, {nome}! 👋\nVocê foi indicado para o atendimento abaixo. Seguem as informações:\n\n*CORRIDA {numero}*\n📅 {data} às {horario}\n📍 Embarque: {origem}\n🏁 Destino: {destino}\n👤 Passageiro: {passageiro} {telefone_passageiro}\n✈️ {voo}\n📝 {observacoes}{linha_valor_parceiro}\n\n👉 Abrir a corrida no app: {link_corrida}\n\nQualquer dúvida, fale com a central Prime Vitória."
+    }
+  },
+  {
     id: "solicitacao_recebida",
     label: "Pedido recebido",
     when: "Quando o cliente pede uma corrida pelo portal.",
@@ -100,15 +109,6 @@ export const MESSAGE_EVENTS: readonly MessageEventDef[] = [
     }
   },
   {
-    id: "os_motorista",
-    label: "Ordem de serviço ao motorista",
-    when: "Quando a corrida é enviada ao motorista.",
-    defaults: {
-      motorista:
-        "*ORDEM DE SERVIÇO {numero}*\n📅 {data} às {horario}\n📍 Embarque: {origem}\n🏁 Destino: {destino}\n👤 Passageiro: {passageiro} {telefone_passageiro}\n📝 {observacoes}{linha_valor_parceiro}\nConfirme o recebimento respondendo OK."
-    }
-  },
-  {
     id: "novo_pedido",
     label: "Novo pedido (aviso para você)",
     when: "Quando entra um pedido pelo portal.",
@@ -134,6 +134,8 @@ export const TEMPLATE_VARIABLES: ReadonlyArray<{ key: string; label: string }> =
   { key: "cor", label: "Cor" },
   { key: "placa", label: "Placa" },
   { key: "apresentacao", label: "Horário que o motorista chega" },
+  { key: "voo", label: "Voo" },
+  { key: "link_corrida", label: "Link da corrida no app do motorista" },
   { key: "servicos", label: "Marcações (placa, água…)" },
   { key: "observacoes", label: "Observações" },
   { key: "linha_valor_parceiro", label: "Repasse (só parceiro)" }
@@ -143,15 +145,20 @@ export type TemplateVars = Partial<Record<string, string | null | undefined>>;
 
 /** Troca {variavel} pelo valor; variável vazia some sem deixar espaço duplo. */
 export function renderTemplate(body: string, vars: TemplateVars): string {
-  const out = body.replace(/\{([a-z_]+)\}/g, (_m, key: string) => {
-    const v = vars[key];
-    return v == null ? "" : String(v).trim();
-  });
-  return out
-    .split("\n")
-    .map((line) => line.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.;:])/g, "$1").trimEnd())
-    .join("\n")
-    .trim();
+  const lines: string[] = [];
+  for (const raw of body.split("\n")) {
+    let hadEmpty = false;
+    const line = raw.replace(/\{([a-z_]+)\}/g, (_m, key: string) => {
+      const v = vars[key];
+      const t = v == null ? "" : String(v).trim();
+      if (!t) hadEmpty = true;
+      return t;
+    });
+    // Linha que só tinha variável vazia (sobrou emoji ou rótulo solto): some inteira.
+    if (hadEmpty && !/[A-Za-z0-9À-ÿ]/.test(line.replace(/^[^:]*:\s*$/, ""))) continue;
+    lines.push(line.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.;:])/g, "$1").trimEnd());
+  }
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export function defaultTemplate(event: MessageEventId, audience: MessageAudience): string | null {
