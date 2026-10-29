@@ -15,7 +15,7 @@ export default function PedirPage() {
           PRIME <span className="text-[#C9A84C]">VITÓRIA</span>
         </p>
         <p className="text-[10px] tracking-[0.28em] text-[#C9A84C]">TRANSPORTE EXECUTIVO</p>
-        <h1 className="mx-auto mt-6 max-w-md text-2xl font-semibold leading-tight text-[#fff]">Peça seu orçamento</h1>
+        <h1 className="mx-auto mt-6 max-w-md text-2xl font-semibold leading-tight" style={{ color: "#fff" }}>Peça seu orçamento</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-[#fff]/70">Transfer, aeroporto, casamento, turismo e eventos. Respondemos rapidinho pelo WhatsApp.</p>
       </header>
       <div className="h-1 bg-[#C9A84C]" />
