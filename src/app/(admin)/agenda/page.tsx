@@ -30,7 +30,7 @@ import { TripEditPanel } from "@/components/trip-edit-panel";
 export default async function AgendaPage({
   searchParams
 }: {
-  searchParams: Promise<{ trip?: string; nova?: string }>;
+  searchParams: Promise<{ trip?: string; nova?: string; periodo?: string; grupo?: string }>;
 }) {
   const session = await getSessionContext();
   const sp = await searchParams;
@@ -123,7 +123,7 @@ export default async function AgendaPage({
           </div>
         </details>
       ) : null}
-      <BookingsBoard tenantId={realtimeTenantId} createHref={null} />
+      <BookingsBoard tenantId={realtimeTenantId} createHref={null} initialPeriod={sp.periodo} initialGroup={sp.grupo} />
     </>
   );
 }

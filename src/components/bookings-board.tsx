@@ -39,7 +39,7 @@ type Trip = {
   service_extras?: string[] | null;
 };
 
-type Props = { tenantId: string | null; createHref?: string | null };
+type Props = { tenantId: string | null; createHref?: string | null; initialPeriod?: string; initialGroup?: string };
 
 function brl(v: unknown): string | null {
   const n = Number(v);
@@ -52,9 +52,13 @@ function dayLabel(iso: string): string {
 }
 
 /** Tela Agendamentos: corridas do período, contadores por situação, busca e lista legível. */
-export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1" }: Props) {
-  const [period, setPeriod] = useState<BookingPeriod>("hoje");
-  const [group, setGroup] = useState<BookingGroup | "todas">("todas");
+export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initialPeriod, initialGroup }: Props) {
+  const [period, setPeriod] = useState<BookingPeriod>(
+    BOOKING_PERIODS.some((p) => p.id === initialPeriod) ? (initialPeriod as BookingPeriod) : "hoje"
+  );
+  const [group, setGroup] = useState<BookingGroup | "todas">(
+    BOOKING_GROUPS.some((g) => g.id === initialGroup) ? (initialGroup as BookingGroup) : "todas"
+  );
   const [search, setSearch] = useState("");
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);

@@ -213,6 +213,22 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
       .some((v) => String(v).toLowerCase().includes(q));
   });
 
+  if (fichaDriverId) {
+    return (
+      <>
+        <FeedbackBanner feedback={feedback} />
+        <DriverFichaPanel
+          driverId={fichaDriverId}
+          onClose={() => {
+            setFichaDriverId(null);
+            window.scrollTo({ top: 0 });
+          }}
+          onSaved={() => void reloadDrivers()}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
@@ -335,6 +351,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                       onClick={() => {
                         setFichaDriverId(driver.id);
                         setFeedback(null);
+                        window.scrollTo({ top: 0 });
                       }}
                     >
                       Editar ficha
@@ -350,13 +367,6 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
         )}
       </section>
 
-      {fichaDriverId ? (
-        <DriverFichaPanel
-          driverId={fichaDriverId}
-          onClose={() => setFichaDriverId(null)}
-          onSaved={() => void reloadDrivers()}
-        />
-      ) : null}
     </>
   );
 }

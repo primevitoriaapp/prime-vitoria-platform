@@ -36,6 +36,7 @@ export default async function FinancePage() {
           devFallbackRole={session.role === "financeiro" ? "financeiro" : "admin"}
         />
       ) : null}
+      <div id="recebiveis" className="scroll-mt-6" />
       <ReceivablesPanel
         tenantId={realtimeTenantId}
         devFallbackRole={session.role === "operador" ? "operador" : "financeiro"}
