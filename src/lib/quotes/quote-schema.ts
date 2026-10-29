@@ -9,7 +9,9 @@ const money = z.union([z.number(), z.string(), z.null()]).transform((v) => {
 
 export const quoteItemSchema = z.object({
   vehicle_category_id: z.string().uuid().nullable().optional(),
-  service_mode: z.enum(["transfer", "diaria_5h", "diaria_10h", "diaria_12h", "km", "outro"]).default("transfer"),
+  service_mode: z.enum(["transfer", "diaria", "diaria_5h", "diaria_10h", "diaria_12h", "km", "outro"]).default("transfer"),
+  hours: z.coerce.number().min(1).max(24).nullable().optional(),
+  service_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   description: z.string().trim().max(500).nullable().optional(),
   scheduled_at: z.string().datetime({ offset: true }).nullable().optional(),
   origin_text: z.string().trim().max(300).nullable().optional(),

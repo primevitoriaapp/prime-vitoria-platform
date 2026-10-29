@@ -3,7 +3,7 @@ import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
-import { formatQuoteNumber, itemsMissingForTrips, tripAmountsFromQuote } from "@/lib/quotes/quote-calc";
+import { formatQuoteNumber, isDiaria, itemHours, itemsMissingForTrips, serviceLabelForClient, tripAmountsFromQuote, tripServiceModeFor } from "@/lib/quotes/quote-calc";
 import { legacyServiceType, type CategoryKind, type ServiceMode } from "@/lib/pricing/category-catalog";
 
 /**
@@ -65,7 +65,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     let n = 0;
     for (const it of items) {
       const kind = kinds.get(it.vehicle_category_id as string) ?? "carro";
-      const mode = (it.service_mode === "outro" ? "transfer" : it.service_mode) as ServiceMode;
+      const hours = itemHours(it.service_mode as string, it.hours == null ? null : Number(it.hours));
+      const mode = tripServiceModeFor(it.service_mode as string, hours) as ServiceMode;
+      const diaria = isDiaria(it.service_mode as string);
       for (let k = 0; k < Number(it.quantity); k++) {
         const client = amounts[n++] ?? Number(it.unit_price);
         const driver = it.driver_amount == null ? null : Number(it.driver_amount);
@@ -80,15 +82,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           origin_text: it.origin_text,
           origin_lat: it.origin_lat ?? null,
           origin_lng: it.origin_lng ?? null,
-          destination_text: it.destination_text,
-          destination_lat: it.destination_lat ?? null,
-          destination_lng: it.destination_lng ?? null,
+          // Diária: sem destino fixo, a corrida fica "à disposição" no local de início.
+          destination_text: it.destination_text || (diaria ? it.origin_text : null),
+          destination_lat: it.destination_text ? (it.destination_lat ?? null) : diaria ? (it.origin_lat ?? null) : null,
+          destination_lng: it.destination_text ? (it.destination_lng ?? null) : diaria ? (it.origin_lng ?? null) : null,
           passenger_count: it.passenger_count ?? 1,
           passenger_name: it.passenger_name ?? null,
           client_amount: client,
           driver_amount: driver,
           margin: driver == null ? client : Math.round((client - driver) * 100) / 100,
-          notes: [`${label}`, it.description].filter(Boolean).join(" · "),
+          notes: [`${label}`, diaria ? serviceLabelForClient(it.service_mode as string, hours) : null, it.description].filter(Boolean).join(" · "),
           operational_status: "approved",
           approved_by: session.userId,
           approved_at: nowIso,

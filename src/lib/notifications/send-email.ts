@@ -9,6 +9,8 @@ export type SendEmailInput = {
   text: string;
   html?: string;
   from?: string;
+  /** Respostas do cliente vão para este endereço. */
+  replyTo?: string;
   /** Anexos (conteúdo em base64), ex.: convite de agenda .ics. */
   attachments?: { filename: string; content: string; content_type?: string }[];
 };
@@ -65,6 +67,7 @@ export async function sendOperationalEmail(input: SendEmailInput): Promise<SendE
       subject: input.subject,
       text: input.text,
       html: input.html ?? undefined,
+      reply_to: input.replyTo ?? undefined,
       attachments: input.attachments?.length ? input.attachments : undefined
     })
   });

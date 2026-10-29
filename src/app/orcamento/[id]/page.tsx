@@ -5,9 +5,7 @@ import { db } from "@/lib/server/db";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { billingIssuerById } from "@/lib/clients/billing-terms-calc";
 import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
-import { formatQuoteNumber, quoteTotals } from "@/lib/quotes/quote-calc";
-import { SERVICE_MODE_LABEL, type ServiceMode } from "@/lib/pricing/category-catalog";
-import { formatBrDateTime } from "@/lib/dates/br-date";
+import { formatQuoteNumber, isDiaria, itemHours, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
 import { shortAddress } from "@/lib/client/short-address";
 import { VoucherPrintButton } from "@/app/voucher/[id]/print-button";
 
@@ -29,13 +27,32 @@ function Message({ title }: { title: string }) {
 }
 
 /** Orçamento no padrão preto e dourado da Prime. Vira PDF pelo botão de imprimir. */
-export default async function OrcamentoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrcamentoPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ t?: string }>;
+}) {
   const { id } = await params;
+  const { t } = await searchParams;
   if (!z.string().uuid().safeParse(id).success) return <Message title="Orçamento não encontrado" />;
-  const session = await getSessionContext();
-  if (!["admin", "operador", "financeiro"].includes(session.role)) return <Message title="Entre com a conta da Prime para ver o orçamento" />;
-  const tenantId = session.tenantId ?? DEFAULT_TENANT_ID;
-  const { data: q } = await db.from("quotes").select("*").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+  // Cliente abre pelo link do e-mail (token); a equipe abre logada.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = null;
+  let tenantId = DEFAULT_TENANT_ID;
+  if (t && /^[A-Za-z0-9_-]{16,80}$/.test(t)) {
+    const { data } = await db.from("quotes").select("*").eq("id", id).eq("share_token", t).maybeSingle();
+    q = data;
+    if (q) tenantId = q.tenant_id as string;
+  }
+  if (!q) {
+    const session = await getSessionContext();
+    if (!["admin", "operador", "financeiro"].includes(session.role)) return <Message title="Entre com a conta da Prime para ver o orçamento" />;
+    tenantId = session.tenantId ?? DEFAULT_TENANT_ID;
+    const { data } = await db.from("quotes").select("*").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+    q = data;
+  }
   if (!q) return <Message title="Orçamento não encontrado" />;
   const [{ data: items }, client, company] = await Promise.all([
     db.from("quote_items").select("*").eq("quote_id", id).order("position"),
@@ -45,6 +62,22 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
   const catIds = [...new Set((items ?? []).map((i) => i.vehicle_category_id as string).filter(Boolean))];
   const { data: cats } = catIds.length ? await db.from("vehicle_categories").select("id, name, passengers").in("id", catIds) : { data: [] };
   const catName = new Map((cats ?? []).map((c) => [c.id as string, `${c.name as string}`]));
+  // Programação agrupada por dia (orçamentos de vários dias e veículos).
+  const dayKey = (i: Record<string, unknown>) =>
+    i.scheduled_at
+      ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(i.scheduled_at as string))
+      : ((i.service_date as string | null) ?? "");
+  const timeOf = (i: Record<string, unknown>) =>
+    i.scheduled_at ? new Date(i.scheduled_at as string).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }) : "A combinar";
+  const groups: { day: string; rows: Record<string, unknown>[] }[] = [];
+  for (const i of [...(items ?? [])].sort((a, b) => `${dayKey(a)}${timeOf(a)}`.localeCompare(`${dayKey(b)}${timeOf(b)}`))) {
+    const k = dayKey(i);
+    const g = groups.find((x) => x.day === k);
+    if (g) g.rows.push(i);
+    else groups.push({ day: k, rows: [i] });
+  }
+  const dayTitle = (ymd: string) =>
+    ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "UTC" }) : "Data a combinar";
   const issuer = billingIssuerById(q.issuer as string | null);
   const totals = quoteTotals((items ?? []).map((i) => ({ quantity: Number(i.quantity), unit_price: Number(i.unit_price) })), Number(q.discount) || 0);
   const c = client.data as Record<string, string | null> | null;
@@ -110,37 +143,57 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                <th style={th}>Serviço</th>
-                <th style={th}>Data</th>
+                <th style={{ ...th, width: 70 }}>Hora</th>
+                <th style={th}>Veículo e serviço</th>
                 <th style={th}>Trajeto</th>
                 <th style={{ ...th, textAlign: "center" }}>Qtd.</th>
                 <th style={{ ...th, textAlign: "right" }}>Valor</th>
               </tr>
             </thead>
-            <tbody>
-              {(items ?? []).map((i) => (
-                <tr key={i.id as string}>
-                  <td style={td}>
-                    <b>{catName.get(i.vehicle_category_id as string) ?? "Veículo"}</b>
-                    <div style={{ color: "#555" }}>
-                      {i.service_mode === "outro" ? "" : SERVICE_MODE_LABEL[i.service_mode as ServiceMode]}
-                      {i.passenger_count ? ` · ${i.passenger_count} pessoa(s)` : ""}
-                    </div>
-                    {i.description ? <div style={{ color: "#555", marginTop: 2 }}>{i.description as string}</div> : null}
-                  </td>
-                  <td style={td}>{i.scheduled_at ? formatBrDateTime(i.scheduled_at as string) : "A combinar"}</td>
-                  <td style={td}>
-                    {i.origin_text ? shortAddress(i.origin_text as string) : "—"}
-                    <div style={{ color: "#555" }}>→ {i.destination_text ? shortAddress(i.destination_text as string) : "—"}</div>
-                  </td>
-                  <td style={{ ...td, textAlign: "center" }}>{i.quantity as number}</td>
-                  <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
-                    {brl(Number(i.unit_price) * Number(i.quantity))}
-                    {Number(i.quantity) > 1 ? <div style={{ color: "#777", fontSize: 11 }}>{brl(Number(i.unit_price))} cada</div> : null}
+            {groups.map((g) => (
+              <tbody key={g.day || "sem-data"}>
+                <tr>
+                  <td colSpan={5} style={{ padding: "12px 6px 6px", fontSize: 12, fontWeight: 700, color: "#111", textTransform: "capitalize", borderBottom: "1px solid #EEE9DC" }}>
+                    <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: GOLD, marginRight: 8 }} />
+                    {dayTitle(g.day)}
                   </td>
                 </tr>
-              ))}
-            </tbody>
+                {g.rows.map((i) => {
+                  const diaria = isDiaria(i.service_mode as string);
+                  const svc = serviceLabelForClient(i.service_mode as string, itemHours(i.service_mode as string, i.hours == null ? null : Number(i.hours)));
+                  return (
+                    <tr key={i.id as string}>
+                      <td style={{ ...td, fontWeight: 600 }}>{timeOf(i)}</td>
+                      <td style={td}>
+                        <b>{catName.get(i.vehicle_category_id as string) ?? "Veículo"}</b>
+                        <div style={{ color: "#555" }}>
+                          {[svc, i.passenger_count ? `${i.passenger_count} pessoa(s)` : null].filter(Boolean).join(" · ")}
+                        </div>
+                        {i.description ? <div style={{ color: "#555", marginTop: 2 }}>{i.description as string}</div> : null}
+                      </td>
+                      <td style={td}>
+                        {diaria ? (
+                          <>
+                            À disposição{i.origin_text ? ` a partir de ${shortAddress(i.origin_text as string)}` : ""}
+                            {i.destination_text ? <div style={{ color: "#555" }}>{i.destination_text as string}</div> : null}
+                          </>
+                        ) : (
+                          <>
+                            {i.origin_text ? shortAddress(i.origin_text as string) : "A definir"}
+                            <div style={{ color: "#555" }}>→ {i.destination_text ? shortAddress(i.destination_text as string) : "A definir"}</div>
+                          </>
+                        )}
+                      </td>
+                      <td style={{ ...td, textAlign: "center" }}>{i.quantity as number}</td>
+                      <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
+                        {brl(Number(i.unit_price) * Number(i.quantity))}
+                        {Number(i.quantity) > 1 ? <div style={{ color: "#777", fontSize: 11 }}>{brl(Number(i.unit_price))} cada</div> : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            ))}
           </table>
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
             <table style={{ fontSize: 13 }}>

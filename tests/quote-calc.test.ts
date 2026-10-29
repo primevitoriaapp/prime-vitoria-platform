@@ -36,3 +36,18 @@ test("desconto repartido entre as corridas fecha no total", () => {
   assert.equal(a.length, 3);
   assert.deepEqual(tripAmountsFromQuote([{ quantity: 2, unit_price: 50 }], 0), [50, 50]);
 });
+
+import { itemHours, priceKeyFor, serviceLabelForClient, tripServiceModeFor } from "../src/lib/quotes/quote-calc.ts";
+test("diária com horas livres", () => {
+  assert.equal(itemHours("diaria_10h", null), 10);
+  assert.equal(itemHours("diaria", 15), 15);
+  assert.equal(priceKeyFor("diaria", 12), "diaria_12h");
+  assert.equal(priceKeyFor("diaria", 15), "");
+  assert.equal(tripServiceModeFor("diaria", 15), "diaria_12h");
+  assert.equal(serviceLabelForClient("diaria", 12), "Diária 12h à disposição");
+  assert.equal(serviceLabelForClient("transfer", null), "Transfer");
+  assert.deepEqual(itemsMissingForTrips([{ quantity: 1, unit_price: 1, scheduled_at: "x", origin_text: "Vitória", service_mode: "diaria", hours: 12 }]), []);
+  assert.deepEqual(itemsMissingForTrips([{ quantity: 1, unit_price: 1, scheduled_at: null, origin_text: "Vitória", service_mode: "diaria" }]), [
+    { index: 0, missing: ["data e hora", "quantas horas"] }
+  ]);
+});
