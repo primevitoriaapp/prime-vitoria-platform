@@ -28,6 +28,7 @@ const NAV = [
 const ADMIN_EXTRA = [
   { href: "/configuracoes", label: "Configurações" },
   { href: "/integracoes", label: "Integrações" },
+  { href: "/importar", label: "Importar planilha" },
   { href: "/users", label: "Usuários" },
   { href: "/audit", label: "Auditoria" },
   { href: "/driver", label: "App motorista" },

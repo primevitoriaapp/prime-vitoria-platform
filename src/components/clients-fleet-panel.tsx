@@ -165,7 +165,10 @@ export function ClientsFleetPanel({ initialClients }: Props) {
           <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
           Mostrar desativadas
         </label>
-        <Link href={"/clients/relatorio" as Route} className="ml-auto rounded-lg px-3 py-2 text-sm ring-1 ring-prime-border hover:ring-prime-gold">
+        <Link href={"/importar" as Route} className="ml-auto rounded-lg px-3 py-2 text-sm ring-1 ring-prime-border hover:ring-prime-gold">
+          Importar planilha
+        </Link>
+        <Link href={"/clients/relatorio" as Route} className="rounded-lg px-3 py-2 text-sm ring-1 ring-prime-border hover:ring-prime-gold">
           Relatório por cliente
         </Link>
         <button type="button" className="btn-primary" onClick={() => setCreating(true)}>

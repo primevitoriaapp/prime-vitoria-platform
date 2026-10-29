@@ -2,6 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import type { Route } from "next";
 import { DriverFichaPanel } from "@/components/driver-ficha-panel";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
@@ -224,7 +226,10 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
           <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
           Mostrar desativados
         </label>
-        <button type="button" className="btn-primary ml-auto" onClick={() => setShowCreate((v) => !v)}>
+        <Link href={"/importar" as Route} className="ml-auto rounded-lg px-3 py-2 text-sm ring-1 ring-prime-border hover:ring-prime-gold">
+          Importar planilha
+        </Link>
+        <button type="button" className="btn-primary" onClick={() => setShowCreate((v) => !v)}>
           {showCreate ? "Fechar" : "+ Novo motorista"}
         </button>
       </div>

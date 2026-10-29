@@ -17,6 +17,9 @@ type Row = {
   boleto_url: string | null;
   nf_number: string | null;
   nf_url: string | null;
+  boleto_path?: string | null;
+  nf_path?: string | null;
+  boleto_line?: string | null;
 };
 
 const brl = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -79,14 +82,22 @@ export function ClientInvoicesPortalPanel({ devFallbackRole = "cliente" }: { dev
                   <a href={`/api/client-invoices/${r.id}/csv`} className="font-medium text-prime-gold hover:underline">
                     Planilha (Excel)
                   </a>
-                  {r.nf_url ? (
+                  {r.nf_path ? (
+                    <a href={`/api/client-invoices/${r.id}/files?kind=nf`} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold hover:underline">
+                      Nota fiscal {r.nf_number ? `nº ${r.nf_number}` : ""}
+                    </a>
+                  ) : r.nf_url ? (
                     <a href={r.nf_url} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold hover:underline">
                       Nota fiscal {r.nf_number ? `nº ${r.nf_number}` : ""}
                     </a>
                   ) : r.nf_number ? (
                     <span className="text-prime-muted">NF nº {r.nf_number}</span>
                   ) : null}
-                  {r.boleto_url && r.status !== "paga" ? (
+                  {r.boleto_path && r.status !== "paga" ? (
+                    <a href={`/api/client-invoices/${r.id}/files?kind=boleto`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-[#111] px-3 py-1 font-semibold text-[#fff]">
+                      Baixar boleto
+                    </a>
+                  ) : r.boleto_url && r.status !== "paga" ? (
                     <a href={r.boleto_url} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold hover:underline">
                       2ª via do boleto
                     </a>

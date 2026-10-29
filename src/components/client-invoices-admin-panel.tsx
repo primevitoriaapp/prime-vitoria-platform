@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { INVOICE_STATUS_LABEL, formatInvoiceNumber } from "@/lib/finance/client-invoice-calc";
 
@@ -20,6 +20,8 @@ type Row = {
   boleto_line: string | null;
   nf_number: string | null;
   nf_url: string | null;
+  boleto_path?: string | null;
+  nf_path?: string | null;
 };
 
 type Props = { devFallbackRole?: "admin" | "financeiro" };
@@ -113,22 +115,55 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
     void load();
   }
 
-  function attachBoleto(r: Row) {
-    const url = window.prompt("Link do boleto (PDF) — deixe vazio para não alterar:", r.boleto_url ?? "")?.trim();
-    const line = window.prompt("Linha digitável do boleto (opcional):", r.boleto_line ?? "")?.trim();
-    if (url === undefined && line === undefined) return;
-    void patch(r.id, { boleto_url: url ? url : null, boleto_line: line ? line : null }, "Boleto salvo na fatura.");
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<{ row: Row; kind: "boleto" | "nf" } | null>(null);
+
+  function pickFile(r: Row, kind: "boleto" | "nf") {
+    setPendingUpload({ row: r, kind });
+    fileRef.current?.click();
   }
 
-  function attachNf(r: Row) {
-    const number = window.prompt("Número da nota fiscal:", r.nf_number ?? "")?.trim();
-    if (number === undefined) return;
-    const url = window.prompt("Link do PDF da nota (opcional):", r.nf_url ?? "")?.trim();
-    void patch(r.id, { nf_number: number || null, nf_url: url ? url : null }, "Nota fiscal vinculada à fatura.");
+  async function uploadFile(file: File) {
+    const target = pendingUpload;
+    setPendingUpload(null);
+    if (!target) return;
+    setBusy(true);
+    const fd = new FormData();
+    fd.append("kind", target.kind);
+    fd.append("file", file);
+    const res = await fetchWithSupabaseSession(`/api/client-invoices/${target.row.id}/files`, { method: "POST", body: fd }, devFallbackRole);
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
+    setBusy(false);
+    if (!res.ok || !json.success) {
+      setMsg({ kind: "err", text: json.error?.message ?? "Falha ao anexar o arquivo." });
+      return;
+    }
+    if (target.kind === "boleto") {
+      const line = window.prompt("Boleto anexado. Quer colar a linha digitável também? (opcional)", target.row.boleto_line ?? "")?.trim();
+      if (line !== undefined) await patch(target.row.id, { boleto_line: line || null }, "Boleto anexado à fatura. O cliente já vê no portal.");
+      else setMsg({ kind: "ok", text: "Boleto anexado à fatura. O cliente já vê no portal." });
+    } else {
+      const number = window.prompt("Nota anexada. Qual o número da nota fiscal?", target.row.nf_number ?? "")?.trim();
+      if (number !== undefined) await patch(target.row.id, { nf_number: number || null }, "Nota fiscal anexada à fatura.");
+      else setMsg({ kind: "ok", text: "Nota fiscal anexada à fatura." });
+    }
+    void load();
   }
 
   return (
     <section className="card mb-6 space-y-4">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/pdf,image/png,image/jpeg"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) void uploadFile(f);
+          else setPendingUpload(null);
+        }}
+      />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Faturas dos clientes</h2>
@@ -179,8 +214,30 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                   <td className="text-right font-semibold">{brl(r.total_amount)}</td>
                   <td>
                     {INVOICE_STATUS_LABEL[r.status]}
-                    {r.boleto_url || r.boleto_line ? " · boleto" : ""}
-                    {r.nf_number ? ` · NF ${r.nf_number}` : ""}
+                    {r.boleto_path ? (
+                      <>
+                        {" · "}
+                        <a href={`/api/client-invoices/${r.id}/files?kind=boleto`} target="_blank" rel="noopener noreferrer" className="text-prime-gold hover:underline">
+                          boleto
+                        </a>
+                      </>
+                    ) : r.boleto_url || r.boleto_line ? (
+                      " · boleto"
+                    ) : (
+                      <span className="text-amber-700"> · sem boleto</span>
+                    )}
+                    {r.nf_path ? (
+                      <>
+                        {" · "}
+                        <a href={`/api/client-invoices/${r.id}/files?kind=nf`} target="_blank" rel="noopener noreferrer" className="text-prime-gold hover:underline">
+                          NF{r.nf_number ? ` ${r.nf_number}` : ""}
+                        </a>
+                      </>
+                    ) : r.nf_number ? (
+                      ` · NF ${r.nf_number}`
+                    ) : (
+                      ""
+                    )}
                   </td>
                   <td className="whitespace-nowrap text-right text-xs">
                     <a href={`/fatura/${r.id}`} target="_blank" rel="noopener noreferrer" className="text-prime-gold hover:underline">
@@ -189,12 +246,12 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                     {r.status !== "cancelada" && r.status !== "paga" ? (
                       <>
                         {" · "}
-                        <button type="button" disabled={busy} onClick={() => attachBoleto(r)} className="text-prime-gold hover:underline">
-                          Boleto
+                        <button type="button" disabled={busy} onClick={() => pickFile(r, "boleto")} className="text-prime-gold hover:underline">
+                          {r.boleto_path ? "Trocar boleto" : "Anexar boleto"}
                         </button>
                         {" · "}
-                        <button type="button" disabled={busy} onClick={() => attachNf(r)} className="text-prime-gold hover:underline">
-                          Nota fiscal
+                        <button type="button" disabled={busy} onClick={() => pickFile(r, "nf")} className="text-prime-gold hover:underline">
+                          {r.nf_path ? "Trocar nota" : "Anexar nota"}
                         </button>
                         {" · "}
                         <button type="button" disabled={busy} onClick={() => void send(r.id)} className="text-prime-gold hover:underline">
