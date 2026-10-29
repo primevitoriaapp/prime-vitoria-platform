@@ -23,7 +23,7 @@ export function OtherIncomesPanel() {
   const { company } = useCompany();
   const [rows, setRows] = useState<Row[]>([]);
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ description: "", category: "locacao", payer: "", amount: "", due_date: today(), issuer: company === "todas" ? "rj_prime" : company, received: false });
+  const [f, setF] = useState({ description: "", category: "locacao", payer: "", amount: "", due_date: today(), issuer: (company === "todas" ? "rj_prime" : company) as string, received: false });
   const [msg, setMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
