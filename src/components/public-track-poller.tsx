@@ -63,6 +63,7 @@ const waLink = (phone: string) => {
 export function PublicTrackPoller({ token, initial }: { token: string; initial: TrackPayload }) {
   const [data, setData] = useState<TrackPayload>(initial);
   const [ended, setEnded] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
   const terminal = ended || isPublicTrackTerminalStatus(data.operational_status);
 
@@ -172,9 +173,14 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
 
       {data.driver || data.vehicle ? (
         <section className="flex items-center gap-4 rounded-3xl bg-[#111] p-5 text-[#fff]">
-          {data.driver?.photo_url ? (
+          {data.driver?.photo_url && !photoFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.driver.photo_url} alt="" className="h-14 w-14 shrink-0 rounded-full border-2 border-[#C9A84C] object-cover" />
+            <img
+              src={data.driver.photo_url}
+              alt=""
+              onError={() => setPhotoFailed(true)}
+              className="h-14 w-14 shrink-0 rounded-full border-2 border-[#C9A84C] object-cover"
+            />
           ) : (
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-[#C9A84C] text-xl font-semibold text-[#C9A84C]">
               {(data.driver?.first_name ?? "P").charAt(0)}

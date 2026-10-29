@@ -29,8 +29,8 @@ export function PublicTrackMap({ origin, destination, driver, height = 300 }: Pr
       if (off || !el.current) return;
       if (!map.current) {
         map.current = L.map(el.current, { zoomControl: false, attributionControl: true });
-        L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-          attribution: "&copy; OpenStreetMap &copy; CARTO",
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap",
           maxZoom: 19
         }).addTo(map.current);
         L.control.zoom({ position: "bottomright" }).addTo(map.current);
