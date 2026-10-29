@@ -37,6 +37,7 @@ type Trip = {
   driver_id?: string | null;
   presentation_minutes?: number | null;
   vehicle_category_id?: string | null;
+  service_mode?: string | null;
   service_extras?: string[] | null;
 };
 
@@ -295,7 +296,13 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
                   </div>
 
                   <div className="text-sm md:text-right">
-                    {value ? <p className="text-base font-semibold">{value}</p> : <p className="font-semibold text-amber-700">Sem valor</p>}
+                    {value ? (
+                      <p className="text-base font-semibold">{value}</p>
+                    ) : t.service_mode === "km" && g.id !== "finalizada" ? (
+                      <p className="font-semibold text-prime-muted">Por km</p>
+                    ) : (
+                      <p className="font-semibold text-amber-700">Sem valor</p>
+                    )}
                     {payout ? <p className="text-xs text-prime-muted">Motorista {payout}</p> : null}
                   </div>
                 </Link>

@@ -15,6 +15,8 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { can } from "@/lib/security/rbac";
 
+const ROAD_FACTOR = 1.3;
+
 const bodySchema = z.object({
   client_id: z.string().uuid(),
   driver_id: z.string().uuid().optional().nullable(),
@@ -61,12 +63,14 @@ export async function POST(request: Request) {
         client_price: r.client_price == null ? null : Number(r.client_price),
         partner_price: r.partner_price == null ? null : Number(r.partner_price)
       }));
-      const km = plannedKmFromCoords({
+      const straight = plannedKmFromCoords({
         origin_lat: body.origin_lat ?? null,
         origin_lng: body.origin_lng ?? null,
         destination_lat: body.destination_lat ?? null,
         destination_lng: body.destination_lng ?? null
       });
+      // Linha reta × 1,3 ≈ distância pelas ruas (estimativa; a cobrança final usa o km rodado).
+      const km = straight == null ? null : Math.round(straight * ROAD_FACTOR * 10) / 10;
       const when = body.scheduled_at ?? new Date().toISOString();
       const price = priceFromCategoryTable({ mode: "km", scheduledAt: when, km, cells });
       const perKm = cells.find((c) => c.service === bandeiraForIso(when) && c.enabled)?.client_price ?? null;
@@ -75,7 +79,11 @@ export async function POST(request: Request) {
         has_rule: price.client != null,
         charge_type: "per_km",
         price_per_km: perKm,
-        estimate: price.client == null ? null : { planned_km: km, client_amount: price.client }
+        estimate:
+          price.client == null
+            ? null
+            : { planned_km: km, client_amount: price.client, driver_amount: isOperator ? (price.partner ?? null) : null },
+        bandeira: bandeiraForIso(when) === "km_b1" ? "Bandeira 1 (06h–18h59)" : "Bandeira 2 (19h–05h59)"
       });
     }
 

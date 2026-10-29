@@ -128,6 +128,41 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tablePrice]);
 
+  const [kmEstimate, setKmEstimate] = useState<{ km: number | null; client: number; driver: number | null; bandeira?: string } | null>(null);
+  useEffect(() => {
+    setKmEstimate(null);
+    if (mode !== "km" || !clientId || !categoryId || origin.lat == null || dest.lat == null) return;
+    const t = setTimeout(() => {
+      void (async () => {
+        const res = await fetchWithSupabaseSession(
+          "/api/pricing/estimate-trip",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              client_id: clientId,
+              service_type: "corporativo",
+              vehicle_category_id: categoryId,
+              service_mode: "km",
+              scheduled_at: date && time ? saoPauloDateAndTimeToUtcIso(date, time) ?? undefined : undefined,
+              origin_lat: origin.lat,
+              origin_lng: origin.lng,
+              destination_lat: dest.lat,
+              destination_lng: dest.lng
+            })
+          },
+          "admin"
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          data?: { estimate?: { planned_km: number | null; client_amount: number; driver_amount?: number | null } | null; bandeira?: string };
+        };
+        const e = json.data?.estimate;
+        if (res.ok && json.success && e) setKmEstimate({ km: e.planned_km, client: e.client_amount, driver: e.driver_amount ?? null, bandeira: json.data?.bandeira });
+      })();
+    }, 400);
+    return () => clearTimeout(t);
+  }, [mode, clientId, categoryId, origin.lat, origin.lng, dest.lat, dest.lng, date, time]);
+
   const filteredClients = useMemo(() => {
     const q = clientQuery.trim().toLowerCase();
     return clients
@@ -593,7 +628,16 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               {tablePrice?.client_price != null ? (
                 <span className="text-xs text-emerald-700">Tabela do cliente: {brl(tablePrice.client_price)}</span>
               ) : mode === "km" ? (
-                <span className="text-xs text-prime-muted">Por km: o valor sai do km rodado no fim da corrida.</span>
+                kmEstimate ? (
+                  <span className="rounded-lg bg-emerald-50 px-2 py-1.5 text-xs text-emerald-900">
+                    <b>Estimativa: {brl(kmEstimate.client)}</b> · cerca de {kmEstimate.km?.toLocaleString("pt-BR")} km · {kmEstimate.bandeira}
+                    {kmEstimate.driver != null ? ` · motorista ${brl(kmEstimate.driver)}` : ""}. O valor final sai do km rodado. Deixe em branco para cobrar por km.
+                  </span>
+                ) : origin.lat == null || dest.lat == null ? (
+                  <span className="text-xs text-prime-muted">Escolha embarque e destino na lista de sugestões para calcular a estimativa.</span>
+                ) : (
+                  <span className="text-xs text-amber-700">Sem preço por km na tabela deste cliente para esta categoria.</span>
+                )
               ) : null}
             </label>
             <label className="grid gap-1 text-sm">
@@ -693,11 +737,23 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               <div className="flex gap-6">
                 <div>
                   <dt className="text-xs text-prime-muted">Cliente paga</dt>
-                  <dd className="font-semibold">{Number(clientAmount.replace(",", ".")) ? brl(Number(clientAmount.replace(",", "."))) : "Tabela / a combinar"}</dd>
+                  <dd className="font-semibold">
+                    {Number(clientAmount.replace(",", "."))
+                      ? brl(Number(clientAmount.replace(",", ".")))
+                      : mode === "km" && kmEstimate
+                        ? `≈ ${brl(kmEstimate.client)} (por km)`
+                        : "Tabela / a combinar"}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-xs text-prime-muted">Motorista recebe</dt>
-                  <dd className="font-semibold">{Number(driverAmount.replace(",", ".")) ? brl(Number(driverAmount.replace(",", "."))) : "Tabela"}</dd>
+                  <dd className="font-semibold">
+                    {Number(driverAmount.replace(",", "."))
+                      ? brl(Number(driverAmount.replace(",", ".")))
+                      : mode === "km" && kmEstimate?.driver != null
+                        ? `≈ ${brl(kmEstimate.driver)} (por km)`
+                        : "Tabela"}
+                  </dd>
                 </div>
               </div>
             </dl>
