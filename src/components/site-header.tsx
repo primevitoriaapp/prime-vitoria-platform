@@ -73,6 +73,9 @@ export function SiteHeader() {
     pathname.startsWith("/client") ||
     pathname.startsWith("/voucher") ||
     pathname.startsWith("/fatura") ||
+    pathname.startsWith("/r/") ||
+    pathname.startsWith("/orcamento") ||
+    pathname.startsWith("/driver") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/redefinir-senha")
   ) {
