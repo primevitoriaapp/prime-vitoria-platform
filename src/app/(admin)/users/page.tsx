@@ -1,37 +1,34 @@
 import Link from "next/link";
-import { can } from "@/lib/security/rbac";
-import { getSessionContext } from "@/lib/server/session";
+import { AdminPageHeader } from "@/components/admin-page-header";
+import { StaffUsersPanel } from "@/components/staff-users-panel";
 import { ProfileClientScopePanel } from "@/components/profile-client-scope-panel";
+import { getSessionContext } from "@/lib/server/session";
 
 export default async function UsersPage() {
   const session = await getSessionContext();
-
-  if (!can(session, "profiles.read")) {
+  if (session.role !== "admin") {
     return (
-      <main className="mx-auto max-w-lg px-5 py-16">
-        <p className="text-slate-700">Sem permissão para consultar usuários da organização.</p>
-        <Link href="/dashboard" className="mt-4 inline-block text-amber-700 underline">
+      <div className="py-16 text-center">
+        <p>Só o administrador gerencia os usuários.</p>
+        <Link href="/dashboard" className="mt-4 inline-block text-prime-gold underline">
           Voltar ao painel
         </Link>
-      </main>
+      </div>
     );
   }
-
   return (
-    <main className="mx-auto max-w-5xl px-5 py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Usuários</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Perfis da organização. Para contas com papel <strong>cliente</strong>, defina o cliente corporativo
-            associado (acesso ao portal <code className="text-xs">/client</code>).
-          </p>
+    <div className="pb-10">
+      <AdminPageHeader
+        title="Usuários"
+        subtitle="Quem da equipe entra no painel e o que cada um pode fazer. Acesso de clientes fica em Clientes → empresa → Equipe."
+      />
+      <StaffUsersPanel />
+      <details className="mt-10 rounded-2xl border border-prime-border bg-white shadow-prime-card">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">Avançado: todas as contas e vínculo de clientes</summary>
+        <div className="border-t border-prime-border p-4">
+          <ProfileClientScopePanel />
         </div>
-        <Link href="/dashboard" className="text-sm font-medium text-amber-700 hover:underline">
-          Painel
-        </Link>
-      </div>
-      <ProfileClientScopePanel />
-    </main>
+      </details>
+    </div>
   );
 }
