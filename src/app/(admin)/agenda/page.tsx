@@ -30,6 +30,7 @@ import { TripEditPanel } from "@/components/trip-edit-panel";
 import { TripAssignCard } from "@/components/trip-assign-card";
 import { TripProofCard } from "@/components/trip-proof-card";
 import { StaleTripsPanel } from "@/components/stale-trips-panel";
+import { TripExpensesReview } from "@/components/trip-expenses";
 export default async function AgendaPage({
   searchParams
 }: {
@@ -82,6 +83,7 @@ export default async function AgendaPage({
           {showClaimBar ? <TripAssignCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripEditPanel tripId={focusTripId} /> : null}
           {showClaimBar ? <TripProofCard tripId={focusTripId} /> : null}
+          {showClaimBar ? <TripExpensesReview tripId={focusTripId} /> : null}
           <TripAgendaFocusPanel
             tripId={focusTripId}
             operationalStatus={focusTrip?.operational_status ?? "requested"}

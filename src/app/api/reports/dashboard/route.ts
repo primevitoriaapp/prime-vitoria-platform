@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const in30d = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
 
     const staleIso = new Date(now.getTime() - 12 * 3600000).toISOString();
-    const [curr, prev, noDriver, pending, drivers, clients, cnh, stale] = await Promise.all([
+    const [curr, prev, noDriver, pending, drivers, clients, cnh, stale, expenses] = await Promise.all([
       tripsBetween(tenantId, r.from, r.to),
       tripsBetween(tenantId, r.prevFrom, r.prevTo),
       db
@@ -64,7 +64,8 @@ export async function GET(request: Request) {
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
         .in("operational_status", ["dispatched", "accepted", "on_the_way", "arrived", "in_progress"])
-        .lt("scheduled_at", staleIso)
+        .lt("scheduled_at", staleIso),
+      db.from("trip_expenses").select("trip_id").eq("tenant_id", tenantId).eq("status", "pendente").limit(50)
     ]);
 
     let payablesOverdue = 0;
@@ -94,6 +95,12 @@ export async function GET(request: Request) {
       alerts.push({ tone: "red", text: `${noDriver.count} corrida(s) nos próximos 3 dias sem motorista`, href: "/agenda?grupo=agendada&periodo=semana" });
     if ((stale.count ?? 0) > 0)
       alerts.push({ tone: "red", text: `${stale.count} corrida(s) que já passaram e não foram finalizadas`, href: "/agenda#esquecidas" });
+    if ((expenses.data ?? []).length > 0)
+      alerts.push({
+        tone: "amber",
+        text: `${(expenses.data ?? []).length} despesa(s) de motorista (pedágio/estacionamento) para aprovar`,
+        href: `/agenda?trip=${(expenses.data ?? [])[0].trip_id}#trip-detail`
+      });
     if (s.completedNoValue > 0)
       alerts.push({ tone: "amber", text: `${s.completedNoValue} corrida(s) finalizada(s) sem valor no período`, href: "/agenda?grupo=finalizada&periodo=mes" });
     if (payablesOverdue > 0)

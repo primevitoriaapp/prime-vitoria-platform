@@ -31,6 +31,7 @@ import { useDriverTripGpsTracking } from "@/hooks/use-driver-trip-gps-tracking";
 import { parseDriverKmInput } from "@/lib/trips/driver-complete-km";
 import { DriverFinishSheet } from "@/components/driver-finish-sheet";
 import { DriverPassengerLink } from "@/components/driver-passenger-link";
+import { DriverTripExpenses } from "@/components/trip-expenses";
 
 const ACTIVE: TripOperationalStatus[] = [
   "dispatched",
@@ -406,6 +407,10 @@ export function DriverTripsPanel({
 
             {primaryTrip ? (
               <DriverPassengerLink tripId={primaryTrip.id} status={primaryTrip.operational_status} devFallbackRole={devFallbackRole} />
+            ) : null}
+
+            {primaryTrip && ["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) ? (
+              <DriverTripExpenses tripId={primaryTrip.id} devFallbackRole={devFallbackRole} />
             ) : null}
 
             {primaryTrip ? (
