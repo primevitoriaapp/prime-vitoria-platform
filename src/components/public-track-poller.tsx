@@ -53,9 +53,11 @@ function headline(s: TripOperationalStatus, driver: string | null): { title: str
   }
 }
 
+/** A central pode ter fixo e celular ("(27) 2142-8307 | (27) 99806-3956"): usa o celular para o WhatsApp. */
 const waLink = (phone: string) => {
-  const d = phone.replace(/\D/g, "");
-  return `https://wa.me/${d.startsWith("55") ? d : `55${d}`}`;
+  const parts = phone.split(/[|/,;]| e /).map((p) => p.replace(/\D/g, "")).filter((d) => d.length >= 10);
+  const mobile = parts.find((d) => /^(55)?\d{2}9\d{8}$/.test(d)) ?? parts[0] ?? "";
+  return `https://wa.me/${mobile.startsWith("55") ? mobile : `55${mobile}`}`;
 };
 
 export function PublicTrackPoller({ token, initial }: { token: string; initial: TrackPayload }) {
