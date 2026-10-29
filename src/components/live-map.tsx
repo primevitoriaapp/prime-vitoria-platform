@@ -12,7 +12,16 @@ type FleetItem = {
   phone: string | null;
   status: FleetStatus;
   location: { lat: number; lng: number; recorded_at: string } | null;
-  next_trip: { id: string; scheduled_at: string; passenger: string | null; origin: string | null; status: string } | null;
+  next_trip: {
+    id: string;
+    scheduled_at: string;
+    passenger: string | null;
+    origin: string | null;
+    origin_lat?: number | null;
+    origin_lng?: number | null;
+    status: string;
+    vehicle?: { model: string | null; plate: string | null } | null;
+  } | null;
 };
 
 type Props = {
@@ -52,6 +61,30 @@ function ago(iso: string): string {
   return `há ${Math.round(min / 60)} h`;
 }
 
+function isStale(iso: string): boolean {
+  return Date.now() - new Date(iso).getTime() > 15 * 60000;
+}
+
+function esc(v: string | null | undefined): string {
+  return (v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
+}
+
+function popupHtml(d: FleetItem): string {
+  const st = FLEET_STATUS[d.status];
+  const phone = d.phone ? d.phone.replace(/\D/g, "") : "";
+  return (
+    `<div style="font:13px system-ui;min-width:180px"><b>${esc(d.name ?? "Motorista")}</b><br/>` +
+    `<span style="color:${st.color};font-weight:600">${st.label}</span>` +
+    (d.location ? `<br/><small>posição ${ago(d.location.recorded_at)}</small>` : "") +
+    (d.next_trip
+      ? `<br/><small>Próxima: ${formatBrDateTime(d.next_trip.scheduled_at)} · ${esc(d.next_trip.passenger)}</small>` +
+        `<br/><a href="/agenda?trip=${d.next_trip.id}#trip-detail" style="color:#a8873a;font-weight:600">Abrir corrida</a>`
+      : "") +
+    (phone ? ` · <a href="tel:${phone}" style="color:#a8873a">Ligar</a>` : "") +
+    `</div>`
+  );
+}
+
 /** Mapa da central: cada motorista com a cor da situação (livre, ocupado, deslocando, corrida em breve). */
 export function LiveMap({ tenantId, variant = "compact" }: Props) {
   const full = variant === "full";
@@ -60,12 +93,18 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
   const layerRef = useRef<import("leaflet").LayerGroup | null>(null);
   const [items, setItems] = useState<FleetItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [hidden, setHidden] = useState<Set<FleetStatus>>(new Set());
+  const [q, setQ] = useState("");
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const fittedRef = useRef(false);
+  const [fitTick, setFitTick] = useState(0);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/operations/fleet-map", { credentials: "include" });
     const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { items: FleetItem[] } };
     if (res.ok && json.success && json.data) {
       setItems(json.data.items);
+      setUpdatedAt(new Date());
       setError(null);
     } else {
       setError("Não foi possível carregar os motoristas.");
@@ -78,6 +117,15 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
     return () => window.clearInterval(t);
   }, [load]);
   useTenantTableRefresh(tenantId, ["driver_locations", "drivers", "trips"], load, 1500);
+
+  const visibleItems = items.filter(
+    (d) => !hidden.has(d.status) && (!q.trim() || (d.name ?? "").toLowerCase().includes(q.trim().toLowerCase()))
+  );
+  const shouldFit = () => {
+    if (fittedRef.current) return false;
+    fittedRef.current = true;
+    return true;
+  };
 
   const googleMapRef = useRef<any>(null);
   const googleMarkersRef = useRef<any[]>([]);
@@ -116,7 +164,18 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
     googleMarkersRef.current = [];
     const bounds = new google.maps.LatLngBounds();
     let count = 0;
-    for (const d of items) {
+    const info = new google.maps.InfoWindow();
+    for (const d of visibleItems) {
+      const nt = d.next_trip;
+      if (nt?.origin_lat != null && nt?.origin_lng != null) {
+        const pickup = new google.maps.Marker({
+          map,
+          position: { lat: nt.origin_lat, lng: nt.origin_lng },
+          title: `Embarque de ${d.name ?? "motorista"} — ${formatBrDateTime(nt.scheduled_at)}`,
+          icon: { path: "M -6 -6 L 6 -6 L 6 6 L -6 6 z", scale: 1, fillColor: "#c9a84c", fillOpacity: 1, strokeColor: "#111", strokeWeight: 2 }
+        });
+        googleMarkersRef.current.push(pickup);
+      }
       if (!d.location) continue;
       const st = FLEET_STATUS[d.status];
       const marker = new google.maps.Marker({
@@ -134,16 +193,23 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
           labelOrigin: new google.maps.Point(0, 2.6)
         }
       });
+      marker.addListener("click", () => {
+        info.setContent(popupHtml(d));
+        info.open({ map, anchor: marker });
+      });
       googleMarkersRef.current.push(marker);
       bounds.extend(marker.getPosition());
       count += 1;
     }
-    if (count > 1) map.fitBounds(bounds, 60);
-    else if (count === 1) {
-      map.setCenter(bounds.getCenter());
-      map.setZoom(13);
+    if (count > 0 && shouldFit()) {
+      if (count > 1) map.fitBounds(bounds, 60);
+      else {
+        map.setCenter(bounds.getCenter());
+        map.setZoom(13);
+      }
     }
-  }, [items, useGoogle, googleReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, useGoogle, googleReady, hidden, q, fitTick]);
 
   // Mapa OpenStreetMap (sem chave do Google).
   useEffect(() => {
@@ -180,23 +246,29 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
       if (!map || !layer) return;
       layer.clearLayers();
       const pts: [number, number][] = [];
-      for (const d of items) {
+      for (const d of visibleItems) {
+        const nt = d.next_trip;
+        if (nt?.origin_lat != null && nt?.origin_lng != null) {
+          L.circleMarker([nt.origin_lat, nt.origin_lng], { radius: 6, color: "#111", weight: 2, fillColor: "#c9a84c", fillOpacity: 1 })
+            .bindTooltip(`Embarque · ${formatBrDateTime(nt.scheduled_at)}`)
+            .addTo(layer);
+        }
         if (!d.location) continue;
         const st = FLEET_STATUS[d.status];
         const ll: [number, number] = [d.location.lat, d.location.lng];
         pts.push(ll);
         L.circleMarker(ll, { radius: 10, color: "#111", weight: 2, fillColor: st.color, fillOpacity: 0.95 })
-          .bindPopup(
-            `<b>${d.name ?? "Motorista"}</b><br/>${st.label}<br/><small>posição ${ago(d.location.recorded_at)}</small>` +
-              (d.next_trip ? `<br/><small>Próxima: ${formatBrDateTime(d.next_trip.scheduled_at)} · ${d.next_trip.passenger ?? ""}</small>` : "")
-          )
+          .bindPopup(popupHtml(d))
           .bindTooltip(d.name?.split(" ")[0] ?? "", { permanent: true, direction: "right", offset: [10, 0], className: "fleet-tip" })
           .addTo(layer);
       }
-      if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 });
-      else if (pts.length === 1) map.setView(pts[0], 13);
+      if (pts.length > 0 && shouldFit()) {
+        if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 });
+        else map.setView(pts[0], 13);
+      }
     })();
-  }, [items, useGoogle]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, useGoogle, hidden, q, fitTick]);
 
   const counts = ORDER.map((s) => ({ s, n: items.filter((i) => i.status === s).length }));
   const sorted = [...items].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
@@ -213,19 +285,54 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
     <section className={full ? "grid gap-3 lg:grid-cols-[1fr_340px] lg:items-start" : "space-y-3"}>
       <div className="overflow-hidden rounded-xl border border-prime-border bg-white shadow-prime-card">
         <div ref={mapEl} style={{ height: full ? "calc(100vh - 220px)" : 420, minHeight: 420 }} />
-        <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-prime-border px-4 py-3 text-xs">
-          {counts.map(({ s, n }) => (
-            <span key={s} className="inline-flex items-center gap-2">
-              <span className="inline-block h-1.5 w-6 rounded-full" style={{ background: FLEET_STATUS[s].color }} />
-              {FLEET_STATUS[s].label} <b>{n}</b>
-            </span>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 border-t border-prime-border px-4 py-3 text-xs">
+          {counts.map(({ s, n }) => {
+            const off = hidden.has(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                title={off ? "Mostrar no mapa" : "Esconder do mapa"}
+                onClick={() =>
+                  setHidden((h) => {
+                    const next = new Set(h);
+                    if (next.has(s)) next.delete(s);
+                    else next.add(s);
+                    return next;
+                  })
+                }
+                className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 ring-1 ${off ? "opacity-40 ring-prime-border" : "ring-prime-border hover:ring-prime-gold"}`}
+              >
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: FLEET_STATUS[s].color }} />
+                {FLEET_STATUS[s].label} <b>{n}</b>
+              </button>
+            );
+          })}
+          <span className="inline-flex items-center gap-1.5 px-1 text-prime-muted">
+            <span className="inline-block h-2.5 w-2.5 rotate-45 bg-[#c9a84c] ring-1 ring-[#111]" /> embarque da próxima corrida
+          </span>
+          <span className="ml-auto flex items-center gap-3">
+            {updatedAt ? <span className="text-prime-muted">Atualizado {updatedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span> : null}
+            <button
+              type="button"
+              className="rounded-full px-2.5 py-1 font-semibold ring-1 ring-prime-border hover:ring-prime-gold"
+              onClick={() => {
+                fittedRef.current = false;
+                setFitTick((n) => n + 1);
+              }}
+            >
+              Ver todos
+            </button>
+          </span>
         </div>
       </div>
       <div className={full ? "space-y-2 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto" : "space-y-3"}>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {full ? (
+        <input className="prime-input" placeholder="Buscar motorista" value={q} onChange={(e) => setQ(e.target.value)} />
+      ) : null}
       <ul className={full ? "grid gap-2" : "grid gap-2 sm:grid-cols-2 xl:grid-cols-3"}>
-        {sorted.map((d) => (
+        {sorted.filter((d) => visibleItems.includes(d)).map((d) => (
           <li key={d.id} className="rounded-xl border border-prime-border bg-white p-3 text-sm">
             <button type="button" onClick={() => focus(d)} className="flex w-full items-start gap-3 text-left">
               <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: FLEET_STATUS[d.status].color }} />
@@ -235,18 +342,41 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
                   {FLEET_STATUS[d.status].label}
                   {d.location ? ` · posição ${ago(d.location.recorded_at)}` : " · sem posição de GPS"}
                 </span>
+                {d.location && isStale(d.location.recorded_at) ? (
+                  <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-900">
+                    sinal antigo: app fechado ou sem internet
+                  </span>
+                ) : null}
                 {d.next_trip ? (
                   <span className="mt-1 block truncate text-xs">
                     Próxima: {formatBrDateTime(d.next_trip.scheduled_at)} · {d.next_trip.passenger ?? "—"}
+                    {d.next_trip.vehicle?.plate ? ` · ${d.next_trip.vehicle.plate}` : ""}
                   </span>
                 ) : null}
               </span>
             </button>
-            {d.next_trip ? (
-              <Link href={`/agenda?trip=${d.next_trip.id}`} className="mt-2 inline-block text-xs text-prime-gold hover:underline">
-                Abrir corrida
-              </Link>
-            ) : null}
+            <div className="mt-2 flex flex-wrap gap-3 text-xs">
+              {d.next_trip ? (
+                <Link href={`/agenda?trip=${d.next_trip.id}#trip-detail`} className="font-semibold text-prime-gold hover:underline">
+                  Abrir corrida
+                </Link>
+              ) : null}
+              {d.phone ? (
+                <>
+                  <a href={`tel:${d.phone.replace(/\D/g, "")}`} className="text-prime-gold hover:underline">
+                    Ligar
+                  </a>
+                  <a
+                    href={`https://wa.me/55${d.phone.replace(/\D/g, "").replace(/^55/, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-prime-gold hover:underline"
+                  >
+                    WhatsApp
+                  </a>
+                </>
+              ) : null}
+            </div>
           </li>
         ))}
         {items.length === 0 && !error ? <li className="text-sm text-prime-muted">Nenhum motorista ativo cadastrado.</li> : null}

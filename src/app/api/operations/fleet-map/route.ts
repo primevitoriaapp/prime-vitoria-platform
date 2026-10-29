@@ -29,7 +29,7 @@ export async function GET() {
         .limit(2000),
       db
         .from("trips")
-        .select("id, driver_id, scheduled_at, operational_status, passenger_name, origin_text, vehicle_id")
+        .select("id, driver_id, scheduled_at, operational_status, passenger_name, origin_text, origin_lat, origin_lng, vehicle_id")
         .eq("tenant_id", tenantId)
         .not("driver_id", "is", null)
         .in("operational_status", ["dispatched", "accepted", "on_the_way", "arrived", "in_progress", "approved"])
@@ -55,6 +55,13 @@ export async function GET() {
       }
     }
 
+    const vehicleIds = [...new Set([...nextTrip.values()].map((t) => t.vehicle_id as string).filter(Boolean))];
+    const vehicles = new Map<string, { model: string | null; plate: string | null }>();
+    if (vehicleIds.length) {
+      const { data: vs } = await db.from("vehicles").select("id, model, plate").in("id", vehicleIds);
+      for (const v of vs ?? []) vehicles.set(v.id as string, { model: (v.model as string) ?? null, plate: (v.plate as string) ?? null });
+    }
+
     const items = (drivers ?? []).map((d) => {
       const loc = lastLoc.get(d.id as string) ?? null;
       const trip = nextTrip.get(d.id as string) ?? null;
@@ -70,7 +77,10 @@ export async function GET() {
               scheduled_at: trip.scheduled_at,
               passenger: trip.passenger_name,
               origin: trip.origin_text,
-              status: trip.operational_status
+              origin_lat: trip.origin_lat == null ? null : Number(trip.origin_lat),
+              origin_lng: trip.origin_lng == null ? null : Number(trip.origin_lng),
+              status: trip.operational_status,
+              vehicle: trip.vehicle_id ? (vehicles.get(trip.vehicle_id as string) ?? null) : null
             }
           : null
       };

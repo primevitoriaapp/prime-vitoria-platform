@@ -19,9 +19,11 @@
   --prime-status-green: #2e7d32;
   --prime-status-red: #c62828;
   --prime-status-amber: #e65100;
-  --prime-radius-btn: 8px;
-  --prime-radius-card: 12px;
-  --prime-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --prime-radius-btn: 12px;
+  --prime-radius-card: 18px;
+  --prime-card-shadow: 0 1px 2px rgba(17, 17, 17, 0.04), 0 10px 28px -16px rgba(17, 17, 17, 0.18);
+  --prime-gold-gradient: linear-gradient(135deg, #dcc072 0%, #c9a84c 45%, #a8873a 100%);
+  --prime-dark-gradient: linear-gradient(135deg, #0f0f0f 0%, #1c1a16 60%, #2a2416 100%);
 
   color-scheme: light;
   background-color: var(--prime-bg);
@@ -88,18 +90,21 @@
 .prime-theme .btn-primary,
 .admin-theme .btn-primary {
   border-radius: var(--prime-radius-btn);
-  background-color: var(--prime-gold);
-  color: var(--prime-text);
+  background: var(--prime-gold-gradient);
+  color: #111;
   font-weight: 700;
-  padding: 0.5rem 1rem;
+  padding: 0.55rem 1.1rem;
   font-size: 0.875rem;
   border: none;
-  transition: background-color 0.15s ease;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 6px 16px -8px rgba(168, 135, 58, 0.7);
+  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .prime-theme .btn-primary:hover:not(:disabled),
 .admin-theme .btn-primary:hover:not(:disabled) {
-  background-color: var(--prime-gold-hover);
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 10px 22px -10px rgba(168, 135, 58, 0.8);
 }
 
 .prime-theme .btn-outline,
@@ -315,4 +320,89 @@
 }
 .leaflet-tooltip.fleet-tip::before {
   display: none;
+}
+
+
+/* ===== Pacote premium Prime (bordas arredondadas, dourado, preto) ===== */
+.admin-theme {
+  background:
+    radial-gradient(1200px 400px at 100% -10%, rgba(201, 168, 76, 0.08), transparent 60%),
+    var(--prime-bg);
+}
+
+.admin-theme .shadow-prime-card {
+  box-shadow: var(--prime-card-shadow);
+}
+
+.admin-theme .rounded-2xl {
+  border-radius: 20px;
+}
+
+.admin-theme .rounded-xl {
+  border-radius: 14px;
+}
+
+/* Cartões ganham um fio dourado ao passar o mouse */
+.admin-theme .card:hover,
+.admin-theme article.shadow-prime-card:hover {
+  border-color: color-mix(in srgb, var(--prime-gold) 45%, var(--prime-border));
+}
+
+/* Tabelas */
+.admin-theme table thead tr {
+  background: #faf7ef;
+}
+.admin-theme table thead th {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a7b55;
+}
+.admin-theme table tbody tr:hover {
+  background: #fcfaf5;
+}
+
+/* Barra lateral: fundo preto com brilho dourado e item ativo com faixa dourada */
+.admin-theme aside.prime-sidebar {
+  background: var(--prime-dark-gradient);
+}
+.admin-theme aside.prime-sidebar .prime-nav-active {
+  position: relative;
+  box-shadow: inset 3px 0 0 var(--prime-gold);
+}
+
+/* Faixa de título premium */
+.prime-page-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  padding: 1.25rem 1.5rem;
+  background: var(--prime-dark-gradient);
+  color: #f5f1e6;
+  box-shadow: 0 18px 40px -24px rgba(17, 17, 17, 0.6);
+}
+.prime-page-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -60px -80px auto;
+  width: 260px;
+  height: 260px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(201, 168, 76, 0.28), transparent 65%);
+  pointer-events: none;
+}
+.admin-theme .prime-page-hero h1 {
+  color: #fff;
+}
+
+/* Barra de rolagem discreta */
+.admin-theme ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.admin-theme ::-webkit-scrollbar-thumb {
+  background: #d9d2c0;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
