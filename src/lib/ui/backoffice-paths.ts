@@ -10,7 +10,8 @@ export const BACKOFFICE_PATH_PREFIXES = [
   "/users",
   "/audit",
   "/configuracoes",
-  "/whatsapp"
+  "/whatsapp",
+  "/categorias"
 ] as const;
 
 export function isBackofficePath(pathname: string): boolean {

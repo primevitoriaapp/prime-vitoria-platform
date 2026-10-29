@@ -1,6 +1,5 @@
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { VehiclesFleetPanel } from "@/components/vehicles-fleet-panel";
-import { VehicleCategoriesEditor } from "@/components/vehicle-categories-editor";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 
 async function getVehicles() {
@@ -25,10 +24,8 @@ export default async function VehiclesPage() {
     <>
       <AdminPageHeader
         title="Veículos"
-        subtitle="Categorias que o cliente escolhe (com foto e lugares) e a frota cadastrada"
+        subtitle="Carros da frota (placa, modelo, cor). As categorias que o cliente escolhe ficam no menu Categorias."
       />
-      <VehicleCategoriesEditor />
-      <h2 className="mb-3 mt-8 text-lg font-semibold">Frota (carros cadastrados)</h2>
       <VehiclesFleetPanel initialVehicles={vehicles} />
     </>
   );

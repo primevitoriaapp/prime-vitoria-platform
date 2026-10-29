@@ -19,6 +19,28 @@ type Props = { tenantId: string | null };
 
 const ORDER: FleetStatus[] = ["ocupado", "deslocando", "proximo", "livre", "offline"];
 
+const GOOGLE_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.trim() || "";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+let googleLoader: Promise<any> | null = null;
+function loadGoogleMaps(key: string): Promise<any> {
+  const w = window as unknown as { google?: any };
+  if (w.google?.maps) return Promise.resolve(w.google);
+  if (googleLoader) return googleLoader;
+  googleLoader = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&language=pt-BR&region=BR`;
+    script.async = true;
+    script.onload = () => resolve((window as unknown as { google: any }).google);
+    script.onerror = () => {
+      googleLoader = null;
+      reject(new Error("Google Maps não carregou"));
+    };
+    document.head.appendChild(script);
+  });
+  return googleLoader;
+}
+
 function ago(iso: string): string {
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (min < 1) return "agora";
@@ -52,8 +74,75 @@ export function LiveMap({ tenantId }: Props) {
   }, [load]);
   useTenantTableRefresh(tenantId, ["driver_locations", "drivers", "trips"], load, 1500);
 
-  // Cria o mapa uma vez.
+  const googleMapRef = useRef<any>(null);
+  const googleMarkersRef = useRef<any[]>([]);
+  const [googleFailed, setGoogleFailed] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const useGoogle = Boolean(GOOGLE_KEY) && !googleFailed;
+
+  // Mapa do Google (quando a chave existe).
   useEffect(() => {
+    if (!useGoogle || !mapEl.current || googleMapRef.current) return;
+    let cancelled = false;
+    loadGoogleMaps(GOOGLE_KEY)
+      .then((google) => {
+        if (cancelled || !mapEl.current) return;
+        googleMapRef.current = new google.maps.Map(mapEl.current, {
+          center: { lat: -20.2976, lng: -40.2958 },
+          zoom: 11,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true
+        });
+        setGoogleReady(true);
+      })
+      .catch(() => setGoogleFailed(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [useGoogle]);
+
+  useEffect(() => {
+    if (!useGoogle) return;
+    const google = (window as unknown as { google?: any }).google;
+    const map = googleMapRef.current;
+    if (!google?.maps || !map) return;
+    for (const m of googleMarkersRef.current) m.setMap(null);
+    googleMarkersRef.current = [];
+    const bounds = new google.maps.LatLngBounds();
+    let count = 0;
+    for (const d of items) {
+      if (!d.location) continue;
+      const st = FLEET_STATUS[d.status];
+      const marker = new google.maps.Marker({
+        map,
+        position: { lat: d.location.lat, lng: d.location.lng },
+        title: `${d.name ?? "Motorista"} — ${st.label}`,
+        label: { text: (d.name ?? "").split(" ")[0] || " ", color: "#111", fontSize: "11px", fontWeight: "600" },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 11,
+          fillColor: st.color,
+          fillOpacity: 1,
+          strokeColor: "#111",
+          strokeWeight: 2,
+          labelOrigin: new google.maps.Point(0, 2.6)
+        }
+      });
+      googleMarkersRef.current.push(marker);
+      bounds.extend(marker.getPosition());
+      count += 1;
+    }
+    if (count > 1) map.fitBounds(bounds, 60);
+    else if (count === 1) {
+      map.setCenter(bounds.getCenter());
+      map.setZoom(13);
+    }
+  }, [items, useGoogle, googleReady]);
+
+  // Mapa OpenStreetMap (sem chave do Google).
+  useEffect(() => {
+    if (useGoogle) return;
     let cancelled = false;
     void (async () => {
       if (!mapEl.current || mapRef.current) return;
@@ -74,10 +163,11 @@ export function LiveMap({ tenantId }: Props) {
       mapRef.current = null;
       layerRef.current = null;
     };
-  }, []);
+  }, [useGoogle]);
 
   // Atualiza os marcadores (círculos coloridos — não dependem de imagens).
   useEffect(() => {
+    if (useGoogle) return;
     void (async () => {
       const L = await import("leaflet");
       const map = mapRef.current;
@@ -101,13 +191,17 @@ export function LiveMap({ tenantId }: Props) {
       if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 });
       else if (pts.length === 1) map.setView(pts[0], 13);
     })();
-  }, [items]);
+  }, [items, useGoogle]);
 
   const counts = ORDER.map((s) => ({ s, n: items.filter((i) => i.status === s).length }));
   const sorted = [...items].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
 
   function focus(d: FleetItem) {
-    if (d.location && mapRef.current) mapRef.current.setView([d.location.lat, d.location.lng], 15);
+    if (!d.location) return;
+    if (useGoogle && googleMapRef.current) {
+      googleMapRef.current.setCenter({ lat: d.location.lat, lng: d.location.lng });
+      googleMapRef.current.setZoom(15);
+    } else if (mapRef.current) mapRef.current.setView([d.location.lat, d.location.lng], 15);
   }
 
   return (

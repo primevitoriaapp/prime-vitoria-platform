@@ -157,8 +157,8 @@ export function VehicleCategoriesEditor() {
       <div>
         <h2 className="text-lg font-semibold">Categorias de veículos</h2>
         <p className="text-sm text-prime-muted">
-          Aparecem para o cliente na hora de pedir, com a foto e o número de lugares. Os preços de cada categoria ficam no cadastro de cada
-          empresa.
+          Clique no quadro da foto para enviar a imagem (PNG, JPG ou WEBP). Para definir preços, vá em Clientes → abrir a empresa → Veículos e
+          preços.
         </p>
       </div>
       <ul className="grid gap-3 xl:grid-cols-2">
