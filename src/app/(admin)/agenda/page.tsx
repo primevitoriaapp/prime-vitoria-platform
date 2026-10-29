@@ -25,6 +25,7 @@ import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
 import { BookingsBoard } from "@/components/bookings-board";
+import { TripWizard } from "@/components/trip-wizard";
 export default async function AgendaPage({
   searchParams
 }: {
@@ -107,8 +108,16 @@ export default async function AgendaPage({
               Nova corrida
             </span>
           </summary>
-          <div className="border-t border-prime-border p-2">
-            <OperadorTripCreatePanel scheduledFrom={defaults.fromIso} scheduledTo={defaults.toIso} />
+          <div className="space-y-3 border-t border-prime-border p-2 sm:p-4">
+            <TripWizard />
+            <details className="rounded-xl border border-dashed border-prime-border">
+              <summary className="cursor-pointer px-4 py-2 text-sm text-prime-muted">
+                Corrida com vários trechos ou várias paradas de embarque (formulário completo)
+              </summary>
+              <div className="p-2">
+                <OperadorTripCreatePanel scheduledFrom={defaults.fromIso} scheduledTo={defaults.toIso} />
+              </div>
+            </details>
           </div>
         </details>
       ) : null}
