@@ -95,6 +95,13 @@ export function LoginForm({ defaultNext, switchAccount }: { defaultNext?: string
           <span className="font-medium text-prime-text">Primeiro acesso?</span> Funcionários recebem um convite por e-mail
           do gestor da empresa. Abra o convite e crie sua senha.
         </p>
+        <p className="mt-3 text-center text-xs text-prime-muted">
+          Ao entrar você concorda com os{" "}
+          <Link href="/privacidade" className="underline">
+            termos de uso e a política de privacidade
+          </Link>
+          .
+        </p>
       </section>
 
       <p className="mt-6 text-sm text-white/60">

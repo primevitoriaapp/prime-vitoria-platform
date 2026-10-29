@@ -213,6 +213,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [mailOpen, setMailOpen] = useState(false);
+  const [clientResponse, setClientResponse] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -229,6 +230,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       if (!r.ok || !r.data) return;
       const q = r.data;
       setStatus(String(q.status));
+      setClientResponse((q.client_response as string) ?? null);
       setNumber(Number(q.number));
       setTripsCount(q.trips?.length ?? 0);
       setClientId((q.client_id as string) ?? "");
@@ -418,6 +420,12 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${QUOTE_STATUS[status]?.cls ?? ""}`}>{QUOTE_STATUS[status]?.label}</span>
         </div>
       </div>
+
+      {clientResponse ? (
+        <div className="rounded-2xl border-2 border-prime-gold bg-[#FAF7F0] p-4 text-sm">
+          <b>Resposta do cliente pelo link:</b> {clientResponse}
+        </div>
+      ) : null}
 
       {locked ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">

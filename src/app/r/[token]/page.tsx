@@ -38,7 +38,12 @@ export default async function PublicTrackPage({ params }: PageProps) {
             </p>
           </section>
         )}
-        <p className="text-center text-[11px] text-[#9A9A9A]">Link privado da sua corrida. Não compartilhe.</p>
+        <p className="text-center text-[11px] text-[#9A9A9A]">
+          Link privado da sua corrida. Não compartilhe. ·{" "}
+          <a href="/privacidade" className="underline">
+            Privacidade
+          </a>
+        </p>
       </main>
     </div>
   );

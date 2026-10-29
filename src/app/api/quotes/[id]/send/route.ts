@@ -65,7 +65,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         <p style="text-align:right;font-size:16px;margin:12px 0"><b>Total: ${brl(totals.total)}</b></p>
         <p style="text-align:center;margin:22px 0"><a href="${link}" style="background:#C9A84C;color:#111;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Ver orçamento completo (${number})</a></p>
       </div>
-      <p style="padding:0 22px 22px;font-size:12px;color:#777">Para aprovar, responda este e-mail. Prime Vitória · Transporte Executivo · Vitória/ES</p>
+      <p style="padding:0 22px 22px;font-size:12px;color:#777">Para aprovar, toque em “Ver orçamento completo” e depois em “Aprovar orçamento”. Prime Vitória · Transporte Executivo · Vitória/ES</p>
     </div>`;
     const text = `${body.message}\n\nOrçamento ${number} · Total ${brl(totals.total)}\nVer completo: ${link}`;
 

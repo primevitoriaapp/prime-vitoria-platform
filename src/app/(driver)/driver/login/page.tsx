@@ -11,6 +11,9 @@ export default async function DriverLoginPage({
     <div className="min-h-screen bg-prime-bg px-5 py-10 text-slate-100">
       <main className="mx-auto flex min-h-[80vh] max-w-lg flex-col items-center justify-center">
         <DriverPinLoginForm defaultNext={next} />
+        <a href="/privacidade" className="mt-6 text-xs text-prime-muted underline">
+          Termos de uso e privacidade
+        </a>
       </main>
     </div>
   );

@@ -74,6 +74,8 @@ export function SiteHeader() {
     pathname.startsWith("/voucher") ||
     pathname.startsWith("/fatura") ||
     pathname.startsWith("/r/") ||
+    pathname.startsWith("/privacidade") ||
+    pathname.startsWith("/pedir") ||
     pathname.startsWith("/orcamento") ||
     pathname.startsWith("/driver") ||
     pathname.startsWith("/login") ||

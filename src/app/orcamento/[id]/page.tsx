@@ -8,6 +8,7 @@ import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
 import { formatQuoteNumber, isDiaria, itemHours, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
 import { shortAddress } from "@/lib/client/short-address";
 import { VoucherPrintButton } from "@/app/voucher/[id]/print-button";
+import { QuoteClientResponse } from "@/components/quote-client-response";
 
 export const dynamic = "force-dynamic";
 
@@ -41,10 +42,14 @@ export default async function OrcamentoPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let q: any = null;
   let tenantId = DEFAULT_TENANT_ID;
+  let viaLink = false;
   if (t && /^[A-Za-z0-9_-]{16,80}$/.test(t)) {
     const { data } = await db.from("quotes").select("*").eq("id", id).eq("share_token", t).maybeSingle();
     q = data;
-    if (q) tenantId = q.tenant_id as string;
+    if (q) {
+      tenantId = q.tenant_id as string;
+      viaLink = true;
+    }
   }
   if (!q) {
     const session = await getSessionContext();
@@ -236,8 +241,10 @@ export default async function OrcamentoPage({
           </section>
         ) : null}
 
+        {viaLink && t ? <QuoteClientResponse quoteId={id} token={t} status={q.status as string} defaultName={clientName === "Cliente" ? "" : clientName} /> : null}
+
         <footer style={{ borderTop: `2px solid ${GOLD}`, padding: "14px 26px 20px", fontSize: 12, color: "#555" }}>
-          Para aprovar, responda este orçamento por WhatsApp ou e-mail. {company.phone ? `Central: ${company.phone}. ` : ""}
+          {viaLink ? "Dúvidas? Fale com a central." : "Para aprovar, responda este orçamento por WhatsApp ou e-mail."} {company.phone ? `Central: ${company.phone}. ` : ""}
           {company.email ? `${company.email}` : ""}
         </footer>
       </article>
