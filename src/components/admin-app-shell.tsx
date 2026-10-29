@@ -15,7 +15,6 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "▣" },
   { href: "/ao-vivo", label: "Ao vivo", icon: "◍" },
   { href: "/dispatch", label: "Despacho", icon: "◎" },
-  { href: "/agendamentos", label: "Agendamentos", icon: "☰" },
   { href: "/agenda", label: "Agenda", icon: "◷" },
   { href: "/whatsapp", label: "WhatsApp", icon: "✆" },
   { href: "/drivers", label: "Motoristas", icon: "◉" },
@@ -27,6 +26,7 @@ const NAV = [
 
 const ADMIN_EXTRA = [
   { href: "/configuracoes", label: "Configurações" },
+  { href: "/integracoes", label: "Integrações" },
   { href: "/users", label: "Usuários" },
   { href: "/audit", label: "Auditoria" },
   { href: "/driver", label: "App motorista" },

@@ -34,7 +34,7 @@ type Trip = {
   flight_number?: string | null;
 };
 
-type Props = { tenantId: string | null };
+type Props = { tenantId: string | null; createHref?: string | null };
 
 function brl(v: unknown): string | null {
   const n = Number(v);
@@ -47,7 +47,7 @@ function dayLabel(iso: string): string {
 }
 
 /** Tela Agendamentos: corridas do período, contadores por situação, busca e lista legível. */
-export function BookingsBoard({ tenantId }: Props) {
+export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1" }: Props) {
   const [period, setPeriod] = useState<BookingPeriod>("hoje");
   const [group, setGroup] = useState<BookingGroup | "todas">("todas");
   const [search, setSearch] = useState("");
@@ -112,9 +112,11 @@ export function BookingsBoard({ tenantId }: Props) {
             </button>
           ))}
         </div>
-        <Link href={"/agenda" as Route} className="btn-primary ml-auto">
-          + Agendar viagem
-        </Link>
+        {createHref ? (
+          <Link href={createHref as Route} className="btn-primary ml-auto">
+            + Agendar viagem
+          </Link>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

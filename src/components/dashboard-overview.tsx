@@ -161,7 +161,7 @@ export function DashboardOverview({ tenantId, showMoney }: { tenantId: string | 
         <section className="rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">Próximas corridas</h2>
-            <Link href={"/agendamentos" as Route} className="text-sm font-medium text-prime-gold hover:underline">
+            <Link href={"/agenda" as Route} className="text-sm font-medium text-prime-gold hover:underline">
               Ver todas →
             </Link>
           </div>

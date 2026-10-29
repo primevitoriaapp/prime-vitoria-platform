@@ -1,13 +1,9 @@
 import { z } from "zod";
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { BackButton } from "@/components/back-button";
-import { AgendaDateRangeForm } from "@/components/agenda-date-range-form";
 import { AgendaTripDetailAnchor } from "@/components/agenda-trip-detail-anchor";
-import { OperationalHistoryPanel } from "@/components/operational-history-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
-import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { TripAgendaFocusPanel } from "@/components/trip-agenda-focus-panel";
-import { AgendaTripsList } from "@/components/agenda-trips-list";
 import type { TripRow } from "@/components/trip-table";
 
 type AgendaTrip = TripRow & {
@@ -21,7 +17,6 @@ type AgendaTrip = TripRow & {
   driver_id?: string | null;
   vehicle?: { id: string; model: string; plate: string } | null;
 };
-import { StagingSmokeHints } from "@/components/staging-smoke-hints";
 import { OperadorTripCreatePanel } from "@/components/operador-trip-create-panel";
 import { TripFocusHeader } from "@/components/trip-focus-header";
 import { TripWhatsappMessages } from "@/components/trip-whatsapp-messages";
@@ -29,52 +24,17 @@ import { defaultAgendaRangeIso } from "@/lib/operations/agenda-default-range";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
-import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
-import {
-  buildAgendaTripsSearchParams,
-  listTripsForSession
-} from "@/lib/trips/list-trips-for-session";
-
-function defaultRangeUtc(): { fromIso: string; toIso: string } {
-  return defaultAgendaRangeIso();
-}
-
-async function getAgendaTrips(
-  session: Awaited<ReturnType<typeof getSessionContext>>,
-  scheduledFrom: string,
-  scheduledTo: string
-): Promise<AgendaTrip[]> {
-  try {
-    const resolved = await withResolvedDriverId(session);
-    const qs = buildAgendaTripsSearchParams({ scheduledFrom, scheduledTo });
-    const { items } = await listTripsForSession(resolved, qs);
-    return items as unknown as AgendaTrip[];
-  } catch (error) {
-    console.error("[agenda] falha ao carregar corridas", {
-      role: session.role,
-      userId: session.userId,
-      tenantId: session.tenantId,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return [];
-  }
-}
-
+import { BookingsBoard } from "@/components/bookings-board";
 export default async function AgendaPage({
   searchParams
 }: {
-  searchParams: Promise<{ scheduledFrom?: string; scheduledTo?: string; trip?: string }>;
+  searchParams: Promise<{ trip?: string; nova?: string }>;
 }) {
   const session = await getSessionContext();
   const sp = await searchParams;
   const realtimeTenantId =
     session.role === "guest" || session.userId === "anonymous" ? null : (session.tenantId ?? DEFAULT_TENANT_ID);
 
-  const defaults = defaultRangeUtc();
-  const scheduledFrom = sp.scheduledFrom?.trim() || defaults.fromIso;
-  const scheduledTo = sp.scheduledTo?.trim() || defaults.toIso;
-
-  const trips = await getAgendaTrips(session, scheduledFrom, scheduledTo);
   const focusRaw = sp.trip?.trim() || "";
   const focusTripId = z.string().uuid().safeParse(focusRaw).success ? focusRaw : "";
   const showClaimBar = session.role === "admin" || session.role === "operador";
@@ -82,77 +42,26 @@ export default async function AgendaPage({
   const showErpEnqueue = session.role === "operador";
   const financeDevRole =
     session.role === "financeiro" ? "financeiro" : session.role === "operador" ? "operador" : "admin";
-  let focusTrip: AgendaTrip | null = focusTripId
-    ? (trips.find((t) => t.id === focusTripId) ?? null)
-    : null;
-  let focusOutsideRange = false;
-  if (focusTripId && !focusTrip) {
+
+  let focusTrip: AgendaTrip | null = null;
+  if (focusTripId) {
     const detailRes = await fetchInternalApi(`/api/trips/${focusTripId}`);
     if (detailRes.ok) {
-      const payload = await detailRes.json();
-      focusTrip = payload.data ?? null;
-      focusOutsideRange = Boolean(focusTrip);
+      const payload = (await detailRes.json().catch(() => null)) as { data?: AgendaTrip } | null;
+      focusTrip = payload?.data ?? null;
     }
   }
 
-  return (
-    <>
-      <OperationalRealtimeBridge tenantId={realtimeTenantId} />
-      <AdminPageHeader
-        title="Agenda operacional"
-        subtitle="Timeline executiva de corridas programadas"
-      />
-      <StagingSmokeHints variant="light" />
-      {showClaimBar ? (
-        <OperadorTripCreatePanel scheduledFrom={scheduledFrom} scheduledTo={scheduledTo} />
-      ) : null}
-      <AgendaDateRangeForm initialFromIso={scheduledFrom} initialToIso={scheduledTo} />
-      {showClaimBar ? (
-        <OperationalHistoryPanel devFallbackRole={session.role === "operador" ? "operador" : "admin"} days={7} />
-      ) : null}
-
-      {showClaimBar ? (
-        <InAppNotificationsPanel
-          tenantId={realtimeTenantId}
-          devFallbackRole={session.role === "operador" ? "operador" : "admin"}
-          compact
-          collapsible
-          defaultCollapsed
-        />
-      ) : null}
-
-      <section className="mt-8 space-y-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-xl font-semibold text-slate-900">Corridas</h2>
-          <p className="text-sm text-slate-500">{trips.length} no período</p>
-        </div>
-        <AgendaTripsList
-          trips={trips}
-          operatorNotesHref={(id) => {
-            const p = new URLSearchParams();
-            p.set("trip", id);
-            p.set("scheduledFrom", scheduledFrom);
-            p.set("scheduledTo", scheduledTo);
-            return `/agenda?${p.toString()}`;
-          }}
-        />
-      </section>
-      {focusTripId ? (
-        <div id="trip-detail" className="mt-8 scroll-mt-6 space-y-3">
+  if (focusTripId) {
+    return (
+      <>
+        <OperationalRealtimeBridge tenantId={realtimeTenantId} />
+        <div id="trip-detail" className="scroll-mt-6 space-y-3">
           <AgendaTripDetailAnchor tripId={focusTripId} />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <BackButton
-                fallbackHref={`/agenda?scheduledFrom=${encodeURIComponent(scheduledFrom)}&scheduledTo=${encodeURIComponent(scheduledTo)}`}
-              />
-              <h2 className="text-lg font-semibold text-slate-900">Detalhe da viagem selecionada</h2>
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <BackButton fallbackHref="/agenda" />
+            <h1 className="font-prime-display text-2xl">Corrida</h1>
           </div>
-          {focusOutsideRange ? (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              Esta viagem está fora do intervalo de datas filtrado — ações abaixo usam dados atualizados da API.
-            </p>
-          ) : null}
           <TripFocusHeader
             tripId={focusTripId}
             operationalStatus={focusTrip?.operational_status ?? "requested"}
@@ -165,7 +74,6 @@ export default async function AgendaPage({
             driverAmount={focusTrip?.driver_amount}
             margin={focusTrip?.margin}
           />
-          {showClaimBar ? <TripWhatsappMessages tripId={focusTripId} /> : null}
           <TripAgendaFocusPanel
             tripId={focusTripId}
             operationalStatus={focusTrip?.operational_status ?? "requested"}
@@ -177,14 +85,34 @@ export default async function AgendaPage({
             showErpEnqueue={showErpEnqueue}
             financeDevRole={financeDevRole}
           />
+          {showClaimBar ? <TripWhatsappMessages tripId={focusTripId} /> : null}
         </div>
-      ) : focusRaw ? (
-        <p className="mt-6 text-sm text-red-700">Identificador de viagem inválido na URL.</p>
-      ) : (
-        <p className="mt-8 text-sm text-slate-500">
-          Clique em <strong>Abrir</strong> numa corrida para aprovar, despachar e cadastrar notas.
-        </p>
-      )}
+      </>
+    );
+  }
+
+  const defaults = defaultAgendaRangeIso();
+  return (
+    <>
+      <AdminPageHeader
+        title="Agenda"
+        subtitle="Todas as corridas do período. Clique numa corrida para abrir, editar ou definir o motorista."
+      />
+      {focusRaw ? <p className="mb-4 text-sm text-red-700">Identificador de corrida inválido no endereço.</p> : null}
+      {showClaimBar ? (
+        <details open={sp.nova === "1"} className="mb-6 rounded-2xl border border-prime-border bg-white shadow-prime-card">
+          <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-prime-text">
+            <span className="inline-flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#111] text-prime-gold">+</span>
+              Nova corrida
+            </span>
+          </summary>
+          <div className="border-t border-prime-border p-2">
+            <OperadorTripCreatePanel scheduledFrom={defaults.fromIso} scheduledTo={defaults.toIso} />
+          </div>
+        </details>
+      ) : null}
+      <BookingsBoard tenantId={realtimeTenantId} createHref={null} />
     </>
   );
 }

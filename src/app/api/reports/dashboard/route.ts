@@ -69,11 +69,11 @@ export async function GET(request: Request) {
 
     const alerts: { tone: "red" | "amber" | "blue"; text: string; href: string }[] = [];
     if ((pending.count ?? 0) > 0)
-      alerts.push({ tone: "blue", text: `${pending.count} pedido(s) novo(s) esperando confirmação`, href: "/agendamentos" });
+      alerts.push({ tone: "blue", text: `${pending.count} pedido(s) novo(s) esperando confirmação`, href: "/agenda" });
     if ((noDriver.count ?? 0) > 0)
-      alerts.push({ tone: "red", text: `${noDriver.count} corrida(s) nas próximas 24h sem motorista`, href: "/agendamentos" });
+      alerts.push({ tone: "red", text: `${noDriver.count} corrida(s) nas próximas 24h sem motorista`, href: "/agenda" });
     if (s.completedNoValue > 0)
-      alerts.push({ tone: "amber", text: `${s.completedNoValue} corrida(s) finalizada(s) sem valor no período`, href: "/agendamentos" });
+      alerts.push({ tone: "amber", text: `${s.completedNoValue} corrida(s) finalizada(s) sem valor no período`, href: "/agenda" });
     if ((cnh.count ?? 0) > 0)
       alerts.push({ tone: "amber", text: `${cnh.count} motorista(s) com CNH vencida ou vencendo em 30 dias`, href: "/drivers" });
 
