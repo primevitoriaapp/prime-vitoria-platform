@@ -21,6 +21,7 @@ export default async function DashboardPage() {
           + Nova corrida
         </Link>
         {[
+          ["/orcamentos", "Orçamentos"],
           ["/agenda", "Agenda"],
           ["/ao-vivo", "Motoristas ao vivo"],
           ["/clients/relatorio", "Relatório por cliente"],

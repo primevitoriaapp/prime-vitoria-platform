@@ -17,6 +17,7 @@ import { papelUsuarioPt } from "@/lib/i18n/pt-br";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "▣" },
   { href: "/ao-vivo", label: "Ao vivo", icon: "◍" },
+  { href: "/orcamentos", label: "Orçamentos", icon: "✎" },
   { href: "/dispatch", label: "Despacho", icon: "◎" },
   { href: "/agenda", label: "Agenda", icon: "◷" },
   { href: "/whatsapp", label: "WhatsApp", icon: "✆" },

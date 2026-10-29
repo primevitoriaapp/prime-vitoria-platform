@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     const r = dashRanges(period);
 
     const now = new Date();
-    const in24h = new Date(now.getTime() + 24 * 3600000).toISOString();
+    const in24h = new Date(now.getTime() + 72 * 3600000).toISOString(); // regra da Prime: motorista definido até 3 dias antes
     const in30d = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
 
     const [curr, prev, noDriver, pending, drivers, clients, cnh] = await Promise.all([
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     if ((pending.count ?? 0) > 0)
       alerts.push({ tone: "blue", text: `${pending.count} pedido(s) novo(s) esperando confirmação`, href: "/agenda?grupo=agendada&periodo=mes" });
     if ((noDriver.count ?? 0) > 0)
-      alerts.push({ tone: "red", text: `${noDriver.count} corrida(s) nas próximas 24h sem motorista`, href: "/agenda?grupo=agendada&periodo=semana" });
+      alerts.push({ tone: "red", text: `${noDriver.count} corrida(s) nos próximos 3 dias sem motorista`, href: "/agenda?grupo=agendada&periodo=semana" });
     if (s.completedNoValue > 0)
       alerts.push({ tone: "amber", text: `${s.completedNoValue} corrida(s) finalizada(s) sem valor no período`, href: "/agenda?grupo=finalizada&periodo=mes" });
     if (payablesOverdue > 0)

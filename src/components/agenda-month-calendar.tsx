@@ -30,6 +30,7 @@ export function AgendaMonthCalendar({
   onPickDay: (ymd: string) => void;
 }) {
   const today = brToday();
+  const urgentLimit = new Date(Date.parse(`${today}T12:00:00Z`) + 3 * 86400000).toISOString().slice(0, 10);
   const [month, setMonth] = useState(today.slice(0, 7));
   const [stats, setStats] = useState<Map<string, DayStat>>(new Map());
 
@@ -139,7 +140,12 @@ export function AgendaMonthCalendar({
                 <span className="mt-auto w-full space-y-0.5">
                   <span className={`block font-semibold ${sel ? "text-prime-gold" : ""}`}>{s.total} corr.</span>
                   {s.noDriver > 0 && !past ? (
-                    <span className="block rounded bg-red-600 px-1 text-[10px] font-bold text-[#fff]">{s.noDriver} sem motorista</span>
+                    <span
+                      className={`block rounded px-1 text-[10px] font-bold ${d <= urgentLimit ? "bg-red-600 text-[#fff]" : "bg-amber-200 text-amber-900"}`}
+                      title={d <= urgentLimit ? "Prazo da Prime: motorista definido até 3 dias antes" : undefined}
+                    >
+                      {s.noDriver} sem motorista
+                    </span>
                   ) : null}
                 </span>
               ) : null}
