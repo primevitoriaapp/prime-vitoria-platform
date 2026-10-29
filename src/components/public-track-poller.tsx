@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { PublicTrackMap } from "@/components/public-track-map";
 import type { TripOperationalStatus } from "@/lib/domain/types";
-import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
-import { formatBrDateTime } from "@/lib/dates/br-date";
 import { isPublicTrackTerminalStatus } from "@/lib/public/track-revision";
+import { shortAddress } from "@/lib/client/short-address";
 
-type TrackPayload = {
+export type TrackPayload = {
   operational_status: TripOperationalStatus;
   origin_text: string;
   destination_text: string;
@@ -19,162 +18,212 @@ type TrackPayload = {
   planned_km?: number | null;
   actual_km?: number | null;
   km_updated_at?: string | null;
+  driver?: { first_name: string; photo_url: string | null } | null;
+  vehicle?: { label: string; color: string | null; plate: string | null } | null;
+  category?: string | null;
+  central_phone?: string | null;
 };
 
-type Props = {
-  token: string;
-  initial: TrackPayload;
+const STEPS: { key: string; label: string; match: TripOperationalStatus[] }[] = [
+  { key: "confirmada", label: "Confirmada", match: ["approved", "dispatched", "accepted", "reassigned"] },
+  { key: "caminho", label: "A caminho", match: ["on_the_way"] },
+  { key: "chegou", label: "Chegou", match: ["arrived"] },
+  { key: "viagem", label: "Em viagem", match: ["in_progress"] },
+  { key: "fim", label: "Concluída", match: ["completed"] }
+];
+
+function headline(s: TripOperationalStatus, driver: string | null): { title: string; sub: string } {
+  const who = driver ?? "Seu motorista";
+  switch (s) {
+    case "on_the_way":
+      return { title: `${who} está a caminho`, sub: "Acompanhe o carro no mapa até o seu embarque." };
+    case "arrived":
+      return { title: `${who} chegou`, sub: "O carro está no local de embarque aguardando você." };
+    case "in_progress":
+      return { title: "Boa viagem!", sub: "Você está a caminho do destino." };
+    case "completed":
+      return { title: "Viagem concluída", sub: "Obrigado por viajar com a Prime Vitória." };
+    case "cancelled":
+    case "rejected":
+      return { title: "Corrida cancelada", sub: "Em caso de dúvida, fale com a central." };
+    case "no_show":
+      return { title: "Embarque não realizado", sub: "O motorista aguardou no local. Fale com a central se precisar." };
+    default:
+      return { title: "Sua corrida está confirmada", sub: "Você recebe a localização do carro quando o motorista sair." };
+  }
+}
+
+const waLink = (phone: string) => {
+  const d = phone.replace(/\D/g, "");
+  return `https://wa.me/${d.startsWith("55") ? d : `55${d}`}`;
 };
 
-export function PublicTrackPoller({ token, initial }: Props) {
+export function PublicTrackPoller({ token, initial }: { token: string; initial: TrackPayload }) {
   const [data, setData] = useState<TrackPayload>(initial);
-  const [error, setError] = useState<string | null>(null);
-  const [streaming, setStreaming] = useState(false);
-  const terminal = isPublicTrackTerminalStatus(data.operational_status);
+  const [ended, setEnded] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
+  const terminal = ended || isPublicTrackTerminalStatus(data.operational_status);
 
-  const applySnapshot = useCallback((snapshot: TrackPayload) => {
-    setError(null);
-    setData(snapshot);
+  const apply = useCallback((snap: TrackPayload) => {
+    setData((prev) => ({ ...prev, ...snap }));
+    setUpdatedAt(new Date());
   }, []);
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`/api/public/track/${encodeURIComponent(token)}`, {
-        cache: "no-store"
-      });
-      const json = (await res.json()) as {
-        success: boolean;
-        data?: TrackPayload;
-        error?: { message?: string };
-      };
-      if (!res.ok || !json.success || !json.data) {
-        setError(json.error?.message ?? "Nao foi possivel atualizar");
+      const res = await fetch(`/api/public/track/${encodeURIComponent(token)}`, { cache: "no-store" });
+      if (res.status === 404) {
+        // O link expira quando a corrida termina.
+        setEnded(true);
         return;
       }
-      applySnapshot(json.data);
+      const json = (await res.json()) as { success: boolean; data?: TrackPayload };
+      if (res.ok && json.success && json.data) apply(json.data);
     } catch {
-      setError("Falha de rede ao atualizar");
+      /* tenta de novo no próximo ciclo */
     }
-  }, [token, applySnapshot]);
+  }, [token, apply]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("EventSource" in window)) return;
-    if (terminal) {
-      setStreaming(false);
-      return;
-    }
-
+    if (terminal || typeof window === "undefined" || !("EventSource" in window)) return;
     let active = true;
     let retry: ReturnType<typeof setTimeout> | null = null;
     let source: EventSource | null = null;
-
-    const openStream = () => {
+    const open = () => {
       if (!active) return;
       source?.close();
       source = new EventSource(`/api/public/track/${encodeURIComponent(token)}/stream`);
-
-      source.onopen = () => {
-        if (active) setStreaming(true);
-      };
-      source.onmessage = (event) => {
+      source.onmessage = (ev) => {
         try {
-          const json = JSON.parse(event.data) as {
-            success?: boolean;
-            data?: TrackPayload;
-            error?: { message?: string };
-          };
-          if (json.success && json.data) {
-            applySnapshot(json.data);
-            return;
-          }
-          setError(json.error?.message ?? "Stream de acompanhamento encerrado");
+          const j = JSON.parse(ev.data) as { success?: boolean; data?: TrackPayload };
+          if (j.success && j.data) apply(j.data);
         } catch {
-          setError("Stream de acompanhamento invalido");
+          /* ignora */
         }
       };
       source.onerror = () => {
         source?.close();
-        setStreaming(false);
-        if (active) retry = setTimeout(openStream, 15_000);
+        if (active) retry = setTimeout(open, 15_000);
       };
     };
-
-    openStream();
-
+    open();
     return () => {
       active = false;
       if (retry) clearTimeout(retry);
       source?.close();
     };
-  }, [token, applySnapshot, terminal]);
+  }, [token, apply, terminal]);
 
   useEffect(() => {
-    const ms = terminal ? 45_000 : 12_000;
-    const id = window.setInterval(() => void refresh(), ms);
+    if (terminal) return;
+    const id = window.setInterval(() => void refresh(), 12_000);
     return () => window.clearInterval(id);
   }, [refresh, terminal]);
 
-  const pollSeconds = terminal ? 45 : 12;
-  const statusLabel = STATUS_CORRIDA_PT[data.operational_status] ?? data.operational_status;
-
-  const driverPoint = data.location
-    ? { lat: data.location.lat, lng: data.location.lng, label: "Motorista" }
-    : null;
+  const status: TripOperationalStatus = ended && !isPublicTrackTerminalStatus(data.operational_status) ? "completed" : data.operational_status;
+  const h = headline(status, data.driver?.first_name ?? null);
+  const stepIdx = STEPS.findIndex((s) => s.match.includes(status));
+  const showMap = !isPublicTrackTerminalStatus(status);
+  const when = new Date(data.scheduled_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
   return (
-    <>
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
-      <PublicTrackMap
-        origin={data.origin_coords ? { ...data.origin_coords, label: "Origem" } : null}
-        destination={data.destination_coords ? { ...data.destination_coords, label: "Destino" } : null}
-        driver={driverPoint}
-      />
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 text-sm leading-relaxed text-slate-300">
-        <p>
-          <span className="text-slate-500">Estado operacional:</span>{" "}
-          <span className="font-medium text-amber-400">{statusLabel}</span>
-        </p>
-        <p className="mt-3">
-          <span className="text-slate-500">Origem:</span> {data.origin_text}
-        </p>
-        <p className="mt-1">
-          <span className="text-slate-500">Destino:</span> {data.destination_text}
-        </p>
-        {data.passenger_name ? (
-          <p className="mt-1">
-            <span className="text-slate-500">Passageiro:</span> {data.passenger_name}
-          </p>
+    <div className="space-y-4">
+      <section className="overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
+        <div className="p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">{when}</p>
+          <h1 className="mt-1 text-2xl font-semibold leading-tight text-[#111]">{h.title}</h1>
+          <p className="mt-1 text-sm text-[#6B6B6B]">{h.sub}</p>
+
+          {stepIdx >= 0 ? (
+            <ol className="mt-5 grid grid-cols-5 gap-1" aria-label="Etapas da corrida">
+              {STEPS.map((s, i) => (
+                <li key={s.key} className="text-center">
+                  <span className={`block h-1.5 rounded-full ${i <= stepIdx ? "bg-[#C9A84C]" : "bg-[#EEE9DC]"}`} />
+                  <span className={`mt-1.5 block text-[10px] leading-tight sm:text-xs ${i === stepIdx ? "font-semibold text-[#111]" : "text-[#9A9A9A]"}`}>{s.label}</span>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </div>
+
+        {showMap ? (
+          <div className="relative border-t border-[#EEE9DC]">
+            <PublicTrackMap
+              height="min(52vh, 420px)"
+              origin={data.origin_coords ? { ...data.origin_coords, label: "Embarque" } : null}
+              destination={data.destination_coords ? { ...data.destination_coords, label: "Destino" } : null}
+              driver={data.location ? { lat: data.location.lat, lng: data.location.lng, label: "Motorista" } : null}
+            />
+            {!data.location ? (
+              <p className="absolute inset-x-3 top-3 z-[500] rounded-xl bg-white/95 px-3 py-2 text-center text-xs text-[#6B6B6B] shadow">
+                A posição do carro aparece aqui quando o motorista estiver a caminho.
+              </p>
+            ) : (
+              <p className="absolute left-3 top-3 z-[500] rounded-full bg-[#111]/85 px-3 py-1 text-[11px] text-[#fff]">
+                <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                ao vivo · {updatedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+          </div>
         ) : null}
-        <p className="mt-1 text-xs text-slate-500">
-          Agendada:{" "}
-          {formatBrDateTime(data.scheduled_at)}
-        </p>
-        {data.planned_km != null || data.actual_km != null ? (
-          <p className="mt-1 text-xs text-slate-500">
-            Distância: {data.planned_km != null ? `${data.planned_km} km plan.` : ""}
-            {data.actual_km != null ? ` · ${data.actual_km} km real` : ""}
-          </p>
-        ) : null}
-        {data.km_updated_at ? (
-          <p className="mt-1 text-xs text-slate-600">
-            KM atualizado:{" "}
-            {formatBrDateTime(data.km_updated_at)}
-          </p>
-        ) : null}
-        <p className="mt-3 text-xs text-slate-600">
-          {streaming
-            ? "Atualização em tempo real ativa; polling permanece como fallback."
-            : `Atualiza automaticamente a cada ${pollSeconds} s.`}
-        </p>
-      </div>
-      {data.location ? (
-        <p className="text-xs text-slate-500">
-          GPS: {data.location.lat.toFixed(5)}, {data.location.lng.toFixed(5)} ·{" "}
-          {formatBrDateTime(data.location.recorded_at)}
-        </p>
-      ) : (
-        <p className="text-sm text-slate-500">Ainda nao ha posicao GPS associada a esta corrida.</p>
-      )}
-    </>
+      </section>
+
+      {data.driver || data.vehicle ? (
+        <section className="flex items-center gap-4 rounded-3xl bg-[#111] p-5 text-[#fff]">
+          {data.driver?.photo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={data.driver.photo_url} alt="" className="h-14 w-14 shrink-0 rounded-full border-2 border-[#C9A84C] object-cover" />
+          ) : (
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-[#C9A84C] text-xl font-semibold text-[#C9A84C]">
+              {(data.driver?.first_name ?? "P").charAt(0)}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-xs uppercase tracking-[0.16em] text-[#fff]/60">Seu motorista</p>
+            <p className="truncate text-lg font-semibold">{data.driver?.first_name ?? "Prime Vitória"}</p>
+            <p className="truncate text-sm text-[#fff]/70">
+              {[data.vehicle?.label, data.vehicle?.color].filter(Boolean).join(" · ") || data.category || ""}
+            </p>
+          </div>
+          {data.vehicle?.plate ? (
+            <span className="shrink-0 rounded-lg border border-[#C9A84C] px-3 py-2 text-center font-mono text-base font-bold tracking-wider text-[#C9A84C]">
+              {data.vehicle.plate}
+            </span>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center pt-1">
+            <span className="h-3 w-3 rounded-full bg-[#111]" />
+            <span className="my-1 w-px flex-1 bg-[#DDD5C2]" />
+            <span className="h-3 w-3 rounded-full bg-[#C9A84C]" />
+          </div>
+          <div className="min-w-0 flex-1 space-y-4 text-sm">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-[#9A9A9A]">Embarque</p>
+              <p className="font-medium text-[#111]">{shortAddress(data.origin_text)}</p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-[#9A9A9A]">Destino</p>
+              <p className="font-medium text-[#111]">{shortAddress(data.destination_text)}</p>
+            </div>
+          </div>
+        </div>
+        {data.passenger_name ? <p className="mt-4 border-t border-[#EEE9DC] pt-3 text-xs text-[#6B6B6B]">Passageiro: {data.passenger_name}</p> : null}
+      </section>
+
+      {data.central_phone ? (
+        <a
+          href={waLink(data.central_phone)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-4 text-base font-semibold text-[#111]"
+        >
+          Falar com a central Prime
+        </a>
+      ) : null}
+    </div>
   );
 }

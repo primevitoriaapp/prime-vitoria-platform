@@ -24,16 +24,16 @@ export default async function DriverPage() {
 
   if (!isMotorista && !isAdminPreview) {
     return (
-      <div className="min-h-screen bg-prime-bg text-slate-100">
+      <div className="min-h-dvh bg-prime-bg text-prime-text">
         <main className="mx-auto max-w-lg px-5 py-16">
-          <p className="text-xs uppercase tracking-widest text-amber-500/90">Prime Vitória</p>
-          <h1 className="mt-2 text-2xl font-semibold text-white">App motorista</h1>
+          <p className="text-xs uppercase tracking-widest text-prime-gold">Prime Vitória</p>
+          <h1 className="mt-2 text-2xl font-semibold text-prime-text">App motorista</h1>
           {isGuest ? (
-            <p className="mt-4 text-sm text-slate-400">
+            <p className="mt-4 text-sm text-prime-muted">
               Use CPF e PIN de 4 dígitos (definido pelo operador) ou conta admin para preview.
             </p>
           ) : (
-            <p className="mt-4 text-sm text-amber-200/90">
+            <p className="mt-4 text-sm text-amber-800">
               Sessão actual: <strong>{papelUsuarioPt(session.role)}</strong>. Esta área exige conta{" "}
               <strong>motorista</strong> ou <strong>admin</strong> (preview).
             </p>
@@ -41,12 +41,12 @@ export default async function DriverPage() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/driver/login"
-              className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-amber-400"
+              className="btn-primary rounded-xl px-5 py-3 text-sm font-semibold"
             >
               {isGuest ? "Entrar com CPF + PIN" : "Trocar conta"}
             </Link>
             {!isGuest ? (
-              <Link href="/dashboard" className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200">
+              <Link href="/dashboard" className="rounded-xl border border-prime-border bg-white px-5 py-3 text-sm text-prime-text">
                 Ir para painel
               </Link>
             ) : null}

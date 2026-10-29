@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { Map as LeafletMap, Marker } from "leaflet";
 
 type Point = { lat: number; lng: number; label?: string };
 
@@ -8,64 +9,72 @@ type Props = {
   origin: Point | null;
   destination: Point | null;
   driver: Point | null;
-  height?: number;
+  height?: number | string;
 };
 
-export function PublicTrackMap({ origin, destination, driver, height = 280 }: Props) {
-  const mapRef = useRef<HTMLDivElement | null>(null);
+const pin = (bg: string, inner: string, size = 30) =>
+  `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font:700 12px system-ui">${inner}</div>`;
+
+/** Mapa do acompanhamento: cria uma vez e só move os marcadores (sem piscar a cada atualização). */
+export function PublicTrackMap({ origin, destination, driver, height = 300 }: Props) {
+  const el = useRef<HTMLDivElement | null>(null);
+  const map = useRef<LeafletMap | null>(null);
+  const marks = useRef<{ o?: Marker; d?: Marker; c?: Marker }>({});
+  const fitted = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
-    let cleanup = () => {};
-
-    async function init() {
-      if (!mapRef.current) return;
+    let off = false;
+    void (async () => {
       const L = await import("leaflet");
-      if (cancelled) return;
-
-      const map = L.map(mapRef.current);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap"
-      }).addTo(map);
-
-      const bounds: [number, number][] = [];
-      const add = (p: Point | null, color: string) => {
-        if (!p) return;
-        const ll: [number, number] = [p.lat, p.lng];
-        bounds.push(ll);
-        L.circleMarker(ll, { radius: 8, color, fillColor: color, fillOpacity: 0.85 })
-          .addTo(map)
-          .bindPopup(p.label ?? "");
-      };
-
-      add(origin, "#f59e0b");
-      add(destination, "#38bdf8");
-      add(driver, "#22c55e");
-
-      if (bounds.length >= 2) {
-        map.fitBounds(bounds, { padding: [24, 24] });
-      } else if (bounds.length === 1) {
-        map.setView(bounds[0], 14);
-      } else {
-        map.setView([-20.3155, -40.3128], 11);
+      if (off || !el.current) return;
+      if (!map.current) {
+        map.current = L.map(el.current, { zoomControl: false, attributionControl: true });
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+          attribution: "&copy; OpenStreetMap &copy; CARTO",
+          maxZoom: 19
+        }).addTo(map.current);
+        L.control.zoom({ position: "bottomright" }).addTo(map.current);
       }
-
-      cleanup = () => {
-        map.remove();
+      const m = map.current;
+      const put = (key: "o" | "d" | "c", p: Point | null, html: string, size: number) => {
+        const cur = marks.current[key];
+        if (!p) {
+          cur?.remove();
+          marks.current[key] = undefined;
+          return;
+        }
+        if (cur) cur.setLatLng([p.lat, p.lng]);
+        else
+          marks.current[key] = L.marker([p.lat, p.lng], {
+            icon: L.divIcon({ html, className: "", iconSize: [size, size], iconAnchor: [size / 2, size / 2] }),
+            zIndexOffset: key === "c" ? 1000 : 0
+          }).addTo(m);
       };
-    }
+      put("o", origin, pin("#111", "A"), 30);
+      put("d", destination, pin("#7A6A3A", "B"), 30);
+      put("c", driver, pin("#C9A84C", "🚘", 38), 38);
 
-    void init();
+      const pts = [driver, origin, destination].filter(Boolean) as Point[];
+      if (!fitted.current || driver) {
+        if (driver && origin) m.fitBounds([[driver.lat, driver.lng], [origin.lat, origin.lng]], { padding: [40, 40], maxZoom: 16 });
+        else if (pts.length >= 2) m.fitBounds(pts.map((p) => [p.lat, p.lng] as [number, number]), { padding: [40, 40], maxZoom: 15 });
+        else if (pts.length === 1) m.setView([pts[0].lat, pts[0].lng], 15);
+        else m.setView([-20.3155, -40.3128], 12);
+        fitted.current = true;
+      }
+    })();
     return () => {
-      cancelled = true;
-      cleanup();
+      off = true;
     };
-  }, [origin?.lat, origin?.lng, destination?.lat, destination?.lng, driver?.lat, driver?.lng]);
+  }, [origin?.lat, origin?.lng, destination?.lat, destination?.lng, driver?.lat, driver?.lng, origin, destination, driver]);
 
-  const hasAny = origin || destination || driver;
-  if (!hasAny) {
-    return <p className="text-sm text-slate-500">Sem coordenadas para mapa; posição GPS aparece quando disponível.</p>;
-  }
+  useEffect(
+    () => () => {
+      map.current?.remove();
+      map.current = null;
+    },
+    []
+  );
 
-  return <div ref={mapRef} className="w-full overflow-hidden rounded-xl border border-slate-800" style={{ height }} />;
+  return <div ref={el} className="w-full overflow-hidden" style={{ height }} />;
 }

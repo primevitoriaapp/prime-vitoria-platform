@@ -2,6 +2,7 @@ import { db } from "@/lib/server/db";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 import { normalizePublicTrackToken } from "./track-token";
 import { publicTrackNumber, publicTrackPoint } from "./public-track-values";
+import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
 
 export type PublicTrackSnapshot = {
   trip_id: string;
@@ -18,6 +19,11 @@ export type PublicTrackSnapshot = {
   /** Preenchido quando a viagem tem coluna `km_updated_at` (recálculo pós-corrida ou manual). */
   km_updated_at: string | null;
   expires_at: string;
+  /** Para o passageiro reconhecer o carro: só o primeiro nome do motorista. */
+  driver: { first_name: string; photo_url: string | null } | null;
+  vehicle: { label: string; color: string | null; plate: string | null } | null;
+  category: string | null;
+  central_phone: string | null;
 };
 
 export async function resolvePublicTrackSnapshot(rawToken: string): Promise<PublicTrackSnapshot | null> {
@@ -37,7 +43,7 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
   const { data: trip } = await db
     .from("trips")
     .select(
-      "operational_status, origin_text, destination_text, passenger_name, scheduled_at, planned_km, actual_km, km_updated_at, origin_lat, origin_lng, destination_lat, destination_lng"
+      "tenant_id, driver_id, vehicle_id, vehicle_category_id, operational_status, origin_text, destination_text, passenger_name, scheduled_at, planned_km, actual_km, km_updated_at, origin_lat, origin_lng, destination_lat, destination_lng"
     )
     .eq("id", row.trip_id)
     .maybeSingle();
@@ -53,6 +59,15 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
     .maybeSingle();
 
   const locationPoint = publicTrackPoint(loc?.lat, loc?.lng);
+
+  const [drv, veh, cat, company] = await Promise.all([
+    trip.driver_id ? db.from("drivers").select("full_name, photo_url").eq("id", trip.driver_id).maybeSingle() : Promise.resolve({ data: null }),
+    trip.vehicle_id ? db.from("vehicles").select("brand, model, color, plate").eq("id", trip.vehicle_id).maybeSingle() : Promise.resolve({ data: null }),
+    trip.vehicle_category_id ? db.from("vehicle_categories").select("name").eq("id", trip.vehicle_category_id).maybeSingle() : Promise.resolve({ data: null }),
+    getTenantCompanyProfile(trip.tenant_id as string).catch(() => null)
+  ]);
+  const d = drv.data as { full_name?: string | null; photo_url?: string | null } | null;
+  const v = veh.data as { brand?: string | null; model?: string | null; color?: string | null; plate?: string | null } | null;
 
   return {
     trip_id: row.trip_id,
@@ -72,6 +87,10 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
     planned_km: publicTrackNumber(trip.planned_km),
     actual_km: publicTrackNumber(trip.actual_km),
     km_updated_at: (trip.km_updated_at as string | null) ?? null,
-    expires_at: row.expires_at as string
+    expires_at: row.expires_at as string,
+    driver: d?.full_name ? { first_name: d.full_name.trim().split(/\s+/)[0], photo_url: d.photo_url ?? null } : null,
+    vehicle: v ? { label: [v.brand, v.model].filter(Boolean).join(" ") || "Veículo", color: v.color ?? null, plate: v.plate ?? null } : null,
+    category: ((cat.data as { name?: string } | null)?.name as string | undefined) ?? null,
+    central_phone: company?.phone || null
   };
 }

@@ -37,6 +37,8 @@ function brl(v: unknown) {
   return Number.isFinite(n) ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : null;
 }
 
+const LIVE_STATUSES: string[] = ["on_the_way", "arrived", "in_progress"];
+
 export function ClientTripsPanel({
   tenantId,
   readOnly = false,
@@ -159,7 +161,22 @@ export function ClientTripsPanel({
             const amount = showAmounts && trip.operational_status === "completed" ? brl(trip.client_amount) : null;
             const canCancel = !readOnly && clientMayCancelTrip(trip.operational_status, trip.scheduled_at);
             return (
-              <li key={trip.id} className="rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
+              <li
+                key={trip.id}
+                className={`rounded-2xl border bg-white p-4 shadow-prime-card ${LIVE_STATUSES.includes(trip.operational_status) ? "border-prime-gold ring-2 ring-prime-gold/30" : "border-prime-border"}`}
+              >
+                {LIVE_STATUSES.includes(trip.operational_status) ? (
+                  <Link
+                    href={`/client/viagens/${trip.id}`}
+                    className="-mx-4 -mt-4 mb-3 flex items-center justify-between gap-2 rounded-t-2xl bg-[#111] px-4 py-2.5 text-sm font-semibold text-[#fff]"
+                  >
+                    <span>
+                      <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                      {trip.operational_status === "in_progress" ? "Em viagem agora" : trip.operational_status === "arrived" ? "Motorista no local" : "Motorista a caminho"}
+                    </span>
+                    <span className="text-prime-gold">Acompanhar ao vivo →</span>
+                  </Link>
+                ) : null}
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="text-lg font-semibold text-prime-text">{formatBrDateTime(trip.scheduled_at)}</p>
@@ -190,7 +207,7 @@ export function ClientTripsPanel({
                     {trip.passenger_count != null && trip.passenger_count > 1 ? ` · ${trip.passenger_count} pessoas` : ""}
                     {trip.driver_name ? <span className="text-prime-text"> · Motorista: {trip.driver_name}</span> : null}
                   </p>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     {amount ? <span className="font-semibold text-prime-text">{amount}</span> : null}
                     <Link href={`/client/viagens/${trip.id}`} className="font-medium text-prime-gold hover:underline">
                       Detalhes

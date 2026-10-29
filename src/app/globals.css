@@ -67,3 +67,31 @@
     @apply inline-flex rounded-full px-2 py-0.5 text-xs font-medium;
   }
 }
+
+/* ---- Responsivo (celular Android/iPhone, tablet e computador) ---- */
+html,
+body {
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+/* iPhone dá zoom sozinho em campo com fonte menor que 16px: no celular os campos usam 16px. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+/* Toques mais confortáveis em telas de toque. */
+@media (pointer: coarse) {
+  button,
+  a,
+  select {
+    touch-action: manipulation;
+  }
+}

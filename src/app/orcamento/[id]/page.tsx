@@ -140,7 +140,8 @@ export default async function OrcamentoPage({
         </section>
 
         <section style={{ padding: "0 26px 10px" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+          <table style={{ width: "100%", minWidth: 560, borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <th style={{ ...th, width: 70 }}>Hora</th>
@@ -195,6 +196,7 @@ export default async function OrcamentoPage({
               </tbody>
             ))}
           </table>
+          </div>
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
             <table style={{ fontSize: 13 }}>
               <tbody>

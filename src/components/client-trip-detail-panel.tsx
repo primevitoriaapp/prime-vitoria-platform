@@ -112,6 +112,10 @@ export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRol
                 </ol>
               ) : null}
 
+              {["on_the_way", "arrived", "in_progress"].includes(trip.operational_status) ? (
+                <LiveTrackButton tripId={trip.id} devFallbackRole={devFallbackRole} />
+              ) : null}
+
               <div className="mt-5 grid gap-3 text-sm">
                 <div className="flex gap-3">
                   <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-prime-gold" aria-hidden />
@@ -169,5 +173,31 @@ export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRol
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Abre o mapa ao vivo do carro (mesma página que o passageiro recebe no WhatsApp). */
+function LiveTrackButton({ tripId, devFallbackRole }: { tripId: string; devFallbackRole: "cliente" | "admin" }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        const res = await fetchWithSupabaseSession(
+          `/api/trips/${tripId}/tracking-token`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expires_in_hours: 12 }) },
+          devFallbackRole
+        );
+        const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { path: string } };
+        setBusy(false);
+        if (j.success && j.data?.path) window.location.href = j.data.path;
+      }}
+      className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#111] px-4 py-3.5 text-base font-semibold text-[#fff] disabled:opacity-60"
+    >
+      <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+      {busy ? "Abrindo…" : "Acompanhar o carro ao vivo"}
+    </button>
   );
 }

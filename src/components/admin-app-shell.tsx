@@ -56,6 +56,9 @@ function navClass(active: boolean) {
 export function AdminAppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [session, setSession] = useState<SessionPayload | null>(null);
+  // Menu completo no celular/tablet (gaveta lateral).
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => setMenuOpen(false), [pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,11 +87,8 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
       ? NAV.filter((n) => ["/painel-financeiro", "/finance", "/dashboard", "/clients/relatorio", "/contas-a-pagar", "/repasses", "/conciliacao"].includes(n.href))
       : NAV;
 
-  return (
-    <CompanyProvider>
-    <div className="admin-theme flex h-dvh flex-col overflow-hidden bg-prime-bg text-prime-text">
-      <div className="flex min-h-0 flex-1">
-        <aside className="prime-sidebar hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-prime-sidebar md:flex print:hidden">
+  const sidebarBody = (
+    <>
           <div className="border-b border-white/10 px-4 py-5">
             <Link href="/dashboard" aria-label="Voltar ao início">
               <BrandLogo variant="dark" />
@@ -124,46 +124,53 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
               </button>
             </form>
           </div>
+    </>
+  );
+
+  return (
+    <CompanyProvider>
+    <div className="admin-theme flex h-dvh flex-col overflow-hidden bg-prime-bg text-prime-text">
+      <div className="flex min-h-0 flex-1">
+        <aside className="prime-sidebar hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-prime-sidebar md:flex print:hidden">
+          {sidebarBody}
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <header className="z-40 shrink-0 border-b border-prime-border bg-prime-card/95 backdrop-blur print:hidden">
-            <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
-              <Link href="/dashboard" className="flex items-center gap-3 md:hidden" aria-label="Voltar ao início">
-                <BrandLogo compact subtitle="OPERAÇÃO" variant="light" />
-              </Link>
-              <nav className="flex flex-1 flex-wrap gap-1 overflow-x-auto md:hidden" aria-label="Menu móvel">
-                {visibleNav.slice(0, 5).map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`shrink-0 rounded-md px-2 py-1 text-xs ${
-                      isActivePath(pathname, item.href)
-                        ? "bg-prime-gold/15 font-medium text-prime-gold"
-                        : "text-prime-muted"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-              <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 lg:px-8">
+              <div className="flex min-w-0 items-center gap-2 md:hidden">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(true)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-prime-border"
+                  aria-label="Abrir menu"
+                >
+                  <span className="block h-0.5 w-5 bg-prime-text shadow-[0_6px_0_currentColor,0_-6px_0_currentColor]" />
+                </button>
+                <Link href="/dashboard" className="min-w-0" aria-label="Voltar ao início">
+                  <BrandLogo compact subtitle="OPERAÇÃO" variant="light" />
+                </Link>
+              </div>
+              {/* No celular, empresa e alertas descem para uma segunda linha (renderizados uma vez só). */}
+              <div className="order-3 flex w-full flex-wrap items-center gap-2 empty:hidden md:order-none md:w-auto md:flex-1 md:justify-end sm:gap-3">
                 {isAdmin || isFinanceiro ? <CompanySwitcher /> : null}
                 {isAdmin || isFinanceiro ? <ReceivablesAlertPill /> : null}
                 {isAdmin || isFinanceiro ? <PayablesAlertPill /> : null}
                 {showFullNav ? <PendingRequestsPill tenantId={session?.tenantId ?? null} /> : null}
                 {showFullNav ? <NewTripRequestAlert tenantId={session?.tenantId ?? null} /> : null}
+              </div>
+              <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
                 {isAdmin || isFinanceiro || isOperador ? (
                   <NotificationsBell
                     tenantId={session?.tenantId ?? null}
                     role={isAdmin ? "admin" : isFinanceiro ? "financeiro" : "operador"}
                   />
                 ) : null}
-                <span className="rounded-full border border-prime-border bg-prime-bg px-3 py-1 text-xs text-prime-text">
+                <span className="hidden rounded-full border border-prime-border bg-prime-bg px-3 py-1 text-xs text-prime-text lg:inline">
                   {session ? papelUsuarioPt(session.role) : "…"}
                 </span>
                 <span
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-prime-gold to-prime-gold-hover text-sm font-bold text-prime-text"
+                  className="hidden h-9 w-9 items-center sm:flex justify-center rounded-full bg-gradient-to-br from-prime-gold to-prime-gold-hover text-sm font-bold text-prime-text"
                   aria-hidden
                 >
                   AM
@@ -190,6 +197,22 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      {menuOpen ? (
+        <div className="fixed inset-0 z-[100] md:hidden print:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} />
+          <aside className="prime-sidebar absolute inset-y-0 left-0 flex w-[min(300px,85vw)] flex-col overflow-hidden bg-prime-sidebar pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setMenuOpen(false)}
+              className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg text-[#fff]"
+              aria-label="Fechar menu"
+            >
+              ×
+            </button>
+            {sidebarBody}
+          </aside>
+        </div>
+      ) : null}
     </div>
     </CompanyProvider>
   );

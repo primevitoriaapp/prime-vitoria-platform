@@ -31,6 +31,48 @@ type Props = {
   userName?: string;
 };
 
+function TabIcon({ id, active }: { id: Tab; active: boolean }) {
+  const c = active ? "#C9A84C" : "currentColor";
+  const p = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", stroke: c, strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  switch (id) {
+    case "resumo":
+      return (
+        <svg {...p}>
+          <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
+        </svg>
+      );
+    case "pedir":
+      return (
+        <svg {...p}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8v8M8 12h8" />
+        </svg>
+      );
+    case "corridas":
+      return (
+        <svg {...p}>
+          <path d="M5 17h14M6 17l1.5-5h9L18 17M8 12l1-3h6l1 3" />
+          <circle cx="8" cy="18" r="1.5" />
+          <circle cx="16" cy="18" r="1.5" />
+        </svg>
+      );
+    case "faturas":
+      return (
+        <svg {...p}>
+          <path d="M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21z" />
+          <path d="M10 8h4M10 12h4" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...p}>
+          <circle cx="9" cy="8" r="3" />
+          <path d="M3 20c0-3 3-5 6-5s6 2 6 5M16 11a3 3 0 1 0 0-6M21 20c0-2.5-1.5-4-4-4.6" />
+        </svg>
+      );
+  }
+}
+
 function firstName(name?: string) {
   const n = (name ?? "").trim().split(/\s+/)[0];
   return n ? n.charAt(0).toUpperCase() + n.slice(1) : "";
@@ -141,7 +183,7 @@ export function ClientAppShell({
     <div className="min-h-screen bg-prime-bg pb-24 text-prime-text sm:pb-10">
       <OperationalRealtimeBridge tenantId={tenantId} />
 
-      <header className="bg-[#111] text-[#fff]">
+      <header className="sticky top-0 z-40 bg-[#111]/95 pt-[env(safe-area-inset-top)] text-[#fff] backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <PrimeLogoMark size={56} />
@@ -306,9 +348,10 @@ export function ClientAppShell({
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`py-3 text-xs ${tab === t.id ? "font-semibold text-prime-text" : "text-prime-muted"}`}
+            className={`flex flex-col items-center gap-0.5 pb-2 pt-1.5 text-[11px] ${tab === t.id ? "font-semibold text-prime-text" : "text-prime-muted"}`}
           >
-            <span className={`mx-auto mb-1 block h-1 w-6 rounded-full ${tab === t.id ? "bg-prime-gold" : "bg-transparent"}`} />
+            <span className={`mb-0.5 block h-1 w-6 rounded-full ${tab === t.id ? "bg-prime-gold" : "bg-transparent"}`} />
+            <TabIcon id={t.id} active={tab === t.id} />
             {t.label}
           </button>
         ))}
