@@ -103,10 +103,10 @@ export default async function AgendaPage({
       />
       {focusRaw ? <p className="mb-4 text-sm text-red-700">Identificador de corrida inválido no endereço.</p> : null}
       {showClaimBar ? (
-        <details open={sp.nova === "1"} className="mb-6 rounded-2xl border border-prime-border bg-white shadow-prime-card">
-          <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-prime-text">
-            <span className="inline-flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#111] text-prime-gold">+</span>
+        <details open={sp.nova === "1"} className="mb-6 rounded-2xl border-2 border-prime-gold bg-white shadow-prime-card">
+          <summary className="flex cursor-pointer list-none justify-center p-4 [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-3 rounded-2xl bg-prime-gold px-8 py-4 text-lg font-bold text-[#111] shadow-lg transition hover:brightness-105">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#111] text-xl text-prime-gold">+</span>
               Nova corrida
             </span>
           </summary>
@@ -123,7 +123,7 @@ export default async function AgendaPage({
           </div>
         </details>
       ) : null}
-      <BookingsBoard tenantId={realtimeTenantId} createHref={null} initialPeriod={sp.periodo} initialGroup={sp.grupo} />
+      <BookingsBoard tenantId={realtimeTenantId} createHref={null} initialPeriod={sp.periodo} initialGroup={sp.grupo} showCalendar />
     </>
   );
 }

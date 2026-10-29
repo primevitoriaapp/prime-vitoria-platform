@@ -10,6 +10,7 @@ import { shortAddress } from "@/lib/client/short-address";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { QuickAssign, type AssignDriver } from "@/components/quick-assign";
 import { SERVICE_EXTRAS } from "@/lib/trips/service-extras";
+import { AgendaMonthCalendar } from "@/components/agenda-month-calendar";
 import {
   BOOKING_GROUPS,
   BOOKING_PERIODS,
@@ -41,7 +42,7 @@ type Trip = {
   service_extras?: string[] | null;
 };
 
-type Props = { tenantId: string | null; createHref?: string | null; initialPeriod?: string; initialGroup?: string };
+type Props = { tenantId: string | null; createHref?: string | null; initialPeriod?: string; initialGroup?: string; showCalendar?: boolean };
 
 function brl(v: unknown): string | null {
   const n = Number(v);
@@ -54,7 +55,8 @@ function dayLabel(iso: string): string {
 }
 
 /** Tela Agendamentos: corridas do período, contadores por situação, busca e lista legível. */
-export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initialPeriod, initialGroup }: Props) {
+export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initialPeriod, initialGroup, showCalendar = false }: Props) {
+  const [day, setDay] = useState<string | null>(null);
   const [period, setPeriod] = useState<BookingPeriod>(
     BOOKING_PERIODS.some((p) => p.id === initialPeriod) ? (initialPeriod as BookingPeriod) : "hoje"
   );
@@ -67,7 +69,9 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const { from, to } = bookingPeriodRange(period);
+    const { from, to } = day
+      ? { from: new Date(`${day}T00:00:00-03:00`).toISOString(), to: new Date(`${day}T23:59:59.999-03:00`).toISOString() }
+      : bookingPeriodRange(period);
     const qs = new URLSearchParams({ scheduledFrom: from, scheduledTo: to, pageSize: "300", sortDir: "asc" });
     const res = await fetchWithSupabaseSession(`/api/trips?${qs}`, {}, "admin");
     const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { items: Trip[] }; error?: { message?: string } };
@@ -79,7 +83,7 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
       setTrips(json.data?.items ?? []);
     }
     setLoading(false);
-  }, [period]);
+  }, [period, day]);
 
   useEffect(() => {
     setLoading(true);
@@ -142,7 +146,7 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
     });
   }, [trips, group, search]);
 
-  const multiDay = period === "semana" || period === "mes";
+  const multiDay = !day && (period === "semana" || period === "mes");
   let lastDay = "";
 
   return (
@@ -153,19 +157,38 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
             <button
               key={p.id}
               type="button"
-              onClick={() => setPeriod(p.id)}
-              className={`rounded-lg px-3 py-1.5 ${period === p.id ? "bg-[#111] font-semibold text-[#fff]" : "text-prime-muted hover:text-prime-text"}`}
+              onClick={() => {
+                setDay(null);
+                setPeriod(p.id);
+              }}
+              className={`rounded-lg px-3 py-1.5 ${!day && period === p.id ? "bg-[#111] font-semibold text-[#fff]" : "text-prime-muted hover:text-prime-text"}`}
             >
               {p.label}
             </button>
           ))}
         </div>
+        {day ? (
+          <span className="rounded-lg bg-[#111] px-3 py-1.5 text-sm font-semibold text-[#fff]">
+            {new Date(`${day}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone: "UTC" })}
+          </span>
+        ) : null}
         {createHref ? (
           <Link href={createHref as Route} className="btn-primary ml-auto">
             + Agendar viagem
           </Link>
         ) : null}
       </div>
+
+      {showCalendar ? (
+        <AgendaMonthCalendar
+          tenantId={tenantId}
+          selectedDay={day}
+          onPickDay={(d) => {
+            setDay(d);
+            setGroup("todas");
+          }}
+        />
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {BOOKING_GROUPS.map((g) => {
