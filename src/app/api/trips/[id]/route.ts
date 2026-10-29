@@ -124,6 +124,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const { dispatchTripMessages } = await import("@/lib/messages/dispatch-trip-messages");
         await dispatchTripMessages(tenantId, id, "os_motorista", ["motorista"], { replace: true });
       });
+      const driverId = trip.driver_id as string;
+      await runBestEffort("trip.edit.driver_push", async () => {
+        const { pushTripToDriver } = await import("@/lib/notifications/send-driver-push-now");
+        await pushTripToDriver(tenantId, driverId, id, "alterada");
+      });
     }
 
     return ok(saved);

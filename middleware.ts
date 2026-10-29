@@ -18,6 +18,15 @@ const protectedPrefixes: Array<{ prefix: string; allowedRoles: string[] }> = [
   { prefix: "/configuracoes", allowedRoles: ["admin"] },
   { prefix: "/whatsapp", allowedRoles: ["admin", "operador"] },
   { prefix: "/categorias", allowedRoles: ["admin", "operador"] },
+  { prefix: "/ao-vivo", allowedRoles: ["admin", "operador"] },
+  { prefix: "/orcamentos", allowedRoles: ["admin", "operador"] },
+  { prefix: "/parceiros", allowedRoles: ["admin", "operador"] },
+  { prefix: "/importar", allowedRoles: ["admin"] },
+  { prefix: "/integracoes", allowedRoles: ["admin"] },
+  { prefix: "/painel-financeiro", allowedRoles: ["admin", "financeiro"] },
+  { prefix: "/contas-a-pagar", allowedRoles: ["admin", "financeiro"] },
+  { prefix: "/repasses", allowedRoles: ["admin", "financeiro"] },
+  { prefix: "/conciliacao", allowedRoles: ["admin", "financeiro"] },
   { prefix: "/driver", allowedRoles: ["motorista", "admin"] },
   { prefix: "/client", allowedRoles: ["cliente", "admin"] }
 ];
@@ -96,6 +105,15 @@ export const config = {
     "/whatsapp/:path*",
     "/categorias",
     "/categorias/:path*",
+    "/ao-vivo/:path*",
+    "/orcamentos/:path*",
+    "/parceiros/:path*",
+    "/importar/:path*",
+    "/integracoes/:path*",
+    "/painel-financeiro/:path*",
+    "/contas-a-pagar/:path*",
+    "/repasses/:path*",
+    "/conciliacao/:path*",
     "/driver/:path*",
     "/client/:path*"
   ]

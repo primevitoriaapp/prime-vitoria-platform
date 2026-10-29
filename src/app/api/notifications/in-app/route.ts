@@ -24,6 +24,16 @@ export async function GET(request: Request) {
       return fail("UNAUTHORIZED", "Sessão inválida", 401);
     }
 
+    // Recupera avisos que ficaram na fila (o sininho consulta a cada minuto).
+    if (session.tenantId) {
+      try {
+        const { processNotificationJobs } = await import("@/lib/jobs/processors");
+        await processNotificationJobs({ limit: 20, tenantId: session.tenantId });
+      } catch {
+        /* segue listando */
+      }
+    }
+
     const q = listSchema.parse(Object.fromEntries(new URL(request.url).searchParams.entries()));
     const from = (q.page - 1) * q.pageSize;
     const to = from + q.pageSize - 1;

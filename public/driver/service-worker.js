@@ -1,4 +1,4 @@
-/* Escopo /driver/ — rede direta; push FCM data-only exibe notificacao local. */
+/* App do motorista (escopo /driver/): rede direta + avisos (Web Push). */
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
@@ -12,37 +12,37 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let payload = {};
+  let p = {};
   try {
-    payload = event.data ? event.data.json() : {};
+    p = event.data ? event.data.json() : {};
   } catch {
-    payload = { body: event.data?.text() ?? "" };
+    p = { body: event.data ? event.data.text() : "" };
   }
-  const title = typeof payload.title === "string" ? payload.title : "Prime Vitória";
-  const body =
-    typeof payload.body === "string"
-      ? payload.body
-      : typeof payload.eventType === "string"
-        ? payload.eventType
-        : "Nova actualização operacional";
+  const title = typeof p.title === "string" ? p.title : "Prime Vitória";
+  const url = typeof p.url === "string" ? p.url : p.tripId ? `/driver?trip=${encodeURIComponent(p.tripId)}` : "/driver";
   event.waitUntil(
     self.registration.showNotification(title, {
-      body,
-      data: payload,
-      tag: typeof payload.tripId === "string" ? `trip-${payload.tripId}` : "pv-driver"
+      body: typeof p.body === "string" ? p.body : "Atualização da central",
+      icon: "/icon",
+      badge: "/icon",
+      tag: typeof p.tag === "string" ? p.tag : "pv-driver",
+      renotify: true,
+      requireInteraction: true,
+      vibrate: [300, 120, 300, 120, 300],
+      data: { url }
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const tripId = event.notification?.data?.tripId;
-  const url = tripId ? `/driver?trip=${encodeURIComponent(tripId)}` : "/driver";
+  const url = (event.notification.data && event.notification.data.url) || "/driver";
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ("focus" in client) {
-          return client.focus();
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if (c.url.includes("/driver") && "focus" in c) {
+          if ("navigate" in c) c.navigate(url).catch(() => undefined);
+          return c.focus();
         }
       }
       return self.clients.openWindow(url);

@@ -26,4 +26,12 @@ export async function enqueueNotificationJob(
   if (error) {
     throw new Error(error.message);
   }
+
+  // Processa na hora (não depende de tarefa agendada): sininho e avisos chegam em segundos.
+  try {
+    const { processNotificationJobs } = await import("../jobs/processors");
+    await processNotificationJobs({ limit: 10, tenantId: options.tenantId });
+  } catch {
+    /* fica na fila; o sininho reprocessa */
+  }
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
+import { PushSetup } from "@/components/push-setup";
 
 /** Sininho no topo de todas as telas do painel, com a lista de avisos ao clicar. */
 export function NotificationsBell({
@@ -57,6 +58,9 @@ export function NotificationsBell({
       </button>
       {open ? (
         <div className="absolute right-0 z-50 mt-2 max-h-[70vh] w-[min(420px,calc(100vw-32px))] overflow-y-auto rounded-2xl border border-prime-border bg-white p-2 shadow-xl">
+          <div className="mb-2">
+            <PushSetup audience="central" compact />
+          </div>
           <InAppNotificationsPanel tenantId={tenantId} devFallbackRole={role} compact />
         </div>
       ) : null}

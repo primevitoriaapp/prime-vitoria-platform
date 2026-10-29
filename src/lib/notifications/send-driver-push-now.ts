@@ -1,50 +1,50 @@
 import { db } from "../server/db";
-import { driverDispatchedPushPayload } from "./driver-status-event";
-import { fcmDataFromPayload, sendFcmLegacyDataMessage } from "./fcm-legacy";
+import { pushToDriver } from "@/lib/push/web-push";
 
 export type SendDriverPushResult = { ok: true } | { ok: false; reason: string };
 
-/** Envia push FCM ao motorista imediatamente (sem fila / cron). */
-export async function sendDriverPushNow(
-  tenantId: string,
-  driverId: string,
-  payload: Record<string, unknown>
-): Promise<SendDriverPushResult> {
-  const fcmKey = process.env.FCM_SERVER_KEY?.trim();
-  if (!fcmKey) {
-    return { ok: false, reason: "FCM_SERVER_KEY nao configurado" };
-  }
+export type DriverTripPushKind = "nova" | "alterada" | "cancelada" | "removida" | "lembrete";
 
-  const { data: tokenRow, error } = await db
-    .from("driver_push_tokens")
-    .select("token")
-    .eq("driver_id", driverId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
+const TITLES: Record<DriverTripPushKind, string> = {
+  nova: "🚘 Nova corrida para você",
+  alterada: "✏️ Corrida alterada",
+  cancelada: "❌ Corrida cancelada",
+  removida: "Corrida passada para outro motorista",
+  lembrete: "⏰ Sua corrida está chegando"
+};
 
-  if (error) {
-    return { ok: false, reason: error.message };
-  }
+function short(addr: string | null | undefined) {
+  return String(addr ?? "").split(",")[0].trim() || "—";
+}
 
-  const token = tokenRow?.token?.trim();
-  if (!token) {
-    return { ok: false, reason: "NO_DEVICE_PUSH_TOKEN" };
-  }
-
-  const send = await sendFcmLegacyDataMessage({
-    serverKey: fcmKey,
-    registrationToken: token,
-    data: fcmDataFromPayload(payload)
+/** Aviso no celular do motorista sobre uma corrida (Web Push). */
+export async function pushTripToDriver(tenantId: string, driverId: string, tripId: string, kind: DriverTripPushKind): Promise<SendDriverPushResult> {
+  const { data: t } = await db.from("trips").select("scheduled_at, origin_text, destination_text, passenger_name").eq("id", tripId).maybeSingle();
+  const when = t?.scheduled_at
+    ? new Date(t.scheduled_at as string).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : "";
+  const body = t ? `${when} · ${short(t.origin_text as string)} → ${short(t.destination_text as string)}${t.passenger_name ? ` · ${t.passenger_name}` : ""}` : "Abra o app para ver.";
+  const sent = await pushToDriver(tenantId, driverId, {
+    title: TITLES[kind],
+    body,
+    url: kind === "removida" ? "/driver" : `/driver?trip=${encodeURIComponent(tripId)}`,
+    tag: `trip-${tripId}`,
+    tripId
   });
-
-  return send.ok ? { ok: true } : { ok: false, reason: send.reason };
+  return sent > 0 ? { ok: true } : { ok: false, reason: "Motorista sem avisos ativados no celular" };
 }
 
 /** Notifica motorista de corrida despachada (push imediato). */
-export async function notifyDriverDispatchedNow(
-  tenantId: string,
-  driverId: string,
-  tripId: string
-): Promise<SendDriverPushResult> {
-  return sendDriverPushNow(tenantId, driverId, driverDispatchedPushPayload(driverId, tripId));
+export async function notifyDriverDispatchedNow(tenantId: string, driverId: string, tripId: string): Promise<SendDriverPushResult> {
+  return pushTripToDriver(tenantId, driverId, tripId, "nova");
+}
+
+/** Compatibilidade: aviso genérico ao motorista. */
+export async function sendDriverPushNow(tenantId: string, driverId: string, payload: Record<string, unknown>): Promise<SendDriverPushResult> {
+  const tripId = typeof payload.tripId === "string" ? payload.tripId : null;
+  const ev = String(payload.eventType ?? "");
+  const kind: DriverTripPushKind = ev === "trip.dispatched" ? "nova" : ev === "trip.cancelled" ? "cancelada" : "alterada";
+  if (tripId) return pushTripToDriver(tenantId, driverId, tripId, kind);
+  const sent = await pushToDriver(tenantId, driverId, { title: "Prime Vitória", body: String(payload.body ?? "Atualização da central"), url: "/driver" });
+  return sent > 0 ? { ok: true } : { ok: false, reason: "Motorista sem avisos ativados no celular" };
 }

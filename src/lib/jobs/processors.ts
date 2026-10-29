@@ -5,7 +5,6 @@ import { parseWebhookPayload } from "../integrations/parse-webhook-payload";
 import type { Provider } from "../integrations/types";
 import { isPostgresUniqueViolation } from "../server/postgres-errors";
 import { insertAuditEvent } from "../server/audit-log";
-import { fcmDataFromPayload, fcmLegacyFailureIsRetryable, sendFcmLegacyDataMessage } from "../notifications/fcm-legacy";
 import { notifyPortalTripRequestedEmail } from "@/lib/notifications/portal-trip-request-email";
 import { notificationFailureUpdate } from "../notifications/job-retry";
 
@@ -32,8 +31,6 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
   }
 
   const { data: jobs } = await query;
-
-  const fcmKey = process.env.FCM_SERVER_KEY?.trim();
 
   let processed = 0;
   for (const job of jobs ?? []) {
@@ -133,6 +130,37 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
 
     if (channel === "in_app" && recipientType === "profile" && uuidRe.test(recipientId)) {
       await succeedJob();
+      // Eventos que pedem ação da central também tocam no celular/computador de quem ativou avisos.
+      const PUSH_EVENTS: Record<string, string> = {
+        "operations.trip_requested": "🔔 Pedido novo de cliente",
+        "operations.trip_cancelled": "❌ Corrida cancelada",
+        "operations.trip_no_show": "Passageiro não compareceu"
+      };
+      if (PUSH_EVENTS[eventType] && jobTenantId) {
+        try {
+          const { pushToProfiles } = await import("@/lib/push/web-push");
+          const tripId = typeof payload.tripId === "string" ? payload.tripId : "";
+          let body = "Abra a agenda para ver.";
+          if (tripId) {
+            const { data: t } = await db.from("trips").select("scheduled_at, origin_text, destination_text, client_id").eq("id", tripId).maybeSingle();
+            if (t) {
+              const { data: c } = t.client_id ? await db.from("clients").select("name, trade_name").eq("id", t.client_id).maybeSingle() : { data: null };
+              const when = new Date(t.scheduled_at as string).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+              body = [((c?.trade_name as string) || (c?.name as string)) ?? null, when, `${String(t.origin_text ?? "").split(",")[0]} → ${String(t.destination_text ?? "").split(",")[0]}`]
+                .filter(Boolean)
+                .join(" · ");
+            }
+          }
+          await pushToProfiles(jobTenantId, [recipientId], {
+            title: PUSH_EVENTS[eventType],
+            body,
+            url: tripId ? `/agenda?trip=${tripId}#trip-detail` : "/agenda",
+            tag: tripId ? `staff-${tripId}` : undefined
+          });
+        } catch {
+          /* aviso é complemento; o sininho já registrou */
+        }
+      }
       continue;
     }
 
@@ -169,48 +197,18 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
       continue;
     }
 
-    if (!fcmKey) {
-      await failJob("PUSH_PROVIDER_NOT_CONFIGURED", "FCM_SERVER_KEY nao definido");
-      continue;
-    }
-
-    if (recipientType !== "driver" || !recipientId || !uuidRe.test(recipientId)) {
+    if (recipientType !== "driver" || !recipientId || !uuidRe.test(recipientId) || !jobTenantId) {
       await failJob("UNSUPPORTED_RECIPIENT", `Destinatario invalido: type=${recipientType} id=${recipientId}`, {
         retryable: false
       });
       continue;
     }
 
-    const tokenQuery = db.from("driver_push_tokens").select("token, tenant_id").eq("driver_id", recipientId);
-    const { data: tokenRow, error: tokErr } = jobTenantId
-      ? await tokenQuery.eq("tenant_id", jobTenantId).maybeSingle()
-      : await tokenQuery.maybeSingle();
-
-    if (tokErr) {
-      await failJob(tokErr.message, tokErr.message);
-      continue;
-    }
-
-    if (!tokenRow?.token?.trim()) {
-      await failJob("NO_DEVICE_PUSH_TOKEN", "Motorista sem token FCM cadastrado (POST /api/drivers/push-token)");
-      continue;
-    }
-
-    const data = fcmDataFromPayload(payload);
-    const send = await sendFcmLegacyDataMessage({
-      serverKey: fcmKey,
-      registrationToken: tokenRow.token.trim(),
-      data
-    });
-
-    if (send.ok) {
-      await succeedJob();
-    } else {
-      if (process.env.NODE_ENV !== "production") {
-        console.info("[notification.push]", { jobId: job.id, eventType, recipientId, reason: send.reason });
-      }
-      await failJob(send.reason, send.reason, { retryable: fcmLegacyFailureIsRetryable(send.reason) });
-    }
+    // Aviso no celular do motorista (Web Push padrão; o FCM antigo foi desligado pelo Google).
+    const { sendDriverPushNow } = await import("../notifications/send-driver-push-now");
+    const push = await sendDriverPushNow(jobTenantId, recipientId, payload);
+    if (push.ok) await succeedJob();
+    else await failJob(push.reason, push.reason, { retryable: false });
   }
 
   return { processed };

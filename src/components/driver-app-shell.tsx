@@ -7,8 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { DriverConsole } from "@/components/driver-console";
 import { DriverOperationalStatusPanel } from "@/components/driver-operational-status-panel";
 import { DriverPayablesPanel } from "@/components/driver-payables-panel";
-import { DriverPushRegister } from "@/components/driver-push-register";
-import { readFirebaseWebConfig } from "@/lib/firebase/messaging-config";
+import { PushSetup } from "@/components/push-setup";
 import { DriverTripDeepLink } from "@/components/driver-trip-deep-link";
 import { DriverTripsPanel } from "@/components/driver-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
@@ -80,7 +79,6 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
 
   const devRole = mode === "admin" ? "admin" : "motorista";
   const driverKey = selectedDriverId ?? "none";
-  const firebaseWebConfigured = Boolean(readFirebaseWebConfig());
 
   return (
     <div className="driver-theme min-h-screen bg-[#1A1A1A] text-[#F5F5F5]">
@@ -116,6 +114,8 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
             Selecione um motorista cadastrado para simular o app: a caminho, cheguei, iniciar (KM inicial) e finalizar (KM final + assinatura).
           </p>
         ) : null}
+
+        {mode === "motorista" ? <PushSetup audience="motorista" /> : null}
 
         <StagingSmokeHints variant="light" />
         <DriverTripDeepLink />
@@ -157,19 +157,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           </section>
         )}
 
-        {mode === "motorista" && firebaseWebConfigured ? (
-          <>
-            <section id="perfil">
-              <DriverProfilePanel devFallbackRole={devRole} />
-            </section>
-            <section id="push-setup" className="driver-card scroll-mt-6 p-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-[#AAAAAA]">Notificações push</h2>
-              <div className="mt-3">
-                <DriverPushRegister variant="light" />
-              </div>
-            </section>
-          </>
-        ) : mode === "motorista" ? (
+        {mode === "motorista" ? (
           <section id="perfil">
             <DriverProfilePanel devFallbackRole={devRole} />
           </section>

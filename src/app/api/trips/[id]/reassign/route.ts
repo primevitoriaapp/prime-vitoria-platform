@@ -11,7 +11,7 @@ import { notifyDriverDispatchedNow } from "@/lib/notifications/send-driver-push-
 import { driverScheduleConflictMessage } from "@/lib/dispatch/driver-schedule-check";
 import { runBestEffort } from "@/lib/server/best-effort";
 import { planOperationalTransition } from "@/lib/domain/status";
-import { shouldBlockOfflineDriverForTrip } from "@/lib/dispatch/driver-offline-dispatch";
+import { isImmediateScheduledTrip, shouldBlockOfflineDriverForTrip } from "@/lib/dispatch/driver-offline-dispatch";
 
 const bodySchema = z.object({
   new_driver_id: z.string().uuid(),
@@ -111,17 +111,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (error) return fail("TRIP_REASSIGN_FAILED", error.message, 500);
 
-    await db
-      .from("drivers")
-      .update({ operational_status: "ocupado", operational_status_updated_at: new Date().toISOString() })
-      .eq("id", body.new_driver_id)
-      .eq("tenant_id", tenantId);
-    if (trip.driver_id && trip.driver_id !== body.new_driver_id) {
+    // Status ao vivo só muda se a corrida é para agora (não por uma corrida de outro dia).
+    if (isImmediateScheduledTrip(trip.scheduled_at as string)) {
       await db
         .from("drivers")
-        .update({ operational_status: "online", operational_status_updated_at: new Date().toISOString() })
-        .eq("id", trip.driver_id)
+        .update({ operational_status: "ocupado", operational_status_updated_at: new Date().toISOString() })
+        .eq("id", body.new_driver_id)
         .eq("tenant_id", tenantId);
+      if (trip.driver_id && trip.driver_id !== body.new_driver_id) {
+        await db
+          .from("drivers")
+          .update({ operational_status: "online", operational_status_updated_at: new Date().toISOString() })
+          .eq("id", trip.driver_id)
+          .eq("tenant_id", tenantId);
+      }
+    }
+    if (trip.driver_id && trip.driver_id !== body.new_driver_id) {
+      const oldDriver = trip.driver_id as string;
+      await runBestEffort("trip.reassign.old_driver_push", async () => {
+        const { pushTripToDriver } = await import("@/lib/notifications/send-driver-push-now");
+        await pushTripToDriver(tenantId, oldDriver, id, "removida");
+      });
     }
 
     await runBestEffort("trip.reassign.whatsapp", async () => {
