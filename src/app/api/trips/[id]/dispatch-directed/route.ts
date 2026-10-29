@@ -11,7 +11,7 @@ import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-a
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { ensureOperationalClaimForMutation } from "@/lib/trips/operational-claim-mutation";
 import { runBestEffort } from "@/lib/server/best-effort";
-import { shouldBlockOfflineDriverForTrip } from "@/lib/dispatch/driver-offline-dispatch";
+import { isImmediateScheduledTrip, shouldBlockOfflineDriverForTrip } from "@/lib/dispatch/driver-offline-dispatch";
 
 const bodySchema = z.object({
   driver_id: z.string().uuid(),
@@ -50,8 +50,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (!driver?.active) return fail("DRIVER_NOT_AVAILABLE", "Motorista inativo ou fora do tenant", 409);
-    if (driver.operational_status === "offline") {
-      return fail("DRIVER_OFFLINE", "Motorista está offline e não pode receber despacho", 409);
+    // Offline só bloqueia corrida para daqui a menos de 30 min; corrida agendada pode ir para quem está offline.
+    if (shouldBlockOfflineDriverForTrip(driver.operational_status as string, trip.scheduled_at as string)) {
+      return fail("DRIVER_OFFLINE", "Motorista está offline e a corrida é para agora. Escolha alguém online.", 409);
     }
 
     const { data: schedule } = await db
@@ -89,11 +90,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (error) return fail("DISPATCH_FAILED", error.message, 500);
 
-    await db
-      .from("drivers")
-      .update({ operational_status: "ocupado", operational_status_updated_at: new Date().toISOString() })
-      .eq("id", body.driver_id)
-      .eq("tenant_id", tenantId);
+    // Só marca o motorista como ocupado se a corrida é para já (não por uma corrida de amanhã).
+    if (isImmediateScheduledTrip(trip.scheduled_at as string)) {
+      await db
+        .from("drivers")
+        .update({ operational_status: "ocupado", operational_status_updated_at: new Date().toISOString() })
+        .eq("id", body.driver_id)
+        .eq("tenant_id", tenantId);
+    }
 
     const { notifyTripDispatchedToStaff } = await import("@/lib/notifications/operational-notify");
     await runBestEffort("trip.dispatch_directed.staff_notify", () =>

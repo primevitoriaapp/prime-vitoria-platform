@@ -8,6 +8,7 @@ import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { formatBrTime } from "@/lib/dates/br-date";
 import { shortAddress } from "@/lib/client/short-address";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
+import { QuickAssign, type AssignDriver } from "@/components/quick-assign";
 import {
   BOOKING_GROUPS,
   BOOKING_PERIODS,
@@ -32,6 +33,7 @@ type Trip = {
   client_amount?: number | null;
   driver_amount?: number | null;
   flight_number?: string | null;
+  driver_id?: string | null;
 };
 
 type Props = { tenantId: string | null; createHref?: string | null };
@@ -76,6 +78,41 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1" }: Props
   }, [load]);
 
   useTenantTableRefresh(tenantId, ["trips"], load);
+
+  const [drivers, setDrivers] = useState<AssignDriver[]>([]);
+  const loadDrivers = useCallback(async () => {
+    const res = await fetchWithSupabaseSession("/api/drivers", {}, "admin");
+    const json = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      data?: {
+        id: string;
+        full_name?: string | null;
+        profile_name?: string | null;
+        operational_status?: string | null;
+        employment_type?: string | null;
+        default_vehicle?: { id: string; model: string; plate: string } | null;
+      }[];
+    };
+    if (!res.ok || !json.success) return;
+    const order: Record<string, number> = { online: 0, deslocando: 1, no_local: 1, ocupado: 2, em_atendimento: 2, offline: 3 };
+    setDrivers(
+      (json.data ?? [])
+        .map((d) => ({
+          id: d.id,
+          name: d.profile_name ?? d.full_name ?? "Motorista",
+          status: d.operational_status ?? null,
+          employment: d.employment_type ?? null,
+          vehicle: d.default_vehicle ?? null
+        }))
+        .sort((a, b) => (order[a.status ?? "offline"] ?? 3) - (order[b.status ?? "offline"] ?? 3) || a.name.localeCompare(b.name))
+    );
+  }, []);
+
+  useEffect(() => {
+    void loadDrivers();
+  }, [loadDrivers]);
+
+  useTenantTableRefresh(tenantId, ["drivers"], loadDrivers);
 
   const counts = useMemo(() => {
     const c: Record<BookingGroup, number> = { agendada: 0, atribuida: 0, em_rota: 0, finalizada: 0, cancelada: 0 };
@@ -187,10 +224,13 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1" }: Props
                 {showDay ? (
                   <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-prime-muted">{day}</p>
                 ) : null}
+                <div
+                  className="rounded-2xl border border-prime-border bg-white shadow-prime-card transition hover:border-prime-gold"
+                  style={{ borderLeft: `5px solid ${g.color}` }}
+                >
                 <Link
                   href={`/agenda?trip=${t.id}#trip-detail` as Route}
-                  className="grid gap-3 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card transition hover:border-prime-gold md:grid-cols-[90px_1fr_220px_150px] md:items-center"
-                  style={{ borderLeft: `5px solid ${g.color}` }}
+                  className="grid gap-3 p-4 md:grid-cols-[90px_1fr_220px_150px] md:items-center"
                 >
                   <div>
                     <p className="text-2xl font-semibold leading-none">{formatBrTime(t.scheduled_at)}</p>
@@ -237,6 +277,18 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1" }: Props
                     {payout ? <p className="text-xs text-prime-muted">Motorista {payout}</p> : null}
                   </div>
                 </Link>
+                {g.id === "agendada" || g.id === "atribuida" ? (
+                  <div className="flex items-center justify-end gap-2 border-t border-prime-border px-4 py-2">
+                    <QuickAssign
+                      tripId={t.id}
+                      status={t.operational_status}
+                      currentDriverId={t.driver_id ?? null}
+                      drivers={drivers}
+                      onDone={() => void load()}
+                    />
+                  </div>
+                ) : null}
+                </div>
               </li>
             );
           })}
