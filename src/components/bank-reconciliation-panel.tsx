@@ -8,7 +8,19 @@ import { parseOfx, parseStatementCsv, type Candidate, type StatementLine, type S
 import { COMPANY_SCOPES, companyLabel, inCompany, useCompany } from "@/lib/company/company-context";
 import { PAYABLE_CATEGORIES } from "@/lib/finance/company-payables-calc";
 
-type Account = { id: string; issuer: string; bank: string; label: string; agency: string | null; account: string | null; pending: number };
+type Account = {
+  id: string;
+  issuer: string;
+  bank: string;
+  label: string;
+  agency: string | null;
+  account: string | null;
+  pending: number;
+  balance?: number;
+  balance_date?: string | null;
+  opening_balance?: number;
+  opening_date?: string | null;
+};
 type Line = {
   id: string;
   posted_at: string;
@@ -89,7 +101,7 @@ export function BankReconciliationPanel() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [showNewAcc, setShowNewAcc] = useState(false);
-  const [acc, setAcc] = useState({ issuer: "rj_prime", bank: "Sicoob", label: "", agency: "", account: "" });
+  const [acc, setAcc] = useState({ issuer: "rj_prime", bank: "Sicoob", label: "", agency: "", account: "", opening_balance: "", opening_date: "" });
   const [filter, setFilter] = useState<"pendente" | "todos">("pendente");
 
   const loadAccounts = useCallback(async () => {
@@ -131,14 +143,23 @@ export function BankReconciliationPanel() {
       setMsg({ ok: false, text: "Dê um nome para a conta (ex.: Sicoob RJ Prime)." });
       return;
     }
-    const res = await fetchWithSupabaseSession("/api/finance/bank-accounts", { method: "POST", body: JSON.stringify({ ...acc, agency: acc.agency || null, account: acc.account || null }) }, "admin");
+    const res = await fetchWithSupabaseSession("/api/finance/bank-accounts", {
+        method: "POST",
+        body: JSON.stringify({
+          ...acc,
+          agency: acc.agency || null,
+          account: acc.account || null,
+          opening_balance: acc.opening_balance ? Number(acc.opening_balance.replace(/\./g, "").replace(",", ".")) || 0 : 0,
+          opening_date: acc.opening_date || null
+        })
+      }, "admin");
     const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: Account; error?: { message?: string } };
     if (!j.success) {
       setMsg({ ok: false, text: j.error?.message ?? "Falhou." });
       return;
     }
     setShowNewAcc(false);
-    setAcc({ issuer: "rj_prime", bank: "Sicoob", label: "", agency: "", account: "" });
+    setAcc({ issuer: "rj_prime", bank: "Sicoob", label: "", agency: "", account: "", opening_balance: "", opening_date: "" });
     await loadAccounts();
     if (j.data) setAccountId(j.data.id);
   }
@@ -223,6 +244,11 @@ export function BankReconciliationPanel() {
               {a.bank} · {companyLabel(a.issuer)}
               {a.pending ? ` · ${a.pending} a conciliar` : ""}
             </span>
+            {a.balance != null ? (
+              <span className={`mt-0.5 block text-base font-semibold ${a.id === accountId ? "text-[#fff]" : a.balance < 0 ? "text-red-700" : "text-prime-text"}`}>
+                {a.balance.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </span>
+            ) : null}
           </button>
         ))}
         <button type="button" className="rounded-2xl px-4 py-3 text-sm font-semibold text-prime-gold ring-1 ring-dashed ring-prime-border" onClick={() => setShowNewAcc((v) => !v)}>
@@ -262,6 +288,15 @@ export function BankReconciliationPanel() {
             <span>Conta</span>
             <input className={PRIME_INPUT_CLASS} value={acc.account} onChange={(e) => setAcc({ ...acc, account: e.target.value })} />
           </label>
+          <label className="grid gap-1 text-sm sm:col-span-2">
+            <span>Saldo no banco (R$)</span>
+            <input className={PRIME_INPUT_CLASS} inputMode="decimal" placeholder="Ex.: 12.500,00" value={acc.opening_balance} onChange={(e) => setAcc({ ...acc, opening_balance: e.target.value.replace(/[^0-9.,-]/g, "") })} />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span>Saldo do dia</span>
+            <input type="date" className={PRIME_INPUT_CLASS} value={acc.opening_date} onChange={(e) => setAcc({ ...acc, opening_date: e.target.value })} />
+          </label>
+          <p className="self-end text-xs text-prime-muted sm:col-span-2">Daqui pra frente o saldo se atualiza com os extratos importados.</p>
           <div className="sm:col-span-5">
             <button type="button" className="btn-primary" onClick={() => void createAccount()}>
               Salvar conta
@@ -271,6 +306,31 @@ export function BankReconciliationPanel() {
       ) : null}
 
       {msg ? <p className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-800"}`}>{msg.text}</p> : null}
+
+      {current ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-white px-4 py-2 text-sm ring-1 ring-prime-border">
+          <span>
+            Saldo calculado de <b>{current.label}</b>:{" "}
+            <b>{(current.balance ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b>
+            {current.balance_date ? <span className="text-prime-muted"> · até {current.balance_date.split("-").reverse().join("/")}</span> : null}
+          </span>
+          <button
+            type="button"
+            className="text-xs font-semibold text-prime-gold underline"
+            onClick={async () => {
+              const v = window.prompt("Saldo que aparece hoje no app do banco (R$):", "");
+              if (v === null) return;
+              const n = Number(v.replace(/[^0-9,.-]/g, "").replace(/\./g, "").replace(",", "."));
+              if (!Number.isFinite(n)) return;
+              const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+              await fetchWithSupabaseSession("/api/finance/bank-accounts", { method: "PATCH", body: JSON.stringify({ id: current.id, opening_balance: n, opening_date: today }) }, "admin");
+              void loadAccounts();
+            }}
+          >
+            Ajustar com o saldo do banco
+          </button>
+        </div>
+      ) : null}
 
       {!current ? (
         <p className="rounded-2xl border border-dashed border-prime-border bg-white p-8 text-center text-sm text-prime-muted">

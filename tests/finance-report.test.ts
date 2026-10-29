@@ -45,3 +45,16 @@ test("DRE, caixa, previsão e inadimplência", () => {
   assert.equal(r.clients[0].name, "Comexport");
   assert.equal(r.clients[0].share, 67);
 });
+
+import { lastMonths, monthlySeries } from "../src/lib/finance/finance-report.ts";
+test("evolução mensal e receitas avulsas", () => {
+  assert.deepEqual(lastMonths("2026-10-29", 3), ["2026-08", "2026-09", "2026-10"]);
+  const s = monthlySeries(
+    ["2026-09", "2026-10"],
+    [{ completed_on: "2026-10-03", client_amount: 1000, driver_amount: 600 }],
+    [{ due_date: "2026-10-10", amount: 100, status: "aberta", paid_amount: null }],
+    [{ due_date: "2026-09-05", amount: 300, status: "recebida", received_amount: 280 }]
+  );
+  assert.deepEqual(s[0], { month: "2026-09", revenue: 280, driverCost: 0, expenses: 0, result: 280, trips: 0 });
+  assert.equal(s[1].result, 300);
+});

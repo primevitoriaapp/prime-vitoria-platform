@@ -29,6 +29,7 @@ import { TripWizard } from "@/components/trip-wizard";
 import { TripEditPanel } from "@/components/trip-edit-panel";
 import { TripAssignCard } from "@/components/trip-assign-card";
 import { TripProofCard } from "@/components/trip-proof-card";
+import { StaleTripsPanel } from "@/components/stale-trips-panel";
 export default async function AgendaPage({
   searchParams
 }: {
@@ -127,6 +128,9 @@ export default async function AgendaPage({
           </div>
         </details>
       ) : null}
+      <div className="mb-4">
+        <StaleTripsPanel />
+      </div>
       <BookingsBoard tenantId={realtimeTenantId} createHref={null} initialPeriod={sp.periodo} initialGroup={sp.grupo} showCalendar />
     </>
   );

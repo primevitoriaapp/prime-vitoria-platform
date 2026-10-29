@@ -12,8 +12,12 @@ type Report = {
   from: string;
   to: string;
   today: string;
+  monthly: { month: string; revenue: number; driverCost: number; expenses: number; result: number; trips: number }[];
+  banks: { id: string; label: string; bank: string; issuer: string; balance: number; balance_date: string | null }[];
   dre: {
     grossRevenue: number;
+    tripRevenue: number;
+    otherRevenue: number;
     driverCost: number;
     contribution: number;
     contributionPct: number;
@@ -197,13 +201,59 @@ export function FinanceDashboardPanel() {
             </p>
           ) : null}
 
+          <Section
+            title="Evolução dos últimos 12 meses"
+            onCsv={() =>
+              downloadCsv(`evolucao_12_meses${company !== "todas" ? `_${company}` : ""}.csv`, [
+                ["Mês", "Corridas", "Faturamento", "Custo motoristas", "Despesas", "Resultado"],
+                ...d.monthly.map((m) => [m.month, m.trips, m.revenue, m.driverCost, m.expenses, m.result])
+              ])
+            }
+          >
+            <MonthlyChart data={d.monthly} />
+          </Section>
+
+          {d.banks.length ? (
+            <Section title="Saldo nas contas bancárias">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {d.banks.map((b) => (
+                  <div key={b.id} className="rounded-xl bg-prime-bg p-3">
+                    <p className="text-xs text-prime-muted">
+                      {b.bank} · {companyLabel(b.issuer)}
+                    </p>
+                    <p className="font-medium">{b.label}</p>
+                    <p className={`mt-1 text-xl font-semibold ${b.balance < 0 ? "text-red-700" : ""}`}>{brl(b.balance)}</p>
+                    <p className="text-[11px] text-prime-muted">{b.balance_date ? `até ${brDate(b.balance_date)}` : "sem extrato importado"}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-prime-muted">
+                Total: <b>{brl(d.banks.reduce((s, b) => s + b.balance, 0))}</b>. O saldo se atualiza a cada extrato importado em{" "}
+                <Link href={"/conciliacao" as Route} className="text-prime-gold underline">
+                  Conciliação bancária
+                </Link>
+                .
+              </p>
+            </Section>
+          ) : (
+            <p className="rounded-xl border border-dashed border-prime-border bg-white p-3 text-sm text-prime-muted">
+              Cadastre suas contas (Sicoob, Santander, XP, Nubank) com o saldo atual em{" "}
+              <Link href={"/conciliacao" as Route} className="text-prime-gold underline">
+                Conciliação bancária
+              </Link>{" "}
+              para ver o saldo de cada uma aqui.
+            </p>
+          )}
+
           <div className="grid gap-5 lg:grid-cols-2">
             <Section
               title="DRE: resultado do período"
               onCsv={() =>
                 downloadCsv(`dre_${tag}.csv`, [
                   ["Linha", "Valor"],
-                  ["Receita bruta (corridas finalizadas)", d.dre.grossRevenue],
+                  ["Receita das corridas", d.dre.tripRevenue],
+                  ["Outras receitas", d.dre.otherRevenue],
+                  ["Receita bruta", d.dre.grossRevenue],
                   ["(-) Custo dos motoristas e parceiros", d.dre.driverCost],
                   ["= Margem de contribuição", d.dre.contribution],
                   ...d.dre.expensesByCategory.map((e) => [`(-) ${categoryLabel(e.category)}`, e.amount] as (string | number)[]),
@@ -211,7 +261,9 @@ export function FinanceDashboardPanel() {
                 ])
               }
             >
-              <Line label="Receita bruta (corridas finalizadas)" value={d.dre.grossRevenue} />
+              <Line label="Receita das corridas finalizadas" value={d.dre.tripRevenue} />
+              {d.dre.otherRevenue ? <Line label="Outras receitas (locação, avulsos…)" value={d.dre.otherRevenue} /> : null}
+              {d.dre.otherRevenue ? <Line label="Receita bruta" value={d.dre.grossRevenue} strong /> : null}
               <Line label="Custo dos motoristas e parceiros" value={d.dre.driverCost} minus />
               <Line label="Margem de contribuição" value={d.dre.contribution} strong pct={d.dre.contributionPct} />
               {d.dre.expensesByCategory.length ? (
@@ -371,6 +423,39 @@ export function FinanceDashboardPanel() {
           </Section>
         </>
       ) : null}
+    </div>
+  );
+}
+
+/** Barras do mês: faturamento (dourado) e resultado (verde/vermelho). */
+function MonthlyChart({ data }: { data: Report["monthly"] }) {
+  const max = Math.max(1, ...data.map((m) => Math.max(m.revenue, Math.abs(m.result))));
+  const label = (ym: string) => new Date(`${ym}-15T12:00:00Z`).toLocaleDateString("pt-BR", { month: "short", timeZone: "UTC" }).replace(".", "");
+  const best = data.reduce((a, b) => (b.revenue > a.revenue ? b : a), data[0]);
+  return (
+    <div>
+      <div className="flex h-48 items-end gap-1.5 overflow-x-auto pb-1 sm:gap-3">
+        {data.map((m) => (
+          <div key={m.month} className="flex min-w-[28px] flex-1 flex-col items-center gap-1" title={`${m.month}: faturamento ${brl(m.revenue)} · resultado ${brl(m.result)} · ${m.trips} corridas`}>
+            <div className="flex h-40 w-full items-end justify-center gap-0.5">
+              <span className="w-1/2 rounded-t bg-prime-gold" style={{ height: `${(m.revenue / max) * 100}%` }} />
+              <span className={`w-1/2 rounded-t ${m.result < 0 ? "bg-red-500" : "bg-emerald-600"}`} style={{ height: `${(Math.abs(m.result) / max) * 100}%` }} />
+            </div>
+            <span className="text-[10px] capitalize text-prime-muted">{label(m.month)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-4 text-xs text-prime-muted">
+        <span>
+          <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-prime-gold" />
+          Faturamento
+        </span>
+        <span>
+          <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-emerald-600" />
+          Resultado (vermelho = prejuízo)
+        </span>
+        {best && best.revenue > 0 ? <span>Melhor mês: {label(best.month)} ({brl(best.revenue)})</span> : null}
+      </div>
     </div>
   );
 }

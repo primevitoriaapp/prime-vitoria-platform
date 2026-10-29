@@ -33,7 +33,8 @@ export async function GET(request: Request) {
     const in24h = new Date(now.getTime() + 72 * 3600000).toISOString(); // regra da Prime: motorista definido até 3 dias antes
     const in30d = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
 
-    const [curr, prev, noDriver, pending, drivers, clients, cnh] = await Promise.all([
+    const staleIso = new Date(now.getTime() - 12 * 3600000).toISOString();
+    const [curr, prev, noDriver, pending, drivers, clients, cnh, stale] = await Promise.all([
       tripsBetween(tenantId, r.from, r.to),
       tripsBetween(tenantId, r.prevFrom, r.prevTo),
       db
@@ -56,7 +57,14 @@ export async function GET(request: Request) {
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
         .eq("active", true)
-        .lte("cnh_expires_at", in30d)
+        .lte("cnh_expires_at", in30d),
+      // Corrida que já passou há mais de 12 h e ninguém finalizou (motorista esqueceu de fechar).
+      db
+        .from("trips")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .in("operational_status", ["dispatched", "accepted", "on_the_way", "arrived", "in_progress"])
+        .lt("scheduled_at", staleIso)
     ]);
 
     let payablesOverdue = 0;
@@ -84,6 +92,8 @@ export async function GET(request: Request) {
       alerts.push({ tone: "blue", text: `${pending.count} pedido(s) novo(s) esperando confirmação`, href: "/agenda?grupo=agendada&periodo=mes" });
     if ((noDriver.count ?? 0) > 0)
       alerts.push({ tone: "red", text: `${noDriver.count} corrida(s) nos próximos 3 dias sem motorista`, href: "/agenda?grupo=agendada&periodo=semana" });
+    if ((stale.count ?? 0) > 0)
+      alerts.push({ tone: "red", text: `${stale.count} corrida(s) que já passaram e não foram finalizadas`, href: "/agenda#esquecidas" });
     if (s.completedNoValue > 0)
       alerts.push({ tone: "amber", text: `${s.completedNoValue} corrida(s) finalizada(s) sem valor no período`, href: "/agenda?grupo=finalizada&periodo=mes" });
     if (payablesOverdue > 0)
