@@ -93,8 +93,10 @@ export function DriverActiveTripHero({
     requiresManualKm: false,
     gpsError: null
   };
-  const showManualKm = driverShowsManualKmOnComplete(gps, completingTrip);
-  const completeKmReady = driverCanCompleteTrip(completingTrip, gps, completeKm);
+  // Com KM do painel (odômetro) o KM final é pedido na tela de finalizar, não aqui.
+  const odometerMode = trip.odometer_start != null;
+  const showManualKm = !odometerMode && driverShowsManualKmOnComplete(gps, completingTrip);
+  const completeKmReady = odometerMode || driverCanCompleteTrip(completingTrip, gps, completeKm);
   const pendingPickups = multiPickup && !pickupsDone;
   const blockStartTrip = primaryStep === "in_progress" && pendingPickups;
   const inProgressTracking = trip.operational_status === "in_progress";

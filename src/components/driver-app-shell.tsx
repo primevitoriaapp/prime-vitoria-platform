@@ -5,7 +5,6 @@ import { DriverEarningsSummary } from "@/components/driver-earnings-summary";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DriverConsole } from "@/components/driver-console";
-import { DriverOffersPanel } from "@/components/driver-offers-panel";
 import { DriverOperationalStatusPanel } from "@/components/driver-operational-status-panel";
 import { DriverPayablesPanel } from "@/components/driver-payables-panel";
 import { DriverPushRegister } from "@/components/driver-push-register";
@@ -114,7 +113,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
       <main className="mx-auto max-w-lg space-y-6 px-4 py-6 pb-28 md:max-w-3xl md:pb-8 md:px-6 lg:max-w-5xl lg:px-8">
         {mode === "admin" && !selectedDriverId ? (
           <p className="rounded-lg border border-prime-gold/30 bg-prime-gold/10 px-3 py-2 text-sm text-prime-text">
-            Selecione um motorista cadastrado para simular o app e testar aceitar, iniciar, cheguei e finalizar.
+            Selecione um motorista cadastrado para simular o app: a caminho, cheguei, iniciar (KM inicial) e finalizar (KM final + assinatura).
           </p>
         ) : null}
 
@@ -130,18 +129,6 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           />
         </section>
 
-        <section className="driver-card p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#C9A84C]">Ofertas da central</h2>
-          <p className="mt-1 text-xs text-[#AAAAAA]">Aceite ofertas abertas como o motorista selecionado.</p>
-          <div className="mt-3">
-            <DriverOffersPanel
-              key={`offers-${driverKey}`}
-              tenantId={tenantId}
-              driverId={mode === "admin" ? selectedDriverId : null}
-              devFallbackRole={devRole}
-            />
-          </div>
-        </section>
 
         <DriverOperationalStatusPanel
           key={`status-${driverKey}`}

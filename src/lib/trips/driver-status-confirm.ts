@@ -1,7 +1,8 @@
 import type { TripOperationalStatus } from "../domain/types.ts";
 import { STATUS_CORRIDA_PT } from "../i18n/pt-br.ts";
 
-const NEEDS_CONFIRM: TripOperationalStatus[] = ["completed", "no_show"];
+// "Finalizar" já abre a tela de KM final + assinatura, que serve de confirmação.
+const NEEDS_CONFIRM: TripOperationalStatus[] = ["no_show"];
 
 /** Confirmação no cliente para evitar transições irreversíveis por toque acidental. */
 export function confirmDriverStatusTransition(to: TripOperationalStatus): boolean {

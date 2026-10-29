@@ -7,7 +7,7 @@ import {
 } from "../src/lib/trips/driver-step-copy.ts";
 
 test("driverOperationalHint for dispatched", () => {
-  assert.match(driverOperationalHint("dispatched"), /aceite/i);
+  assert.match(driverOperationalHint("dispatched"), /A caminho/i);
 });
 
 test("driverPrimaryActionLabel accept", () => {

@@ -66,6 +66,8 @@ export interface Trip {
   trip_leg_label?: "ida" | "volta" | null;
   planned_km?: number | null;
   actual_km?: number | null;
+  odometer_start?: number | null;
+  odometer_end?: number | null;
   client_amount?: number | null;
   wait_minutes?: number | null;
   wait_started_at?: string | null;

@@ -29,6 +29,8 @@ import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
 import { useDriverTripGpsTracking } from "@/hooks/use-driver-trip-gps-tracking";
 import { parseDriverKmInput } from "@/lib/trips/driver-complete-km";
+import { DriverFinishSheet } from "@/components/driver-finish-sheet";
+import { DriverPassengerLink } from "@/components/driver-passenger-link";
 
 const ACTIVE: TripOperationalStatus[] = [
   "dispatched",
@@ -64,6 +66,7 @@ export function DriverTripsPanel({
   const [waitBusy, setWaitBusy] = useState(false);
   const [waitTick, setWaitTick] = useState(0);
   const [completeKmByTrip, setCompleteKmByTrip] = useState<Record<string, string>>({});
+  const [sheet, setSheet] = useState<{ tripId: string; mode: "start" | "finish" } | null>(null);
   const docVisible = useDocumentVisible();
   const knownTripIdsRef = useRef<Set<string>>(new Set());
   const tripsInitializedRef = useRef(false);
@@ -207,13 +210,28 @@ export function DriverTripsPanel({
     await load({ silent: true });
   }
 
-  async function setStatus(tripId: string, to_status: TripOperationalStatus) {
+  async function setStatus(
+    tripId: string,
+    to_status: TripOperationalStatus,
+    extra?: { odometer_start?: string; odometer_end?: string }
+  ) {
     const trip = trips.find((item) => item.id === tripId);
+    // KM do painel: pede o inicial ao iniciar e o final (com assinatura) ao finalizar.
+    if (to_status === "in_progress" && !extra) {
+      setMessage(null);
+      setSheet({ tripId, mode: "start" });
+      return;
+    }
+    if (to_status === "completed" && !extra && trip?.odometer_start != null) {
+      setMessage(null);
+      setSheet({ tripId, mode: "finish" });
+      return;
+    }
     if (to_status === "in_progress" && trip?.wait_started_at) {
       await setWait(tripId, "stop");
     }
     let actualKm: number | undefined;
-    if (to_status === "completed") {
+    if (to_status === "completed" && !extra?.odometer_end) {
       const manualKm = parseDriverKmInput(completeKmByTrip[tripId] ?? "");
       const resolved = resolveActualKmForComplete(tripId, manualKm);
       if (resolved == null) {
@@ -231,7 +249,8 @@ export function DriverTripsPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to_status,
-          ...(actualKm != null ? { actual_km: actualKm } : {})
+          ...(actualKm != null ? { actual_km: actualKm } : {}),
+          ...(extra ?? {})
         })
       },
       devFallbackRole
@@ -242,6 +261,7 @@ export function DriverTripsPanel({
       setMessage(json.error?.message ?? "Falha ao atualizar estado.");
       return;
     }
+    setSheet(null);
     if (to_status === "completed") {
       clearTripTrail(tripId);
       setCompleteKmByTrip((prev) => {
@@ -377,6 +397,10 @@ export function DriverTripsPanel({
             </div>
 
             {primaryTrip ? (
+              <DriverPassengerLink tripId={primaryTrip.id} status={primaryTrip.operational_status} devFallbackRole={devFallbackRole} />
+            ) : null}
+
+            {primaryTrip ? (
               <DriverActiveTripHero
                 trip={primaryTrip}
                 isBusy={busyTrip === primaryTrip.id}
@@ -419,6 +443,21 @@ export function DriverTripsPanel({
           </div>
         )}
       </section>
+
+      {sheet && trips.find((t) => t.id === sheet.tripId) ? (
+        <DriverFinishSheet
+          trip={trips.find((t) => t.id === sheet.tripId) as Trip}
+          mode={sheet.mode}
+          devFallbackRole={devFallbackRole}
+          busy={busyTrip === sheet.tripId}
+          externalError={message}
+          onCancel={() => {
+            setSheet(null);
+            setMessage(null);
+          }}
+          onConfirm={(extra) => void setStatus(sheet.tripId, sheet.mode === "start" ? "in_progress" : "completed", extra)}
+        />
+      ) : null}
 
       {recentHistory.length > 0 ? (
         <details className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
@@ -534,8 +573,10 @@ function CompactActiveTripCard({
     requiresManualKm: false,
     gpsError: null
   };
-  const showManualKm = driverShowsManualKmOnComplete(gps, completingTrip);
-  const completeKmReady = driverCanCompleteTrip(completingTrip, gps, completeKm);
+  // Com KM do painel (odômetro) o KM final é pedido na tela de finalizar, não aqui.
+  const odometerMode = trip.odometer_start != null;
+  const showManualKm = !odometerMode && driverShowsManualKmOnComplete(gps, completingTrip);
+  const completeKmReady = odometerMode || driverCanCompleteTrip(completingTrip, gps, completeKm);
   const pickupNav =
     buildNavigationLinksToPoint({
       lat: trip.origin_lat,

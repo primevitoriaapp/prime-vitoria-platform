@@ -43,7 +43,7 @@ test("buildDriverNavigationLinks returns google, waze, apple", () => {
 });
 
 test("driverNextStatuses from dispatched", () => {
-  assert.deepEqual(driverNextStatuses("dispatched"), ["accepted"]);
+  assert.deepEqual(driverNextStatuses("dispatched"), ["on_the_way"]);
 });
 
 test("driverNextStatuses from on_the_way", () => {

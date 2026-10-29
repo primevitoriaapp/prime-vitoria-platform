@@ -15,15 +15,15 @@ export const DRIVER_TRIP_ACTION_PT: Partial<Record<TripOperationalStatus, string
 export function driverOperationalHint(status: TripOperationalStatus): string {
   switch (status) {
     case "dispatched":
-      return "Nova corrida atribuída — aceite para iniciar o serviço.";
+      return "Corrida atribuída a você. Na hora de sair, toque em A caminho.";
     case "accepted":
       return "Confirme que está a caminho do passageiro.";
     case "on_the_way":
       return "Ao chegar ao local de embarque, marque Cheguei ao local.";
     case "arrived":
-      return "Inicie a viagem ou registe não comparecimento.";
+      return "Anote o KM do painel e inicie a viagem, ou registre não comparecimento.";
     case "in_progress":
-      return "Conduza até ao destino e finalize quando o passageiro desembarcar.";
+      return "Ao chegar, anote o KM final do painel e finalize.";
     case "completed":
       return "Corrida concluída.";
     default:
@@ -40,7 +40,7 @@ export function driverPrimaryActionLabel(
 }
 
 export function driverFlowChip(status: TripOperationalStatus): string {
-  if (status === "dispatched") return "Central → Aguarda a sua aceitação";
+  if (status === "dispatched") return "Central → Corrida atribuída a você";
   if (status === "accepted" || status === "on_the_way") return "Em curso → Cliente acompanha em breve";
   if (status === "arrived" || status === "in_progress") return "Em curso → Cliente vê tracking ativo";
   if (status === "completed") return "Concluída → Cliente vê histórico";

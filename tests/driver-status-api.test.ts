@@ -5,7 +5,7 @@ import { driverNextStatuses } from "../src/lib/trips/driver-next-status.ts";
 test("motorista cannot jump from dispatched to completed", () => {
   const next = driverNextStatuses("dispatched");
   assert.equal(next.includes("completed"), false);
-  assert.equal(next.includes("accepted"), true);
+  assert.equal(next.includes("on_the_way"), true);
 });
 
 test("motorista can complete from in_progress", () => {

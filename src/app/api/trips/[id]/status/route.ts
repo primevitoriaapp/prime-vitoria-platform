@@ -16,6 +16,8 @@ import { driverOperationalStatusForTrip } from "@/lib/drivers/operational-status
 import { assertClientMayUsePortalWrites } from "@/lib/clients/client-portal-access";
 import { isOperationalTripStatusEvent } from "@/lib/notifications/operational-status-event";
 import { finalizeWaitFields } from "@/lib/trips/finalize-trip-wait";
+import { odometerDistance, parseOdometer } from "@/lib/trips/odometer";
+import { ensureTripTrackToken } from "@/lib/public/ensure-track-token";
 import {
   allPickupStopsCompleted,
   hasMultiplePickupStops,
@@ -37,8 +39,12 @@ const bodySchema = z.object({
     "no_show",
     "reassigned"
   ]),
-  actual_km: z.coerce.number().positive().optional()
+  actual_km: z.coerce.number().positive().optional(),
+  odometer_start: z.union([z.string(), z.number()]).optional(),
+  odometer_end: z.union([z.string(), z.number()]).optional()
 });
+
+const TRACK_END: string[] = ["completed", "cancelled", "no_show"];
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -119,10 +125,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
+    // KM do painel: inicial ao iniciar a viagem, final ao finalizar. A distância cobrada vem da diferença.
+    const odoStart = parseOdometer(body.odometer_start ?? null);
+    const odoEnd = parseOdometer(body.odometer_end ?? null);
+    if (body.to_status === "in_progress" && session.role === "motorista" && odoStart == null) {
+      return fail("ODOMETER_START_REQUIRED", "Informe o KM do painel antes de iniciar a viagem", 400);
+    }
+    let odometerKm: number | null = null;
+    if (body.to_status === "completed" && trip.odometer_start != null && (session.role === "motorista" || odoEnd != null)) {
+      const dist = odometerDistance(Number(trip.odometer_start), odoEnd);
+      if (!dist.ok) return fail("ODOMETER_INVALID", dist.message, 400);
+      odometerKm = dist.km;
+    }
+
     if (body.to_status === "completed" && session.role === "motorista") {
-      const kmFromBody = body.actual_km;
+      const kmFromBody = odometerKm ?? body.actual_km;
       if (kmFromBody == null || !Number.isFinite(kmFromBody) || kmFromBody <= 0) {
         return fail("ACTUAL_KM_REQUIRED", "Informe o KM percorrido para finalizar", 400);
+      }
+      const { data: client } = await db.from("clients").select("type").eq("id", trip.client_id).maybeSingle();
+      if (client?.type === "PJ") {
+        const { data: sig } = await db.from("trip_signatures").select("id").eq("trip_id", id).maybeSingle();
+        if (!sig) return fail("SIGNATURE_REQUIRED", "Colha a assinatura do passageiro (ou informe por que não assinou)", 409);
       }
     }
 
@@ -134,7 +158,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       statusUpdate.wait_minutes = waitFinalize.wait_minutes;
       statusUpdate.wait_started_at = waitFinalize.wait_started_at;
     }
-    if (body.to_status === "completed" && body.actual_km != null && Number.isFinite(body.actual_km)) {
+    if (body.to_status === "in_progress" && odoStart != null) statusUpdate.odometer_start = odoStart;
+    if (odometerKm != null) {
+      statusUpdate.odometer_end = odoEnd;
+      statusUpdate.actual_km = odometerKm;
+      statusUpdate.km_source = "odometer";
+      statusUpdate.km_updated_at = new Date().toISOString();
+    } else if (body.to_status === "completed" && body.actual_km != null && Number.isFinite(body.actual_km)) {
       statusUpdate.actual_km = body.actual_km;
       statusUpdate.km_source = "manual";
       statusUpdate.km_updated_at = new Date().toISOString();
@@ -157,6 +187,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         .update({ operational_status: driverStatus, operational_status_updated_at: new Date().toISOString() })
         .eq("id", data.driver_id)
         .eq("tenant_id", tenantId);
+    }
+
+    // Link de acompanhamento do passageiro: nasce no "a caminho" e expira quando a corrida termina.
+    if (body.to_status === "on_the_way") {
+      await runBestEffort("trip.track_token_on_the_way", () => ensureTripTrackToken(id).then(() => undefined));
+    }
+    if (TRACK_END.includes(body.to_status)) {
+      await runBestEffort("trip.track_token_expire", async () => {
+        await db.from("trip_public_track_tokens").update({ expires_at: new Date().toISOString() }).eq("trip_id", id).gt("expires_at", new Date().toISOString());
+      });
     }
 
     if (body.to_status === "completed") {

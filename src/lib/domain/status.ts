@@ -3,7 +3,7 @@ import type { TripOperationalStatus } from "./types";
 export const ALLOWED_TRANSITIONS: Record<TripOperationalStatus, TripOperationalStatus[]> = {
   requested: ["approved", "cancelled"],
   approved: ["dispatched", "cancelled"],
-  dispatched: ["accepted", "reassigned", "cancelled"],
+  dispatched: ["accepted", "on_the_way", "reassigned", "cancelled"],
   accepted: ["on_the_way", "reassigned", "cancelled"],
   on_the_way: ["arrived", "reassigned"],
   arrived: ["in_progress", "no_show"],

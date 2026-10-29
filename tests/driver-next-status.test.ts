@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { driverNextStatuses } from "../src/lib/trips/driver-next-status.ts";
 
-test("driverNextStatuses from dispatched only accepted (operador trata reassigned)", () => {
+test("driverNextStatuses from dispatched vai direto para a caminho (sem aceitar)", () => {
   const next = driverNextStatuses("dispatched");
-  assert.deepEqual(new Set(next), new Set(["accepted"]));
+  assert.deepEqual(new Set(next), new Set(["on_the_way"]));
 });
 
 test("driverNextStatuses from in_progress only completed", () => {
