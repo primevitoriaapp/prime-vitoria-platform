@@ -8,6 +8,8 @@ import { BrandLogo } from "@/components/brand-logo";
 import { NewTripRequestAlert } from "@/components/new-trip-request-alert";
 import { ReceivablesAlertPill } from "@/components/receivables-alert-pill";
 import { PayablesAlertPill } from "@/components/payables-alert-pill";
+import { CompanySwitcher } from "@/components/company-switcher";
+import { CompanyProvider } from "@/lib/company/company-context";
 import { PendingRequestsPill } from "@/components/pending-requests-pill";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
@@ -79,6 +81,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
       : NAV;
 
   return (
+    <CompanyProvider>
     <div className="admin-theme flex h-dvh flex-col overflow-hidden bg-prime-bg text-prime-text">
       <div className="flex min-h-0 flex-1">
         <aside className="prime-sidebar hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-prime-sidebar md:flex">
@@ -141,6 +144,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
               <div className="flex items-center gap-3">
+                {isAdmin || isFinanceiro ? <CompanySwitcher /> : null}
                 {isAdmin || isFinanceiro ? <ReceivablesAlertPill /> : null}
                 {isAdmin || isFinanceiro ? <PayablesAlertPill /> : null}
                 {showFullNav ? <PendingRequestsPill tenantId={session?.tenantId ?? null} /> : null}
@@ -183,6 +187,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     </div>
+    </CompanyProvider>
   );
 }
 

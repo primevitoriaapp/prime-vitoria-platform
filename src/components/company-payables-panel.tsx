@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
+import { inCompany, useCompany, companyLabel } from "@/lib/company/company-context";
 import { PAYABLE_CATEGORIES, categoryLabel, payableSituation, type PayableSituation } from "@/lib/finance/company-payables-calc";
 
 type Row = {
@@ -83,7 +84,11 @@ export function CompanyPayablesPanel() {
     void load();
   }, [load]);
 
-  const all = useMemo(() => [...overdueOld, ...rows], [overdueOld, rows]);
+  const { company } = useCompany();
+  const all = useMemo(() => [...overdueOld, ...rows].filter((r) => inCompany(company, r.issuer)), [overdueOld, rows, company]);
+  useEffect(() => {
+    setForm((f) => ({ ...f, issuer: company === "todas" ? f.issuer : company }));
+  }, [company]);
   const visible = all.filter((r) => (filter === "todas" ? r.status !== "cancelada" : filter === "abertas" ? r.status === "aberta" : r.status === "paga"));
 
   const totals = useMemo(() => {
@@ -166,6 +171,11 @@ export function CompanyPayablesPanel() {
 
   return (
     <section className="space-y-4">
+      {company !== "todas" ? (
+        <p className="rounded-xl bg-[#111] px-4 py-2 text-sm text-[#fff]">
+          Mostrando só <b className="text-prime-gold">{companyLabel(company)}</b>. Para ver o grupo inteiro, escolha “Todas as empresas” no topo.
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="h-9 w-9 rounded-lg bg-white ring-1 ring-prime-border" onClick={() => setMonth((m) => shiftMonth(m, -1))}>
           ‹

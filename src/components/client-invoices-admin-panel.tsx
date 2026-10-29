@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { inCompany, useCompany } from "@/lib/company/company-context";
 import { INVOICE_STATUS_LABEL, formatInvoiceNumber } from "@/lib/finance/client-invoice-calc";
 
 type Row = {
@@ -20,6 +21,7 @@ type Row = {
   boleto_line: string | null;
   nf_number: string | null;
   nf_url: string | null;
+  billing_issuer?: string | null;
   boleto_path?: string | null;
   nf_path?: string | null;
 };
@@ -38,6 +40,7 @@ function prevMonth() {
 /** Financeiro → fechamento mensal: gera faturas, envia, anexa boleto e dá baixa. */
 export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
+  const { company } = useCompany();
   const [month, setMonth] = useState(prevMonth);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -202,7 +205,7 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.filter((r) => inCompany(company, r.billing_issuer)).map((r) => (
                 <tr key={r.id} className={`border-t border-prime-border ${r.status === "cancelada" ? "opacity-50" : ""}`}>
                   <td className="py-2 font-medium">{formatInvoiceNumber(r.number)}</td>
                   <td>{r.client_name ?? "—"}</td>
