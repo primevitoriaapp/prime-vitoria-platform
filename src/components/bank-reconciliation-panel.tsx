@@ -34,14 +34,11 @@ const KIND_LABEL: Record<string, string> = {
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const brDate = (ymd: string) => ymd.split("-").reverse().join("/");
 
-declare global {
-  interface Window {
-    XLSX?: {
-      read: (data: ArrayBuffer, opts: { type: "array" }) => { SheetNames: string[]; Sheets: Record<string, unknown> };
-      utils: { sheet_to_json: (sheet: unknown, opts: { header: 1; raw: boolean; defval: string }) => string[][] };
-    };
-  }
-}
+type XlsxLib = {
+  read: (data: ArrayBuffer, opts: { type: "array" }) => { SheetNames: string[]; Sheets: Record<string, unknown> };
+  utils: { sheet_to_json: (sheet: unknown, opts: { header: 1; raw: boolean; defval: string }) => string[][] };
+};
+const xlsxLib = () => (window as unknown as { XLSX?: XlsxLib }).XLSX;
 
 async function readStatement(file: File): Promise<StatementLine[]> {
   const name = file.name.toLowerCase();
@@ -57,7 +54,7 @@ async function readStatement(file: File): Promise<StatementLine[]> {
     if (text.includes("�")) text = new TextDecoder("windows-1252").decode(buf);
     return parseStatementCsv(parseCsv(text));
   }
-  if (!window.XLSX) {
+  if (!xlsxLib()) {
     await new Promise<void>((resolve, reject) => {
       const s = document.createElement("script");
       s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
@@ -66,7 +63,7 @@ async function readStatement(file: File): Promise<StatementLine[]> {
       document.head.appendChild(s);
     });
   }
-  const X = window.XLSX!;
+  const X = xlsxLib()!;
   const wb = X.read(await file.arrayBuffer(), { type: "array" });
   const table = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: "" }).map((r) => r.map((c) => String(c ?? "")));
   return parseStatementCsv(table);
