@@ -15,7 +15,11 @@ type FleetItem = {
   next_trip: { id: string; scheduled_at: string; passenger: string | null; origin: string | null; status: string } | null;
 };
 
-type Props = { tenantId: string | null };
+type Props = {
+  tenantId: string | null;
+  /** "full": tela própria, mapa grande com a lista ao lado. */
+  variant?: "compact" | "full";
+};
 
 const ORDER: FleetStatus[] = ["ocupado", "deslocando", "proximo", "livre", "offline"];
 
@@ -49,7 +53,8 @@ function ago(iso: string): string {
 }
 
 /** Mapa da central: cada motorista com a cor da situação (livre, ocupado, deslocando, corrida em breve). */
-export function LiveMap({ tenantId }: Props) {
+export function LiveMap({ tenantId, variant = "compact" }: Props) {
+  const full = variant === "full";
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const layerRef = useRef<import("leaflet").LayerGroup | null>(null);
@@ -205,9 +210,9 @@ export function LiveMap({ tenantId }: Props) {
   }
 
   return (
-    <section className="space-y-3">
+    <section className={full ? "grid gap-3 lg:grid-cols-[1fr_340px] lg:items-start" : "space-y-3"}>
       <div className="overflow-hidden rounded-xl border border-prime-border bg-white shadow-prime-card">
-        <div ref={mapEl} style={{ height: 420 }} />
+        <div ref={mapEl} style={{ height: full ? "calc(100vh - 220px)" : 420, minHeight: 420 }} />
         <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-prime-border px-4 py-3 text-xs">
           {counts.map(({ s, n }) => (
             <span key={s} className="inline-flex items-center gap-2">
@@ -217,8 +222,9 @@ export function LiveMap({ tenantId }: Props) {
           ))}
         </div>
       </div>
+      <div className={full ? "space-y-2 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto" : "space-y-3"}>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
-      <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className={full ? "grid gap-2" : "grid gap-2 sm:grid-cols-2 xl:grid-cols-3"}>
         {sorted.map((d) => (
           <li key={d.id} className="rounded-xl border border-prime-border bg-white p-3 text-sm">
             <button type="button" onClick={() => focus(d)} className="flex w-full items-start gap-3 text-left">
@@ -245,6 +251,7 @@ export function LiveMap({ tenantId }: Props) {
         ))}
         {items.length === 0 && !error ? <li className="text-sm text-prime-muted">Nenhum motorista ativo cadastrado.</li> : null}
       </ul>
+      </div>
     </section>
   );
 }

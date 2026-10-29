@@ -100,7 +100,12 @@ export default async function DashboardPage() {
           devFallbackRole={session.role === "financeiro" ? "financeiro" : session.role === "operador" ? "operador" : "admin"}
         />
       ) : null}
-      <h2 className="mb-3 mt-8 text-lg font-semibold">Motoristas agora</h2>
+      <div className="mb-3 mt-8 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">Motoristas agora</h2>
+        <Link href="/ao-vivo" className="text-sm font-medium text-prime-gold hover:underline">
+          Abrir em tela cheia →
+        </Link>
+      </div>
       <LiveMap tenantId={realtimeTenantId} />
     </>
   );
