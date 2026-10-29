@@ -100,7 +100,7 @@ export function DriverFinishSheet({
         {mode === "finish" && trip.odometer_start != null ? (
           <p className={`mt-2 text-sm ${dist?.ok ? "text-emerald-300" : "text-[#AAAAAA]"}`}>
             KM inicial: {Number(trip.odometer_start).toLocaleString("pt-BR")}
-            {dist?.ok ? ` · percorrido: ${dist.km.toLocaleString("pt-BR")} km` : value != null && dist && !dist.ok ? ` · ${dist.message}` : ""}
+            {dist?.ok ? ` · pelo painel: ${dist.km.toLocaleString("pt-BR")} km` : value != null && dist && !dist.ok ? ` · ${dist.message}` : ""}
           </p>
         ) : null}
 

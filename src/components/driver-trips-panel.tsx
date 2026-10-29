@@ -231,7 +231,15 @@ export function DriverTripsPanel({
       await setWait(tripId, "stop");
     }
     let actualKm: number | undefined;
-    if (to_status === "completed" && !extra?.odometer_end) {
+    let kmFromGps = false;
+    if (to_status === "completed" && extra?.odometer_end) {
+      // Distância cobrada = GPS; se o GPS falhou, o servidor usa a diferença do painel.
+      const gps = getTripGpsState(tripId);
+      if (!gps.requiresManualKm && gps.accumulatedKm != null && gps.accumulatedKm > 0) {
+        actualKm = gps.accumulatedKm;
+        kmFromGps = true;
+      }
+    } else if (to_status === "completed") {
       const manualKm = parseDriverKmInput(completeKmByTrip[tripId] ?? "");
       const resolved = resolveActualKmForComplete(tripId, manualKm);
       if (resolved == null) {
@@ -249,7 +257,7 @@ export function DriverTripsPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to_status,
-          ...(actualKm != null ? { actual_km: actualKm } : {}),
+          ...(actualKm != null ? { actual_km: actualKm, km_from_gps: kmFromGps } : {}),
           ...(extra ?? {})
         })
       },

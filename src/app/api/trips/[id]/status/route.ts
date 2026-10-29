@@ -41,7 +41,8 @@ const bodySchema = z.object({
   ]),
   actual_km: z.coerce.number().positive().optional(),
   odometer_start: z.union([z.string(), z.number()]).optional(),
-  odometer_end: z.union([z.string(), z.number()]).optional()
+  odometer_end: z.union([z.string(), z.number()]).optional(),
+  km_from_gps: z.boolean().optional()
 });
 
 const TRACK_END: string[] = ["completed", "cancelled", "no_show"];
@@ -139,7 +140,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     if (body.to_status === "completed" && session.role === "motorista") {
-      const kmFromBody = odometerKm ?? body.actual_km;
+      // Distância cobrada = GPS do celular; o KM do painel é registro de contexto (e reserva se o GPS falhar).
+      const kmFromBody = body.actual_km ?? odometerKm;
       if (kmFromBody == null || !Number.isFinite(kmFromBody) || kmFromBody <= 0) {
         return fail("ACTUAL_KM_REQUIRED", "Informe o KM percorrido para finalizar", 400);
       }
@@ -159,14 +161,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       statusUpdate.wait_started_at = waitFinalize.wait_started_at;
     }
     if (body.to_status === "in_progress" && odoStart != null) statusUpdate.odometer_start = odoStart;
-    if (odometerKm != null) {
-      statusUpdate.odometer_end = odoEnd;
+    if (odometerKm != null) statusUpdate.odometer_end = odoEnd;
+    if (body.to_status === "completed" && body.actual_km != null && Number.isFinite(body.actual_km)) {
+      statusUpdate.actual_km = body.actual_km;
+      statusUpdate.km_source = body.km_from_gps ? "gps_trail" : "manual";
+      statusUpdate.km_updated_at = new Date().toISOString();
+    } else if (odometerKm != null) {
       statusUpdate.actual_km = odometerKm;
       statusUpdate.km_source = "odometer";
-      statusUpdate.km_updated_at = new Date().toISOString();
-    } else if (body.to_status === "completed" && body.actual_km != null && Number.isFinite(body.actual_km)) {
-      statusUpdate.actual_km = body.actual_km;
-      statusUpdate.km_source = "manual";
       statusUpdate.km_updated_at = new Date().toISOString();
     }
 

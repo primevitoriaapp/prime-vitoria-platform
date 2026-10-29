@@ -25,6 +25,8 @@ export function TripProofCard({ tripId }: { tripId: string }) {
     })();
   }, [tripId]);
   if (!p || (p.odometer_start == null && !p.signature)) return null;
+  const panelKm = p.odometer_start != null && p.odometer_end != null ? Math.round((p.odometer_end - p.odometer_start) * 10) / 10 : null;
+  const gap = panelKm != null && p.actual_km != null && p.actual_km > 0 ? Math.abs(panelKm - p.actual_km) / p.actual_km : 0;
   return (
     <section className="rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
       <h2 className="text-base font-semibold">Comprovação do motorista</h2>
@@ -38,10 +40,19 @@ export function TripProofCard({ tripId }: { tripId: string }) {
           <p className="font-semibold">{n(p.odometer_end)}</p>
         </div>
         <div className="rounded-xl bg-prime-bg p-3">
-          <p className="text-xs text-prime-muted">Percorrido</p>
+          <p className="text-xs text-prime-muted">Percorrido (cobrado)</p>
           <p className="font-semibold">{p.actual_km != null ? `${n(p.actual_km)} km` : "—"}</p>
+          <p className="text-[11px] text-prime-muted">
+            {p.km_source === "gps_trail" ? "pelo GPS" : p.km_source === "odometer" ? "pelo painel (GPS falhou)" : p.km_source === "manual" ? "digitado" : ""}
+            {panelKm != null && p.km_source !== "odometer" ? ` · painel: ${n(panelKm)} km` : ""}
+          </p>
         </div>
       </div>
+      {gap > 0.2 && (panelKm ?? 0) > 2 ? (
+        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+          GPS e painel do carro diferem mais de 20%. Vale conferir antes de faturar.
+        </p>
+      ) : null}
       {p.signature ? (
         <div className="mt-4">
           {p.signature.image_data ? (
