@@ -27,6 +27,7 @@ const NAV = [
   { href: "/vehicles", label: "Veículos", icon: "▤" },
   { href: "/clients", label: "Clientes", icon: "▦" },
   { href: "/clients/relatorio", label: "Relatório por cliente", icon: "▧" },
+  { href: "/painel-financeiro", label: "Painel financeiro", icon: "▤" },
   { href: "/finance", label: "Financeiro", icon: "◈" },
   { href: "/contas-a-pagar", label: "Contas a pagar", icon: "◆" },
   { href: "/conciliacao", label: "Conciliação bancária", icon: "⇄" }
@@ -79,14 +80,14 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
   const visibleNav = showFullNav
     ? NAV
     : isFinanceiro
-      ? NAV.filter((n) => ["/finance", "/dashboard", "/clients/relatorio", "/contas-a-pagar", "/conciliacao"].includes(n.href))
+      ? NAV.filter((n) => ["/painel-financeiro", "/finance", "/dashboard", "/clients/relatorio", "/contas-a-pagar", "/conciliacao"].includes(n.href))
       : NAV;
 
   return (
     <CompanyProvider>
     <div className="admin-theme flex h-dvh flex-col overflow-hidden bg-prime-bg text-prime-text">
       <div className="flex min-h-0 flex-1">
-        <aside className="prime-sidebar hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-prime-sidebar md:flex">
+        <aside className="prime-sidebar hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-prime-sidebar md:flex print:hidden">
           <div className="border-b border-white/10 px-4 py-5">
             <Link href="/dashboard" aria-label="Voltar ao início">
               <BrandLogo variant="dark" />
@@ -125,7 +126,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="z-40 shrink-0 border-b border-prime-border bg-prime-card/95 backdrop-blur">
+          <header className="z-40 shrink-0 border-b border-prime-border bg-prime-card/95 backdrop-blur print:hidden">
             <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
               <Link href="/dashboard" className="flex items-center gap-3 md:hidden" aria-label="Voltar ao início">
                 <BrandLogo compact subtitle="OPERAÇÃO" variant="light" />
@@ -170,7 +171,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 lg:px-8 lg:py-8">
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 lg:px-8 lg:py-8 print:overflow-visible">
             {session && !showFullNav && !isFinanceiro ? (
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
                 <span>
