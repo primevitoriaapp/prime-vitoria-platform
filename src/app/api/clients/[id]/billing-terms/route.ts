@@ -16,7 +16,8 @@ const bodySchema = z.object({
   billing_issuer: z.enum(["rj_prime", "prime_servicos", "ilha_prime"]).nullable(),
   invoice_closing_day: z.coerce.number().int().min(0).max(28).default(0),
   invoice_auto_close: z.boolean().default(true),
-  invoiced: z.boolean().default(true)
+  invoiced: z.boolean().default(true),
+  km_minimum: z.coerce.number().min(0).max(1000).nullable().optional()
 });
 
 async function clientExists(id: string, tenantId: string): Promise<boolean> {

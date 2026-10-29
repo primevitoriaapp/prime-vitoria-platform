@@ -82,6 +82,8 @@ export type CategoryPricingInput = {
   /** Horas usadas na diária (fim − início). */
   usedHours?: number | null;
   cells: PriceCell[];
+  /** Km mínimo cobrado do cliente (ex.: 20). O parceiro recebe pelo km real. */
+  minKmClient?: number | null;
 };
 
 export type CategoryPricingResult = {
@@ -100,10 +102,14 @@ export function priceFromCategoryTable(input: CategoryPricingInput): CategoryPri
     const b = bandeiraForIso(input.scheduledAt);
     const c = cell(b);
     if (!c || c.client_price == null || input.km == null) return { client: null, partner: null, detail: "sem preço por km" };
+    const min = input.minKmClient && input.minKmClient > 0 ? input.minKmClient : 0;
+    const billedKm = Math.max(input.km, min);
     return {
-      client: money(input.km * c.client_price),
+      client: money(billedKm * c.client_price),
       partner: c.partner_price == null ? null : money(input.km * c.partner_price),
-      detail: `${input.km} km × ${b === "km_b1" ? "bandeira 1" : "bandeira 2"}`
+      detail:
+        `${billedKm} km × ${b === "km_b1" ? "bandeira 1" : "bandeira 2"}` +
+        (billedKm > input.km ? ` (mínimo de ${min} km; rodou ${input.km} km)` : "")
     };
   }
   const c = cell(input.mode);

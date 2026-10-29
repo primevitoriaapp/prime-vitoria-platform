@@ -72,12 +72,14 @@ async function applyCategoryPricing(input: ApplyTripPricingInput): Promise<Apply
 
   const km = input.kmReal ?? input.kmPlanned ?? null;
   const usedHours = durationHours(input.scheduledAt ?? (trip.scheduled_at as string), input.completedAt);
+  const terms = await getClientBillingTerms(input.clientId, input.tenantId);
   const table = priceFromCategoryTable({
     mode: trip.service_mode as ServiceMode,
     scheduledAt: (trip.scheduled_at as string) ?? input.scheduledAt ?? new Date().toISOString(),
     km,
     usedHours,
-    cells
+    cells,
+    minKmClient: terms.km_minimum ?? null
   });
 
   // Valor digitado pela central na corrida tem prioridade (orçamento combinado).
@@ -88,7 +90,6 @@ async function applyCategoryPricing(input: ApplyTripPricingInput): Promise<Apply
   if (client == null) return null;
 
   // Hora parada: valores da tabela do veículo, se houver; senão os do cadastro da empresa.
-  const terms = await getClientBillingTerms(input.clientId, input.tenantId);
   const hp = cells.find((c) => c.service === "hora_parada" && c.enabled);
   const wait = calculateWaitCharge(trip.wait_minutes as number | null | undefined, {
     ...terms,

@@ -90,16 +90,19 @@ export function NewTripRequestAlert({ tenantId }: Props) {
     if (!ctx || ctx.state !== "running") return;
     const now = ctx.currentTime;
     // Dois toques curtos (Mi5 → Lá5), volume baixo.
-    [
-      { freq: 659.25, at: 0 },
-      { freq: 880, at: 0.18 }
-    ].forEach(({ freq, at }) => {
+    // Toca três vezes para não passar despercebido.
+    [0, 0.9, 1.8]
+      .flatMap((base) => [
+        { freq: 659.25, at: base },
+        { freq: 880, at: base + 0.18 }
+      ])
+      .forEach(({ freq, at }) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, now + at);
-      gain.gain.exponentialRampToValueAtTime(0.25, now + at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.6, now + at + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.35);
       osc.connect(gain).connect(ctx.destination);
       osc.start(now + at);
@@ -144,6 +147,45 @@ export function NewTripRequestAlert({ tenantId }: Props) {
       document.title = baseTitleRef.current;
     };
   }, [alerts.length]);
+
+  // Plano B: confere a cada 20 s, para tocar mesmo se o tempo real falhar.
+  useEffect(() => {
+    if (!tenantId) return;
+    let first = true;
+    let stopped = false;
+    const check = async () => {
+      try {
+        const qs = new URLSearchParams({ status: "requested", page: "1", pageSize: "20", sortDir: "desc" });
+        const res = await fetch(`/api/trips?${qs}`, { credentials: "include" });
+        const json = (await res.json()) as { success?: boolean; data?: { items?: TripInsertRow[] } };
+        if (stopped || !json?.success) return;
+        for (const row of json.data?.items ?? []) {
+          if (seenRef.current.has(row.id)) continue;
+          seenRef.current.add(row.id);
+          if (first) continue;
+          const alert: PendingAlert = {
+            id: row.id,
+            scheduledAt: row.scheduled_at ?? null,
+            origin: row.origin_text ? shortPlaceLabel(row.origin_text) : null,
+            destination: row.destination_text ? shortPlaceLabel(row.destination_text) : null,
+            passenger: row.passenger_name ?? null
+          };
+          setAlerts((prev) => [alert, ...prev].slice(0, 5));
+          if (readSoundPref()) playChime();
+          showBrowserNotification(alert);
+        }
+        first = false;
+      } catch {
+        /* sem rede: tenta de novo no próximo ciclo */
+      }
+    };
+    void check();
+    const t = window.setInterval(() => void check(), 20_000);
+    return () => {
+      stopped = true;
+      window.clearInterval(t);
+    };
+  }, [tenantId, playChime, showBrowserNotification]);
 
   useEffect(() => {
     if (!tenantId) return;

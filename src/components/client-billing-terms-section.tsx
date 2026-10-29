@@ -19,6 +19,7 @@ type FormState = {
   invoice_closing_day: string;
   invoice_auto_close: boolean;
   invoiced: boolean;
+  km_minimum: string;
 };
 
 const TERM_PRESETS = [
@@ -41,7 +42,8 @@ function toForm(d: Record<string, unknown> | undefined): FormState {
     billing_issuer: s(d?.billing_issuer),
     invoice_closing_day: s(d?.invoice_closing_day, "0"),
     invoice_auto_close: d?.invoice_auto_close !== false,
-    invoiced: d?.invoiced !== false
+    invoiced: d?.invoiced !== false,
+    km_minimum: s(d?.km_minimum)
   };
 }
 
@@ -87,7 +89,8 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
       billing_issuer: form.billing_issuer || null,
       invoice_closing_day: Number(form.invoice_closing_day) || 0,
       invoice_auto_close: form.invoice_auto_close,
-      invoiced: form.invoiced
+      invoiced: form.invoiced,
+      km_minimum: numOrNull(form.km_minimum)
     };
     const res = await fetchWithSupabaseSession(
       `/api/clients/${clientId}/billing-terms`,
@@ -160,6 +163,19 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
             onChange={(e) => setForm((f) => ({ ...f, wait_tolerance_minutes: e.target.value }))}
             disabled={off}
           />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span>Km mínimo por corrida (cobrança por km)</span>
+          <input
+            id="km-minimum"
+            inputMode="decimal"
+            placeholder="Sem mínimo"
+            className={PRIME_INPUT_CLASS}
+            value={form.km_minimum}
+            onChange={(e) => setForm((f) => ({ ...f, km_minimum: e.target.value.replace(/[^0-9.,]/g, "") }))}
+            disabled={off}
+          />
+          <span className="text-xs text-prime-muted">Ex.: 20 → corrida de 10 km é cobrada como 20 km. O motorista recebe pelo km rodado.</span>
         </label>
         <label className="grid gap-1 text-sm">
           <span>Prazo de pagamento</span>

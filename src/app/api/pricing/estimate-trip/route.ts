@@ -72,7 +72,9 @@ export async function POST(request: Request) {
       // Linha reta × 1,3 ≈ distância pelas ruas (estimativa; a cobrança final usa o km rodado).
       const km = straight == null ? null : Math.round(straight * ROAD_FACTOR * 10) / 10;
       const when = body.scheduled_at ?? new Date().toISOString();
-      const price = priceFromCategoryTable({ mode: "km", scheduledAt: when, km, cells });
+      const { data: cl } = await db.from("clients").select("km_minimum").eq("id", body.client_id).maybeSingle();
+      const minKm = cl?.km_minimum == null ? null : Number(cl.km_minimum);
+      const price = priceFromCategoryTable({ mode: "km", scheduledAt: when, km, cells, minKmClient: minKm });
       const perKm = cells.find((c) => c.service === bandeiraForIso(when) && c.enabled)?.client_price ?? null;
       return ok({
         service_type: body.service_type,
@@ -83,7 +85,9 @@ export async function POST(request: Request) {
           price.client == null
             ? null
             : { planned_km: km, client_amount: price.client, driver_amount: isOperator ? (price.partner ?? null) : null },
-        bandeira: bandeiraForIso(when) === "km_b1" ? "Bandeira 1 (06h–18h59)" : "Bandeira 2 (19h–05h59)"
+        bandeira:
+          (bandeiraForIso(when) === "km_b1" ? "Bandeira 1 (06h–18h59)" : "Bandeira 2 (19h–05h59)") +
+          (minKm && km != null && km < minKm ? ` · mínimo de ${minKm} km aplicado` : "")
       });
     }
 

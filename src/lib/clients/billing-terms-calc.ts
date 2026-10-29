@@ -39,6 +39,8 @@ export type ClientBillingTerms = {
   invoice_auto_close: boolean;
   /** false = cliente paga antes do serviço (não entra em fatura). */
   invoiced: boolean;
+  /** Km mínimo cobrado por corrida na cobrança por km (null = sem mínimo). */
+  km_minimum?: number | null;
 };
 
 export const DEFAULT_WAIT_TOLERANCE_MINUTES = 15;
@@ -52,7 +54,8 @@ export function emptyClientBillingTerms(): ClientBillingTerms {
     billing_issuer: null,
     invoice_closing_day: 0,
     invoice_auto_close: true,
-    invoiced: true
+    invoiced: true,
+    km_minimum: null
   };
 }
 
