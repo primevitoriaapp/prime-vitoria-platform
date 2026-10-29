@@ -23,9 +23,24 @@ export type DriverRow = {
   profile_name?: string | null;
   phone?: string | null;
   active?: boolean;
+  whatsapp?: string | null;
+  employment_type?: "funcionario" | "parceiro" | null;
+  cnh_expires_at?: string | null;
+  cnh_expiry?: string | null;
   default_vehicle?: { id: string; model: string; plate: string } | null;
   linked_vehicles?: LinkedVehicle[];
 };
+
+function cnhStatus(expiry: string | null): { text: string; tone: string } {
+  if (!expiry) return { text: "Sem vencimento", tone: "text-prime-muted" };
+  const d = new Date(`${expiry.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return { text: "—", tone: "" };
+  const days = Math.round((d.getTime() - Date.now()) / 86400000);
+  const label = d.toLocaleDateString("pt-BR");
+  if (days < 0) return { text: `Vencida ${label}`, tone: "font-semibold text-red-700" };
+  if (days <= 30) return { text: `Vence ${label}`, tone: "font-semibold text-amber-700" };
+  return { text: `Válida até ${label}`, tone: "" };
+}
 
 type FormFeedback = {
   kind: "success" | "error" | "info";
@@ -103,6 +118,8 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
   const [createCpf, setCreateCpf] = useState("");
   const [createCnh, setCreateCnh] = useState("");
   const [creating, setCreating] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [search, setSearch] = useState("");
 
   const reloadDrivers = useCallback(async () => {
     const qs = includeInactive ? "?include_inactive=1" : "";
@@ -166,119 +183,164 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
     }
   }
 
+  async function removeDriver(driver: DriverRow) {
+    const name = driver.profile_name ?? "este motorista";
+    if (
+      !window.confirm(
+        `Excluir ${name}?\n\nSe ele já fez corridas, o sistema só desativa (para não perder o histórico). Se nunca fez, apaga de vez.`
+      )
+    )
+      return;
+    const res = await fetchWithSupabaseSession(`/api/drivers/${driver.id}`, { method: "DELETE" }, "admin");
+    const json = await parseApiResponse(res);
+    if (!res.ok || json.success !== true) {
+      setFeedback({ kind: "error", message: json.error?.message ?? "Não foi possível excluir.", code: json.error?.code });
+      return;
+    }
+    const msg = (json.data as { message?: string } | undefined)?.message ?? "Feito.";
+    setFeedback({ kind: "success", message: msg });
+    if (fichaDriverId === driver.id) setFichaDriverId(null);
+    await reloadDrivers();
+  }
+
+  const q = search.trim().toLowerCase();
+  const visibleDrivers = drivers.filter((d) => {
+    if (!q) return true;
+    return [d.profile_name, d.cpf, d.phone, d.default_vehicle?.plate, d.default_vehicle?.model]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(q));
+  });
+
   return (
     <>
-      <section className="card">
-        <h2 className="text-lg font-semibold">Cadastro rápido</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Nome, CPF e CNH. Depois use <strong>Abrir ficha</strong> para foto, endereço, operacional, financeiro e veículos.
-        </p>
-        <form className="mt-4 grid gap-3 md:grid-cols-3" noValidate onSubmit={(e) => void createDriver(e)}>
-          <label className="grid gap-1 text-sm">
-            <span>Nome completo</span>
-            <input
-              required
-              className={inputClass}
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-            />
-          </label>
-          <label className="grid gap-1 text-sm">
-            <span>CPF</span>
-            <input
-              required
-              className={inputClass}
-              value={createCpf}
-              onChange={(e) => setCreateCpf(e.target.value)}
-              placeholder="000.000.000-00"
-            />
-          </label>
-          <label className="grid gap-1 text-sm">
-            <span>CNH</span>
-            <input className={inputClass} value={createCnh} onChange={(e) => setCreateCnh(e.target.value)} />
-          </label>
-          <div className="md:col-span-3">
-            <button
-              type="submit"
-              disabled={creating}
-              className="btn-primary disabled:opacity-50"
-            >
-              {creating ? "Salvando…" : "Cadastrar motorista"}
-            </button>
-          </div>
-        </form>
-        <FeedbackBanner feedback={!fichaDriverId ? feedback : null} />
-      </section>
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          className={`${inputClass} max-w-sm flex-1`}
+          placeholder="Buscar por nome, CPF, telefone ou placa"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <label className="flex items-center gap-2 text-sm text-prime-muted">
+          <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
+          Mostrar desativados
+        </label>
+        <button type="button" className="btn-primary ml-auto" onClick={() => setShowCreate((v) => !v)}>
+          {showCreate ? "Fechar" : "+ Novo motorista"}
+        </button>
+      </div>
 
-      <section className="card mt-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Frota de motoristas</h2>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={includeInactive}
-              onChange={(e) => setIncludeInactive(e.target.checked)}
-            />
-            Incluir inativos
-          </label>
-        </div>
-        {drivers.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">Nenhum motorista cadastrado.</p>
+      <FeedbackBanner feedback={!fichaDriverId ? feedback : null} />
+
+      {showCreate ? (
+        <section className="card mt-4">
+          <h2 className="text-lg font-semibold">Novo motorista</h2>
+          <p className="mt-1 text-sm text-prime-muted">
+            Comece com nome, CPF e CNH. A ficha completa abre em seguida para foto, contato, endereço, banco e veículo.
+          </p>
+          <form className="mt-4 grid gap-3 md:grid-cols-3" noValidate onSubmit={(e) => void createDriver(e)}>
+            <label className="grid gap-1 text-sm">
+              <span>Nome completo</span>
+              <input required className={inputClass} value={createName} onChange={(e) => setCreateName(e.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span>CPF</span>
+              <input
+                required
+                className={inputClass}
+                value={createCpf}
+                onChange={(e) => setCreateCpf(e.target.value)}
+                placeholder="000.000.000-00"
+              />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span>CNH</span>
+              <input className={inputClass} value={createCnh} onChange={(e) => setCreateCnh(e.target.value)} />
+            </label>
+            <div className="md:col-span-3">
+              <button type="submit" disabled={creating} className="btn-primary disabled:opacity-50">
+                {creating ? "Salvando…" : "Cadastrar e abrir ficha"}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
+      <section className="mt-5">
+        {visibleDrivers.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-prime-border bg-white p-6 text-center text-sm text-prime-muted">
+            {drivers.length === 0 ? "Nenhum motorista cadastrado." : "Nenhum motorista encontrado nessa busca."}
+          </p>
         ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {drivers.map((driver) => (
-              <article
-                key={driver.id}
-                className={`rounded-xl border bg-slate-900/40 p-4 transition-colors ${
-                  fichaDriverId === driver.id ? "border-amber-500/50" : "border-slate-800 hover:border-slate-700"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-amber-400/90 to-amber-600 text-sm font-semibold text-slate-950">
-                      {driverInitials(driver.profile_name)}
-                    </span>
-                    <div>
-                      <p className="font-medium text-white">{driver.profile_name ?? "Motorista"}</p>
-                      <p className="text-xs text-slate-500">{driver.phone ?? `CPF ${driver.cpf}`}</p>
-                    </div>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                      driver.active === false
-                        ? "bg-slate-800 text-slate-500"
-                        : "bg-emerald-500/15 text-emerald-400"
-                    }`}
-                  >
-                    {driver.active === false ? "Inativo" : "Disponível"}
-                  </span>
-                </div>
-                <dl className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-400">
-                  <div>
-                    <dt className="text-slate-500">Veículo</dt>
-                    <dd className="text-slate-300">{driver.default_vehicle?.model ?? "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">Placa</dt>
-                    <dd className="text-slate-300">{driver.default_vehicle?.plate ?? "—"}</dd>
-                  </div>
-                  <div className="col-span-2">
-                    <dt className="text-slate-500">CNH</dt>
-                    <dd className="text-slate-300">{driver.cnh_number ?? "—"}</dd>
-                  </div>
-                </dl>
-                <button
-                  type="button"
-                  className="mt-4 w-full text-right text-sm font-medium text-amber-400 hover:text-amber-300"
-                  onClick={() => {
-                    setFichaDriverId(driver.id);
-                    setFeedback(null);
-                  }}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {visibleDrivers.map((driver) => {
+              const cnhAlert = cnhStatus(driver.cnh_expires_at ?? driver.cnh_expiry ?? null);
+              const inactive = driver.active === false;
+              return (
+                <article
+                  key={driver.id}
+                  className={`rounded-2xl border bg-white p-4 shadow-prime-card transition ${
+                    fichaDriverId === driver.id ? "border-prime-gold ring-1 ring-prime-gold" : "border-prime-border"
+                  } ${inactive ? "opacity-60" : ""}`}
                 >
-                  {fichaDriverId === driver.id ? "Ficha aberta →" : "Ver perfil →"}
-                </button>
-              </article>
-            ))}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#111] text-sm font-semibold text-prime-gold">
+                        {driverInitials(driver.profile_name)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-prime-text">{driver.profile_name ?? "Motorista"}</p>
+                        <p className="text-xs text-prime-muted">
+                          {driver.employment_type === "funcionario" ? "Funcionário" : "Parceiro"}
+                          {driver.whatsapp || driver.phone ? ` · ${driver.whatsapp ?? driver.phone}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        inactive ? "bg-gray-100 text-gray-600" : "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200"
+                      }`}
+                    >
+                      {inactive ? "Desativado" : "Ativo"}
+                    </span>
+                  </div>
+
+                  <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                    <div>
+                      <dt className="text-xs text-prime-muted">Veículo</dt>
+                      <dd className="truncate">{driver.default_vehicle?.model ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-prime-muted">Placa</dt>
+                      <dd>{driver.default_vehicle?.plate ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-prime-muted">CPF</dt>
+                      <dd>{driver.cpf}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-prime-muted">CNH</dt>
+                      <dd className={cnhAlert.tone}>{cnhAlert.text}</dd>
+                    </div>
+                  </dl>
+
+                  <div className="mt-4 flex items-center justify-between gap-2 border-t border-prime-border pt-3 text-sm">
+                    <button
+                      type="button"
+                      className="font-semibold text-prime-gold hover:underline"
+                      onClick={() => {
+                        setFichaDriverId(driver.id);
+                        setFeedback(null);
+                      }}
+                    >
+                      Editar ficha
+                    </button>
+                    <button type="button" className="text-red-700 hover:underline" onClick={() => void removeDriver(driver)}>
+                      Excluir
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>

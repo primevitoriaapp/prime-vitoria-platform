@@ -21,7 +21,6 @@ import {
   type ServiceRegionId
 } from "@/lib/drivers/driver-ficha-options";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
-import { DriverPayoutTableSection } from "@/components/driver-payout-table-section";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 type LinkedVehicle = {
@@ -906,7 +905,21 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           </label>
         </fieldset>
 
-        <DriverPayoutTableSection driverId={detail.id} disabled={busy} />
+        <div className="rounded-xl border border-prime-border bg-prime-bg p-4 text-sm">
+          <p className="font-semibold text-prime-text">Quanto o motorista recebe</p>
+          <p className="mt-1 text-prime-muted">
+            O valor do parceiro não fica na ficha dele. Ele vem de dois lugares, nesta ordem:
+          </p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-prime-muted">
+            <li>
+              <b className="text-prime-text">Valor digitado na corrida</b> (Agenda → corrida → “Valores”). Sempre vale mais.
+            </li>
+            <li>
+              <b className="text-prime-text">Tabela da empresa</b> (Clientes → empresa → “Preços por categoria”, coluna Parceiro).
+            </li>
+          </ol>
+          <p className="mt-2 text-prime-muted">Assim cada empresa pode pagar um valor diferente ao motorista, sem conflito.</p>
+        </div>
 
         <button
           type="submit"

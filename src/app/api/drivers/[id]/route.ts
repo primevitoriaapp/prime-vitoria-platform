@@ -168,3 +168,74 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return mapApiError(error);
   }
 }
+
+/**
+ * Excluir motorista (só admin). Se ele já tem corridas, pagamentos ou ofertas no histórico,
+ * não apaga (perderia o histórico): desativa e avisa. Sem histórico, apaga de vez.
+ */
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await getSessionContext();
+    assertCapability(session, "driver.delete");
+    const tenantId = assertTenantScope(session);
+    const { id } = await params;
+
+    const { data: existing } = await db
+      .from("drivers")
+      .select("id, profile_id, full_name")
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!existing) return fail("NOT_FOUND", "Motorista não encontrado.", 404);
+
+    const counts = await Promise.all(
+      ["trips", "driver_payables", "dispatch_offers", "dispatch_offer_recipients", "dispatch_offer_responses"].map(
+        async (table) => {
+          const { count } = await db.from(table).select("id", { count: "exact", head: true }).eq("driver_id", id);
+          return count ?? 0;
+        }
+      )
+    );
+    const hasHistory = counts.some((n) => n > 0);
+
+    if (hasHistory) {
+      await db.from("drivers").update({ active: false, available: false }).eq("id", id).eq("tenant_id", tenantId);
+      if (existing.profile_id) await db.from("profiles").update({ active: false }).eq("id", existing.profile_id);
+      await insertAuditEvent({
+        tenantId,
+        actorUserId: session.userId,
+        action: "driver.archive",
+        entityType: "driver",
+        entityId: id,
+        metadata: { reason: "has_history" },
+        request
+      });
+      return ok({
+        deleted: false,
+        archived: true,
+        message: "Este motorista tem corridas no histórico, então foi desativado (some das listas e não entra mais no app). O histórico continua guardado."
+      });
+    }
+
+    await db.from("driver_vehicle_links").delete().eq("driver_id", id);
+    await db.from("driver_locations").delete().eq("driver_id", id);
+    const { error } = await db.from("drivers").delete().eq("id", id).eq("tenant_id", tenantId);
+    if (error) {
+      const mapped = mapSupabaseError(error, "motorista");
+      return fail(mapped.code, mapped.message, mapped.status, mapped.hint);
+    }
+    if (existing.profile_id) await db.from("profiles").update({ active: false }).eq("id", existing.profile_id);
+    await insertAuditEvent({
+      tenantId,
+      actorUserId: session.userId,
+      action: "driver.delete",
+      entityType: "driver",
+      entityId: id,
+      metadata: { name: existing.full_name },
+      request
+    });
+    return ok({ deleted: true, archived: false, message: "Motorista excluído." });
+  } catch (error) {
+    return mapApiError(error);
+  }
+}

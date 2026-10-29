@@ -1,4 +1,5 @@
 import { insertClientRow, listActiveClientsForTenant } from "@/lib/clients/client-db";
+import { db } from "@/lib/server/db";
 import { clientCadastroSchema, normalizeClientBody } from "@/lib/clients/client-cadastro-schema";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
@@ -43,13 +44,29 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getSessionContext();
     assertCapability(session, "client.read");
     const tenantId = assertTenantScope(session);
-    const data = await listActiveClientsForTenant(tenantId);
-    return ok(data);
+    const includeInactive = new URL(request.url).searchParams.get("include_inactive") === "1";
+    const data = await listActiveClientsForTenant(tenantId, { includeInactive });
+    // Quantas categorias de veículo cada empresa tem liberadas (para o card da lista).
+    const ids = data.map((c) => c.id);
+    const enabledByClient = new Map<string, Set<string>>();
+    if (ids.length > 0) {
+      const { data: prices } = await db
+        .from("client_category_prices")
+        .select("client_id, category_id")
+        .in("client_id", ids)
+        .eq("enabled", true);
+      for (const p of prices ?? []) {
+        const set = enabledByClient.get(p.client_id as string) ?? new Set<string>();
+        set.add(p.category_id as string);
+        enabledByClient.set(p.client_id as string, set);
+      }
+    }
+    return ok(data.map((c) => ({ ...c, enabled_categories: enabledByClient.get(c.id)?.size ?? 0 })));
   } catch (error) {
     return mapApiError(error);
   }
