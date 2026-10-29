@@ -64,6 +64,8 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
   const [data, setData] = useState<TrackPayload>(initial);
   const [ended, setEnded] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
   const terminal = ended || isPublicTrackTerminalStatus(data.operational_status);
 
@@ -173,7 +175,7 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
 
       {data.driver || data.vehicle ? (
         <section className="flex items-center gap-4 rounded-3xl bg-[#111] p-5 text-[#fff]">
-          {data.driver?.photo_url && !photoFailed ? (
+          {mounted && data.driver?.photo_url && !photoFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={data.driver.photo_url}
