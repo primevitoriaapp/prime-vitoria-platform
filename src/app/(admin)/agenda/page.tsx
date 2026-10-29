@@ -26,6 +26,7 @@ import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
 import { BookingsBoard } from "@/components/bookings-board";
 import { TripWizard } from "@/components/trip-wizard";
+import { TripEditPanel } from "@/components/trip-edit-panel";
 export default async function AgendaPage({
   searchParams
 }: {
@@ -75,6 +76,7 @@ export default async function AgendaPage({
             driverAmount={focusTrip?.driver_amount}
             margin={focusTrip?.margin}
           />
+          {showClaimBar ? <TripEditPanel tripId={focusTripId} /> : null}
           <TripAgendaFocusPanel
             tripId={focusTripId}
             operationalStatus={focusTrip?.operational_status ?? "requested"}

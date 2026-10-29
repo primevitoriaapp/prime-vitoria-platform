@@ -2,7 +2,14 @@ import { db } from "@/lib/server/db";
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { parseTripPickupStops } from "@/lib/trips/trip-pickup-stops";
 import { loadEffectiveTemplates } from "@/lib/messages/template-db";
+import { presentationAtIso, serviceExtrasLabel } from "@/lib/trips/service-extras";
 import { normalizeWhatsappPhone, partnerValueLine, type MessageAudience, type TemplateVars } from "@/lib/messages/templates";
+
+function presentationLine(scheduledAt: string | null | undefined, minutes: number | null | undefined): string {
+  if (!scheduledAt) return "";
+  const at = presentationAtIso(scheduledAt, minutes);
+  return at ? `Chegar no local às ${splitDateTime(at).horario}` : "";
+}
 
 export function splitDateTime(iso: string | null | undefined): { data: string; horario: string } {
   const full = formatBrDateTime(iso ?? "");
@@ -59,7 +66,16 @@ export async function loadTripMessageContext(tenantId: string, tripId: string): 
     veiculo: vehicle ? [vehicle.brand, vehicle.model].filter(Boolean).join(" ") : "",
     cor: vehicle?.color ?? "",
     placa: vehicle?.plate ?? "",
-    observacoes: (trip.notes as string) ?? "",
+    apresentacao: presentationLine(trip.scheduled_at as string, trip.presentation_minutes as number | null),
+    servicos: serviceExtrasLabel(trip.service_extras as string[] | null),
+    // Na O.S. as marcações e a chegada antecipada vão junto das observações, para o motorista não perder.
+    observacoes: [
+      presentationLine(trip.scheduled_at as string, trip.presentation_minutes as number | null),
+      serviceExtrasLabel(trip.service_extras as string[] | null),
+      (trip.notes as string) ?? ""
+    ]
+      .filter(Boolean)
+      .join(" · "),
     linha_valor_parceiro: partnerValueLine(driver?.employment_type, trip.driver_amount as number | null)
   };
 

@@ -133,6 +133,8 @@ export const TEMPLATE_VARIABLES: ReadonlyArray<{ key: string; label: string }> =
   { key: "veiculo", label: "Veículo" },
   { key: "cor", label: "Cor" },
   { key: "placa", label: "Placa" },
+  { key: "apresentacao", label: "Horário que o motorista chega" },
+  { key: "servicos", label: "Marcações (placa, água…)" },
   { key: "observacoes", label: "Observações" },
   { key: "linha_valor_parceiro", label: "Repasse (só parceiro)" }
 ];

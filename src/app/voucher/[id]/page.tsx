@@ -1,3 +1,4 @@
+import { serviceExtrasLabel } from "@/lib/trips/service-extras";
 import Link from "next/link";
 import { z } from "zod";
 import { db } from "@/lib/server/db";
@@ -168,6 +169,7 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
             <Row label="Destino" value={trip.destination_text as string | null} />
             <Row label="Passageiros" value={trip.passenger_count ? `${trip.passenger_count}` : null} />
             <Row label="Voo" value={(trip.flight_number as string | null) ?? null} />
+            <Row label="Serviços" value={serviceExtrasLabel(trip.service_extras as string[] | null) || null} />
             <Row label="Motorista" value={driver?.full_name ? `${driver.full_name}${driverPhone ? ` · ${driverPhone}` : ""}` : "A definir"} />
             <Row label="Veículo" value={vehicleText ?? "A definir"} />
             <Row label="Observações" value={trip.notes as string | null} />

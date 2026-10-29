@@ -1,8 +1,9 @@
 "use client";
 
-import { formatBrDateTime } from "@/lib/dates/br-date";
+import { formatBrDateTime, formatBrTime } from "@/lib/dates/br-date";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
+import { SERVICE_EXTRAS, presentationAtIso } from "@/lib/trips/service-extras";
 import { flightTrackerUrl } from "@/lib/trips/flight";
 import { StatusBadge } from "@/components/status-badge";
 import { TripLegLabelBadge } from "@/components/trip-leg-label-badge";
@@ -141,6 +142,22 @@ export function DriverActiveTripHero({
             {trip.passenger_phone.trim()}
           </a>
         </p>
+      ) : null}
+
+      {presentationAtIso(trip.scheduled_at, (trip as { presentation_minutes?: number | null }).presentation_minutes) ? (
+        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+          Chegar no local às{" "}
+          {formatBrTime(presentationAtIso(trip.scheduled_at, (trip as { presentation_minutes?: number | null }).presentation_minutes))}
+        </p>
+      ) : null}
+      {(trip as { service_extras?: string[] | null }).service_extras?.length ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {SERVICE_EXTRAS.filter((e) => (trip as { service_extras?: string[] | null }).service_extras?.includes(e.id)).map((e) => (
+            <span key={e.id} className="rounded-full bg-prime-gold/20 px-2.5 py-1 text-xs font-semibold text-prime-text">
+              {e.label}
+            </span>
+          ))}
+        </div>
       ) : null}
 
       {trip.flight_number ? (

@@ -1,5 +1,6 @@
 import { normalizeFlightNumber } from "@/lib/trips/flight";
 import { z } from "zod";
+import { cleanServiceExtras } from "@/lib/trips/service-extras";
 import { db } from "@/lib/server/db";
 import { fail, ok } from "@/lib/server/http";
 import { assertCapability } from "@/lib/security/rbac";
@@ -58,6 +59,8 @@ const createTripSchema = z.object({
   notes: z.string().optional(),
   flight_number: z.string().max(12).optional().nullable(),
   vehicle_category_id: z.string().uuid().optional().nullable(),
+  presentation_minutes: z.coerce.number().int().min(0).max(240).optional().nullable(),
+  service_extras: z.array(z.string()).max(20).optional(),
   service_mode: z.enum(["transfer", "diaria_5h", "diaria_10h", "diaria_12h", "km"]).optional().nullable(),
   client_amount: z.coerce.number().nonnegative().optional(),
   driver_amount: z.coerce.number().nonnegative().optional(),
@@ -275,6 +278,8 @@ export async function POST(request: Request) {
         notes: body.notes ?? null,
         flight_number: normalizeFlightNumber(body.flight_number),
         vehicle_category_id: body.vehicle_category_id ?? null,
+        presentation_minutes: body.presentation_minutes ?? null,
+        service_extras: cleanServiceExtras(body.service_extras),
         service_mode: body.vehicle_category_id ? (body.service_mode ?? "transfer") : null,
         client_amount: clientAmount,
         driver_amount: driverAmount,
@@ -339,6 +344,8 @@ export async function POST(request: Request) {
           notes: body.notes ?? null,
           flight_number: normalizeFlightNumber(body.flight_number),
           vehicle_category_id: body.vehicle_category_id ?? null,
+        presentation_minutes: body.presentation_minutes ?? null,
+        service_extras: cleanServiceExtras(body.service_extras),
           service_mode: body.vehicle_category_id ? (body.service_mode ?? "transfer") : null,
           client_amount: clientAmount,
           driver_amount: driverAmount,

@@ -7,8 +7,9 @@ import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
-import { formatBrDateTime, saoPauloDateAndTimeToUtcIso, saoPauloTodayYmd } from "@/lib/dates/br-date";
+import { formatBrDateTime, formatBrTime, saoPauloDateAndTimeToUtcIso, saoPauloTodayYmd } from "@/lib/dates/br-date";
 import { normalizeFlightNumber } from "@/lib/trips/flight";
+import { PRESENTATION_OPTIONS, SERVICE_EXTRAS, presentationAtIso, serviceExtrasLabel } from "@/lib/trips/service-extras";
 import { SERVICE_MODE_LABEL, legacyServiceType, type CategoryKind, type ServiceMode } from "@/lib/pricing/category-catalog";
 
 type Client = { id: string; name: string; trade_name?: string | null; type: string; document?: string | null; phone?: string | null; whatsapp?: string | null; email?: string | null };
@@ -66,6 +67,8 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [clientAmount, setClientAmount] = useState("");
   const [driverAmount, setDriverAmount] = useState("");
   const [notes, setNotes] = useState("");
+  const [presentation, setPresentation] = useState(15);
+  const [extras, setExtras] = useState<string[]>([]);
 
   const loadClients = useCallback(async () => {
     const res = await fetchWithSupabaseSession("/api/clients", {}, "admin");
@@ -222,6 +225,8 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       client_amount: Number(clientAmount.replace(",", ".")) || undefined,
       driver_amount: Number(driverAmount.replace(",", ".")) || undefined,
       dispatch_mode: "directed" as const,
+      presentation_minutes: presentation,
+      service_extras: extras,
       ...(roundTrip && returnIso ? { round_trip: true, return_scheduled_at: returnIso } : {})
     };
     const res = await fetchWithSupabaseSession("/api/trips", { method: "POST", body: JSON.stringify(body) }, "admin");
@@ -598,6 +603,45 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 <span className="text-xs text-emerald-700">Tabela do parceiro: {brl(tablePrice.partner_price)}</span>
               ) : null}
             </label>
+            <div className="grid gap-2 text-sm md:col-span-2">
+              <span>Motorista chega antes do horário</span>
+              <div className="flex flex-wrap gap-2">
+                {PRESENTATION_OPTIONS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPresentation(m)}
+                    className={`rounded-full px-3 py-1.5 ring-1 ${presentation === m ? "bg-[#111] text-[#fff] ring-[#111]" : "ring-prime-border"}`}
+                  >
+                    {m === 0 ? "No horário" : `${m} min antes`}
+                  </button>
+                ))}
+              </div>
+              {scheduledIso && presentation > 0 ? (
+                <span className="text-xs text-prime-muted">
+                  Motorista no local às {formatBrTime(presentationAtIso(scheduledIso, presentation) ?? scheduledIso)}
+                </span>
+              ) : null}
+            </div>
+            <div className="grid gap-2 text-sm md:col-span-2">
+              <span>Marcações da reserva</span>
+              <div className="flex flex-wrap gap-2">
+                {SERVICE_EXTRAS.map((e) => {
+                  const on = extras.includes(e.id);
+                  return (
+                    <button
+                      key={e.id}
+                      type="button"
+                      onClick={() => setExtras((list) => (on ? list.filter((x) => x !== e.id) : [...list, e.id]))}
+                      className={`rounded-full px-3 py-1.5 ring-1 ${on ? "bg-prime-gold font-semibold text-[#111] ring-prime-gold" : "ring-prime-border"}`}
+                    >
+                      {on ? "✓ " : ""}
+                      {e.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <label className="grid gap-1 text-sm md:col-span-2">
               <span>Observações para o motorista</span>
               <textarea className={input} rows={3} placeholder="Ex.: placa com nome, água a bordo, cadeirinha…" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -637,6 +681,13 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                   {paxName || "a definir"}
                   {paxPhone ? ` · ${paxPhone}` : ""}
                   {flight ? ` · voo ${normalizeFlightNumber(flight) ?? flight}` : ""}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-prime-muted">Motorista no local</dt>
+                <dd>
+                  {presentation > 0 && scheduledIso ? `${presentation} min antes` : "No horário"}
+                  {extras.length ? ` · ${serviceExtrasLabel(extras)}` : ""}
                 </dd>
               </div>
               <div className="flex gap-6">

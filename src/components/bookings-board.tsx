@@ -9,6 +9,7 @@ import { formatBrTime } from "@/lib/dates/br-date";
 import { shortAddress } from "@/lib/client/short-address";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { QuickAssign, type AssignDriver } from "@/components/quick-assign";
+import { SERVICE_EXTRAS } from "@/lib/trips/service-extras";
 import {
   BOOKING_GROUPS,
   BOOKING_PERIODS,
@@ -34,6 +35,8 @@ type Trip = {
   driver_amount?: number | null;
   flight_number?: string | null;
   driver_id?: string | null;
+  presentation_minutes?: number | null;
+  service_extras?: string[] | null;
 };
 
 type Props = { tenantId: string | null; createHref?: string | null };
@@ -235,6 +238,9 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1" }: Props
                   <div>
                     <p className="text-2xl font-semibold leading-none">{formatBrTime(t.scheduled_at)}</p>
                     <p className="mt-1 text-xs text-prime-muted">Nº {t.id.slice(0, 6).toUpperCase()}</p>
+                    {t.presentation_minutes ? (
+                      <p className="mt-1 text-xs font-medium text-amber-800">chegar {t.presentation_minutes} min antes</p>
+                    ) : null}
                   </div>
 
                   <div className="min-w-0 space-y-1 text-sm">
@@ -247,6 +253,15 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1" }: Props
                         {t.flight_number ? ` · voo ${t.flight_number}` : ""}
                       </span>
                     </p>
+                    {t.service_extras?.length ? (
+                      <p className="flex flex-wrap gap-1">
+                        {SERVICE_EXTRAS.filter((e) => t.service_extras?.includes(e.id)).map((e) => (
+                          <span key={e.id} className="rounded-full bg-prime-gold/20 px-2 py-0.5 text-[11px] font-semibold">
+                            {e.short}
+                          </span>
+                        ))}
+                      </p>
+                    ) : null}
                     <p className="flex gap-2">
                       <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-prime-gold" />
                       <span className="truncate">{shortAddress(t.origin_text)}</span>
