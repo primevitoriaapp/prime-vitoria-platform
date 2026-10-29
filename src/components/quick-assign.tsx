@@ -12,19 +12,11 @@ export type AssignDriver = {
   categoryIds?: string[];
 };
 
-const STATUS_TEXT: Record<string, { label: string; cls: string }> = {
-  online: { label: "Livre", cls: "text-emerald-700" },
-  ocupado: { label: "Ocupado", cls: "text-red-700" },
-  deslocando: { label: "A caminho", cls: "text-blue-700" },
-  no_local: { label: "No local", cls: "text-blue-700" },
-  em_atendimento: { label: "Em corrida", cls: "text-red-700" },
-  offline: { label: "Offline", cls: "text-prime-muted" }
-};
 
 function humanError(code: string | undefined, message: string | undefined): string {
   switch (code) {
     case "DISPATCH_CONFLICT":
-      return "Esse motorista já tem corrida perto desse horário (1h30 antes ou depois).";
+      return message ?? "Esse motorista já tem corrida nesse horário.";
     case "DRIVER_OFFLINE":
       return "Motorista offline e a corrida é para agora. Escolha alguém online.";
     case "DRIVER_NOT_AVAILABLE":
@@ -63,6 +55,20 @@ export function QuickAssign({
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const boxRef = useRef<HTMLDivElement | null>(null);
+  // Quem já tem corrida no horário desta (diária conta as horas todas): fica bloqueado na lista.
+  const [busyMap, setBusyMap] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!open) return;
+    let off = false;
+    void (async () => {
+      const res = await fetchWithSupabaseSession(`/api/trips/${tripId}/driver-availability`, {}, "admin");
+      const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { busy: Record<string, string> } };
+      if (!off && j.success) setBusyMap(j.data?.busy ?? {});
+    })();
+    return () => {
+      off = true;
+    };
+  }, [open, tripId]);
 
   const isSwap = Boolean(currentDriverId) && ["dispatched", "accepted", "reassigned"].includes(status);
   const canAssign = ["requested", "approved"].includes(status) || isSwap;
@@ -118,7 +124,7 @@ export function QuickAssign({
   const serves = (d: AssignDriver) => !categoryId || !d.categoryIds?.length || d.categoryIds.includes(categoryId);
   const list = drivers
     .filter((d) => d.id !== currentDriverId)
-    .sort((a, b) => Number(serves(b)) - Number(serves(a)))
+    .sort((a, b) => Number(!busyMap[a.id]) * 2 + Number(serves(a)) < Number(!busyMap[b.id]) * 2 + Number(serves(b)) ? 1 : -1)
     .filter((d) => !q.trim() || [d.name, d.vehicle?.plate, d.vehicle?.model].filter(Boolean).some((v) => String(v).toLowerCase().includes(q.toLowerCase())));
 
   return (
@@ -153,14 +159,21 @@ export function QuickAssign({
           <ul className={inline ? "grid max-h-[420px] gap-1 overflow-y-auto sm:grid-cols-2" : "max-h-72 space-y-1 overflow-y-auto"}>
             {list.length === 0 ? <li className="px-2 py-3 text-sm text-prime-muted">Nenhum motorista ativo.</li> : null}
             {list.map((d) => {
-              const st = STATUS_TEXT[d.status ?? ""] ?? { label: d.status ?? "—", cls: "text-prime-muted" };
+              const busyReason = busyMap[d.id];
+              // O que vale é a agenda no horário desta corrida; o status ao vivo só importa para corrida de agora.
+              const st = busyReason
+                ? { label: "Ocupado", cls: "text-red-700" }
+                : d.status === "offline"
+                  ? { label: "Livre · offline agora", cls: "text-emerald-700" }
+                  : { label: "Livre no horário", cls: "text-emerald-700" };
               return (
                 <li key={d.id}>
                   <button
                     type="button"
-                    disabled={busy !== null}
+                    disabled={busy !== null || Boolean(busyReason)}
+                    title={busyReason ? `${d.name} ${busyReason}` : undefined}
                     onClick={() => void assign(d)}
-                    className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm hover:bg-prime-bg disabled:opacity-50"
+                    className={`flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm disabled:cursor-not-allowed ${busyReason ? "bg-red-50/60 opacity-70" : "hover:bg-prime-bg disabled:opacity-50"}`}
                   >
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{d.name}</span>
@@ -169,6 +182,7 @@ export function QuickAssign({
                         {d.employment === "funcionario" ? " · funcionário" : " · parceiro"}
                       </span>
                       {!serves(d) ? <span className="block text-xs font-medium text-amber-700">Não atende esta categoria</span> : null}
+                      {busyReason ? <span className="block text-xs font-medium text-red-700">Já {busyReason}</span> : null}
                     </span>
                     <span className={`shrink-0 text-xs font-semibold ${st.cls}`}>{busy === d.id ? "Enviando…" : st.label}</span>
                   </button>

@@ -5,7 +5,7 @@ import { canTransition } from "@/lib/domain/status";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
-import { dispatchConflict } from "@/lib/dispatch/conflicts";
+import { driverScheduleConflictMessage } from "@/lib/dispatch/driver-schedule-check";
 import { notifyDriverDispatchedNow } from "@/lib/notifications/send-driver-push-now";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
 import { insertAuditEvent } from "@/lib/server/audit-log";
@@ -45,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const { data: driver } = await db
       .from("drivers")
-      .select("id, active, operational_status")
+      .select("id, active, operational_status, full_name")
       .eq("id", body.driver_id)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -55,26 +55,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return fail("DRIVER_OFFLINE", "Motorista está offline e a corrida é para agora. Escolha alguém online.", 409);
     }
 
-    const { data: schedule } = await db
-      .from("trips")
-      .select("id, scheduled_at, operational_status")
-      .eq("tenant_id", tenantId)
-      .eq("driver_id", body.driver_id)
-      .limit(100);
-
-    const conflict = dispatchConflict(
-      (schedule ?? []).map((s) => ({
-        tripId: s.id,
-        scheduledAt: s.scheduled_at,
-        status: s.operational_status
-      })),
-      trip.scheduled_at,
-      90,
-      id
-    );
-    if (conflict) {
-      return fail("DISPATCH_CONFLICT", "Motorista tem conflito de agenda neste horário", 409);
-    }
+    // Agenda do motorista: bloqueia se ele já tem corrida no mesmo horário (diária conta as horas todas).
+    const conflictMsg = await driverScheduleConflictMessage(tenantId, body.driver_id, (driver as { full_name?: string | null }).full_name ?? null, {
+      id,
+      scheduled_at: trip.scheduled_at as string,
+      operational_status: "dispatched",
+      service_mode: (trip.service_mode as string | null) ?? null,
+      planned_km: (trip.planned_km as number | null) ?? null
+    });
+    if (conflictMsg) return fail("DISPATCH_CONFLICT", conflictMsg, 409);
 
     const { data, error } = await db
       .from("trips")
