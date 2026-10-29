@@ -10,10 +10,10 @@ export async function loadTripForActor(id: string, columns: string) {
   const session = await withResolvedDriverId(await getSessionContext());
   const tenantId = assertTenantScope(session);
   const { data: trip } = await db.from("trips").select(`id, tenant_id, driver_id, client_id, ${columns}`).eq("id", id).eq("tenant_id", tenantId).maybeSingle();
-  if (!trip) return { error: "notfound" as const };
+  if (!trip) return { ok: false as const, error: "notfound" as const };
   const row = trip as unknown as Record<string, unknown>;
   const isDriver = session.role === "motorista" && Boolean(session.driverId) && row.driver_id === session.driverId;
   const isStaff = STAFF.includes(session.role);
-  if (!isDriver && !isStaff) return { error: "forbidden" as const };
-  return { trip: row, session, tenantId, isDriver, isStaff };
+  if (!isDriver && !isStaff) return { ok: false as const, error: "forbidden" as const };
+  return { ok: true as const, trip: row, session, tenantId, isDriver, isStaff };
 }

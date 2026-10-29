@@ -14,7 +14,7 @@ const bodySchema = z.union([
 
 async function context(id: string) {
   const r = await loadTripForActor(id, "operational_status, passenger_name, odometer_start, odometer_end, actual_km, km_source");
-  if ("error" in r) return r;
+  if (!r.ok) return r;
   const [{ data: client }, { data: sig }] = await Promise.all([
     db.from("clients").select("type").eq("id", r.trip.client_id as string).maybeSingle(),
     db.from("trip_signatures").select("signer_name, image_data, skipped_reason, created_at").eq("trip_id", id).maybeSingle()
@@ -27,7 +27,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const c = await context(id);
-    if ("error" in c) return fail("FORBIDDEN", "Sem acesso a esta corrida", c.error === "notfound" ? 404 : 403);
+    if (!c.ok) return fail("FORBIDDEN", "Sem acesso a esta corrida", c.error === "notfound" ? 404 : 403);
     return ok({
       required: c.required,
       signature: c.signature,
@@ -46,7 +46,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const c = await context(id);
-    if ("error" in c) return fail("FORBIDDEN", "Sem acesso a esta corrida", c.error === "notfound" ? 404 : 403);
+    if (!c.ok) return fail("FORBIDDEN", "Sem acesso a esta corrida", c.error === "notfound" ? 404 : 403);
     if (!c.isDriver && !c.isStaff) return fail("FORBIDDEN", "Sem acesso", 403);
     if (!["arrived", "in_progress", "completed"].includes(String(c.trip.operational_status))) {
       return fail("INVALID_STATUS", "A assinatura é colhida no fim da corrida", 409);

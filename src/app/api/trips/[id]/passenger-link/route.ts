@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const r = await loadTripForActor(id, "operational_status, passenger_name, passenger_phone");
-    if ("error" in r) return fail(r.error === "notfound" ? "TRIP_NOT_FOUND" : "FORBIDDEN", "Sem acesso a esta corrida", r.error === "notfound" ? 404 : 403);
+    if (!r.ok) return fail(r.error === "notfound" ? "TRIP_NOT_FOUND" : "FORBIDDEN", "Sem acesso a esta corrida", r.error === "notfound" ? 404 : 403);
     const t = r.trip;
     if (!LIVE.includes(String(t.operational_status))) return ok({ available: false });
     const tok = await ensureTripTrackToken(id);
