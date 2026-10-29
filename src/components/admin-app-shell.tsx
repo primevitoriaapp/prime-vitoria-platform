@@ -7,6 +7,7 @@ import { logoutAction } from "@/app/login/actions";
 import { BrandLogo } from "@/components/brand-logo";
 import { NewTripRequestAlert } from "@/components/new-trip-request-alert";
 import { ReceivablesAlertPill } from "@/components/receivables-alert-pill";
+import { PayablesAlertPill } from "@/components/payables-alert-pill";
 import { PendingRequestsPill } from "@/components/pending-requests-pill";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
@@ -22,7 +23,8 @@ const NAV = [
   { href: "/vehicles", label: "Veículos", icon: "▤" },
   { href: "/clients", label: "Clientes", icon: "▦" },
   { href: "/clients/relatorio", label: "Relatório por cliente", icon: "▧" },
-  { href: "/finance", label: "Financeiro", icon: "◈" }
+  { href: "/finance", label: "Financeiro", icon: "◈" },
+  { href: "/contas-a-pagar", label: "Contas a pagar", icon: "◆" }
 ] as const;
 
 const ADMIN_EXTRA = [
@@ -72,7 +74,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
   const visibleNav = showFullNav
     ? NAV
     : isFinanceiro
-      ? NAV.filter((n) => n.href === "/finance" || n.href === "/dashboard" || n.href === "/clients/relatorio")
+      ? NAV.filter((n) => ["/finance", "/dashboard", "/clients/relatorio", "/contas-a-pagar"].includes(n.href))
       : NAV;
 
   return (
@@ -139,6 +141,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
               </nav>
               <div className="flex items-center gap-3">
                 {isAdmin || isFinanceiro ? <ReceivablesAlertPill /> : null}
+                {isAdmin || isFinanceiro ? <PayablesAlertPill /> : null}
                 {showFullNav ? <PendingRequestsPill tenantId={session?.tenantId ?? null} /> : null}
                 {showFullNav ? <NewTripRequestAlert tenantId={session?.tenantId ?? null} /> : null}
                 {isAdmin || isFinanceiro || isOperador ? (

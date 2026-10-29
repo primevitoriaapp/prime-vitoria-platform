@@ -59,6 +59,18 @@ export async function GET(request: Request) {
         .lte("cnh_expires_at", in30d)
     ]);
 
+    let payablesOverdue = 0;
+    if (session.role === "admin" || session.role === "financeiro") {
+      const todaySp = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(now);
+      const { count } = await db
+        .from("company_payables")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("status", "aberta")
+        .lt("due_date", todaySp);
+      payablesOverdue = count ?? 0;
+    }
+
     const s = summarize(curr);
     const ps = summarize(prev);
     const showMoney = can(session, "finance.read") || session.role === "admin";
@@ -74,6 +86,8 @@ export async function GET(request: Request) {
       alerts.push({ tone: "red", text: `${noDriver.count} corrida(s) nas próximas 24h sem motorista`, href: "/agenda?grupo=agendada&periodo=semana" });
     if (s.completedNoValue > 0)
       alerts.push({ tone: "amber", text: `${s.completedNoValue} corrida(s) finalizada(s) sem valor no período`, href: "/agenda?grupo=finalizada&periodo=mes" });
+    if (payablesOverdue > 0)
+      alerts.push({ tone: "red", text: `${payablesOverdue} conta(s) da empresa vencida(s)`, href: "/contas-a-pagar" });
     if ((cnh.count ?? 0) > 0)
       alerts.push({ tone: "amber", text: `${cnh.count} motorista(s) com CNH vencida ou vencendo em 30 dias`, href: "/drivers" });
 
