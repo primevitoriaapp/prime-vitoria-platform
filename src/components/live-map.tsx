@@ -1,129 +1,156 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { FLEET_STATUS, type FleetStatus } from "@/lib/drivers/fleet-status";
+import { formatBrDateTime } from "@/lib/dates/br-date";
+import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 
-type DriverPoint = { driver_id: string; lat: number; lng: number; recorded_at: string };
-
-type Props = {
-  /** Mapa ao vivo: última posição por motorista (Realtime + carga inicial). */
-  tenantId: string | null;
+type FleetItem = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  status: FleetStatus;
+  location: { lat: number; lng: number; recorded_at: string } | null;
+  next_trip: { id: string; scheduled_at: string; passenger: string | null; origin: string | null; status: string } | null;
 };
 
-function dedupeLatest(rows: { driver_id: string; lat: number; lng: number; recorded_at: string }[]): DriverPoint[] {
-  const byDriver = new Map<string, DriverPoint>();
-  for (const r of rows) {
-    const prev = byDriver.get(r.driver_id);
-    if (!prev || new Date(r.recorded_at).getTime() >= new Date(prev.recorded_at).getTime()) {
-      byDriver.set(r.driver_id, {
-        driver_id: r.driver_id,
-        lat: Number(r.lat),
-        lng: Number(r.lng),
-        recorded_at: r.recorded_at
-      });
-    }
-  }
-  return [...byDriver.values()];
+type Props = { tenantId: string | null };
+
+const ORDER: FleetStatus[] = ["ocupado", "deslocando", "proximo", "livre", "offline"];
+
+function ago(iso: string): string {
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  return `há ${Math.round(min / 60)} h`;
 }
 
+/** Mapa da central: cada motorista com a cor da situação (livre, ocupado, deslocando, corrida em breve). */
 export function LiveMap({ tenantId }: Props) {
-  const mapRef = useRef<HTMLDivElement | null>(null);
-  const markersRef = useRef<Map<string, import("leaflet").Marker>>(new Map());
+  const mapEl = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<import("leaflet").Map | null>(null);
+  const layerRef = useRef<import("leaflet").LayerGroup | null>(null);
+  const [items, setItems] = useState<FleetItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/operations/fleet-map", { credentials: "include" });
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { items: FleetItem[] } };
+    if (res.ok && json.success && json.data) {
+      setItems(json.data.items);
+      setError(null);
+    } else {
+      setError("Não foi possível carregar os motoristas.");
+    }
+  }, []);
 
   useEffect(() => {
+    void load();
+    const t = window.setInterval(() => void load(), 30_000);
+    return () => window.clearInterval(t);
+  }, [load]);
+  useTenantTableRefresh(tenantId, ["driver_locations", "drivers", "trips"], load, 1500);
+
+  // Cria o mapa uma vez.
+  useEffect(() => {
     let cancelled = false;
-    let mapCleanup = () => {};
-
-    async function boot() {
-      if (!mapRef.current) return;
+    void (async () => {
+      if (!mapEl.current || mapRef.current) return;
       const L = await import("leaflet");
-
-      const map = L.map(mapRef.current).setView([-20.2976, -40.2958], 11);
+      if (cancelled || !mapEl.current) return;
+      const map = L.map(mapEl.current, { zoomControl: true }).setView([-20.2976, -40.2958], 11);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors"
+        attribution: "&copy; OpenStreetMap"
       }).addTo(map);
-
-      function upsertMarkers(points: DriverPoint[]) {
-        for (const p of points) {
-          const id = p.driver_id;
-          const latlng: [number, number] = [p.lat, p.lng];
-          let m = markersRef.current.get(id);
-          if (!m) {
-            m = L.marker(latlng).addTo(map).bindPopup(`Motorista ${id.slice(0, 8)}…`);
-            markersRef.current.set(id, m);
-          } else {
-            m.setLatLng(latlng);
-          }
-        }
-      }
-
-      if (!tenantId) {
-        L.marker([-20.3155, -40.3128]).addTo(map).bindPopup("Exemplo (inicie sessão operacional para posições reais)");
-        mapCleanup = () => {
-          map.remove();
-          markersRef.current.clear();
-        };
-        return;
-      }
-
-      try {
-        const supabase = createSupabaseBrowserClient();
-        const { data: initial } = await supabase
-          .from("driver_locations")
-          .select("driver_id, lat, lng, recorded_at")
-          .eq("tenant_id", tenantId)
-          .order("recorded_at", { ascending: false })
-          .limit(400);
-
-        if (!cancelled && initial?.length) {
-          const pts = dedupeLatest(initial as DriverPoint[]);
-          upsertMarkers(pts);
-          if (pts.length === 1) map.setView([pts[0].lat, pts[0].lng], 13);
-        }
-
-        const filter = `tenant_id=eq.${tenantId}`;
-        const channel = supabase
-          .channel(`driver-loc-${tenantId}`)
-          .on(
-            "postgres_changes",
-            { event: "INSERT", schema: "public", table: "driver_locations", filter },
-            (payload) => {
-              if (cancelled) return;
-              const row = payload.new as { driver_id?: string; lat?: number; lng?: number; recorded_at?: string };
-              if (row.driver_id != null && row.lat != null && row.lng != null && row.recorded_at) {
-                upsertMarkers([
-                  {
-                    driver_id: row.driver_id,
-                    lat: Number(row.lat),
-                    lng: Number(row.lng),
-                    recorded_at: row.recorded_at
-                  }
-                ]);
-              }
-            }
-          )
-          .subscribe();
-
-        mapCleanup = () => {
-          void supabase.removeChannel(channel);
-          map.remove();
-          markersRef.current.clear();
-        };
-      } catch {
-        L.marker([-20.3155, -40.3128]).addTo(map).bindPopup("Configure Supabase no ambiente para o mapa ao vivo.");
-        mapCleanup = () => {
-          map.remove();
-          markersRef.current.clear();
-        };
-      }
-    }
-
-    void boot();
+      mapRef.current = map;
+      layerRef.current = L.layerGroup().addTo(map);
+      // Leaflet precisa recalcular o tamanho depois que o layout estabiliza.
+      window.setTimeout(() => map.invalidateSize(), 200);
+    })();
     return () => {
       cancelled = true;
-      mapCleanup();
+      mapRef.current?.remove();
+      mapRef.current = null;
+      layerRef.current = null;
     };
-  }, [tenantId]);
+  }, []);
 
-  return <div className="card" ref={mapRef} style={{ height: 360 }} />;
+  // Atualiza os marcadores (círculos coloridos — não dependem de imagens).
+  useEffect(() => {
+    void (async () => {
+      const L = await import("leaflet");
+      const map = mapRef.current;
+      const layer = layerRef.current;
+      if (!map || !layer) return;
+      layer.clearLayers();
+      const pts: [number, number][] = [];
+      for (const d of items) {
+        if (!d.location) continue;
+        const st = FLEET_STATUS[d.status];
+        const ll: [number, number] = [d.location.lat, d.location.lng];
+        pts.push(ll);
+        L.circleMarker(ll, { radius: 10, color: "#111", weight: 2, fillColor: st.color, fillOpacity: 0.95 })
+          .bindPopup(
+            `<b>${d.name ?? "Motorista"}</b><br/>${st.label}<br/><small>posição ${ago(d.location.recorded_at)}</small>` +
+              (d.next_trip ? `<br/><small>Próxima: ${formatBrDateTime(d.next_trip.scheduled_at)} · ${d.next_trip.passenger ?? ""}</small>` : "")
+          )
+          .bindTooltip(d.name?.split(" ")[0] ?? "", { permanent: true, direction: "right", offset: [10, 0], className: "fleet-tip" })
+          .addTo(layer);
+      }
+      if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 });
+      else if (pts.length === 1) map.setView(pts[0], 13);
+    })();
+  }, [items]);
+
+  const counts = ORDER.map((s) => ({ s, n: items.filter((i) => i.status === s).length }));
+  const sorted = [...items].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
+
+  function focus(d: FleetItem) {
+    if (d.location && mapRef.current) mapRef.current.setView([d.location.lat, d.location.lng], 15);
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="overflow-hidden rounded-xl border border-prime-border bg-white shadow-prime-card">
+        <div ref={mapEl} style={{ height: 420 }} />
+        <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-prime-border px-4 py-3 text-xs">
+          {counts.map(({ s, n }) => (
+            <span key={s} className="inline-flex items-center gap-2">
+              <span className="inline-block h-1.5 w-6 rounded-full" style={{ background: FLEET_STATUS[s].color }} />
+              {FLEET_STATUS[s].label} <b>{n}</b>
+            </span>
+          ))}
+        </div>
+      </div>
+      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {sorted.map((d) => (
+          <li key={d.id} className="rounded-xl border border-prime-border bg-white p-3 text-sm">
+            <button type="button" onClick={() => focus(d)} className="flex w-full items-start gap-3 text-left">
+              <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: FLEET_STATUS[d.status].color }} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{d.name ?? "Motorista"}</span>
+                <span className="block text-xs text-prime-muted">
+                  {FLEET_STATUS[d.status].label}
+                  {d.location ? ` · posição ${ago(d.location.recorded_at)}` : " · sem posição de GPS"}
+                </span>
+                {d.next_trip ? (
+                  <span className="mt-1 block truncate text-xs">
+                    Próxima: {formatBrDateTime(d.next_trip.scheduled_at)} · {d.next_trip.passenger ?? "—"}
+                  </span>
+                ) : null}
+              </span>
+            </button>
+            {d.next_trip ? (
+              <Link href={`/agenda?trip=${d.next_trip.id}`} className="mt-2 inline-block text-xs text-prime-gold hover:underline">
+                Abrir corrida
+              </Link>
+            ) : null}
+          </li>
+        ))}
+        {items.length === 0 && !error ? <li className="text-sm text-prime-muted">Nenhum motorista ativo cadastrado.</li> : null}
+      </ul>
+    </section>
+  );
 }

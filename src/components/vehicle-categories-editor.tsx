@@ -153,7 +153,7 @@ export function VehicleCategoriesEditor() {
   }
 
   return (
-    <section className="card mt-6 space-y-4">
+    <section className="card space-y-4">
       <div>
         <h2 className="text-lg font-semibold">Categorias de veículos</h2>
         <p className="text-sm text-prime-muted">

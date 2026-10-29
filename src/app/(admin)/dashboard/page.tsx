@@ -100,7 +100,7 @@ export default async function DashboardPage() {
           devFallbackRole={session.role === "financeiro" ? "financeiro" : session.role === "operador" ? "operador" : "admin"}
         />
       ) : null}
-      <h2 className="mt-8 text-lg font-semibold text-white">Monitoramento em tempo real</h2>
+      <h2 className="mb-3 mt-8 text-lg font-semibold">Motoristas agora</h2>
       <LiveMap tenantId={realtimeTenantId} />
     </>
   );

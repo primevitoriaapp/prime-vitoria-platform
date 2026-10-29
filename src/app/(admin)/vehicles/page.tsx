@@ -1,12 +1,13 @@
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { VehiclesFleetPanel } from "@/components/vehicles-fleet-panel";
+import { VehicleCategoriesEditor } from "@/components/vehicle-categories-editor";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 
 async function getVehicles() {
   const response = await fetchInternalApi("/api/vehicles");
   if (!response.ok) return [];
-  const payload = await response.json();
-  return payload.data as Array<{
+  const payload = (await response.json().catch(() => ({ data: [] }))) as { data?: unknown };
+  return (payload.data ?? []) as Array<{
     id: string;
     model: string;
     plate: string;
@@ -24,8 +25,10 @@ export default async function VehiclesPage() {
     <>
       <AdminPageHeader
         title="Veículos"
-        subtitle="Frota corporativa · documentação e status operacional"
+        subtitle="Categorias que o cliente escolhe (com foto e lugares) e a frota cadastrada"
       />
+      <VehicleCategoriesEditor />
+      <h2 className="mb-3 mt-8 text-lg font-semibold">Frota (carros cadastrados)</h2>
       <VehiclesFleetPanel initialVehicles={vehicles} />
     </>
   );

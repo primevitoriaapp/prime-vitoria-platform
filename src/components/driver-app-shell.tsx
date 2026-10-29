@@ -1,5 +1,7 @@
 "use client";
 
+import { DriverEarningsSummary } from "@/components/driver-earnings-summary";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DriverConsole } from "@/components/driver-console";
@@ -153,6 +155,11 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
             <p className="mt-1 text-xs text-[#AAAAAA]">
               Valor de cada corrida e situação do pagamento. O repasse é liberado quando o cliente paga a Prime.
             </p>
+            {mode === "motorista" ? (
+              <div className="mt-3">
+                <DriverEarningsSummary />
+              </div>
+            ) : null}
             <div className="mt-3">
               <DriverPayablesPanel
                 tenantId={tenantId}

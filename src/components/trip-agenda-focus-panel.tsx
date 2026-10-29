@@ -2,6 +2,7 @@
 
 import { TripAgendaOperationalStack } from "@/components/trip-agenda-operational-stack";
 import { TripOperationalWorkflowPanel } from "@/components/trip-operational-workflow-panel";
+import { TripAmountsEditor } from "@/components/trip-amounts-editor";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 
 type Props = {
@@ -31,6 +32,7 @@ export function TripAgendaFocusPanel({
 
   return (
     <div className="space-y-4">
+      {showClaimBar ? <TripAmountsEditor tripId={tripId} /> : null}
       {showClaimBar ? (
         <TripOperationalWorkflowPanel
           tripId={tripId}
