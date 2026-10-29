@@ -23,7 +23,7 @@ export async function POST(request: Request) {
         TTL: "600",
         Urgency: "high"
       },
-      body: encryptPushPayload(Buffer.from(JSON.stringify(msg)), sub)
+      body: new Uint8Array(encryptPushPayload(Buffer.from(JSON.stringify(msg)), sub))
     });
     if (!res.ok) return fail("PUSH_FAILED", `O serviço de avisos respondeu ${res.status}: ${(await res.text().catch(() => "")).slice(0, 160)}`, 502);
     return ok({ sent: true });

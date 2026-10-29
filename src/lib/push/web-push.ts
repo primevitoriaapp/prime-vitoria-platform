@@ -42,7 +42,7 @@ async function sendOne(sub: SubRow, msg: PushMessage, keys: VapidKeys): Promise<
         TTL: "86400",
         Urgency: "high"
       },
-      body
+      body: new Uint8Array(body)
     });
     if (res.status === 404 || res.status === 410) {
       await db.from("push_subscriptions").delete().eq("id", sub.id);
