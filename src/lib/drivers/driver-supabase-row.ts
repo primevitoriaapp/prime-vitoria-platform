@@ -42,6 +42,7 @@ export const DRIVERS_TABLE_COLUMNS = new Set([
   "payout_price_per_km",
   "payout_percent",
   "employment_type",
+  "vehicle_category_ids",
   "pin_hash",
   "pin_set_at"
 ]);

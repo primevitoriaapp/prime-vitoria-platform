@@ -36,6 +36,7 @@ type Trip = {
   flight_number?: string | null;
   driver_id?: string | null;
   presentation_minutes?: number | null;
+  vehicle_category_id?: string | null;
   service_extras?: string[] | null;
 };
 
@@ -98,6 +99,7 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
         operational_status?: string | null;
         employment_type?: string | null;
         default_vehicle?: { id: string; model: string; plate: string } | null;
+        vehicle_category_ids?: string[] | null;
       }[];
     };
     if (!res.ok || !json.success) return;
@@ -109,7 +111,8 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
           name: d.profile_name ?? d.full_name ?? "Motorista",
           status: d.operational_status ?? null,
           employment: d.employment_type ?? null,
-          vehicle: d.default_vehicle ?? null
+          vehicle: d.default_vehicle ?? null,
+          categoryIds: d.vehicle_category_ids ?? []
         }))
         .sort((a, b) => (order[a.status ?? "offline"] ?? 3) - (order[b.status ?? "offline"] ?? 3) || a.name.localeCompare(b.name))
     );
@@ -303,6 +306,7 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
                       status={t.operational_status}
                       currentDriverId={t.driver_id ?? null}
                       drivers={drivers}
+                      categoryId={t.vehicle_category_id ?? null}
                       onDone={() => void load()}
                     />
                   </div>

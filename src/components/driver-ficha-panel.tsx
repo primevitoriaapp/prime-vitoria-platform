@@ -6,7 +6,6 @@ import { DateInput } from "@/components/date-input";
 import { normalizeDateFieldForStorage } from "@/lib/dates/br-date";
 import {
   CNH_CATEGORY_OPTIONS,
-  OPERATIONAL_CATEGORY_OPTIONS,
   OPERATIONAL_STATUS_OPTIONS,
   SERVICE_REGION_OPTIONS,
   activeFlagsFromOperationalStatus,
@@ -16,7 +15,6 @@ import {
   operationalStatusFromRow,
   serviceRegionsFromRow,
   type CnhCategoryId,
-  type OperationalCategoryId,
   type OperationalStatusId,
   type ServiceRegionId
 } from "@/lib/drivers/driver-ficha-options";
@@ -58,6 +56,7 @@ export type DriverDetail = {
   operational_status?: string | null;
   operational_category?: string | null;
   operational_categories?: string[] | null;
+  vehicle_category_ids?: string[] | null;
   service_region?: string | null;
   service_regions?: string[] | null;
   operational_notes?: string | null;
@@ -160,6 +159,19 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
   const [loading, setLoading] = useState(true);
   const [pinInput, setPinInput] = useState("");
   const [pinBusy, setPinBusy] = useState(false);
+  const [vehicleCategories, setVehicleCategories] = useState<{ id: string; name: string; passengers: number }[]>([]);
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetchWithSupabaseSession("/api/vehicle-categories", {}, "admin");
+      const json = await parseApiResponse(res);
+      if (res.ok && json.success) {
+        setVehicleCategories(
+          ((json.data as { id: string; name: string; passengers: number; active?: boolean }[]) ?? []).filter((c) => c.active !== false)
+        );
+      }
+    })();
+  }, []);
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -205,13 +217,6 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
     const next = current.includes(id) ? current.filter((c) => c !== id) : [...current, id];
     patchDetail("cnh_categories", next);
     patchDetail("cnh_category", next.join(","));
-  }
-
-  function toggleOperationalCategory(id: OperationalCategoryId) {
-    if (!detail) return;
-    const current = operationalCategoriesFromRow(detail);
-    const next = current.includes(id) ? current.filter((c) => c !== id) : [...current, id];
-    patchDetail("operational_categories", next);
   }
 
   function toggleServiceRegion(id: ServiceRegionId) {
@@ -402,6 +407,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       state: trim(detail.state)?.toUpperCase() ?? null,
       operational_category: opCats[0] ?? null,
       operational_categories: opCats,
+      vehicle_category_ids: detail.vehicle_category_ids ?? [],
       service_regions: regions,
       operational_notes: trim(detail.operational_notes),
       active: flags.active,
@@ -544,7 +550,6 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
   }
 
   const cnhCats = cnhCategoriesFromRow(detail);
-  const opCats = operationalCategoriesFromRow(detail);
   const regions = serviceRegionsFromRow(detail);
   const opStatus = operationalStatusFromRow(detail);
   const cnhAlert = isCnhExpiringWithinDays(detail.cnh_expiry);
@@ -813,15 +818,34 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
             </select>
           </label>
           <div className="md:col-span-2">
-            <p className="mb-2 text-sm font-medium text-slate-800">Categoria operacional</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {OPERATIONAL_CATEGORY_OPTIONS.map((o) => (
-                <label key={o.id} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={opCats.includes(o.id)} onChange={() => toggleOperationalCategory(o.id)} />
-                  <span>{o.label}</span>
-                </label>
-              ))}
-            </div>
+            <p className="mb-1 text-sm font-medium text-slate-800">Categorias que ele pode atender</p>
+            <p className="mb-2 text-xs text-prime-muted">As mesmas do menu Categorias. Usadas para sugerir o motorista certo em cada corrida.</p>
+            {vehicleCategories.length === 0 ? (
+              <p className="text-sm text-prime-muted">Nenhuma categoria cadastrada ainda (menu Categorias).</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {vehicleCategories.map((c) => {
+                  const on = (detail.vehicle_category_ids ?? []).includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() =>
+                        patchDetail(
+                          "vehicle_category_ids",
+                          on ? (detail.vehicle_category_ids ?? []).filter((x) => x !== c.id) : [...(detail.vehicle_category_ids ?? []), c.id]
+                        )
+                      }
+                      className={`rounded-full px-3 py-1.5 text-sm ring-1 ${on ? "bg-prime-gold font-semibold text-[#111] ring-prime-gold" : "ring-prime-border"}`}
+                    >
+                      {on ? "✓ " : ""}
+                      {c.name}
+                      <span className="ml-1 text-xs opacity-70">até {c.passengers}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <div className="md:col-span-2">
             <p className="mb-2 text-sm font-medium text-slate-800">Região de atuação</p>

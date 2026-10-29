@@ -29,6 +29,7 @@ export type DriverRow = {
   employment_type?: "funcionario" | "parceiro" | null;
   cnh_expires_at?: string | null;
   cnh_expiry?: string | null;
+  vehicle_category_ids?: string[] | null;
   default_vehicle?: { id: string; model: string; plate: string } | null;
   linked_vehicles?: LinkedVehicle[];
 };
@@ -122,6 +123,17 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
+  const [catNames, setCatNames] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetchWithSupabaseSession("/api/vehicle-categories", {}, "admin");
+      const json = await parseApiResponse(res);
+      if (res.ok && json.success) {
+        setCatNames(new Map(((json.data as { id: string; name: string }[]) ?? []).map((c) => [c.id, c.name])));
+      }
+    })();
+  }, []);
 
   const reloadDrivers = useCallback(async () => {
     const qs = includeInactive ? "?include_inactive=1" : "";
@@ -343,6 +355,18 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                       <dd className={cnhAlert.tone}>{cnhAlert.text}</dd>
                     </div>
                   </dl>
+
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {(driver.vehicle_category_ids ?? []).length === 0 ? (
+                      <span className="text-xs text-amber-700">Sem categorias marcadas</span>
+                    ) : (
+                      (driver.vehicle_category_ids ?? []).map((id) => (
+                        <span key={id} className="rounded-full bg-prime-gold/20 px-2 py-0.5 text-[11px] font-semibold">
+                          {catNames.get(id) ?? "Categoria"}
+                        </span>
+                      ))
+                    )}
+                  </div>
 
                   <div className="mt-4 flex items-center justify-between gap-2 border-t border-prime-border pt-3 text-sm">
                     <button

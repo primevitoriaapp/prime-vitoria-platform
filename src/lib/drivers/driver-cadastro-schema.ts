@@ -43,6 +43,7 @@ export const driverCadastroSchema = z.object({
   payout_price_per_km: z.coerce.number().nonnegative().optional().nullable(),
   payout_percent: z.coerce.number().min(0).max(100).optional().nullable(),
   employment_type: z.enum(["funcionario", "parceiro"]).optional(),
+  vehicle_category_ids: z.array(z.string().uuid()).max(30).optional(),
   photo_url: z.string().url().optional().nullable().or(z.literal("")),
   profile_name: z.string().min(2).optional(),
   profile_phone: z.string().optional().nullable()
@@ -92,6 +93,7 @@ export function normalizeDriverBody(body: DriverCadastroInput) {
     out.payout_percent = body.payout_percent ?? null;
   }
   if (body.employment_type !== undefined) out.employment_type = body.employment_type;
+  if (body.vehicle_category_ids !== undefined) out.vehicle_category_ids = [...new Set(body.vehicle_category_ids)];
   if (body.photo_url !== undefined) out.photo_url = emptyToNull(body.photo_url ?? undefined);
   if (body.operational_notes !== undefined) out.operational_notes = emptyToNull(body.operational_notes ?? undefined);
 

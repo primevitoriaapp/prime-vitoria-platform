@@ -9,6 +9,7 @@ export type AssignDriver = {
   status: string | null;
   employment: string | null;
   vehicle: { id: string; model: string; plate: string } | null;
+  categoryIds?: string[];
 };
 
 const STATUS_TEXT: Record<string, { label: string; cls: string }> = {
@@ -43,8 +44,10 @@ export function QuickAssign({
   status,
   currentDriverId,
   drivers,
-  onDone
+  onDone,
+  categoryId
 }: {
+  categoryId?: string | null;
   tripId: string;
   status: string;
   currentDriverId: string | null;
@@ -108,8 +111,10 @@ export function QuickAssign({
     onDone();
   }
 
+  const serves = (d: AssignDriver) => !categoryId || !d.categoryIds?.length || d.categoryIds.includes(categoryId);
   const list = drivers
     .filter((d) => d.id !== currentDriverId)
+    .sort((a, b) => Number(serves(b)) - Number(serves(a)))
     .filter((d) => !q.trim() || [d.name, d.vehicle?.plate, d.vehicle?.model].filter(Boolean).some((v) => String(v).toLowerCase().includes(q.toLowerCase())));
 
   return (
@@ -151,6 +156,7 @@ export function QuickAssign({
                         {d.vehicle ? `${d.vehicle.model} · ${d.vehicle.plate}` : "sem veículo padrão"}
                         {d.employment === "funcionario" ? " · funcionário" : " · parceiro"}
                       </span>
+                      {!serves(d) ? <span className="block text-xs font-medium text-amber-700">Não atende esta categoria</span> : null}
                     </span>
                     <span className={`shrink-0 text-xs font-semibold ${st.cls}`}>{busy === d.id ? "Enviando…" : st.label}</span>
                   </button>
