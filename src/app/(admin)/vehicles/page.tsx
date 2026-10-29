@@ -6,15 +6,7 @@ async function getVehicles() {
   const response = await fetchInternalApi("/api/vehicles");
   if (!response.ok) return [];
   const payload = (await response.json().catch(() => ({ data: [] }))) as { data?: unknown };
-  return (payload.data ?? []) as Array<{
-    id: string;
-    model: string;
-    plate: string;
-    category?: string | null;
-    capacity?: number | null;
-    color?: string | null;
-    active: boolean;
-  }>;
+  return (payload.data ?? []) as Parameters<typeof VehiclesFleetPanel>[0]["initialVehicles"];
 }
 
 export default async function VehiclesPage() {
@@ -24,7 +16,7 @@ export default async function VehiclesPage() {
     <>
       <AdminPageHeader
         title="Veículos"
-        subtitle="Carros da frota (placa, modelo, cor). As categorias que o cliente escolhe ficam no menu Categorias."
+        subtitle="Carros da frota e dos parceiros, com categoria e vencimento de seguro, licenciamento e vistoria. O painel avisa antes de vencer."
       />
       <VehiclesFleetPanel initialVehicles={vehicles} />
     </>

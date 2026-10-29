@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const in30d = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
 
     const staleIso = new Date(now.getTime() - 12 * 3600000).toISOString();
-    const [curr, prev, noDriver, pending, drivers, clients, cnh, stale, expenses] = await Promise.all([
+    const [curr, prev, noDriver, pending, drivers, clients, cnh, stale, expenses, vdocs] = await Promise.all([
       tripsBetween(tenantId, r.from, r.to),
       tripsBetween(tenantId, r.prevFrom, r.prevTo),
       db
@@ -65,7 +65,13 @@ export async function GET(request: Request) {
         .eq("tenant_id", tenantId)
         .in("operational_status", ["dispatched", "accepted", "on_the_way", "arrived", "in_progress"])
         .lt("scheduled_at", staleIso),
-      db.from("trip_expenses").select("trip_id").eq("tenant_id", tenantId).eq("status", "pendente").limit(50)
+      db.from("trip_expenses").select("trip_id").eq("tenant_id", tenantId).eq("status", "pendente").limit(50),
+      db
+        .from("vehicles")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("active", true)
+        .or(`insurance_expires_at.lte.${in30d},licensing_expires_at.lte.${in30d},inspection_expires_at.lte.${in30d}`)
     ]);
 
     let payablesOverdue = 0;
@@ -105,6 +111,8 @@ export async function GET(request: Request) {
       alerts.push({ tone: "amber", text: `${s.completedNoValue} corrida(s) finalizada(s) sem valor no período`, href: "/agenda?grupo=finalizada&periodo=mes" });
     if (payablesOverdue > 0)
       alerts.push({ tone: "red", text: `${payablesOverdue} conta(s) da empresa vencida(s)`, href: "/contas-a-pagar" });
+    if ((vdocs.count ?? 0) > 0)
+      alerts.push({ tone: "amber", text: `${vdocs.count} veículo(s) com seguro, licenciamento ou vistoria vencido/vencendo em 30 dias`, href: "/vehicles" });
     if ((cnh.count ?? 0) > 0)
       alerts.push({ tone: "amber", text: `${cnh.count} motorista(s) com CNH vencida ou vencendo em 30 dias`, href: "/drivers" });
 

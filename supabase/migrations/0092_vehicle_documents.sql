@@ -1,0 +1,1 @@
+alter table public.vehicles add column if not exists insurance_expires_at date, add column if not exists licensing_expires_at date, add column if not exists inspection_expires_at date, add column if not exists insurer text;

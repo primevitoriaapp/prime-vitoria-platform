@@ -168,7 +168,13 @@ export const vehicleCadastroSchema = z.object({
   color: z.string().optional().nullable(),
   model_year: z.number().int().optional().nullable(),
   notes: z.string().optional().nullable(),
-  active: z.boolean().optional()
+  active: z.boolean().optional(),
+  vehicle_category_id: z.string().uuid().optional().nullable(),
+  partner_id: z.string().uuid().optional().nullable(),
+  insurer: z.string().max(80).optional().nullable(),
+  insurance_expires_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  licensing_expires_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  inspection_expires_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()
 });
 
 export type VehicleCadastroInput = z.infer<typeof vehicleCadastroSchema>;
@@ -183,6 +189,12 @@ export function normalizeVehicleBody(body: VehicleCadastroInput) {
     color: emptyToNull(body.color ?? undefined),
     model_year: body.model_year ?? null,
     notes: emptyToNull(body.notes ?? undefined),
-    active: body.active
+    active: body.active,
+    vehicle_category_id: body.vehicle_category_id ?? null,
+    partner_id: body.partner_id ?? null,
+    insurer: emptyToNull(body.insurer ?? undefined),
+    insurance_expires_at: body.insurance_expires_at ?? null,
+    licensing_expires_at: body.licensing_expires_at ?? null,
+    inspection_expires_at: body.inspection_expires_at ?? null
   };
 }
