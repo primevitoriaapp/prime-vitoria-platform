@@ -33,10 +33,10 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
         <a href="#topo" className="flex items-center gap-3" aria-label="Prime Vitória — início">
           <img src={SITE.img.logo} alt="" width={40} height={40} className="h-10 w-10 rounded-xl object-cover" />
           <span className="leading-tight">
-            <span className="block font-prime-display text-[17px] font-semibold" style={{ color: dark ? "#111" : "#fff" }}>
+            <span className="block whitespace-nowrap font-prime-display text-[17px] font-semibold" style={{ color: dark ? "#111" : "#fff" }}>
               Prime Vitória
             </span>
-            <span className="block text-[9px] font-semibold uppercase tracking-[0.28em]" style={{ color: "#C9A84C" }}>
+            <span className="hidden whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.28em] sm:block" style={{ color: "#C9A84C" }}>
               Transporte executivo
             </span>
           </span>

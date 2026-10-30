@@ -8,10 +8,15 @@ const HEAD: Record<FormLang, { title: string; sub: string; termos: string; polit
   es: { title: "Pide tu cotización", sub: "Traslados, aeropuerto, bodas, turismo y eventos. Respondemos rápido por WhatsApp.", termos: "Al enviar, aceptas nuestra", politica: "política de privacidad", voltar: "← Volver al sitio", site: "/site/es" }
 };
 
-export const metadata: Metadata = {
-  title: "Pedir orçamento · Prime Vitória Transporte Executivo",
-  description: "Transfer, aeroporto, casamento, turismo e eventos em Vitória/ES com carros executivos, SUVs, vans e ônibus."
-};
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ lang?: string }> }): Promise<Metadata> {
+  const { lang } = await searchParams;
+  if (lang === "en") return { title: "Request a quote · Prime Vitória Executive Chauffeur" };
+  if (lang === "es") return { title: "Pide tu cotización · Prime Vitória Transporte Ejecutivo" };
+  return {
+    title: "Pedir orçamento · Prime Vitória Transporte Executivo",
+    description: "Transfer, aeroporto, casamento, turismo e eventos em Vitória/ES com carros executivos, SUVs, vans e ônibus."
+  };
+}
 
 /** Página pública para pessoa física (ou empresa nova) pedir orçamento. */
 export default async function PedirPage({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
