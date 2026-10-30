@@ -173,7 +173,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
             <div className="mt-3">
               <DriverPayablesPanel
                 tenantId={tenantId}
-                driverIdFilter={mode === "admin" ? selectedDriverId : null}
+                driverIdFilter={null}
                 devFallbackRole={devRole}
               />
             </div>
