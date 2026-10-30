@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PrimeLogoMark } from "@/components/prime-logo-mark";
+import { StandaloneAppRouter } from "@/components/standalone-app-router";
 
 const ENTRADAS = [
   {
@@ -26,6 +27,7 @@ const ENTRADAS = [
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col bg-[#111] px-5 py-10 text-[#fff]">
+      <StandaloneAppRouter />
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center">
         <PrimeLogoMark size={88} />
         <h1 className="mt-5 text-center font-prime-display text-3xl !text-[#fff] sm:text-4xl">Prime Vitória</h1>

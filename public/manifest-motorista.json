@@ -1,9 +1,9 @@
 {
   "name": "Prime Vitória Motorista",
-  "short_name": "PV Motorista",
+  "short_name": "Prime Motorista",
   "description": "Operação e status de corridas para motoristas.",
   "start_url": "/driver",
-  "scope": "/driver",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#111111",
   "theme_color": "#111111",
@@ -22,5 +22,6 @@
       "type": "image/png",
       "purpose": "any"
     }
-  ]
+  ],
+  "id": "/driver"
 }

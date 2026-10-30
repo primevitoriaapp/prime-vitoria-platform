@@ -4,7 +4,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Plataforma Prime Vitória",
-  description: "Plataforma operacional de transporte executivo."
+  description: "Plataforma operacional de transporte executivo.",
+  manifest: "/manifest-central.json"
 };
 
 export const viewport: Viewport = {

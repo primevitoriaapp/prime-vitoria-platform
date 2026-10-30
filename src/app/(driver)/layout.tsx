@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DriverPwaRegister } from "@/components/driver-pwa-register";
 import { AppSplash } from "@/components/app-splash";
+import { StandaloneAppRouter } from "@/components/standalone-app-router";
 
 export const metadata: Metadata = {
   title: "Prime Vitória — Motorista",
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
   manifest: "/manifest-motorista.json",
   appleWebApp: {
     capable: true,
-    title: "PV Motorista",
+    title: "Prime Motorista",
     statusBarStyle: "black-translucent"
   }
 };
@@ -23,6 +24,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
     <>
       <DriverPwaRegister />
       <AppSplash />
+      <StandaloneAppRouter mark="driver" />
       {children}
     </>
   );

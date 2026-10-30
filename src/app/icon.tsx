@@ -1,9 +1,25 @@
 import { ImageResponse } from "next/og";
+import { brandLogoDataUrl } from "@/lib/brand/brand-logo-data-url";
 
 export const size = { width: 512, height: 512 };
 export const contentType = "image/png";
 
-export default function Icon() {
+export const revalidate = 3600;
+
+export default async function Icon() {
+  // Usa a logo cadastrada em Configurações; sem logo, desenha "PRIME VITÓRIA".
+  const logo = await brandLogoDataUrl();
+  if (logo) {
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", background: "#0B0B0B" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logo} alt="" width={512} height={512} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </div>
+      ),
+      { ...size }
+    );
+  }
   return new ImageResponse(
     (
       <div
