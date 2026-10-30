@@ -6,6 +6,7 @@ import { SITE_TEXT, type SiteLang } from "@/components/site/site-i18n";
 import { loadGoogleReviews } from "@/lib/integrations/google-reviews";
 import { GoogleReviewsTicker } from "@/components/site/google-reviews-ticker";
 import { BrazilMap } from "@/components/site/brazil-map";
+import { FleetGallery } from "@/components/site/fleet-gallery";
 
 const SERVICE_ICONS = [
   "M2 16l20-6-3-2-6 2-6-6-2 1 4 6-5 2-2-1-1 1z",
@@ -17,8 +18,18 @@ const SERVICE_ICONS = [
   "M3 7h14l4 5v5h-2M3 7v10h2M9 17h6M3 12h18",
   "M5 4h14a2 2 0 0 1 2 2v11H3V6a2 2 0 0 1 2-2zM3 11h18M7 17v2M17 17v2M7 14h.01M17 14h.01"
 ];
-const FLEET_IMG = ["frota-essencial", "frota-sedan", "frota-suv", "frota-blindado", "frota-van-luxo", "frota-van-20", "frota-onibus"].map((n) => `/site/${n}.webp`);
-const OP_IMG = ["op-evento", "op-serra", "op-por-do-sol", "op-orla", "op-van-interior"].map((n) => `/site/${n}.webp`);
+const FLEET_IMG: string[][] = (
+  [
+    ["frota-essencial", 2],
+    ["frota-sedan", 3],
+    ["frota-suv", 2],
+    ["frota-blindado", 1],
+    ["frota-van-luxo", 3],
+    ["frota-van-20", 3],
+    ["frota-onibus", 2]
+  ] as const
+).map(([n, q]) => Array.from({ length: q }, (_, k) => `/site/${n}-${k + 1}.webp`));
+const OP_IMG = ["op-evento", "op-porto", "op-serra", "op-por-do-sol", "op-orla"].map((n) => `/site/${n}.webp`);
 const SOCIAL = [
   { id: "instagram", label: "Instagram", d: "M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM17.5 6.5h.01" },
   { id: "facebook", label: "Facebook", d: "M15 3h-2a4 4 0 0 0-4 4v3H7v4h2v7h4v-7h3l1-4h-4V7a1 1 0 0 1 1-1h2z" },
@@ -230,7 +241,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
           <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {T.frota.items.map((f, i) => (
               <article key={f.t} className="overflow-hidden rounded-[26px] border border-[#ECE7DB] bg-[#F7F5F0]">
-                <img src={FLEET_IMG[i]} alt={f.t} loading="lazy" className="aspect-[4/3] w-full object-cover" />
+                <FleetGallery photos={FLEET_IMG[i]} alt={f.t} />
                 <div className="p-4 sm:p-5">
                   <H3>{f.t}</H3>
                   <p className="mt-0.5 text-xs leading-snug text-[#6F6A60] sm:text-sm">{f.d}</p>

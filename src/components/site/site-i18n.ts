@@ -95,7 +95,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       ],
       extra: "Micro-ônibus e outras configurações sob consulta."
     },
-    operacao: { kicker: "Em operação", title: "Nossa frota no dia a dia.", legendas: ["Nossa frota em evento corporativo", "Comboio na serra capixaba", "Fim de tarde no interior do ES", "Orla de Vitória", "Interior da van 20 lugares"] },
+    operacao: { kicker: "Em operação", title: "Nossa frota no dia a dia.", legendas: ["Nossa frota em evento corporativo", "Atendimento no porto de Vitória", "Comboio na serra capixaba", "Fim de tarde no interior do ES", "Orla de Vitória"] },
     casamento: { kicker: "Casamentos", title: "O carro da noiva, no horário certo.", sub: "Carro impecável, motorista de terno e toda a atenção para a chegada mais esperada do dia. Também levamos padrinhos e convidados.", cta: "Pedir orçamento para casamento", waMsg: "Olá, quero um orçamento para o carro da noiva." },
     equipe: { kicker: "Nossa equipe", title: "Motoristas treinados e uniformizados.", sub: "Equipe de terno, pontual e preparada para atender executivos, artistas e grandes eventos." },
     google: {
@@ -187,7 +187,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       ],
       extra: "Minibuses and other configurations on request."
     },
-    operacao: { kicker: "On the road", title: "Our fleet at work.", legendas: ["Our fleet at a corporate event", "Convoy in the Espírito Santo mountains", "Sunset in the countryside", "Vitória waterfront", "Inside the 20-seat van"] },
+    operacao: { kicker: "On the road", title: "Our fleet at work.", legendas: ["Our fleet at a corporate event", "Service at the Port of Vitória", "Convoy in the Espírito Santo mountains", "Sunset in the countryside", "Vitória waterfront"] },
     casamento: { kicker: "Weddings", title: "The bridal car, right on time.", sub: "A spotless car, a suited driver and full attention for the most awaited arrival of the day. We also drive the wedding party and guests.", cta: "Request a wedding quote", waMsg: "Hello, I would like a quote for a bridal car." },
     equipe: { kicker: "Our team", title: "Trained, uniformed drivers.", sub: "A suited, punctual team ready to serve executives, artists and large events." },
     google: {
@@ -279,7 +279,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       ],
       extra: "Minibuses y otras configuraciones a consultar."
     },
-    operacao: { kicker: "En operación", title: "Nuestra flota en el día a día.", legendas: ["Nuestra flota en un evento corporativo", "Convoy en la sierra capixaba", "Atardecer en el interior", "Costanera de Vitória", "Interior de la van de 20 plazas"] },
+    operacao: { kicker: "En operación", title: "Nuestra flota en el día a día.", legendas: ["Nuestra flota en un evento corporativo", "Servicio en el puerto de Vitória", "Convoy en la sierra capixaba", "Atardecer en el interior", "Costanera de Vitória"] },
     casamento: { kicker: "Bodas", title: "El auto de la novia, a la hora exacta.", sub: "Auto impecable, conductor de traje y toda la atención para la llegada más esperada del día. También llevamos padrinos e invitados.", cta: "Pedir cotización para boda", waMsg: "Hola, quiero una cotización para el auto de la novia." },
     equipe: { kicker: "Nuestro equipo", title: "Conductores capacitados y uniformados.", sub: "Equipo de traje, puntual y preparado para ejecutivos, artistas y grandes eventos." },
     google: {
