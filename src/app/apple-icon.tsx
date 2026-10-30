@@ -18,7 +18,7 @@ export default function AppleIcon() {
           color: "#C9A84C"
         }}
       >
-        <div style={{ fontSize: 54, fontWeight: 700, letterSpacing: "0.06em", fontFamily: "serif", display: "flex" }}>PRIME</div>
+        <div style={{ fontSize: 42, fontWeight: 700, letterSpacing: "0.06em", fontFamily: "serif", display: "flex" }}>PRIME</div>
         <div style={{ width: "46%", height: 2, background: "#C9A84C", marginTop: 4, display: "flex" }} />
         <div style={{ fontSize: 16, letterSpacing: "0.3em", marginTop: 4, color: "#E8D9A8", display: "flex" }}>VITÓRIA</div>
       </div>
