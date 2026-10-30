@@ -17,7 +17,8 @@ const SERVICE_ICONS = [
   "M3 7h14l4 5v5h-2M3 7v10h2M9 17h6M3 12h18",
   "M5 4h14a2 2 0 0 1 2 2v11H3V6a2 2 0 0 1 2-2zM3 11h18M7 17v2M17 17v2M7 14h.01M17 14h.01"
 ];
-const FLEET_IMG = [SITE.img.sedan, SITE.img.suv, SITE.img.van];
+const FLEET_IMG = ["frota-essencial", "frota-sedan", "frota-suv", "frota-blindado", "frota-van-luxo", "frota-van-20", "frota-onibus"].map((n) => `/site/${n}.webp`);
+const OP_IMG = ["op-evento", "op-serra", "op-por-do-sol", "op-orla", "op-van-interior"].map((n) => `/site/${n}.webp`);
 const SOCIAL = [
   { id: "instagram", label: "Instagram", d: "M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM17.5 6.5h.01" },
   { id: "facebook", label: "Facebook", d: "M15 3h-2a4 4 0 0 0-4 4v3H7v4h2v7h4v-7h3l1-4h-4V7a1 1 0 0 1 1-1h2z" },
@@ -156,6 +157,23 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
         </div>
       </section>
 
+      {/* Equipe */}
+      <section className="relative overflow-hidden">
+        <img src="/site/equipe.webp" alt={T.equipe.title} loading="lazy" className="h-[420px] w-full object-cover sm:h-[520px]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" aria-hidden />
+        <div className="absolute inset-x-0 bottom-0 mx-auto max-w-6xl px-5 pb-10">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: "#D9BC6A" }}>
+            {T.equipe.kicker}
+          </p>
+          <h2 className="mt-3 max-w-xl font-prime-display text-[30px] leading-tight sm:text-[40px]" style={{ color: "#fff" }}>
+            {T.equipe.title}
+          </h2>
+          <p className="mt-3 max-w-lg text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
+            {T.equipe.sub}
+          </p>
+        </div>
+      </section>
+
       {/* Empresas */}
       <section id="empresas" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 sm:py-28">
         <div className="grid items-center gap-12 lg:grid-cols-2">
@@ -209,13 +227,13 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
         <div className="mx-auto max-w-6xl px-5">
           <Kicker>{T.frota.kicker}</Kicker>
           <H2>{T.frota.title}</H2>
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {T.frota.items.map((f, i) => (
               <article key={f.t} className="overflow-hidden rounded-[26px] border border-[#ECE7DB] bg-[#F7F5F0]">
                 <img src={FLEET_IMG[i]} alt={f.t} loading="lazy" className="aspect-[4/3] w-full object-cover" />
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <H3>{f.t}</H3>
-                  <p className="text-sm text-[#6F6A60]">{f.d}</p>
+                  <p className="mt-0.5 text-xs leading-snug text-[#6F6A60] sm:text-sm">{f.d}</p>
                 </div>
               </article>
             ))}
@@ -224,24 +242,50 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
         </div>
       </section>
 
-      {/* Fotos reais em operação (aparece quando houver fotos) */}
-      {SITE.operacao.length > 0 ? (
-        <section className="mx-auto max-w-6xl px-5 py-20 sm:py-28">
-          <Kicker>{T.operacao.kicker}</Kicker>
-          <H2>{T.operacao.title}</H2>
-          <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {SITE.operacao.map((p, i) => (
-              <img
-                key={p.src}
-                src={p.src}
-                alt={p.alt}
-                loading="lazy"
-                className={`w-full rounded-[22px] object-cover ${i === 0 ? "col-span-2 aspect-[16/10] sm:row-span-2 sm:aspect-auto sm:h-full" : "aspect-square"}`}
-              />
-            ))}
+      {/* Fotos reais em operação */}
+      <section className="mx-auto max-w-6xl px-5 py-20 sm:py-28">
+        <Kicker>{T.operacao.kicker}</Kicker>
+        <H2>{T.operacao.title}</H2>
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {OP_IMG.map((src, i) => (
+            <figure
+              key={src}
+              className={`group relative overflow-hidden rounded-[22px] ${i === 0 ? "col-span-2 row-span-2 aspect-[4/3] sm:aspect-auto" : "aspect-square"}`}
+            >
+              <img src={src} alt={T.operacao.legendas[i]} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+              <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2.5 pt-8 text-[11px] sm:text-xs" style={{ color: "#fff" }}>
+                {T.operacao.legendas[i]}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+        <a href={SITE.social.instagram} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#111]">
+          @primevitoria no Instagram →
+        </a>
+      </section>
+
+      {/* Casamentos */}
+      <section className="bg-white py-20 sm:py-28">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 lg:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3">
+            <img src="/site/casamento-igreja.webp" alt={T.casamento.title} loading="lazy" className="aspect-[3/4] w-full rounded-[22px] object-cover" />
+            <img src="/site/casamento-cerimonia.webp" alt="" loading="lazy" className="mt-10 aspect-[3/4] w-full rounded-[22px] object-cover" />
           </div>
-        </section>
-      ) : null}
+          <div>
+            <Kicker>{T.casamento.kicker}</Kicker>
+            <H2>{T.casamento.title}</H2>
+            <p className="mt-4 text-base leading-relaxed text-[#6F6A60]">{T.casamento.sub}</p>
+            <a
+              href={`https://wa.me/5527998063956?text=${encodeURIComponent(T.casamento.waMsg)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-7 inline-block w-full rounded-full bg-[#111] px-7 py-4 text-center font-semibold text-[#D9BC6A] sm:w-auto"
+            >
+              {T.casamento.cta}
+            </a>
+          </div>
+        </div>
+      </section>
 
       {/* Avaliações do Google */}
       <section className="px-5 py-16 sm:py-20">

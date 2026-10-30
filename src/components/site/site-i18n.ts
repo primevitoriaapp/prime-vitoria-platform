@@ -17,7 +17,9 @@ export type SiteText = {
   passos: { kicker: string; title: string; items: Item[] };
   empresas: { kicker: string; title: string; sub: string; bullets: string[]; entrar: string; cadastrar: string; waMsg: string; mock: { ola: string; sub: string; agendar: string; proximas: string; hoje: string; amanha: string } };
   frota: { kicker: string; title: string; items: Item[]; extra: string };
-  operacao: { kicker: string; title: string };
+  operacao: { kicker: string; title: string; legendas: string[] };
+  equipe: { kicker: string; title: string; sub: string };
+  casamento: { kicker: string; title: string; sub: string; cta: string; waMsg: string };
   google: { kicker: string; title: string; sub: string; ver: string; avaliar: string };
   clientes: string;
   parceiro: { kicker: string; title: string; sub: string; cta: string; waMsg: string };
@@ -45,7 +47,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       badges: ["10 anos de estrada", "Monitoramento de voo", "Motorista ao vivo no seu celular"],
       alt: "Terceira Ponte, Vitória/ES"
     },
-    mapa: { kicker: "Onde atendemos", title: "De Vitória para todo o Brasil.", sub: "Nossa sede é no Espírito Santo, e levamos o mesmo padrão Prime para todas as capitais do Brasil.", sede: "Sede" },
+    mapa: { kicker: "Onde atendemos", title: "De Vitória para todo o Brasil.", sub: "Nossa sede é em Vitória, no Espírito Santo, e levamos o padrão Prime para todas as capitais do Brasil.", sede: "Sede" },
     servicos: {
       kicker: "Serviços",
       title: "Para cada compromisso, o carro certo.",
@@ -83,13 +85,19 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       kicker: "Frota",
       title: "Carros executivos, sempre impecáveis.",
       items: [
-        { t: "Sedan executivo", d: "Conforto e discrição para o dia a dia" },
-        { t: "SUV executivo", d: "Mais espaço e porta-malas amplo" },
-        { t: "Van executiva", d: "Grupos, famílias e eventos" }
+        { t: "Prime Essencial", d: "Conforto e economia para o dia a dia" },
+        { t: "Sedan executivo", d: "Até 3 passageiros, discrição e pontualidade" },
+        { t: "Executivo Premium SUV", d: "Mais espaço, porta-malas amplo e alto padrão" },
+        { t: "Blindado executivo", d: "Segurança com discrição para executivos e autoridades" },
+        { t: "Van executiva luxo", d: "Bancos de couro, iluminação e conforto para grupos" },
+        { t: "Van 20 lugares", d: "Equipes, famílias e eventos" },
+        { t: "Ônibus", d: "Excursões, eventos e grandes grupos" }
       ],
-      extra: "Também temos blindados, micro-ônibus e ônibus — consulte."
+      extra: "Micro-ônibus e outras configurações sob consulta."
     },
-    operacao: { kicker: "Em operação", title: "Nossa frota no dia a dia." },
+    operacao: { kicker: "Em operação", title: "Nossa frota no dia a dia.", legendas: ["Nossa frota em evento corporativo", "Comboio na serra capixaba", "Fim de tarde no interior do ES", "Orla de Vitória", "Interior da van 20 lugares"] },
+    casamento: { kicker: "Casamentos", title: "O carro da noiva, no horário certo.", sub: "Carro impecável, motorista de terno e toda a atenção para a chegada mais esperada do dia. Também levamos padrinhos e convidados.", cta: "Pedir orçamento para casamento", waMsg: "Olá, quero um orçamento para o carro da noiva." },
+    equipe: { kicker: "Nossa equipe", title: "Motoristas treinados e uniformizados.", sub: "Equipe de terno, pontual e preparada para atender executivos, artistas e grandes eventos." },
     google: {
       kicker: "Avaliações",
       title: "Quem viaja com a gente recomenda.",
@@ -131,7 +139,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       badges: ["10 years on the road", "Flight monitoring", "Track your driver live"],
       alt: "Terceira Ponte bridge, Vitória, Brazil"
     },
-    mapa: { kicker: "Where we operate", title: "From Vitória to all of Brazil.", sub: "Headquartered in Espírito Santo, we bring the same Prime standard to every state capital in Brazil.", sede: "Headquarters" },
+    mapa: { kicker: "Where we operate", title: "From Vitória to all of Brazil.", sub: "Our headquarters are in Vitória, Espírito Santo, and we bring the Prime standard to every state capital in Brazil.", sede: "Headquarters" },
     servicos: {
       kicker: "Services",
       title: "The right car for every occasion.",
@@ -169,13 +177,19 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       kicker: "Fleet",
       title: "Executive cars, always spotless.",
       items: [
-        { t: "Executive sedan", d: "Comfort and discretion for everyday trips" },
-        { t: "Executive SUV", d: "More room and a large trunk" },
-        { t: "Executive van", d: "Groups, families and events" }
+        { t: "Prime Essential", d: "Comfort and value for everyday trips" },
+        { t: "Executive sedan", d: "Up to 3 passengers, discreet and on time" },
+        { t: "Premium executive SUV", d: "More room, large trunk and top comfort" },
+        { t: "Armored executive car", d: "Discreet security for executives and officials" },
+        { t: "Luxury executive van", d: "Leather seats, ambient lighting, comfort for groups" },
+        { t: "20-seat van", d: "Teams, families and events" },
+        { t: "Coach", d: "Tours, events and large groups" }
       ],
-      extra: "Armored cars, minibuses and coaches also available on request."
+      extra: "Minibuses and other configurations on request."
     },
-    operacao: { kicker: "On the road", title: "Our fleet at work." },
+    operacao: { kicker: "On the road", title: "Our fleet at work.", legendas: ["Our fleet at a corporate event", "Convoy in the Espírito Santo mountains", "Sunset in the countryside", "Vitória waterfront", "Inside the 20-seat van"] },
+    casamento: { kicker: "Weddings", title: "The bridal car, right on time.", sub: "A spotless car, a suited driver and full attention for the most awaited arrival of the day. We also drive the wedding party and guests.", cta: "Request a wedding quote", waMsg: "Hello, I would like a quote for a bridal car." },
+    equipe: { kicker: "Our team", title: "Trained, uniformed drivers.", sub: "A suited, punctual team ready to serve executives, artists and large events." },
     google: {
       kicker: "Reviews",
       title: "Our passengers recommend us.",
@@ -217,7 +231,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       badges: ["10 años en el camino", "Monitoreo de vuelos", "Tu conductor en vivo"],
       alt: "Tercer Puente, Vitória, Brasil"
     },
-    mapa: { kicker: "Dónde atendemos", title: "De Vitória a todo Brasil.", sub: "Nuestra sede está en Espírito Santo y llevamos el mismo estándar Prime a todas las capitales de Brasil.", sede: "Sede" },
+    mapa: { kicker: "Dónde atendemos", title: "De Vitória a todo Brasil.", sub: "Nuestra sede está en Vitória, Espírito Santo, y llevamos el estándar Prime a todas las capitales de Brasil.", sede: "Sede" },
     servicos: {
       kicker: "Servicios",
       title: "El auto ideal para cada ocasión.",
@@ -255,13 +269,19 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       kicker: "Flota",
       title: "Autos ejecutivos, siempre impecables.",
       items: [
-        { t: "Sedán ejecutivo", d: "Comodidad y discreción para el día a día" },
-        { t: "SUV ejecutiva", d: "Más espacio y maletero amplio" },
-        { t: "Van ejecutiva", d: "Grupos, familias y eventos" }
+        { t: "Prime Esencial", d: "Comodidad y economía para el día a día" },
+        { t: "Sedán ejecutivo", d: "Hasta 3 pasajeros, discreción y puntualidad" },
+        { t: "SUV ejecutiva premium", d: "Más espacio, maletero amplio y alto nivel" },
+        { t: "Blindado ejecutivo", d: "Seguridad discreta para ejecutivos y autoridades" },
+        { t: "Van ejecutiva de lujo", d: "Asientos de cuero, iluminación y confort para grupos" },
+        { t: "Van de 20 plazas", d: "Equipos, familias y eventos" },
+        { t: "Autobús", d: "Excursiones, eventos y grandes grupos" }
       ],
-      extra: "También ofrecemos blindados, minibuses y autobuses — consulta."
+      extra: "Minibuses y otras configuraciones a consultar."
     },
-    operacao: { kicker: "En operación", title: "Nuestra flota en el día a día." },
+    operacao: { kicker: "En operación", title: "Nuestra flota en el día a día.", legendas: ["Nuestra flota en un evento corporativo", "Convoy en la sierra capixaba", "Atardecer en el interior", "Costanera de Vitória", "Interior de la van de 20 plazas"] },
+    casamento: { kicker: "Bodas", title: "El auto de la novia, a la hora exacta.", sub: "Auto impecable, conductor de traje y toda la atención para la llegada más esperada del día. También llevamos padrinos e invitados.", cta: "Pedir cotización para boda", waMsg: "Hola, quiero una cotización para el auto de la novia." },
+    equipe: { kicker: "Nuestro equipo", title: "Conductores capacitados y uniformados.", sub: "Equipo de traje, puntual y preparado para ejecutivos, artistas y grandes eventos." },
     google: {
       kicker: "Opiniones",
       title: "Nuestros pasajeros nos recomiendan.",
