@@ -102,3 +102,10 @@ canvas {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .pv-float-in { animation: pv-float-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* Avaliações do Google passando no site */
+@keyframes pv-review-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.pv-review-in { animation: pv-review-in 0.45s ease both; }

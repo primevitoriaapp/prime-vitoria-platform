@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { SITE } from "@/components/site/site-data";
 import { PublicTrackMap } from "@/components/public-track-map";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 import { isPublicTrackTerminalStatus } from "@/lib/public/track-revision";
@@ -255,7 +256,24 @@ function TripRating({ token }: { token: string }) {
     setState(res.ok ? "done" : "error");
   }
   if (state === "done") {
-    return <section className="rounded-3xl bg-white p-5 text-center text-sm font-semibold text-[#111] shadow-[0_8px_30px_rgba(0,0,0,0.06)]">Obrigado pela avaliação! ⭐</section>;
+    return (
+      <section className="rounded-3xl bg-white p-5 text-center shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+        <p className="text-sm font-semibold text-[#111]">Obrigado pela avaliação! ⭐</p>
+        {stars >= 4 ? (
+          <>
+            <p className="mt-2 text-sm text-[#6F6A60]">Gostou da viagem? Uma avaliação no Google ajuda muito a Prime Vitória.</p>
+            <a
+              href={SITE.google.write}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#111] px-4 py-3 font-semibold text-[#C9A84C]"
+            >
+              ★ Avaliar no Google
+            </a>
+          </>
+        ) : null}
+      </section>
+    );
   }
   return (
     <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">

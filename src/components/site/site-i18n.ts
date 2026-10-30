@@ -19,6 +19,9 @@ export type SiteText = {
   operacao: { kicker: string; title: string };
   google: { kicker: string; title: string; sub: string; ver: string; avaliar: string };
   clientes: string;
+  parceiro: { kicker: string; title: string; sub: string; cta: string; waMsg: string };
+  reviewsWord: string;
+  close: string;
   diferenciais: { kicker: string; title: string; items: string[] };
   cidades: { kicker: string; title: string };
   cta: { title: string; sub: string };
@@ -90,10 +93,19 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       avaliar: "Deixar minha avaliação"
     },
     clientes: "Empresas que confiam na Prime",
+    parceiro: {
+      kicker: "Trabalhe com a gente",
+      title: "Seja um motorista parceiro Prime.",
+      sub: "Motorista profissional, carro executivo e atendimento de alto padrão? Cadastre-se e receba corridas pelo nosso aplicativo.",
+      cta: "Quero ser parceiro",
+      waMsg: "Olá, quero ser motorista parceiro da Prime Vitória."
+    },
+    reviewsWord: "avaliações",
+    close: "Fechar",
     diferenciais: {
       kicker: "Diferenciais",
       title: "O cuidado está nos detalhes.",
-      items: ["Monitoramento de voo", "Motorista acompanhado ao vivo", "Veículos higienizados diariamente", "Wi-fi, carregador e serviço de bordo", "Fatura mensal para empresas", "Atendimento a turistas e estrangeiros"]
+      items: ["Monitoramento de voo", "Motorista acompanhado ao vivo", "Veículos higienizados diariamente", "Wi-fi, carregador e serviço de bordo", "Fatura mensal para empresas", "Motoristas que falam inglês e espanhol"]
     },
     cidades: { kicker: "Onde atendemos", title: "Base no Espírito Santo. Parceiros nas capitais." },
     cta: { title: "Pronto para a próxima viagem?", sub: "Peça agora e receba o orçamento em minutos." },
@@ -163,10 +175,19 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       avaliar: "Write a review"
     },
     clientes: "Companies that trust Prime",
+    parceiro: {
+      kicker: "Work with us",
+      title: "Become a Prime partner driver.",
+      sub: "Professional driver with an executive car? Sign up and receive rides through our app.",
+      cta: "Become a partner",
+      waMsg: "Hello, I would like to become a Prime Vitória partner driver."
+    },
+    reviewsWord: "reviews",
+    close: "Close",
     diferenciais: {
       kicker: "Why Prime",
       title: "Care in every detail.",
-      items: ["Flight monitoring", "Live driver tracking", "Vehicles sanitized daily", "Wi-fi, chargers and onboard amenities", "Monthly invoicing for companies", "Experienced with international travelers"]
+      items: ["Flight monitoring", "Live driver tracking", "Vehicles sanitized daily", "Wi-fi, chargers and onboard amenities", "Monthly invoicing for companies", "English- and Spanish-speaking drivers"]
     },
     cidades: { kicker: "Where we operate", title: "Based in Espírito Santo. Partners in major Brazilian cities." },
     cta: { title: "Ready for your next ride?", sub: "Request now and get your quote in minutes." },
@@ -236,10 +257,19 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       avaliar: "Dejar mi opinión"
     },
     clientes: "Empresas que confían en Prime",
+    parceiro: {
+      kicker: "Trabaja con nosotros",
+      title: "Sé un conductor asociado de Prime.",
+      sub: "¿Conductor profesional con auto ejecutivo? Regístrate y recibe viajes por nuestra aplicación.",
+      cta: "Quiero ser asociado",
+      waMsg: "Hola, quiero ser conductor asociado de Prime Vitória."
+    },
+    reviewsWord: "opiniones",
+    close: "Cerrar",
     diferenciais: {
       kicker: "Diferenciales",
       title: "El cuidado está en los detalles.",
-      items: ["Monitoreo de vuelos", "Conductor en vivo", "Vehículos higienizados a diario", "Wi-fi, cargador y servicio a bordo", "Factura mensual para empresas", "Experiencia con viajeros internacionales"]
+      items: ["Monitoreo de vuelos", "Conductor en vivo", "Vehículos higienizados a diario", "Wi-fi, cargador y servicio a bordo", "Factura mensual para empresas", "Conductores que hablan inglés y español"]
     },
     cidades: { kicker: "Dónde atendemos", title: "Base en Espírito Santo. Socios en las principales ciudades de Brasil." },
     cta: { title: "¿Listo para tu próximo viaje?", sub: "Solicítalo ahora y recibe tu cotización en minutos." },

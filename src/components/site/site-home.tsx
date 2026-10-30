@@ -3,6 +3,8 @@ import Link from "next/link";
 import { SiteNav } from "@/components/site/site-nav";
 import { SITE } from "@/components/site/site-data";
 import { SITE_TEXT, type SiteLang } from "@/components/site/site-i18n";
+import { loadGoogleReviews } from "@/lib/integrations/google-reviews";
+import { GoogleReviewsTicker } from "@/components/site/google-reviews-ticker";
 
 const SERVICE_ICONS = [
   "M2 16l20-6-3-2-6 2-6-6-2 1 4 6-5 2-2-1-1 1z",
@@ -44,8 +46,10 @@ function H3({ children }: { children: React.ReactNode }) {
 }
 
 /** Site institucional da Prime Vitória (PT, EN e ES). Nenhum preço aparece aqui. */
-export function SiteHome({ lang }: { lang: SiteLang }) {
+export async function SiteHome({ lang }: { lang: SiteLang }) {
   const T = SITE_TEXT[lang];
+  const google = await loadGoogleReviews(lang);
+  const parceiroHref = SITE.parceiroForm || `https://wa.me/5527998063956?text=${encodeURIComponent(T.parceiro.waMsg)}`;
   const wa = `https://wa.me/5527998063956?text=${encodeURIComponent(T.whatsappMsg)}`;
   const agendar = (lang === "pt" ? SITE.links.agendar : `${SITE.links.agendar}?lang=${lang}`) as Route;
   const empresa = SITE.links.empresa as Route;
@@ -230,6 +234,13 @@ export function SiteHome({ lang }: { lang: SiteLang }) {
             <div>
               <Kicker>{T.google.kicker}</Kicker>
               <H2>{T.google.title}</H2>
+              {google?.rating ? (
+                <p className="mt-4 flex items-baseline gap-2">
+                  <span className="font-prime-display text-5xl text-[#111]">{google.rating.toFixed(1).replace(".", ",")}</span>
+                  <span className="text-xl text-[#E2B33C]">★★★★★</span>
+                  {google.total ? <span className="text-sm text-[#8A8A8A]">{google.total} {T.reviewsWord}</span> : null}
+                </p>
+              ) : null}
               <p className="mt-4 text-base text-[#6F6A60]">{T.google.sub}</p>
             </div>
             <div className="flex flex-col gap-3">
@@ -272,6 +283,26 @@ export function SiteHome({ lang }: { lang: SiteLang }) {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Motorista parceiro */}
+      <section className="px-5 pb-16">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 rounded-[32px] bg-[#111] p-7 sm:flex-row sm:items-center sm:justify-between sm:p-12">
+          <div className="max-w-xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: "#D9BC6A" }}>
+              {T.parceiro.kicker}
+            </p>
+            <h2 className="mt-3 font-prime-display text-[28px] leading-tight sm:text-[36px]" style={{ color: "#fff" }}>
+              {T.parceiro.title}
+            </h2>
+            <p className="mt-3 text-sm" style={{ color: "rgba(255,255,255,0.72)" }}>
+              {T.parceiro.sub}
+            </p>
+          </div>
+          <a href={parceiroHref} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-full bg-[#D9BC6A] px-7 py-4 text-center font-semibold text-[#111]">
+            {T.parceiro.cta}
+          </a>
         </div>
       </section>
 
@@ -347,6 +378,10 @@ export function SiteHome({ lang }: { lang: SiteLang }) {
           © {new Date().getFullYear()} Prime Vitória · R J Prime Transporte LTDA · CNPJ 49.126.277/0001-54
         </p>
       </footer>
+
+      {google && google.reviews.length > 0 ? (
+        <GoogleReviewsTicker data={google} reviewsUrl={SITE.google.reviews} label={{ reviews: T.reviewsWord, close: T.close }} />
+      ) : null}
 
       {/* WhatsApp flutuante */}
       <a
