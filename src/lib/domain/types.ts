@@ -67,6 +67,7 @@ export interface Trip {
   planned_km?: number | null;
   actual_km?: number | null;
   odometer_start?: number | null;
+  notes?: string | null;
   odometer_end?: number | null;
   client_amount?: number | null;
   wait_minutes?: number | null;

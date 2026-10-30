@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DriverPwaRegister } from "@/components/driver-pwa-register";
+import { AppSplash } from "@/components/app-splash";
 
 export const metadata: Metadata = {
   title: "Prime Vitória — Motorista",
@@ -21,6 +22,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
   return (
     <>
       <DriverPwaRegister />
+      <AppSplash />
       {children}
     </>
   );
