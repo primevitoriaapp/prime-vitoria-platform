@@ -62,14 +62,14 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       items: [
         { t: "Peça seu orçamento", d: "Pelo site, pelo portal da empresa ou pelo WhatsApp. A central responde rapidinho." },
         { t: "Acompanhe ao vivo", d: "Antes de sair, chega um link com o motorista, o carro e a localização em tempo real." },
-        { t: "Viaje tranquilo", d: "Ao final, avalie o atendimento. Empresas recebem tudo numa fatura mensal." }
+        { t: "Viaje tranquilo", d: "Ao final, avalie o atendimento. Empresas parceiras podem ter faturamento mensal (consulte)." }
       ]
     },
     empresas: {
       kicker: "Para empresas",
       title: "Sua empresa com um portal próprio de mobilidade.",
-      sub: "Sua equipe agenda as viagens, você acompanha tudo em tempo real e recebe uma fatura única no fim do mês — com centro de custo, relatórios e comprovação de cada corrida.",
-      bullets: ["Cada colaborador com seu acesso", "Corridas separadas por centro de custo", "Fatura mensal com comprovantes", "Assinatura do passageiro ao final"],
+      sub: "Sua equipe agenda as viagens, você acompanha tudo em tempo real com centro de custo, relatórios e comprovação de cada corrida. Faturamento mensal sob consulta.",
+      bullets: ["Cada colaborador com seu acesso", "Corridas separadas por centro de custo", "Faturamento mensal (consulte)", "Assinatura do passageiro ao final"],
       entrar: "Entrar na área da empresa",
       cadastrar: "Cadastrar minha empresa",
       mock: { ola: "Olá, Ana", sub: "Para onde sua empresa vai hoje?", agendar: "Agendar viagem", proximas: "Próximas viagens", hoje: "Hoje · 14h30", amanha: "Amanhã · 08h00" }
@@ -105,7 +105,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
     diferenciais: {
       kicker: "Diferenciais",
       title: "O cuidado está nos detalhes.",
-      items: ["Monitoramento de voo", "Motorista acompanhado ao vivo", "Veículos higienizados diariamente", "Wi-fi, carregador e serviço de bordo", "Fatura mensal para empresas", "Motoristas que falam inglês e espanhol"]
+      items: ["Monitoramento de voo", "Motorista acompanhado ao vivo", "Veículos higienizados diariamente", "Wi-fi, carregador e serviço de bordo", "Faturamento para empresas (consulte)", "Motoristas que falam inglês e espanhol"]
     },
     cidades: { kicker: "Onde atendemos", title: "Base no Espírito Santo. Parceiros nas capitais." },
     cta: { title: "Pronto para a próxima viagem?", sub: "Peça agora e receba o orçamento em minutos." },
@@ -144,14 +144,14 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       items: [
         { t: "Request a quote", d: "On this website, through your company portal or on WhatsApp. We reply quickly." },
         { t: "Track it live", d: "Before pickup you get a link with your driver, the car and the real-time location." },
-        { t: "Ride relaxed", d: "Rate the service at the end. Companies receive one monthly invoice." }
+        { t: "Ride relaxed", d: "Rate the service at the end. Monthly invoicing available for partner companies (on request)." }
       ]
     },
     empresas: {
       kicker: "For companies",
       title: "A dedicated mobility portal for your company.",
-      sub: "Your team books the rides, you follow everything in real time and receive a single monthly invoice — with cost centers, reports and proof of every ride.",
-      bullets: ["Individual access for each employee", "Rides split by cost center", "Monthly invoice with receipts", "Passenger signature at drop-off"],
+      sub: "Your team books the rides, you follow everything in real time with cost centers, reports and proof of every ride. Monthly invoicing on request.",
+      bullets: ["Individual access for each employee", "Rides split by cost center", "Monthly invoicing (on request)", "Passenger signature at drop-off"],
       entrar: "Company login",
       cadastrar: "Register my company",
       mock: { ola: "Hi, Anna", sub: "Where is your company going today?", agendar: "Book a ride", proximas: "Upcoming rides", hoje: "Today · 2:30 pm", amanha: "Tomorrow · 8:00 am" }
@@ -187,7 +187,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
     diferenciais: {
       kicker: "Why Prime",
       title: "Care in every detail.",
-      items: ["Flight monitoring", "Live driver tracking", "Vehicles sanitized daily", "Wi-fi, chargers and onboard amenities", "Monthly invoicing for companies", "English- and Spanish-speaking drivers"]
+      items: ["Flight monitoring", "Live driver tracking", "Vehicles sanitized daily", "Wi-fi, chargers and onboard amenities", "Corporate invoicing (on request)", "English- and Spanish-speaking drivers"]
     },
     cidades: { kicker: "Where we operate", title: "Based in Espírito Santo. Partners in major Brazilian cities." },
     cta: { title: "Ready for your next ride?", sub: "Request now and get your quote in minutes." },
@@ -226,14 +226,14 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       items: [
         { t: "Pide tu cotización", d: "En el sitio, en el portal de tu empresa o por WhatsApp. Respondemos rápido." },
         { t: "Síguelo en vivo", d: "Antes de salir recibes un enlace con el conductor, el auto y la ubicación en tiempo real." },
-        { t: "Viaja tranquilo", d: "Al final, califica el servicio. Las empresas reciben una factura mensual." }
+        { t: "Viaja tranquilo", d: "Al final, califica el servicio. Facturación mensual para empresas asociadas (consultar)." }
       ]
     },
     empresas: {
       kicker: "Para empresas",
       title: "Un portal de movilidad propio para tu empresa.",
-      sub: "Tu equipo reserva los viajes, tú sigues todo en tiempo real y recibes una sola factura mensual — con centros de costo, informes y comprobante de cada viaje.",
-      bullets: ["Acceso individual para cada colaborador", "Viajes por centro de costo", "Factura mensual con comprobantes", "Firma del pasajero al final"],
+      sub: "Tu equipo reserva los viajes, tú sigues todo en tiempo real con centros de costo, informes y comprobante de cada viaje. Facturación mensual a consultar.",
+      bullets: ["Acceso individual para cada colaborador", "Viajes por centro de costo", "Facturación mensual (consultar)", "Firma del pasajero al final"],
       entrar: "Acceso de empresas",
       cadastrar: "Registrar mi empresa",
       mock: { ola: "Hola, Ana", sub: "¿A dónde va tu empresa hoy?", agendar: "Reservar viaje", proximas: "Próximos viajes", hoje: "Hoy · 14:30", amanha: "Mañana · 08:00" }
@@ -269,7 +269,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
     diferenciais: {
       kicker: "Diferenciales",
       title: "El cuidado está en los detalles.",
-      items: ["Monitoreo de vuelos", "Conductor en vivo", "Vehículos higienizados a diario", "Wi-fi, cargador y servicio a bordo", "Factura mensual para empresas", "Conductores que hablan inglés y español"]
+      items: ["Monitoreo de vuelos", "Conductor en vivo", "Vehículos higienizados a diario", "Wi-fi, cargador y servicio a bordo", "Facturación para empresas (consultar)", "Conductores que hablan inglés y español"]
     },
     cidades: { kicker: "Dónde atendemos", title: "Base en Espírito Santo. Socios en las principales ciudades de Brasil." },
     cta: { title: "¿Listo para tu próximo viaje?", sub: "Solicítalo ahora y recibe tu cotización en minutos." },
