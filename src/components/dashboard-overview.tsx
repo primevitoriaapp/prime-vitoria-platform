@@ -58,12 +58,12 @@ function Change({ v }: { v: number | null }) {
 
 function Kpi({ label, value, hint, change, strong }: { label: string; value: string; hint?: string; change?: number | null; strong?: boolean }) {
   return (
-    <div className={`rounded-2xl border p-4 shadow-prime-card ${strong ? "border-[#111] bg-[#111]" : "border-prime-border bg-white"}`}>
-      <p className={`text-xs font-medium ${strong ? "text-prime-gold" : "text-prime-muted"}`}>{label}</p>
-      <p className={`mt-1 text-2xl font-semibold ${strong ? "text-[#fff]" : "text-prime-text"}`}>{value}</p>
+    <div className={`rounded-2xl border p-4 shadow-prime-card ${strong ? "border-prime-gold/50 bg-white ring-1 ring-prime-gold/20" : "border-prime-border bg-white"}`}>
+      <p className={`text-xs font-medium ${strong ? "text-[#A8873A]" : "text-prime-muted"}`}>{label}</p>
+      <p className={`mt-1 text-2xl font-semibold text-prime-text`}>{value}</p>
       <div className="mt-1 flex items-center gap-2">
         {change !== undefined ? <Change v={change ?? null} /> : null}
-        {hint ? <span className={`text-xs ${strong ? "text-[#bbb]" : "text-prime-muted"}`}>{hint}</span> : null}
+        {hint ? <span className={`text-xs text-prime-muted`}>{hint}</span> : null}
       </div>
     </div>
   );

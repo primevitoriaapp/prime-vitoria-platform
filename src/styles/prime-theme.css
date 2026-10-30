@@ -1,9 +1,9 @@
 /**
- * Prime Vitória — tema claro executivo (marfim + sidebar escura + dourado).
+ * Prime Vitória — tema claro e sofisticado (marfim + branco + detalhes dourados), igual ao app do motorista.
  */
 .prime-theme,
 .admin-theme {
-  --prime-bg: #f8f6f1;
+  --prime-bg: #f4f2ee;
   --prime-card-bg: #ffffff;
   --prime-input-bg: #ffffff;
   --prime-input-border: #d4cfc4;
@@ -12,10 +12,10 @@
   --prime-gold-hover: #b8943e;
   --prime-text: #1a1a1a;
   --prime-text-muted: #666666;
-  --prime-sidebar-bg: #1a1a1a;
-  --prime-sidebar-text: #888888;
-  --prime-sidebar-text-active: #c9a84c;
-  --prime-sidebar-hover: #252525;
+  --prime-sidebar-bg: #ffffff;
+  --prime-sidebar-text: #6f6a60;
+  --prime-sidebar-text-active: #111111;
+  --prime-sidebar-hover: #f6f3ec;
   --prime-status-green: #2e7d32;
   --prime-status-red: #c62828;
   --prime-status-amber: #e65100;
@@ -90,13 +90,13 @@
 .prime-theme .btn-primary,
 .admin-theme .btn-primary {
   border-radius: var(--prime-radius-btn);
-  background: var(--prime-gold-gradient);
-  color: #111;
-  font-weight: 700;
+  background: #111;
+  color: #d9bc6a;
+  font-weight: 600;
   padding: 0.55rem 1.1rem;
   font-size: 0.875rem;
   border: none;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 6px 16px -8px rgba(168, 135, 58, 0.7);
+  box-shadow: 0 6px 16px -10px rgba(17, 17, 17, 0.55);
   transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -104,7 +104,7 @@
 .admin-theme .btn-primary:hover:not(:disabled) {
   filter: brightness(1.05);
   transform: translateY(-1px);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 10px 22px -10px rgba(168, 135, 58, 0.8);
+  box-shadow: 0 10px 22px -12px rgba(17, 17, 17, 0.6);
 }
 
 .prime-theme .btn-outline,
@@ -179,8 +179,8 @@
 
 .admin-theme aside.prime-sidebar .prime-nav-active,
 .prime-sidebar .prime-nav-active {
-  border: 1px solid color-mix(in srgb, var(--prime-sidebar-text-active) 35%, transparent);
-  background: color-mix(in srgb, var(--prime-sidebar-text-active) 12%, transparent);
+  border: 1px solid transparent;
+  background: #f4f1ea;
   color: var(--prime-sidebar-text-active);
   font-weight: 600;
 }
@@ -194,7 +194,7 @@
 .admin-theme aside.prime-sidebar .prime-nav-item:hover,
 .prime-sidebar .prime-nav-item:hover {
   background: var(--prime-sidebar-hover);
-  color: #f5f5f5;
+  color: #111;
 }
 
 .admin-theme aside.prime-sidebar .text-prime-muted,
@@ -204,7 +204,7 @@
 
 .admin-theme aside.prime-sidebar button[type="submit"]:hover,
 .prime-sidebar button[type="submit"]:hover {
-  color: #f5f5f5;
+  color: #111;
 }
 
 .prime-badge-green {
@@ -362,9 +362,9 @@
   background: #fcfaf5;
 }
 
-/* Barra lateral: fundo preto com brilho dourado e item ativo com faixa dourada */
+/* Barra lateral clara; item ativo com faixa dourada fina */
 .admin-theme aside.prime-sidebar {
-  background: var(--prime-dark-gradient);
+  background: #fff;
 }
 .admin-theme aside.prime-sidebar .prime-nav-active {
   position: relative;
@@ -372,27 +372,14 @@
 }
 
 /* Faixa de título premium */
+/* Título das telas: limpo, sem faixa escura */
 .prime-page-hero {
   position: relative;
-  overflow: hidden;
-  border-radius: 22px;
-  padding: 1.25rem 1.5rem;
-  background: var(--prime-dark-gradient);
-  color: #f5f1e6;
-  box-shadow: 0 18px 40px -24px rgba(17, 17, 17, 0.6);
-}
-.prime-page-hero::after {
-  content: "";
-  position: absolute;
-  inset: auto -60px -80px auto;
-  width: 260px;
-  height: 260px;
-  border-radius: 9999px;
-  background: radial-gradient(circle, rgba(201, 168, 76, 0.28), transparent 65%);
-  pointer-events: none;
+  padding: 0.25rem 0.25rem 0;
+  color: var(--prime-text);
 }
 .admin-theme .prime-page-hero h1 {
-  color: #fff;
+  color: #111;
 }
 
 /* Barra de rolagem discreta */
