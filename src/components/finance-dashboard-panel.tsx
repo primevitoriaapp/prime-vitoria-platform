@@ -194,6 +194,8 @@ export function FinanceDashboardPanel() {
             <Kpi label="Inadimplência" value={brl(d.open.overdue)} hint={`${d.open.defaultRate}% do que está a receber`} tone={d.open.overdue > 0 ? "bad" : "good"} />
           </div>
 
+          <MonthGoal company={company} today={today} monthRevenue={d.monthly[d.monthly.length - 1]?.revenue ?? 0} />
+
           {d.concentration && d.concentration.share >= 40 ? (
             <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               <strong>Atenção à concentração:</strong> {d.concentration.name} responde por {d.concentration.share}% do faturamento do período. Se esse cliente atrasar ou sair, o
@@ -457,5 +459,65 @@ function MonthlyChart({ data }: { data: Report["monthly"] }) {
         {best && best.revenue > 0 ? <span>Melhor mês: {label(best.month)} ({brl(best.revenue)})</span> : null}
       </div>
     </div>
+  );
+}
+
+/** Meta de faturamento do mês corrente com barra de progresso e ritmo necessário. */
+function MonthGoal({ company, today, monthRevenue }: { company: string; today: string; monthRevenue: number }) {
+  const month = today.slice(0, 7);
+  const [goal, setGoal] = useState<number | null>(null);
+  const [edit, setEdit] = useState(false);
+  const [val, setVal] = useState("");
+  useEffect(() => {
+    void (async () => {
+      const res = await fetchWithSupabaseSession(`/api/finance/goals?month=${month}&scope=${company}`, {}, "admin");
+      const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { revenue_goal: number | null } };
+      setGoal(j.data?.revenue_goal ?? null);
+    })();
+  }, [month, company]);
+  async function save() {
+    const n = Number(val.replace(/\./g, "").replace(",", "."));
+    if (!Number.isFinite(n)) return;
+    await fetchWithSupabaseSession("/api/finance/goals", { method: "PUT", body: JSON.stringify({ month, scope: company, revenue_goal: n }) }, "admin");
+    setGoal(n);
+    setEdit(false);
+  }
+  const [y, m] = month.split("-").map(Number);
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const day = Number(today.slice(8, 10));
+  const pct = goal ? Math.min(100, Math.round((monthRevenue / goal) * 100)) : 0;
+  const expected = goal ? Math.round((day / daysInMonth) * 100) : 0;
+  const perDay = goal && goal > monthRevenue ? (goal - monthRevenue) / Math.max(1, daysInMonth - day + 1) : 0;
+  return (
+    <section className="rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-base font-semibold">Meta de faturamento do mês</h2>
+        {edit ? (
+          <span className="flex gap-2">
+            <input className={PRIME_INPUT_CLASS} inputMode="decimal" placeholder="Ex.: 80.000" value={val} onChange={(e) => setVal(e.target.value.replace(/[^0-9.,]/g, ""))} />
+            <button type="button" className="btn-primary" onClick={() => void save()}>
+              Salvar
+            </button>
+          </span>
+        ) : (
+          <button type="button" className="text-sm font-semibold text-prime-gold underline" onClick={() => setEdit(true)}>
+            {goal ? "Alterar meta" : "Definir meta"}
+          </button>
+        )}
+      </div>
+      {goal ? (
+        <>
+          <div className="mt-3 h-4 overflow-hidden rounded-full bg-prime-bg">
+            <div className={`h-full rounded-full ${pct >= expected ? "bg-emerald-600" : "bg-prime-gold"}`} style={{ width: `${pct}%` }} />
+          </div>
+          <p className="mt-2 text-sm">
+            <b>{brl(monthRevenue)}</b> de {brl(goal)} ({pct}%) · esperado para hoje: {expected}%
+            {perDay ? <span className="text-prime-muted"> · faltam {brl(perDay)} por dia</span> : <span className="text-emerald-700"> · meta batida!</span>}
+          </p>
+        </>
+      ) : (
+        <p className="mt-1 text-sm text-prime-muted">Defina quanto quer faturar este mês para acompanhar o ritmo dia a dia.</p>
+      )}
+    </section>
   );
 }

@@ -391,18 +391,23 @@ export function DriverTripsPanel({
         ) : (
           <div className="mt-4 space-y-4">
             <div>
-              <h3 className="text-sm font-medium text-slate-300">Ordem do dia (mais cedo primeiro)</h3>
-              <ol className="mt-2 space-y-2">
-                {active.map((trip, index) => (
-                  <DriverTripScheduleRow
-                    key={trip.id}
-                    trip={trip}
-                    position={index + 1}
-                    isFocus={trip.id === primaryId}
-                    waitLabel={trip.wait_started_at ? waitElapsedLabelForTrip(trip) : null}
-                  />
-                ))}
-              </ol>
+              <h3 className="text-sm font-medium text-slate-300">Minha agenda ({active.length})</h3>
+              {groupByDay(active).map((g) => (
+                <div key={g.key} className="mt-3">
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[#C9A84C]">{g.label}</p>
+                  <ol className="space-y-2">
+                    {g.trips.map((trip) => (
+                      <DriverTripScheduleRow
+                        key={trip.id}
+                        trip={trip}
+                        position={active.indexOf(trip) + 1}
+                        isFocus={trip.id === primaryId}
+                        waitLabel={trip.wait_started_at ? waitElapsedLabelForTrip(trip) : null}
+                      />
+                    ))}
+                  </ol>
+                </div>
+              ))}
             </div>
 
             {primaryTrip ? (
@@ -674,4 +679,32 @@ function CompactActiveTripCard({
       </div>
     </li>
   );
+}
+
+/** Agrupa as corridas por dia: Hoje, Amanhã, depois o dia da semana. */
+function groupByDay(list: Trip[]): { key: string; label: string; trips: Trip[] }[] {
+  const ymd = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(iso));
+  const today = ymd(new Date().toISOString());
+  const tomorrow = ymd(new Date(Date.now() + 86400000).toISOString());
+  const out: { key: string; label: string; trips: Trip[] }[] = [];
+  for (const t of list) {
+    const k = t.scheduled_at ? ymd(t.scheduled_at) : "sem-data";
+    let g = out.find((x) => x.key === k);
+    if (!g) {
+      const label =
+        k === "sem-data"
+          ? "Sem data"
+          : k < today
+            ? "Atrasadas (já passou o horário)"
+            : k === today
+              ? "Hoje"
+              : k === tomorrow
+                ? "Amanhã"
+                : new Date(`${k}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone: "UTC" });
+      g = { key: k, label, trips: [] };
+      out.push(g);
+    }
+    g.trips.push(t);
+  }
+  return out;
 }
