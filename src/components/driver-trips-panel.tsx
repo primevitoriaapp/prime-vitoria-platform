@@ -17,6 +17,7 @@ import { useDocumentVisible } from "@/hooks/use-document-visible";
 import { useDriverTripGpsTracking } from "@/hooks/use-driver-trip-gps-tracking";
 import { parseDriverKmInput } from "@/lib/trips/driver-complete-km";
 import { DriverFinishSheet } from "@/components/driver-finish-sheet";
+import { DriverTripFocus } from "@/components/driver-trip-focus";
 import { DriverPassengerLink } from "@/components/driver-passenger-link";
 import { DriverTripExpenses } from "@/components/trip-expenses";
 
@@ -344,6 +345,22 @@ export function DriverTripsPanel({
         {loading ? "Carregando corridas…" : message ?? (active.length ? `${active.length} corridas ativas` : "Sem corridas ativas")}
       </p>
       {message && !sheet ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{message}</p> : null}
+
+      {primaryTrip && ["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) && !hidden ? (
+        <DriverTripFocus
+          trip={primaryTrip}
+          isBusy={busyTrip === primaryTrip.id}
+          waitElapsedLabel={primaryTrip.wait_started_at ? waitElapsedLabel : null}
+          waitBusy={waitBusy}
+          gps={getTripGpsState(primaryTrip.id)}
+          devFallbackRole={devFallbackRole}
+          onStatus={setStatus}
+          onWaitStart={(id) => void setWait(id, "start")}
+          onWaitStop={(id) => void setWait(id, "stop")}
+          onCompletePickupStop={(id, idx) => void completePickupStop(id, idx)}
+          message={sheet ? null : message}
+        />
+      ) : null}
 
       {view === "inicio" ? (
         <section className="space-y-3">

@@ -9,6 +9,7 @@ import { DriverTripsPanel } from "@/components/driver-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { DriverProfilePanel } from "@/components/driver-profile-panel";
 import { PushSetup } from "@/components/push-setup";
+import { InstallAppCard } from "@/components/install-app-card";
 
 type DriverOption = { id: string; cpf: string; profile_name?: string | null };
 type Me = {
@@ -168,6 +169,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
       <main className="mx-auto max-w-lg space-y-5 px-4 pt-5">
         {tab === "inicio" ? (
           <>
+            {mode === "motorista" ? <InstallAppCard /> : null}
             {mode === "motorista" ? <PushSetup audience="motorista" /> : null}
             {mode === "motorista" ? (
               <section className="space-y-2">
