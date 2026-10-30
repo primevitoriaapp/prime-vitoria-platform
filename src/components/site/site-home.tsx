@@ -169,10 +169,10 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
       </section>
 
       {/* Equipe */}
-      <section className="relative overflow-hidden">
-        <img src="/site/equipe.webp" alt={T.equipe.title} loading="lazy" className="h-[420px] w-full object-cover sm:h-[520px]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" aria-hidden />
-        <div className="absolute inset-x-0 bottom-0 mx-auto max-w-6xl px-5 pb-10">
+      <section className="relative overflow-hidden bg-[#111]">
+        <img src="/site/equipe.webp" alt={T.equipe.title} loading="lazy" className="aspect-[2/1] w-full object-cover sm:aspect-auto sm:h-[620px] sm:object-[center_70%]" />
+        <div className="absolute inset-0 hidden bg-gradient-to-t from-black/85 via-black/20 to-transparent sm:block" aria-hidden />
+        <div className="mx-auto max-w-6xl px-5 pb-10 pt-6 sm:absolute sm:inset-x-0 sm:bottom-0 sm:pt-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: "#D9BC6A" }}>
             {T.equipe.kicker}
           </p>
