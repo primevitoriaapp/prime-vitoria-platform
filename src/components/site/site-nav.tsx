@@ -51,6 +51,16 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
         </nav>
         <div className="hidden items-center gap-2 md:flex">
           <Langs lang={lang} dark={dark} />
+          <a
+          href={SITE.phoneHref}
+          aria-label={SITE_TEXT[lang].footer.ligar}
+          className={`flex h-10 items-center gap-2 rounded-full px-3 text-sm font-medium ${dark ? "bg-[#F4F1EA] text-[#111]" : "bg-white/15 text-[#fff] backdrop-blur"}`}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />
+          </svg>
+          <span className="hidden lg:inline">{SITE.phone.replace("+55 ", "")}</span>
+        </a>
           <div className="relative">
             <button
               type="button"
@@ -80,7 +90,16 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
           </Link>
         </div>
         <div className="flex items-center gap-2 md:hidden">
-        <Langs lang={lang} dark={dark} />
+        <a
+          href={SITE.phoneHref}
+          aria-label={SITE_TEXT[lang].footer.ligar}
+          className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium ${dark ? "bg-[#F4F1EA] text-[#111]" : "bg-white/15 text-[#fff] backdrop-blur"}`}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />
+          </svg>
+          <span className="hidden lg:inline">{SITE.phone.replace("+55 ", "")}</span>
+        </a>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -101,6 +120,9 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
               {l}
             </a>
           ))}
+          <div className="mt-4 flex justify-center">
+            <Langs lang={lang} dark />
+          </div>
           <div className="mt-5 grid gap-2">
             <Link href={agendar} className="rounded-2xl bg-[#111] py-3.5 text-center font-semibold text-[#D9BC6A]">
               {T.agendar}

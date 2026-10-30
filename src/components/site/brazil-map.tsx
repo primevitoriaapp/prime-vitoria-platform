@@ -17,15 +17,37 @@ const K = 10;
 const px = (lng: number) => (lng + 75) * K;
 const py = (lat: number) => (6 - lat) * K;
 
-export type MapCity = { name: string; lat: number; lng: number; hq?: boolean };
+export type MapCity = { name: string; lat: number; lng: number; hq?: boolean; side?: "l" | "r"; dy?: number };
 
+/** Vitória (sede) e todas as capitais do Brasil. */
 export const MAP_CITIES: MapCity[] = [
   { name: "Vitória", lat: -20.32, lng: -40.34, hq: true },
-  { name: "São Paulo", lat: -23.55, lng: -46.63 },
-  { name: "Rio de Janeiro", lat: -22.91, lng: -43.2 },
-  { name: "Belo Horizonte", lat: -19.92, lng: -43.94 },
-  { name: "Salvador", lat: -12.97, lng: -38.5 },
-  { name: "Recife", lat: -8.05, lng: -34.88 }
+  { name: "Rio Branco", lat: -9.97, lng: -67.81, side: "r" },
+  { name: "Porto Velho", lat: -8.76, lng: -63.9, side: "r" },
+  { name: "Manaus", lat: -3.12, lng: -60.02, side: "r" },
+  { name: "Boa Vista", lat: 2.82, lng: -60.67, side: "r" },
+  { name: "Macapá", lat: 0.03, lng: -51.07, side: "r" },
+  { name: "Belém", lat: -1.46, lng: -48.5, side: "r" },
+  { name: "São Luís", lat: -2.53, lng: -44.3, side: "r", dy: -2 },
+  { name: "Teresina", lat: -5.09, lng: -42.8, side: "l" },
+  { name: "Fortaleza", lat: -3.72, lng: -38.54, side: "r" },
+  { name: "Natal", lat: -5.79, lng: -35.21, side: "r" },
+  { name: "João Pessoa", lat: -7.12, lng: -34.86, side: "r", dy: -2 },
+  { name: "Recife", lat: -8.05, lng: -34.88, side: "r", dy: 4 },
+  { name: "Maceió", lat: -9.67, lng: -35.73, side: "r" },
+  { name: "Aracaju", lat: -10.91, lng: -37.07, side: "r" },
+  { name: "Salvador", lat: -12.97, lng: -38.5, side: "r" },
+  { name: "Palmas", lat: -10.18, lng: -48.33, side: "r" },
+  { name: "Brasília", lat: -15.79, lng: -47.88, side: "r" },
+  { name: "Goiânia", lat: -16.68, lng: -49.25, side: "l", dy: 3 },
+  { name: "Cuiabá", lat: -15.6, lng: -56.1, side: "r" },
+  { name: "Campo Grande", lat: -20.47, lng: -54.62, side: "r" },
+  { name: "Belo Horizonte", lat: -19.92, lng: -43.94, side: "l" },
+  { name: "Rio de Janeiro", lat: -22.91, lng: -43.2, side: "r" },
+  { name: "São Paulo", lat: -23.55, lng: -46.63, side: "l" },
+  { name: "Curitiba", lat: -25.43, lng: -49.27, side: "l" },
+  { name: "Florianópolis", lat: -27.6, lng: -48.55, side: "r" },
+  { name: "Porto Alegre", lat: -30.03, lng: -51.23, side: "r" }
 ];
 
 export function BrazilMap({ sedeLabel }: { sedeLabel: string }) {
@@ -36,23 +58,23 @@ export function BrazilMap({ sedeLabel }: { sedeLabel: string }) {
       <path d={d} fill="#EFEADF" stroke="#D9CFB8" strokeWidth="2" strokeLinejoin="round" />
       {/* Linhas saindo de Vitória */}
       {MAP_CITIES.filter((c) => !c.hq).map((c) => (
-        <line key={`l-${c.name}`} x1={px(hq.lng)} y1={py(hq.lat)} x2={px(c.lng)} y2={py(c.lat)} stroke="#C9A84C" strokeWidth="1.3" strokeDasharray="3 4" opacity="0.7" />
+        <line key={`l-${c.name}`} x1={px(hq.lng)} y1={py(hq.lat)} x2={px(c.lng)} y2={py(c.lat)} stroke="#C9A84C" strokeWidth="1" strokeDasharray="2.5 3.5" opacity="0.55" />
       ))}
       {MAP_CITIES.map((c) => {
         const x = px(c.lng);
         const y = py(c.lat);
-        const left = c.name === "São Paulo" || c.name === "Belo Horizonte";
+        const left = c.side === "l";
         return (
           <g key={c.name}>
             {c.hq ? <circle cx={x} cy={y} r="16" fill="#C9A84C" opacity="0.18" /> : null}
-            <circle cx={x} cy={y} r={c.hq ? 7 : 5} fill={c.hq ? "#111" : "#C9A84C"} stroke="#fff" strokeWidth="2" />
+            <circle cx={x} cy={y} r={c.hq ? 7 : 3.6} fill={c.hq ? "#111" : "#C9A84C"} stroke="#fff" strokeWidth="2" />
             <text
-              x={left ? x - 10 : x + 11}
-              y={y + 4}
+              x={left ? x - (c.hq ? 10 : 6) : x + (c.hq ? 11 : 6)}
+              y={y + (c.hq ? 5 : 3) + (c.dy ?? 0)}
               textAnchor={left ? "end" : "start"}
-              fontSize={c.hq ? 14 : 12}
+              fontSize={c.hq ? 14 : 8.5}
               fontWeight={c.hq ? 700 : 500}
-              fill="#111"
+              fill={c.hq ? "#111" : "#555"}
               style={{ fontFamily: "inherit" }}
             >
               {c.name}

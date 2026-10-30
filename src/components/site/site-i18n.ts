@@ -26,7 +26,7 @@ export type SiteText = {
   diferenciais: { kicker: string; title: string; items: string[] };
   cidades: { kicker: string; title: string };
   cta: { title: string; sub: string };
-  footer: { fale: string; acesso: string; privacidade: string };
+  footer: { fale: string; acesso: string; privacidade: string; ligar: string; fixo: string; celular: string };
   whatsappMsg: string;
 };
 
@@ -45,7 +45,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       badges: ["10 anos de estrada", "Monitoramento de voo", "Motorista ao vivo no seu celular"],
       alt: "Terceira Ponte, Vitória/ES"
     },
-    mapa: { kicker: "Onde atendemos", title: "De Vitória para todo o Brasil.", sub: "Nossa sede é no Espírito Santo, e levamos o mesmo padrão Prime para as principais cidades do país.", sede: "Sede" },
+    mapa: { kicker: "Onde atendemos", title: "De Vitória para todo o Brasil.", sub: "Nossa sede é no Espírito Santo, e levamos o mesmo padrão Prime para todas as capitais do Brasil.", sede: "Sede" },
     servicos: {
       kicker: "Serviços",
       title: "Para cada compromisso, o carro certo.",
@@ -75,7 +75,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       sub: "Sua equipe agenda as viagens, você acompanha tudo em tempo real com centro de custo, relatórios e comprovação de cada corrida. Faturamento mensal sob consulta.",
       bullets: ["Cada colaborador com seu acesso", "Corridas separadas por centro de custo", "Faturamento mensal (consulte)", "Assinatura do passageiro ao final"],
       entrar: "Entrar na área da empresa",
-      cadastrar: "Cadastre sua empresa e faça parte",
+      cadastrar: "Cadastre sua empresa e tenha acesso ao portal",
       waMsg: "Olá, quero cadastrar minha empresa na Prime Vitória.",
       mock: { ola: "Olá, Ana", sub: "Para onde sua empresa vai hoje?", agendar: "Agendar viagem", proximas: "Próximas viagens", hoje: "Hoje · 14h30", amanha: "Amanhã · 08h00" }
     },
@@ -114,7 +114,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
     },
     cidades: { kicker: "Onde atendemos", title: "Base no Espírito Santo. Parceiros nas capitais." },
     cta: { title: "Pronto para a próxima viagem?", sub: "Peça agora e receba o orçamento em minutos." },
-    footer: { fale: "Fale com a gente", acesso: "Acesso rápido", privacidade: "Privacidade e termos" },
+    footer: { fale: "Fale com a gente", acesso: "Acesso rápido", privacidade: "Privacidade e termos", ligar: "Ligar", fixo: "Central", celular: "Celular" },
     whatsappMsg: "Olá, vim pelo site da Prime Vitória."
   },
   en: {
@@ -131,7 +131,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       badges: ["10 years on the road", "Flight monitoring", "Track your driver live"],
       alt: "Terceira Ponte bridge, Vitória, Brazil"
     },
-    mapa: { kicker: "Where we operate", title: "From Vitória to all of Brazil.", sub: "Headquartered in Espírito Santo, we bring the same Prime standard to Brazil's main cities.", sede: "Headquarters" },
+    mapa: { kicker: "Where we operate", title: "From Vitória to all of Brazil.", sub: "Headquartered in Espírito Santo, we bring the same Prime standard to every state capital in Brazil.", sede: "Headquarters" },
     servicos: {
       kicker: "Services",
       title: "The right car for every occasion.",
@@ -161,7 +161,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       sub: "Your team books the rides, you follow everything in real time with cost centers, reports and proof of every ride. Monthly invoicing on request.",
       bullets: ["Individual access for each employee", "Rides split by cost center", "Monthly invoicing (on request)", "Passenger signature at drop-off"],
       entrar: "Company login",
-      cadastrar: "Register your company",
+      cadastrar: "Register your company and get portal access",
       waMsg: "Hello, I would like to register my company with Prime Vitória.",
       mock: { ola: "Hi, Anna", sub: "Where is your company going today?", agendar: "Book a ride", proximas: "Upcoming rides", hoje: "Today · 2:30 pm", amanha: "Tomorrow · 8:00 am" }
     },
@@ -200,7 +200,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
     },
     cidades: { kicker: "Where we operate", title: "Based in Espírito Santo. Partners in major Brazilian cities." },
     cta: { title: "Ready for your next ride?", sub: "Request now and get your quote in minutes." },
-    footer: { fale: "Contact us", acesso: "Quick links", privacidade: "Privacy and terms" },
+    footer: { fale: "Contact us", acesso: "Quick links", privacidade: "Privacy and terms", ligar: "Call", fixo: "Office", celular: "Mobile" },
     whatsappMsg: "Hello, I found Prime Vitória on your website."
   },
   es: {
@@ -217,7 +217,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       badges: ["10 años en el camino", "Monitoreo de vuelos", "Tu conductor en vivo"],
       alt: "Tercer Puente, Vitória, Brasil"
     },
-    mapa: { kicker: "Dónde atendemos", title: "De Vitória a todo Brasil.", sub: "Nuestra sede está en Espírito Santo y llevamos el mismo estándar Prime a las principales ciudades del país.", sede: "Sede" },
+    mapa: { kicker: "Dónde atendemos", title: "De Vitória a todo Brasil.", sub: "Nuestra sede está en Espírito Santo y llevamos el mismo estándar Prime a todas las capitales de Brasil.", sede: "Sede" },
     servicos: {
       kicker: "Servicios",
       title: "El auto ideal para cada ocasión.",
@@ -247,7 +247,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       sub: "Tu equipo reserva los viajes, tú sigues todo en tiempo real con centros de costo, informes y comprobante de cada viaje. Facturación mensual a consultar.",
       bullets: ["Acceso individual para cada colaborador", "Viajes por centro de costo", "Facturación mensual (consultar)", "Firma del pasajero al final"],
       entrar: "Acceso de empresas",
-      cadastrar: "Registra tu empresa",
+      cadastrar: "Registra tu empresa y accede al portal",
       waMsg: "Hola, quiero registrar mi empresa en Prime Vitória.",
       mock: { ola: "Hola, Ana", sub: "¿A dónde va tu empresa hoy?", agendar: "Reservar viaje", proximas: "Próximos viajes", hoje: "Hoy · 14:30", amanha: "Mañana · 08:00" }
     },
@@ -286,7 +286,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
     },
     cidades: { kicker: "Dónde atendemos", title: "Base en Espírito Santo. Socios en las principales ciudades de Brasil." },
     cta: { title: "¿Listo para tu próximo viaje?", sub: "Solicítalo ahora y recibe tu cotización en minutos." },
-    footer: { fale: "Contáctanos", acesso: "Accesos", privacidade: "Privacidad y términos" },
+    footer: { fale: "Contáctanos", acesso: "Accesos", privacidade: "Privacidad y términos", ligar: "Llamar", fixo: "Central", celular: "Móvil" },
     whatsappMsg: "Hola, encontré Prime Vitória en su sitio web."
   }
 };
