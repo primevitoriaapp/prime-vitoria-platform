@@ -70,6 +70,7 @@ export function SiteHeader() {
   // Telas com cabeçalho próprio (portal do cliente, voucher, entrar e senha).
   if (
     pathname === "/" ||
+    pathname.startsWith("/site") ||
     pathname.startsWith("/client") ||
     pathname.startsWith("/voucher") ||
     pathname.startsWith("/fatura") ||
