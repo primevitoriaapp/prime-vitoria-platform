@@ -5,6 +5,7 @@ import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { getSessionContext } from "@/lib/server/session";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
 
 async function loadDriversForAdmin() {
@@ -21,6 +22,9 @@ export default async function DriverPage() {
   const isGuest = session.role === "guest" || session.userId === "anonymous";
   const tenantId =
     session.role === "guest" || session.userId === "anonymous" ? null : (session.tenantId ?? DEFAULT_TENANT_ID);
+
+  // Quem não entrou vai direto para a tela de entrada do motorista.
+  if (isGuest) redirect("/driver/login");
 
   if (!isMotorista && !isAdminPreview) {
     return (
