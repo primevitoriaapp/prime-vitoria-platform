@@ -15,6 +15,14 @@ const SERVICE_ICONS = [
   "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"
 ];
 const FLEET_IMG = [SITE.img.sedan, SITE.img.suv, SITE.img.van];
+const SOCIAL = [
+  { id: "instagram", label: "Instagram", d: "M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM17.5 6.5h.01" },
+  { id: "facebook", label: "Facebook", d: "M15 3h-2a4 4 0 0 0-4 4v3H7v4h2v7h4v-7h3l1-4h-4V7a1 1 0 0 1 1-1h2z" },
+  { id: "linkedin", label: "LinkedIn", d: "M4 9h4v12H4zM6 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM10 9h4v2c.6-1.2 2-2.2 4-2.2 3 0 4 2 4 5.2V21h-4v-6c0-1.5-.5-2.5-2-2.5S14 13.6 14 15v6h-4z" },
+  { id: "tiktok", label: "TikTok", d: "M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5M14 3c.5 2.5 2.5 4.5 5 4.5" },
+  { id: "youtube", label: "YouTube", d: "M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM10 9l5 3-5 3z" }
+] as const;
+
 const CIDADES = ["Vitória", "Vila Velha", "Serra", "Guarapari", "São Paulo", "Rio de Janeiro", "Belo Horizonte", "Salvador", "Recife"];
 
 function Icon({ d }: { d: string }) {
@@ -354,9 +362,22 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
             <a href={`mailto:${SITE.email}`} className="mt-1 block text-[#6F6A60]">
               {SITE.email}
             </a>
-            <a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="mt-1 block text-[#6F6A60]">
-              @primevitoria
-            </a>
+            <div className="mt-4 flex gap-2">
+              {SOCIAL.filter((x) => SITE.social[x.id]).map((x) => (
+                <a
+                  key={x.id}
+                  href={SITE.social[x.id]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={x.label}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F1EA] text-[#111] transition hover:bg-[#111] hover:text-[#D9BC6A]"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d={x.d} />
+                  </svg>
+                </a>
+              ))}
+            </div>
           </div>
           <div className="text-sm">
             <p className="font-semibold">{T.footer.acesso}</p>
