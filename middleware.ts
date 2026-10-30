@@ -31,7 +31,42 @@ const protectedPrefixes: Array<{ prefix: string; allowedRoles: string[] }> = [
   { prefix: "/client", allowedRoles: ["cliente", "admin"] }
 ];
 
+/**
+ * Endereços separados no domínio próprio:
+ * primevitoria.com → site · motorista.primevitoria.com → app do motorista
+ * empresa.primevitoria.com → portal do cliente · central.primevitoria.com → painel da equipe
+ */
+function routeByHost(request: NextRequest): NextResponse | null {
+  const host = (request.headers.get("host") ?? "").toLowerCase().split(":")[0];
+  if (!host.endsWith("primevitoria.com")) return null;
+  const sub = host.replace(/\.?primevitoria\.com$/, "");
+  const { pathname } = request.nextUrl;
+  const url = request.nextUrl.clone();
+  if (sub === "" || sub === "www") {
+    const SITE_PATHS: Record<string, string> = { "/": "/site", "/en": "/site/en", "/es": "/site/es" };
+    if (SITE_PATHS[pathname]) {
+      url.pathname = SITE_PATHS[pathname];
+      return NextResponse.rewrite(url);
+    }
+    // Endereço bonito: /site/en vira /en.
+    if (pathname === "/site" || pathname.startsWith("/site/")) {
+      url.pathname = pathname.replace(/^\/site/, "") || "/";
+      return NextResponse.redirect(url, 308);
+    }
+    return null;
+  }
+  if (pathname !== "/") return null;
+  const HOME: Record<string, string> = { motorista: "/driver", empresa: "/client", cliente: "/client", central: "/dashboard", painel: "/dashboard" };
+  if (HOME[sub]) {
+    url.pathname = HOME[sub];
+    return NextResponse.redirect(url);
+  }
+  return null;
+}
+
 export async function middleware(request: NextRequest) {
+  const byHost = routeByHost(request);
+  if (byHost) return byHost;
   const allowHeaders = trustHeaderAuth();
   const headerRaw = request.headers.get("x-role");
   const headerRole = allowHeaders && headerRaw ? asUserRole(headerRaw) : null;
@@ -88,6 +123,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
+    "/en",
+    "/es",
+    "/site/:path*",
     "/dashboard/:path*",
     "/agenda/:path*",
     "/clients/:path*",
