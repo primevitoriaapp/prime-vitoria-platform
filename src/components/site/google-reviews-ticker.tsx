@@ -12,9 +12,14 @@ export function GoogleReviewsTicker({ data, reviewsUrl, label }: Props) {
   const [show, setShow] = useState(false);
   const n = data.reviews.length;
 
+  // Aparece depois que a pessoa passa da foto do topo, para não cobrir a chamada principal.
   useEffect(() => {
-    const t = window.setTimeout(() => setShow(true), 2500);
-    return () => window.clearTimeout(t);
+    const on = () => {
+      if (window.scrollY > window.innerHeight * 0.6) setShow(true);
+    };
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
   }, []);
   useEffect(() => {
     if (n < 2) return;
