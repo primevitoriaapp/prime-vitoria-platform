@@ -6,25 +6,12 @@ import { clearDriverTabAlertBadge, notifyDriverNewAssignment } from "@/lib/clien
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
-import { driverPrimaryActionLabel } from "@/lib/trips/driver-step-copy";
 import { StatusBadge } from "@/components/status-badge";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
-import { buildDriverNavigationLinks } from "@/lib/trips/driver-nav-links";
-import { driverNextStatuses } from "@/lib/trips/driver-next-status";
-import { confirmDriverStatusTransition } from "@/lib/trips/driver-status-confirm";
-import { buildNavigationLinksToPoint } from "@/lib/trips/driver-nav-links";
-import type { DriverTripGpsState } from "@/lib/trips/driver-complete-km";
-import {
-  driverCanCompleteTrip,
-  driverShowsManualKmOnComplete,
-  formatDriverGpsKm
-} from "@/lib/trips/driver-complete-km";
 import { pickDriverFocusTripId } from "@/lib/trips/driver-step-copy";
-import { formatTripKmLine } from "@/lib/trips/format-km";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
 import { DriverActiveTripHero } from "@/components/driver-active-trip-hero";
 import { DriverNewTripBanner } from "@/components/driver-new-trip-banner";
-import { TripLegLabelBadge } from "@/components/trip-leg-label-badge";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
 import { useDriverTripGpsTracking } from "@/hooks/use-driver-trip-gps-tracking";
@@ -50,18 +37,25 @@ type Props = {
   tenantId?: string | null;
   driverIdFilter?: string | null;
   devFallbackRole?: "motorista" | "admin";
+  /** Qual aba do app está aberta: início (próxima corrida), agenda (próximas) ou corridas (histórico). */
+  view?: "inicio" | "agenda" | "historico";
+  onSeeAll?: () => void;
+  /** Mantém a lógica (avisos, GPS) rodando mesmo com outra aba aberta. */
+  hidden?: boolean;
 };
 
 export function DriverTripsPanel({
   tenantId = null,
   driverIdFilter = null,
-  devFallbackRole = "motorista"
+  devFallbackRole = "motorista",
+  view = "inicio",
+  onSeeAll,
+  hidden = false
 }: Props) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [busyTrip, setBusyTrip] = useState<string | null>(null);
-  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
   const [highlightTripId, setHighlightTripId] = useState<string | null>(null);
   const [newTripBanner, setNewTripBanner] = useState<{ origin: string; destination: string } | null>(null);
   const [waitBusy, setWaitBusy] = useState(false);
@@ -105,7 +99,6 @@ export function DriverTripsPanel({
     tripsInitializedRef.current = true;
     setTrips(items);
     setMessage(null);
-    setLastRefreshAt(new Date());
     setLoading(false);
   }, [devFallbackRole, driverIdFilter]);
 
@@ -146,18 +139,7 @@ export function DriverTripsPanel({
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [waitingTrip?.wait_started_at, waitTick]);
 
-  const waitElapsedLabelForTrip = useCallback(
-    (trip: Trip) => {
-      void waitTick;
-      if (!trip.wait_started_at) return null;
-      const ms = Math.max(0, Date.now() - new Date(trip.wait_started_at).getTime());
-      const totalSec = Math.floor(ms / 1000);
-      const m = Math.floor(totalSec / 60);
-      const s = totalSec % 60;
-      return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    },
-    [waitTick]
-  );
+
 
   useEffect(() => {
     if (!docVisible) return;
@@ -343,10 +325,14 @@ export function DriverTripsPanel({
   const recentHistory = trips
     .filter((t) => HISTORY.includes(t.operational_status))
     .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
-    .slice(0, 10);
+    .slice(0, 30);
+
+  const card = "rounded-3xl border border-[#ECE7DB] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.05)]";
+  const hm = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).replace(":", "h");
+  const short = (a?: string | null) => String(a ?? "—").split(",")[0];
 
   return (
-    <>
+    <div className={hidden ? "hidden" : "space-y-5"}>
       {newTripBanner ? (
         <DriverNewTripBanner
           origin={newTripBanner.origin}
@@ -354,71 +340,31 @@ export function DriverTripsPanel({
           onDismiss={() => setNewTripBanner(null)}
         />
       ) : null}
-      <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 md:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-white md:text-xl">Corridas</h2>
-          <div className="flex flex-col items-end gap-0.5">
-            <button
-              type="button"
-              onClick={() => void load({ silent: trips.length > 0 })}
-              disabled={loading && trips.length === 0}
-              className="min-h-[2.75rem] rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
-            >
-              {loading && trips.length > 0 ? "Atualizando…" : "Atualizar"}
-            </button>
-            {lastRefreshAt ? (
-              <span className="text-[10px] text-slate-500">
-                {active.length > 0 ? "Auto 15s · " : "Auto 15s · "}
-                {lastRefreshAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                {!docVisible ? " · separador inativo" : null}
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {loading ? "Carregando corridas…" : message ?? (active.length ? `${active.length} corridas ativas` : "Sem corridas ativas")}
+      </p>
+      {message && !sheet ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{message}</p> : null}
+
+      {view === "inicio" ? (
+        <section className="space-y-3">
+          <div className="flex items-end justify-between px-1">
+            <h2 className="text-lg font-semibold text-[#111]">Próxima corrida</h2>
+            {primaryTrip ? (
+              <span className="text-sm text-[#8A8A8A]">
+                {groupByDay([primaryTrip])[0]?.label} · {hm(primaryTrip.scheduled_at)}
               </span>
             ) : null}
           </div>
-        </div>
-
-        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          {loading ? "Carregando corridas…" : message ?? (active.length ? `${active.length} corridas ativas` : "Sem corridas ativas")}
-        </p>
-        {message ? <p className="mt-3 text-sm text-amber-200/90" aria-hidden="true">{message}</p> : null}
-
-        {loading ? (
-          <DriverTripSkeleton />
-        ) : active.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">
-            Sem corrida actual. Após despacho da central, a corrida aparece aqui — actualização automática a cada 15s
-            (ou notificação push quando ativa).
-          </p>
-        ) : (
-          <div className="mt-4 space-y-4">
-            <div>
-              <h3 className="text-sm font-medium text-slate-300">Minha agenda ({active.length})</h3>
-              {groupByDay(active).map((g) => (
-                <div key={g.key} className="mt-3">
-                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[#C9A84C]">{g.label}</p>
-                  <ol className="space-y-2">
-                    {g.trips.map((trip) => (
-                      <DriverTripScheduleRow
-                        key={trip.id}
-                        trip={trip}
-                        position={active.indexOf(trip) + 1}
-                        isFocus={trip.id === primaryId}
-                        waitLabel={trip.wait_started_at ? waitElapsedLabelForTrip(trip) : null}
-                      />
-                    ))}
-                  </ol>
-                </div>
-              ))}
+          {loading ? (
+            <DriverTripSkeleton />
+          ) : !primaryTrip ? (
+            <div className={`${card} text-center`}>
+              <p className="text-3xl">🚘</p>
+              <p className="mt-2 font-semibold text-[#111]">Nenhuma corrida agendada</p>
+              <p className="mt-1 text-sm text-[#8A8A8A]">Quando a central te passar uma corrida, ela aparece aqui e o celular avisa.</p>
             </div>
-
-            {primaryTrip ? (
-              <DriverPassengerLink tripId={primaryTrip.id} status={primaryTrip.operational_status} devFallbackRole={devFallbackRole} />
-            ) : null}
-
-            {primaryTrip && ["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) ? (
-              <DriverTripExpenses tripId={primaryTrip.id} devFallbackRole={devFallbackRole} />
-            ) : null}
-
-            {primaryTrip ? (
+          ) : (
+            <>
               <DriverActiveTripHero
                 trip={primaryTrip}
                 isBusy={busyTrip === primaryTrip.id}
@@ -427,40 +373,78 @@ export function DriverTripsPanel({
                 waitBusy={waitBusy}
                 completeKm={completeKmByTrip[primaryTrip.id] ?? ""}
                 gpsTracking={getTripGpsState(primaryTrip.id)}
-                onCompleteKmChange={(id, value) =>
-                  setCompleteKmByTrip((prev) => ({ ...prev, [id]: value }))
-                }
+                onCompleteKmChange={(id, value) => setCompleteKmByTrip((prev) => ({ ...prev, [id]: value }))}
                 onStatus={setStatus}
                 onCompletePickupStop={(id, idx) => void completePickupStop(id, idx)}
                 onGps={sendGps}
                 onWaitStart={(id) => void setWait(id, "start")}
                 onWaitStop={(id) => void setWait(id, "stop")}
               />
-            ) : null}
+              <DriverPassengerLink tripId={primaryTrip.id} status={primaryTrip.operational_status} devFallbackRole={devFallbackRole} />
+              {["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) ? (
+                <DriverTripExpenses tripId={primaryTrip.id} devFallbackRole={devFallbackRole} />
+              ) : null}
+            </>
+          )}
 
-            {otherActive.length > 0 ? (
-              <div>
-                <h3 className="text-sm font-medium text-slate-400">Acções rápidas ({otherActive.length})</h3>
-                <ul className="mt-2 space-y-3">
-                  {otherActive.map((trip) => (
-                    <CompactActiveTripCard
-                      key={trip.id}
-                      trip={trip}
-                      isBusy={busyTrip === trip.id}
-                      completeKm={completeKmByTrip[trip.id] ?? ""}
-                      gpsTracking={getTripGpsState(trip.id)}
-                      onCompleteKmChange={(id, value) =>
-                        setCompleteKmByTrip((prev) => ({ ...prev, [id]: value }))
-                      }
-                      onStatus={setStatus}
-                    />
+          {otherActive.length > 0 ? (
+            <div className={card}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-[#111]">Mais agendamentos</h3>
+                {onSeeAll ? (
+                  <button type="button" onClick={onSeeAll} className="text-sm text-[#8A8A8A]">
+                    Ver todos
+                  </button>
+                ) : null}
+              </div>
+              <ul className="mt-3 divide-y divide-[#F0ECE3]">
+                {otherActive.slice(0, 4).map((t) => (
+                  <li key={t.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                    <span className="shrink-0 font-semibold text-[#111]">
+                      {groupByDay([t])[0]?.label === "Hoje" ? "" : `${groupByDay([t])[0]?.label} · `}
+                      {hm(t.scheduled_at)}
+                    </span>
+                    <span className="min-w-0 truncate text-right text-[#8A8A8A]">
+                      {short(t.origin_text)} → {short(t.destination_text)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {view === "agenda" ? (
+        <section className="space-y-3">
+          <h2 className="px-1 text-lg font-semibold text-[#111]">Minha agenda</h2>
+          {loading ? (
+            <DriverTripSkeleton />
+          ) : active.length === 0 ? (
+            <div className={`${card} text-center text-sm text-[#8A8A8A]`}>Nenhuma corrida agendada para você.</div>
+          ) : (
+            groupByDay(active).map((g) => (
+              <div key={g.key} className={card}>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-prime-gold">{g.label}</p>
+                <ul className="divide-y divide-[#F0ECE3]">
+                  {g.trips.map((t) => (
+                    <li key={t.id} className="py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-lg font-bold text-[#111]">{hm(t.scheduled_at)}</span>
+                        <StatusBadge status={t.operational_status} />
+                      </div>
+                      <p className="mt-0.5 text-sm font-medium text-[#111]">{t.passenger_name?.trim() || "Passageiro"}</p>
+                      <p className="text-sm text-[#8A8A8A]">
+                        {short(t.origin_text)} → {short(t.destination_text)}
+                      </p>
+                    </li>
                   ))}
                 </ul>
               </div>
-            ) : null}
-          </div>
-        )}
-      </section>
+            ))
+          )}
+        </section>
+      ) : null}
 
       {sheet && trips.find((t) => t.id === sheet.tripId) ? (
         <DriverFinishSheet
@@ -477,207 +461,29 @@ export function DriverTripsPanel({
         />
       ) : null}
 
-      {recentHistory.length > 0 ? (
-        <details className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-          <summary className="cursor-pointer text-sm font-medium text-slate-400">
-            Últimas concluídas / encerradas ({recentHistory.length})
-          </summary>
-          <ul className="mt-3 space-y-3">
-            {recentHistory.map((trip) => (
-              <li key={trip.id} className="border-t border-slate-800 pt-3 first:border-0 first:pt-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge status={trip.operational_status} />
-                  <span className="text-xs text-slate-500">
-                    {formatBrDateTime(trip.scheduled_at)}
-                  </span>
-                </div>
-                <p className="mt-1 min-w-0 text-sm text-slate-400">
-                  <span className="block truncate" title={trip.origin_text ?? ""}>
-                    {trip.origin_text}
-                  </span>
-                  <span className="block truncate" title={trip.destination_text ?? ""}>
-                    → {trip.destination_text}
-                  </span>
-                </p>
-              </li>
-            ))}
-          </ul>
-        </details>
+      {view === "historico" ? (
+        <section className="space-y-3">
+          <h2 className="px-1 text-lg font-semibold text-[#111]">Corridas realizadas</h2>
+          {recentHistory.length === 0 ? (
+            <div className={`${card} text-center text-sm text-[#8A8A8A]`}>Nenhuma corrida finalizada ainda.</div>
+          ) : (
+            <ul className={`${card} divide-y divide-[#F0ECE3] !py-2`}>
+              {recentHistory.map((trip) => (
+                <li key={trip.id} className="py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-[#111]">{formatBrDateTime(trip.scheduled_at)}</span>
+                    <StatusBadge status={trip.operational_status} />
+                  </div>
+                  <p className="mt-0.5 truncate text-sm text-[#8A8A8A]">
+                    {short(trip.origin_text)} → {short(trip.destination_text)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       ) : null}
-    </>
-  );
-}
-
-function formatTripScheduleLabel(scheduledAt: string | null | undefined): string {
-  if (!scheduledAt?.trim()) return "Horário a definir";
-  const full = formatBrDateTime(scheduledAt);
-  if (full) return full;
-  const d = new Date(scheduledAt);
-  return Number.isNaN(d.getTime()) ? "Horário a definir" : formatBrDateTime(d.toISOString());
-}
-
-function DriverTripScheduleRow({
-  trip,
-  position,
-  isFocus,
-  waitLabel
-}: {
-  trip: Trip;
-  position: number;
-  isFocus: boolean;
-  waitLabel: string | null;
-}) {
-  const scheduleLabel = formatTripScheduleLabel(trip.scheduled_at);
-  const passenger = trip.passenger_name?.trim() || "Passageiro";
-  const origin = trip.origin_text?.trim() || "Origem";
-  const destination = trip.destination_text?.trim() || "Destino";
-
-  return (
-    <li
-      data-driver-trip-id={trip.id}
-      className={[
-        "rounded-xl border px-3 py-3",
-        isFocus ? "border-prime-gold/50 bg-prime-gold/10" : "border-slate-700 bg-slate-900/50"
-      ].join(" ")}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-slate-200">
-          {position}
-        </span>
-        <span className="font-mono text-sm font-semibold text-white">{scheduleLabel}</span>
-        <StatusBadge status={trip.operational_status} />
-        <TripLegLabelBadge label={trip.trip_leg_label} />
-        {isFocus ? <span className="text-[10px] font-semibold uppercase tracking-wide text-prime-gold">Em foco</span> : null}
-        {waitLabel ? (
-          <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-200">
-            Espera {waitLabel}
-          </span>
-        ) : null}
-      </div>
-      <p className="mt-2 text-sm font-medium text-slate-100">{passenger}</p>
-      <p className="mt-1 text-sm text-slate-400">
-        <span className="block truncate" title={origin}>
-          {origin}
-        </span>
-        <span className="block truncate" title={destination}>
-          → {destination}
-        </span>
-      </p>
-    </li>
-  );
-}
-
-function CompactActiveTripCard({
-  trip,
-  isBusy,
-  completeKm,
-  gpsTracking,
-  onCompleteKmChange,
-  onStatus
-}: {
-  trip: Trip;
-  isBusy: boolean;
-  completeKm: string;
-  gpsTracking?: DriverTripGpsState;
-  onCompleteKmChange: (id: string, value: string) => void;
-  onStatus: (id: string, s: TripOperationalStatus) => void;
-}) {
-  const next = driverNextStatuses(trip.operational_status)[0];
-  const completingTrip = next === "completed";
-  const gps = gpsTracking ?? {
-    accumulatedKm: null,
-    pointCount: 0,
-    tracking: false,
-    requiresManualKm: false,
-    gpsError: null
-  };
-  // Com KM do painel (odômetro) o KM final é pedido na tela de finalizar, não aqui.
-  const odometerMode = trip.odometer_start != null;
-  const showManualKm = !odometerMode && driverShowsManualKmOnComplete(gps, completingTrip);
-  const completeKmReady = odometerMode || driverCanCompleteTrip(completingTrip, gps, completeKm);
-  const pickupNav =
-    buildNavigationLinksToPoint({
-      lat: trip.origin_lat,
-      lng: trip.origin_lng,
-      label: trip.origin_text
-    }).find((link) => link.id === "waze") ??
-    buildNavigationLinksToPoint({
-      lat: trip.origin_lat,
-      lng: trip.origin_lng,
-      label: trip.origin_text
-    })[0];
-  const scheduleLabel = formatTripScheduleLabel(trip.scheduled_at);
-
-  return (
-    <li
-      data-driver-trip-id={trip.id}
-      className="prime-driver-card p-3"
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-sm font-semibold text-prime-gold">{scheduleLabel}</span>
-        <StatusBadge status={trip.operational_status} />
-        <TripLegLabelBadge label={trip.trip_leg_label} />
-      </div>
-      <p className="mt-2 text-sm font-medium text-prime-text">{trip.passenger_name ?? "Passageiro"}</p>
-      <p className="mt-1 text-sm text-prime-muted">
-        <span className="block truncate" title={trip.origin_text ?? ""}>
-          {trip.origin_text ?? "—"}
-        </span>
-        <span className="block truncate" title={trip.destination_text ?? ""}>
-          → {trip.destination_text ?? "—"}
-        </span>
-      </p>
-      {trip.operational_status === "in_progress" ? (
-        <p className="mt-2 text-xs text-emerald-300">
-          GPS: {formatDriverGpsKm(gps.accumulatedKm)} km
-          {gps.tracking ? " · a cadastrar" : gps.gpsError ? ` · ${gps.gpsError}` : null}
-        </p>
-      ) : null}
-      {completingTrip && !showManualKm && gps.accumulatedKm != null && gps.accumulatedKm > 0 ? (
-        <p className="mt-2 text-xs text-prime-muted">KM GPS: {formatDriverGpsKm(gps.accumulatedKm)} km</p>
-      ) : null}
-      {completingTrip && showManualKm ? (
-        <label className="mt-3 block text-xs text-prime-muted">
-          KM real percorrido
-          {gps.gpsError ? <span className="mt-1 block text-amber-800">{gps.gpsError}</span> : null}
-          <input
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            placeholder="Ex.: 12,5"
-            value={completeKm}
-            disabled={isBusy}
-            onChange={(e) => onCompleteKmChange(trip.id, e.target.value)}
-            className="mt-1 w-full rounded-lg border border-prime-border bg-white px-3 py-2 text-sm text-prime-text"
-          />
-        </label>
-      ) : null}
-      <div className="mt-2 flex flex-wrap gap-2">
-        {next ? (
-          <button
-            type="button"
-            disabled={isBusy || (completingTrip && !completeKmReady)}
-            onClick={() => {
-              if (!confirmDriverStatusTransition(next)) return;
-              onStatus(trip.id, next);
-            }}
-            className="btn-primary rounded-lg px-3 py-2 text-sm disabled:opacity-50"
-          >
-            {driverPrimaryActionLabel(trip.operational_status, next)}
-          </button>
-        ) : null}
-        {pickupNav && trip.operational_status !== "in_progress" ? (
-          <a
-            href={pickupNav.href}
-            className="rounded-lg border border-prime-gold/40 bg-prime-gold/10 px-3 py-2 text-sm font-medium text-prime-text hover:border-prime-gold/60"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Ir até o cliente
-          </a>
-        ) : null}
-      </div>
-    </li>
+    </div>
   );
 }
 

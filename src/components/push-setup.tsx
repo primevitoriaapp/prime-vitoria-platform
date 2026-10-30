@@ -98,7 +98,7 @@ export function PushSetup({ audience, compact = false }: { audience: "motorista"
   if (state === "checking") return null;
 
   const box = compact ? "rounded-xl p-3 text-sm" : "rounded-2xl p-4 text-sm";
-  const dark = audience === "motorista";
+  const dark = false;
 
   if (state === "on") {
     return compact ? (

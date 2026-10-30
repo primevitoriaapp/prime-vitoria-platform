@@ -49,8 +49,8 @@ export function DriverProfilePanel({ devFallbackRole = "motorista" }: Props) {
     profile?.profile_name?.trim() || profile?.full_name?.trim() || "Motorista";
 
   return (
-    <section className="driver-card scroll-mt-6 p-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-[#AAAAAA]">Perfil</h2>
+    <section className="scroll-mt-6 rounded-3xl border border-[#ECE7DB] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.05)]">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-[#8A8A8A]">Perfil</h2>
 
       {loading ? (
         <p className="mt-4 text-sm text-prime-muted">Carregando…</p>
@@ -79,9 +79,9 @@ export function DriverProfilePanel({ devFallbackRole = "motorista" }: Props) {
           <form action={driverLogoutAction} className="w-full max-w-xs">
             <button
               type="submit"
-              className="w-full rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300 hover:bg-red-500/20"
+              className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"
             >
-              Sair
+              Sair do app
             </button>
           </form>
         </div>

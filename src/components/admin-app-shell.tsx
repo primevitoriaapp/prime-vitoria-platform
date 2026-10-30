@@ -15,24 +15,25 @@ import { NotificationsBell } from "@/components/notifications-bell";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: "▣" },
-  { href: "/ao-vivo", label: "Ao vivo", icon: "◍" },
-  { href: "/orcamentos", label: "Orçamentos", icon: "✎" },
-  { href: "/dispatch", label: "Despacho", icon: "◎" },
-  { href: "/agenda", label: "Agenda", icon: "◷" },
-  { href: "/whatsapp", label: "WhatsApp", icon: "✆" },
-  { href: "/drivers", label: "Motoristas", icon: "◉" },
-  { href: "/parceiros", label: "Parceiros", icon: "◐" },
-  { href: "/categorias", label: "Categorias", icon: "◇" },
-  { href: "/vehicles", label: "Veículos", icon: "▤" },
-  { href: "/clients", label: "Clientes", icon: "▦" },
-  { href: "/clients/relatorio", label: "Relatório por cliente", icon: "▧" },
-  { href: "/painel-financeiro", label: "Painel financeiro", icon: "▤" },
-  { href: "/finance", label: "Financeiro", icon: "◈" },
-  { href: "/contas-a-pagar", label: "Contas a pagar", icon: "◆" },
-  { href: "/repasses", label: "Repasses a parceiros", icon: "⇉" },
-  { href: "/conciliacao", label: "Conciliação bancária", icon: "⇄" }
+  { href: "/dashboard", label: "Início", icon: "▣", group: "Operação" },
+  { href: "/agenda", label: "Agenda", icon: "◷", group: "Operação" },
+  { href: "/ao-vivo", label: "Ao vivo", icon: "◍", group: "Operação" },
+  { href: "/orcamentos", label: "Orçamentos", icon: "✎", group: "Operação" },
+  { href: "/dispatch", label: "Despacho", icon: "◎", group: "Operação" },
+  { href: "/whatsapp", label: "WhatsApp", icon: "✆", group: "Operação" },
+  { href: "/clients", label: "Clientes", icon: "▦", group: "Cadastros" },
+  { href: "/drivers", label: "Motoristas", icon: "◉", group: "Cadastros" },
+  { href: "/parceiros", label: "Parceiros", icon: "◐", group: "Cadastros" },
+  { href: "/vehicles", label: "Veículos", icon: "▤", group: "Cadastros" },
+  { href: "/categorias", label: "Categorias e preços", icon: "◇", group: "Cadastros" },
+  { href: "/painel-financeiro", label: "Painel financeiro", icon: "▤", group: "Financeiro" },
+  { href: "/finance", label: "Faturas e recebimentos", icon: "◈", group: "Financeiro" },
+  { href: "/contas-a-pagar", label: "Contas a pagar", icon: "◆", group: "Financeiro" },
+  { href: "/repasses", label: "Repasses a parceiros", icon: "⇉", group: "Financeiro" },
+  { href: "/conciliacao", label: "Conciliação bancária", icon: "⇄", group: "Financeiro" },
+  { href: "/clients/relatorio", label: "Relatório por cliente", icon: "▧", group: "Financeiro" }
 ] as const;
+const GROUPS = ["Operação", "Cadastros", "Financeiro"] as const;
 
 const ADMIN_EXTRA = [
   { href: "/configuracoes", label: "Configurações" },
@@ -94,27 +95,41 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
               <BrandLogo variant="dark" />
             </Link>
           </div>
-          <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Operação">
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-prime-sidebar-text">
-              Operação
-            </p>
-            {visibleNav.map((item) => (
-              <Link key={item.href} href={item.href} className={navClass(isActivePath(pathname, item.href))}>
-                <span className="w-5 text-center text-xs opacity-70" aria-hidden>
-                  {item.icon}
-                </span>
-                {item.label}
-              </Link>
-            ))}
+          <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label="Menu">
+            {GROUPS.map((g) => {
+              const items = visibleNav.filter((n) => n.group === g);
+              if (!items.length) return null;
+              return (
+                <div key={g} className="mb-3">
+                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-prime-sidebar-text">{g}</p>
+                  <div className="space-y-0.5">
+                    {items.map((item) => (
+                      <Link key={item.href} href={item.href} className={navClass(isActivePath(pathname, item.href))}>
+                        <span className="w-5 text-center text-xs opacity-70" aria-hidden>
+                          {item.icon}
+                        </span>
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {isAdmin ? (
+              <div className="mb-3">
+                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-prime-sidebar-text">Sistema</p>
+                <div className="space-y-0.5">
+                  {ADMIN_EXTRA.map((item) => (
+                    <Link key={item.href} href={item.href} className={navClass(isActivePath(pathname, item.href))}>
+                      <span className="w-5" aria-hidden />
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </nav>
-          <div className="space-y-1 border-t border-white/10 px-3 py-4">
-            {isAdmin
-              ? ADMIN_EXTRA.map((item) => (
-                  <Link key={item.href} href={item.href} className={navClass(isActivePath(pathname, item.href))}>
-                    {item.label}
-                  </Link>
-                ))
-              : null}
+          <div className="space-y-1 border-t border-white/10 px-3 py-3">
             <form action={logoutAction} className="px-1 pt-2">
               <button
                 type="submit"
@@ -179,7 +194,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 lg:px-8 lg:py-8 print:overflow-visible">
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-5 md:pb-6 md:pt-6 lg:px-8 lg:py-8 print:overflow-visible">
             {session && !showFullNav && !isFinanceiro ? (
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
                 <span>
@@ -197,6 +212,41 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      {showFullNav ? (
+        <nav
+          className="fixed inset-x-0 bottom-0 z-[90] grid grid-cols-5 border-t border-prime-border bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden"
+          aria-label="Atalhos"
+        >
+          {[
+            { href: "/dashboard", label: "Início", d: "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" },
+            { href: "/agenda", label: "Agenda", d: "M4 6h16v14H4zM4 10h16M9 3v5M15 3v5" }
+          ].map((t) => (
+            <Link key={t.href} href={t.href} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActivePath(pathname, t.href) ? "font-semibold text-prime-text" : "text-prime-muted"}`}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isActivePath(pathname, t.href) ? "#C9A84C" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d={t.d} />
+              </svg>
+              {t.label}
+            </Link>
+          ))}
+          <Link href="/agenda?nova=1" className="-mt-5 flex flex-col items-center gap-0.5 text-[11px] font-semibold text-prime-text">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#111] text-3xl leading-none text-prime-gold shadow-lg ring-4 ring-white">+</span>
+            Agendar
+          </Link>
+          <Link href="/ao-vivo" className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActivePath(pathname, "/ao-vivo") ? "font-semibold text-prime-text" : "text-prime-muted"}`}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isActivePath(pathname, "/ao-vivo") ? "#C9A84C" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+              <path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z" />
+              <circle cx="12" cy="9" r="2.5" />
+            </svg>
+            Ao vivo
+          </Link>
+          <button type="button" onClick={() => setMenuOpen(true)} className="flex flex-col items-center gap-0.5 py-2 text-[11px] text-prime-muted">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+            Menu
+          </button>
+        </nav>
+      ) : null}
       {menuOpen ? (
         <div className="fixed inset-0 z-[100] md:hidden print:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} />

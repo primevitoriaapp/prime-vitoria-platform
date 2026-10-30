@@ -57,7 +57,7 @@ export function DriverTripExpenses({ tripId, devFallbackRole = "motorista" }: { 
   }
 
   return (
-    <div className="rounded-2xl border border-[#3A3A3E] p-3 text-sm text-[#F5F5F5]">
+    <div className="rounded-3xl border border-[#ECE7DB] bg-white p-4 text-sm text-[#111] shadow-[0_8px_30px_rgba(0,0,0,0.05)]">
       <div className="flex items-center justify-between gap-2">
         <span className="font-semibold">🧾 Pedágio / estacionamento</span>
         {!open ? (
@@ -67,7 +67,7 @@ export function DriverTripExpenses({ tripId, devFallbackRole = "motorista" }: { 
         ) : null}
       </div>
       {rows.length ? (
-        <ul className="mt-2 space-y-1 text-xs text-[#CCCCCC]">
+        <ul className="mt-2 space-y-1 text-xs text-[#555]">
           {rows.map((r) => (
             <li key={r.id}>
               {label(r.kind)} {brl(r.amount)} · {ST[r.status] ?? r.status}
@@ -76,13 +76,13 @@ export function DriverTripExpenses({ tripId, devFallbackRole = "motorista" }: { 
           ))}
         </ul>
       ) : !open ? (
-        <p className="mt-1 text-xs text-[#AAAAAA]">Pagou algo na corrida? Lance aqui com a foto do comprovante para ser reembolsado.</p>
+        <p className="mt-1 text-xs text-[#8A8A8A]">Pagou algo na corrida? Lance aqui com a foto do comprovante para ser reembolsado.</p>
       ) : null}
       {open ? (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap gap-1.5">
             {KINDS.map((k) => (
-              <button key={k.id} type="button" onClick={() => setKind(k.id)} className={`rounded-full px-3 py-1.5 text-xs ring-1 ${kind === k.id ? "bg-[#C9A84C] text-[#111] ring-[#C9A84C]" : "ring-[#3A3A3E]"}`}>
+              <button key={k.id} type="button" onClick={() => setKind(k.id)} className={`rounded-full px-3 py-1.5 text-xs ring-1 ${kind === k.id ? "bg-[#111] text-[#C9A84C] ring-[#111]" : "ring-[#DDD5C2]"}`}>
                 {k.label}
               </button>
             ))}
@@ -92,15 +92,15 @@ export function DriverTripExpenses({ tripId, devFallbackRole = "motorista" }: { 
             placeholder="Valor (ex.: 12,40)"
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9.,]/g, ""))}
-            className="w-full rounded-xl border border-[#3A3A3E] bg-[#111] px-3 py-2.5 text-base text-[#fff]"
+            className="w-full rounded-xl border border-[#DDD5C2] bg-white px-3 py-2.5 text-base text-[#111]"
           />
           <label className="block rounded-xl border border-dashed border-[#C9A84C] px-3 py-3 text-center text-xs">
             {file ? `📷 ${file.name}` : "📷 Tirar foto do comprovante"}
             <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </label>
-          {err ? <p className="text-xs text-red-300">{err}</p> : null}
+          {err ? <p className="text-xs text-red-700">{err}</p> : null}
           <div className="flex gap-2">
-            <button type="button" className="flex-1 rounded-xl border border-[#3A3A3E] px-3 py-2.5 text-sm" onClick={() => setOpen(false)}>
+            <button type="button" className="flex-1 rounded-xl border border-[#DDD5C2] px-3 py-2.5 text-sm" onClick={() => setOpen(false)}>
               Cancelar
             </button>
             <button type="button" disabled={busy || !amount} className="flex-[2] rounded-xl bg-[#C9A84C] px-3 py-2.5 text-sm font-semibold text-[#111] disabled:opacity-50" onClick={() => void save()}>

@@ -1,18 +1,12 @@
 "use client";
 
-import { formatBrDateTime, formatBrTime } from "@/lib/dates/br-date";
+import { formatBrTime } from "@/lib/dates/br-date";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
-import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { SERVICE_EXTRAS, presentationAtIso } from "@/lib/trips/service-extras";
 import { flightTrackerUrl } from "@/lib/trips/flight";
-import { StatusBadge } from "@/components/status-badge";
-import { TripLegLabelBadge } from "@/components/trip-leg-label-badge";
-import { DriverOperationalTimeline } from "@/components/driver-operational-timeline";
-import { DriverTripRouteCard } from "@/components/driver-trip-route-card";
 import { buildDriverNavigationLinks, buildNavigationLinksToPoint } from "@/lib/trips/driver-nav-links";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import {
-  driverFlowChip,
   driverOperationalHint,
   driverPrimaryActionLabel
 } from "@/lib/trips/driver-step-copy";
@@ -31,6 +25,14 @@ import {
   pickupStopNavPoint
 } from "@/lib/trips/trip-pickup-stops";
 import { DriverPickupStopsPanel } from "@/components/driver-pickup-stops-panel";
+
+const STEPS: { label: string; match: TripOperationalStatus[] }[] = [
+  { label: "Agendada", match: ["dispatched", "accepted", "reassigned", "approved"] },
+  { label: "A caminho", match: ["on_the_way"] },
+  { label: "Cheguei", match: ["arrived"] },
+  { label: "Em viagem", match: ["in_progress"] },
+  { label: "Concluída", match: ["completed"] }
+];
 
 const WAIT_ELIGIBLE: TripOperationalStatus[] = ["on_the_way", "arrived", "in_progress"];
 
@@ -100,51 +102,84 @@ export function DriverActiveTripHero({
   const pendingPickups = multiPickup && !pickupsDone;
   const blockStartTrip = primaryStep === "in_progress" && pendingPickups;
   const inProgressTracking = trip.operational_status === "in_progress";
-  const scheduledLabel = formatBrDateTime(trip.scheduled_at);
   const canWait = WAIT_ELIGIBLE.includes(trip.operational_status);
   const isWaiting = Boolean(trip.wait_started_at);
   const accumulatedWait = trip.wait_minutes ?? 0;
 
+  const stepIdx = Math.max(0, STEPS.findIndex((st) => st.match.includes(trip.operational_status)));
+  const timeLabel = trip.scheduled_at
+    ? new Date(trip.scheduled_at).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).replace(":", "h")
+    : "--h--";
+  const dayLabel = trip.scheduled_at
+    ? new Date(trip.scheduled_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit" })
+    : "";
+  const short = (a?: string | null) => String(a ?? "—").split(",")[0];
+  const rest = (a?: string | null) => String(a ?? "").split(",").slice(1, 3).join(" ·").trim();
+
   return (
     <article
       data-driver-trip-id={trip.id}
-      className={[
-        "prime-driver-hero p-4 md:p-6",
-        highlighted ? "ring-2 ring-prime-gold/40" : ""
-      ].join(" ")}
+      className={["rounded-3xl border border-[#ECE7DB] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]", highlighted ? "ring-2 ring-prime-gold/50" : ""].join(" ")}
     >
-      <p className="text-xs font-semibold uppercase tracking-widest text-prime-gold">Corrida actual</p>
-      <p className="mt-1 text-sm text-prime-muted">{driverOperationalHint(trip.operational_status)}</p>
-      <p className="mt-2 rounded-md bg-prime-bg px-2 py-1 text-xs text-prime-muted">{driverFlowChip(trip.operational_status)}</p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <StatusBadge status={trip.operational_status} />
-        <TripLegLabelBadge label={trip.trip_leg_label} />
-        <span className="font-mono text-xs text-prime-muted">{trip.id.slice(0, 8)}…</span>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#8A8A8A]">Serviço PV-{trip.id.slice(0, 6).toUpperCase()}</p>
+          <p className="mt-1 text-4xl font-bold tracking-tight text-[#111]">{timeLabel}</p>
+          <p className="text-xs capitalize text-[#8A8A8A]">{dayLabel}</p>
+        </div>
+        <span className="rounded-full bg-[#EAF6EF] px-3 py-1 text-sm font-semibold text-[#1F7A4C]">{STEPS[stepIdx]?.label ?? "Agendada"}</span>
       </div>
 
-      <DriverOperationalTimeline current={trip.operational_status} variant="hero" />
+      <div className="mt-4 flex items-center gap-3">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F3F1EC] text-lg text-[#555]" aria-hidden>
+          👤
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-lg font-semibold text-[#111]">{trip.passenger_name?.trim() || "Passageiro"}</p>
+          <p className="text-sm text-[#8A8A8A]">
+            {trip.passenger_count ? `${trip.passenger_count} passageiro(s)` : "Passageiro"}
+            {trip.passenger_phone?.trim() ? (
+              <>
+                {" · "}
+                <a href={`tel:${trip.passenger_phone.trim()}`} className="font-medium text-prime-gold">
+                  ligar
+                </a>
+              </>
+            ) : null}
+          </p>
+        </div>
+      </div>
 
-      <p className="mt-3 text-lg font-semibold text-prime-text">
-        {trip.passenger_name?.trim() || "Passageiro"}
-        {trip.service_type ? (
-          <span className="text-base font-normal text-prime-muted">
-            {" "}
-            · {primeServiceTypeLabel(trip.service_type, { audience: "operator", scheduledAt: trip.scheduled_at })}
-          </span>
-        ) : null}
-        {trip.passenger_count != null && trip.passenger_count > 0 ? (
-          <span className="text-base font-normal text-prime-muted"> · {trip.passenger_count} passageiros</span>
-        ) : null}
-      </p>
-      {trip.passenger_phone?.trim() ? (
-        <p className="mt-1 text-sm text-prime-muted">
-          Telefone:{" "}
-          <a href={`tel:${trip.passenger_phone.trim()}`} className="font-medium text-prime-gold hover:underline">
-            {trip.passenger_phone.trim()}
-          </a>
-        </p>
-      ) : null}
+      <div className="mt-4 border-t border-[#EFEBE2] pt-4">
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center pt-1.5">
+            <span className="h-3.5 w-3.5 rounded-full border-[3px] border-[#1F7A4C]" />
+            <span className="my-1 w-px flex-1 border-l-2 border-dashed border-[#DDD5C2]" />
+            <span className="h-3 w-3 rounded-sm bg-prime-gold" />
+          </div>
+          <div className="min-w-0 flex-1 space-y-3">
+            <div>
+              <p className="font-semibold text-[#111]">{multiPickup ? `Paradas: ${pickupStops.map((x) => x.passenger_name).join(" → ")}` : short(trip.origin_text)}</p>
+              {!multiPickup && rest(trip.origin_text) ? <p className="text-sm text-[#8A8A8A]">{rest(trip.origin_text)}</p> : null}
+            </div>
+            <div>
+              <p className="font-semibold text-[#111]">{short(trip.destination_text)}</p>
+              {rest(trip.destination_text) ? <p className="text-sm text-[#8A8A8A]">{rest(trip.destination_text)}</p> : null}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ol className="mt-5 grid grid-cols-5" aria-label="Etapas">
+        {STEPS.map((st, i) => (
+          <li key={st.label} className="relative flex flex-col items-center text-center">
+            {i > 0 ? <span className={`absolute right-1/2 top-[7px] h-0.5 w-full ${i <= stepIdx ? "bg-prime-gold" : "bg-[#E5E1D8]"}`} /> : null}
+            <span className={`relative z-10 h-4 w-4 rounded-full ${i <= stepIdx ? "bg-prime-gold" : "bg-[#E5E1D8]"}`} />
+            <span className={`mt-1.5 text-[10px] leading-tight ${i === stepIdx ? "font-semibold text-[#111]" : "text-[#8A8A8A]"}`}>{st.label}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-3 text-center text-xs text-[#8A8A8A]">{driverOperationalHint(trip.operational_status)}</p>
 
       {presentationAtIso(trip.scheduled_at, (trip as { presentation_minutes?: number | null }).presentation_minutes) ? (
         <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
@@ -175,20 +210,6 @@ export function DriverActiveTripHero({
           </a>
         </p>
       ) : null}
-
-      <DriverTripRouteCard
-        originText={
-          multiPickup
-            ? `Paradas: ${pickupStops.map((s) => s.passenger_name).join(" → ")}`
-            : (trip.origin_text ?? "—")
-        }
-        destinationText={trip.destination_text ?? "—"}
-        scheduledLabel={
-          trip.vehicle
-            ? `${scheduledLabel} · ${trip.vehicle.plate} (${trip.vehicle.model})`
-            : scheduledLabel
-        }
-      />
 
       {(() => {
         const km = formatTripKmLine(trip);
@@ -326,7 +347,7 @@ export function DriverActiveTripHero({
               if (!confirmDriverStatusTransition(primaryStep)) return;
               onStatus(trip.id, primaryStep);
             }}
-            className="btn-primary min-h-[3.5rem] w-full rounded-xl px-4 py-3 text-xl disabled:opacity-60"
+            className="min-h-[3.75rem] w-full rounded-2xl bg-[#111] px-4 py-4 text-lg font-bold text-prime-gold shadow-lg disabled:opacity-60"
           >
             {isBusy ? "Processando…" : driverPrimaryActionLabel(trip.operational_status, primaryStep)}
           </button>
@@ -334,13 +355,8 @@ export function DriverActiveTripHero({
         {blockStartTrip ? (
           <p className="text-xs text-amber-800">Conclua todos os embarques antes de iniciar a viagem ao destino.</p>
         ) : null}
-        <button
-          type="button"
-          disabled={isBusy}
-          onClick={() => onGps(trip)}
-          className="btn-outline min-h-[2.75rem] w-full rounded-xl px-4 py-2.5 text-base disabled:opacity-50"
-        >
-          Enviar GPS agora
+        <button type="button" disabled={isBusy} onClick={() => onGps(trip)} className="text-center text-xs text-[#8A8A8A] underline disabled:opacity-50">
+          Enviar minha localização agora
         </button>
         {extraSteps.length > 0 ? (
           <div className="flex flex-wrap gap-2">

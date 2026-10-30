@@ -29,9 +29,9 @@ export function DriverPassengerLink({ tripId, status, devFallbackRole }: { tripI
 
   if (!live || !data) return null;
   return (
-    <div className="rounded-2xl border border-[#25D366]/40 bg-[#25D366]/10 p-3">
-      <p className="text-sm font-semibold text-[#F5F5F5]">Avise o passageiro</p>
-      <p className="mt-0.5 text-xs text-[#AAAAAA]">Ele acompanha o carro no mapa até o embarque. O link para de funcionar quando a corrida termina.</p>
+    <div className="rounded-3xl border border-[#25D366]/40 bg-[#EFFBF3] p-4">
+      <p className="text-sm font-semibold text-[#111]">Avise o passageiro</p>
+      <p className="mt-0.5 text-xs text-[#5F6B63]">Ele acompanha o carro no mapa até o embarque. O link para de funcionar quando a corrida termina.</p>
       <div className="mt-2 flex flex-wrap gap-2">
         <a
           href={data.whatsapp_url}
@@ -49,7 +49,7 @@ export function DriverPassengerLink({ tripId, status, devFallbackRole }: { tripI
               setTimeout(() => setCopied(false), 2000);
             });
           }}
-          className="rounded-xl border border-[#3A3A3E] px-3 py-2 text-sm text-[#F5F5F5]"
+          className="rounded-xl border border-[#CFE9D9] bg-white px-3 py-2 text-sm text-[#111]"
         >
           {copied ? "Copiado" : "Copiar link"}
         </button>

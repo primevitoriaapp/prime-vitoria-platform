@@ -1,6 +1,6 @@
 import { db } from "@/lib/server/db";
 import { driverRowToApiShape } from "@/lib/drivers/driver-supabase-row";
-import { attachProfileNamesToDrivers } from "@/lib/vehicles/driver-default-vehicle";
+import { attachProfileNamesToDrivers, resolveDefaultVehicleForDriver } from "@/lib/vehicles/driver-default-vehicle";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
@@ -29,6 +29,12 @@ export async function GET() {
     if (!driver) return fail("DRIVER_NOT_FOUND", "Motorista não encontrado", 404);
 
     const [withProfile] = await attachProfileNamesToDrivers([driver]);
+    const vehicle = await resolveDefaultVehicleForDriver(driver.id as string);
+    let vehicleColor: string | null = null;
+    if (vehicle) {
+      const { data: v } = await db.from("vehicles").select("color").eq("id", vehicle.id).maybeSingle();
+      vehicleColor = (v?.color as string | null) ?? null;
+    }
     const photo_url = await resolveDriverPhotoDisplayUrl(driver.photo_url as string | null);
     const shaped = driverRowToApiShape(withProfile as Record<string, unknown>);
 
@@ -38,7 +44,9 @@ export async function GET() {
       profile_name: shaped.profile_name ?? shaped.full_name ?? null,
       full_name: shaped.full_name ?? null,
       employment_type: (driver.employment_type as string | null) === "funcionario" ? "funcionario" : "parceiro",
-      photo_url
+      photo_url,
+      operational_status: (driver.operational_status as string | null) ?? "offline",
+      vehicle: vehicle ? { ...vehicle, color: vehicleColor } : null
     });
   } catch (error) {
     return mapApiError(error);
