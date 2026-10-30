@@ -15,7 +15,7 @@ import { isClientPortalReadOnly } from "@/lib/client/portal-config";
 import { logoutAction } from "@/app/login/actions";
 
 type ClientOption = { id: string; name: string; type?: string };
-type Tab = "resumo" | "pedir" | "corridas" | "faturas" | "equipe";
+type Tab = "inicio" | "pedir" | "corridas" | "financeiro" | "equipe";
 
 type Props = {
   tenantId: string;
@@ -35,7 +35,7 @@ function TabIcon({ id, active }: { id: Tab; active: boolean }) {
   const c = active ? "#C9A84C" : "currentColor";
   const p = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", stroke: c, strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
   switch (id) {
-    case "resumo":
+    case "inicio":
       return (
         <svg {...p}>
           <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
@@ -56,7 +56,7 @@ function TabIcon({ id, active }: { id: Tab; active: boolean }) {
           <circle cx="16" cy="18" r="1.5" />
         </svg>
       );
-    case "faturas":
+    case "financeiro":
       return (
         <svg {...p}>
           <path d="M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21z" />
@@ -104,16 +104,17 @@ export function ClientAppShell({
         { id: "corridas", label: "Minhas viagens" }
       ]
     : [
-        { id: "resumo", label: "Resumo" },
-        { id: "pedir", label: "Agendar viagem" },
-        { id: "corridas", label: "Corridas" },
-        { id: "faturas", label: "Faturas" },
+        { id: "inicio", label: "Início" },
+        { id: "pedir", label: "Agendar" },
+        { id: "corridas", label: "Viagens" },
+        { id: "financeiro", label: "Financeiro" },
         { id: "equipe", label: "Equipe" }
       ];
 
-  const tabFromUrl = searchParams.get("aba") as Tab | null;
+  const rawTab = searchParams.get("aba");
+  const tabFromUrl = (rawTab === "resumo" ? "inicio" : rawTab === "faturas" ? "financeiro" : rawTab) as Tab | null;
   const [tab, setTabState] = useState<Tab>(
-    tabFromUrl && tabs.some((t) => t.id === tabFromUrl) ? tabFromUrl : isSolicitante ? "pedir" : "resumo"
+    tabFromUrl && tabs.some((t) => t.id === tabFromUrl) ? tabFromUrl : isSolicitante ? "pedir" : "inicio"
   );
 
   const selectedClientId = useMemo(() => {
@@ -175,27 +176,27 @@ export function ClientAppShell({
         sub: `Escolha data, horário e trajeto. A cobrança vai direto para a ${clientName} — você não paga nada ao motorista.`
       }
     : {
-        title: nome ? `Olá, ${nome}.` : "Olá.",
-        sub: `Aqui está o resumo das corridas da ${clientName}.`
+        title: nome ? `Olá, ${nome}` : "Olá",
+        sub: `Para onde a ${clientName} vai hoje?`
       };
 
   return (
-    <div className="min-h-screen bg-prime-bg pb-24 text-prime-text sm:pb-10">
+    <div className="min-h-screen bg-[#F4F2EE] pb-28 text-prime-text sm:pb-10">
       <OperationalRealtimeBridge tenantId={tenantId} />
 
-      <header className="sticky top-0 z-40 bg-[#111]/95 pt-[env(safe-area-inset-top)] text-[#fff] backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-[#ECE7DB] bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <PrimeLogoMark size={56} />
+            <PrimeLogoMark size={44} />
             <div className="min-w-0 leading-tight">
-              <p className="line-clamp-2 text-base font-semibold text-prime-gold sm:text-lg">{clientName}</p>
-              <p className="truncate text-[11px] uppercase tracking-[0.2em] text-[#fff]/70">Portal Prime Vitória</p>
+              <p className="truncate text-[15px] font-semibold text-[#111]">{clientName}</p>
+              <p className="truncate text-[10px] uppercase tracking-[0.22em] text-[#A8873A]">Prime Vitória</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {mode === "admin" ? (
               <select
-                className="max-w-[11rem] rounded-md border border-white/20 bg-[#1d1d1d] px-2 py-1.5 text-xs text-[#fff]"
+                className="max-w-[8.5rem] rounded-full border border-[#E7E2D7] bg-white px-3 py-1.5 text-xs text-[#111]"
                 value={selectedClientId ?? ""}
                 onChange={(e) => onClientChange(e.target.value)}
                 aria-label="Cliente em visualização"
@@ -209,12 +210,12 @@ export function ClientAppShell({
               </select>
             ) : null}
             {mode === "admin" ? (
-              <a href="/dashboard" className="rounded-md border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">
-                Voltar ao painel
+              <a href="/dashboard" className="rounded-full bg-[#F4F1EA] px-3 py-1.5 text-xs font-medium text-[#111]">
+                Painel
               </a>
             ) : (
               <form action={logoutAction}>
-                <button type="submit" className="rounded-md border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">
+                <button type="submit" className="rounded-full bg-[#F4F1EA] px-3 py-1.5 text-xs font-medium text-[#111]">
                   Sair
                 </button>
               </form>
@@ -228,7 +229,7 @@ export function ClientAppShell({
               type="button"
               onClick={() => setTab(t.id)}
               className={`border-b-2 px-4 py-2.5 text-sm transition ${
-                tab === t.id ? "border-prime-gold font-semibold text-[#fff]" : "border-transparent text-white/60 hover:text-[#fff]"
+                tab === t.id ? "border-prime-gold font-semibold text-[#111]" : "border-transparent text-[#8A8A8A] hover:text-[#111]"
               }`}
             >
               {t.label}
@@ -239,36 +240,39 @@ export function ClientAppShell({
 
       <div role="main" className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:px-6">
         {mode === "admin" ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            Você está vendo o portal como o gestor da {clientName} vê.
+          <p className="rounded-full bg-white px-4 py-2 text-center text-xs text-[#8A8A8A] ring-1 ring-[#ECE7DB]">
+            Visualizando como o cliente vê
           </p>
         ) : null}
         {readOnly ? <ClientPortalReadonlyNotice readOnly /> : null}
 
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        {tab === "inicio" || (isSolicitante && tab === "pedir") ? (
           <div>
-            <h1 className="font-prime-display text-2xl leading-snug sm:text-3xl">{greeting.title}</h1>
-            <p className="mt-1 max-w-2xl text-sm text-prime-muted">{greeting.sub}</p>
+            <h1 className="font-prime-display text-[28px] leading-tight text-[#111] sm:text-3xl">{greeting.title}</h1>
+            <p className="mt-1 max-w-2xl text-sm text-[#8A8A8A]">{greeting.sub}</p>
           </div>
-          {!isSolicitante && selectedClientId ? (
-            <ClientContractPortalButton clientId={selectedClientId} devFallbackRole={devRole} />
-          ) : null}
-        </div>
+        ) : null}
 
         {!selectedClientId ? (
           <p className="text-sm text-prime-muted">Selecione um cliente.</p>
         ) : (
           <>
-            {tab === "resumo" && !isSolicitante ? (
+            {tab === "inicio" && !isSolicitante ? (
               <>
-                <ClientMonthDashboard clientId={mode === "admin" ? selectedClientId : undefined} devFallbackRole={devRole} reloadKey={reloadKey} />
                 {!readOnly ? (
                   <button
                     type="button"
                     onClick={() => setTab("pedir")}
-                    className="w-full rounded-xl bg-[#111] px-4 py-3.5 text-base font-semibold text-[#fff] hover:bg-black sm:w-auto"
+                    className="group flex w-full items-center gap-4 rounded-[28px] border border-[#ECE7DB] bg-white p-5 text-left shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition hover:shadow-[0_12px_36px_rgba(0,0,0,0.09)]"
                   >
-                    + Agende sua viagem
+                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#111] text-3xl leading-none text-prime-gold">+</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-lg font-semibold text-[#111]">Agendar viagem</span>
+                      <span className="block text-sm text-[#8A8A8A]">Transfer, aeroporto ou carro à disposição</span>
+                    </span>
+                    <span className="text-xl text-[#C9A84C]" aria-hidden>
+                      →
+                    </span>
                   </button>
                 ) : null}
                 <ClientTripsPanel
@@ -277,9 +281,8 @@ export function ClientAppShell({
                   readOnly={readOnly}
                   clientIdOverride={mode === "admin" ? selectedClientId : undefined}
                   devFallbackRole={devRole}
-                  showAmounts
                   compact
-                  title="Próximas corridas"
+                  title="Próximas viagens"
                   reloadKey={reloadKey}
                 />
               </>
@@ -324,7 +327,16 @@ export function ClientAppShell({
               />
             ) : null}
 
-            {tab === "faturas" && !isSolicitante ? <ClientInvoicesPortalPanel devFallbackRole={devRole} /> : null}
+            {tab === "financeiro" && !isSolicitante ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h1 className="font-prime-display text-2xl text-[#111]">Financeiro</h1>
+                  <ClientContractPortalButton clientId={selectedClientId} devFallbackRole={devRole} />
+                </div>
+                <ClientMonthDashboard clientId={mode === "admin" ? selectedClientId : undefined} devFallbackRole={devRole} reloadKey={reloadKey} />
+                <ClientInvoicesPortalPanel devFallbackRole={devRole} />
+              </>
+            ) : null}
 
             {tab === "equipe" && !isSolicitante ? (
               <ClientTeamPortalSection
@@ -339,7 +351,7 @@ export function ClientAppShell({
 
       {/* Navegação de baixo no celular */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 grid border-t border-prime-border bg-white sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid border-t border-[#E7E2D7] bg-white/95 backdrop-blur sm:hidden"
         style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`, paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label="Portal do cliente"
       >

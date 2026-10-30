@@ -82,10 +82,10 @@ export function ClientMonthDashboard({ clientId, devFallbackRole = "cliente", re
       ) : (
         <>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl bg-[#111] p-4 text-[#fff] sm:col-span-2">
-              <p className="text-xs uppercase tracking-wide text-white/60">{isCurrent ? "Valor até agora" : "Valor do mês"}</p>
-              <p className="mt-1 font-prime-display text-3xl text-prime-gold">{brl(data.amount_completed)}</p>
-              <p className="mt-1 text-xs text-white/50">Corridas concluídas{data.completed_without_amount ? ` · ${data.completed_without_amount} em fechamento` : ""}</p>
+            <div className="rounded-xl border border-prime-gold/40 bg-[#FBF8F0] p-4 sm:col-span-2">
+              <p className="text-xs uppercase tracking-wide text-[#A8873A]">{isCurrent ? "Valor até agora" : "Valor do mês"}</p>
+              <p className="mt-1 font-prime-display text-3xl text-[#111]">{brl(data.amount_completed)}</p>
+              <p className="mt-1 text-xs text-prime-muted">Corridas concluídas{data.completed_without_amount ? ` · ${data.completed_without_amount} em fechamento` : ""}</p>
             </div>
             <div className="rounded-xl bg-prime-bg p-4">
               <p className="text-xs uppercase tracking-wide text-prime-muted">Corridas feitas</p>
