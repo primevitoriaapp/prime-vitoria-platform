@@ -28,7 +28,8 @@ const bodySchema = z.object({
   destination: z.string().trim().max(300).optional(),
   passengers: z.coerce.number().int().min(1).max(200),
   vehicle: z.string().trim().max(60).optional(),
-  notes: z.string().trim().max(1500).optional()
+  notes: z.string().trim().max(1500).optional(),
+  lang: z.enum(["pt", "en", "es"]).optional()
 });
 
 const hits = new Map<string, number[]>();
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
         discount: 0,
         total: 0,
         notes: b.notes || null,
-        client_response: `Pedido pelo site em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}: ${t.label}, ${b.passengers} pessoa(s)${b.vehicle ? `, prefere ${b.vehicle}` : ""}${b.notes ? `. Obs.: ${b.notes}` : ""}`
+        client_response: `${b.lang === "en" ? "🌎 Cliente estrangeiro (inglês) · " : b.lang === "es" ? "🌎 Cliente estrangeiro (espanhol) · " : ""}Pedido pelo site em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}: ${t.label}, ${b.passengers} pessoa(s)${b.vehicle ? `, prefere ${b.vehicle}` : ""}${b.notes ? `. Obs.: ${b.notes}` : ""}`
       })
       .select("id, number")
       .single();

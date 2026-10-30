@@ -13,6 +13,14 @@ export const SITE = {
     agendar: "/pedir",
     empresa: "/login?next=/client"
   },
+  google: {
+    reviews: "https://www.google.com/maps/place/?q=place_id:ChIJNUgr8GYXuAAR894bMX1AjEM",
+    write: "https://search.google.com/local/writereview?placeid=ChIJNUgr8GYXuAAR894bMX1AjEM"
+  },
+  /** Fotos reais da frota em operação (preencher quando chegarem). A seção só aparece com fotos. */
+  operacao: [] as { src: string; alt: string }[],
+  /** Logos de clientes (só com autorização). A faixa só aparece com logos. */
+  clientes: [] as { src: string; name: string }[],
   img: {
     hero: `${IMG}/ponte-vitoria.webp`,
     heroMobile: `${IMG}/ponte-vitoria-mobile.webp`,

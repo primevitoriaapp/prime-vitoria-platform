@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
-import { PublicRequestForm } from "@/components/public-request-form";
+import { SITE } from "@/components/site/site-data";
+import { PublicRequestForm, type FormLang } from "@/components/public-request-form";
+
+const HEAD: Record<FormLang, { title: string; sub: string; termos: string; politica: string; voltar: string; site: string }> = {
+  pt: { title: "Peça seu orçamento", sub: "Transfer, aeroporto, casamento, turismo e eventos. Respondemos rapidinho pelo WhatsApp.", termos: "Ao enviar, você concorda com a", politica: "política de privacidade", voltar: "← Voltar ao site", site: "/site" },
+  en: { title: "Request a quote", sub: "Airport transfers, chauffeur by the hour, weddings, sightseeing and events. We reply quickly on WhatsApp.", termos: "By sending, you agree to our", politica: "privacy policy", voltar: "← Back to website", site: "/site/en" },
+  es: { title: "Pide tu cotización", sub: "Traslados, aeropuerto, bodas, turismo y eventos. Respondemos rápido por WhatsApp.", termos: "Al enviar, aceptas nuestra", politica: "política de privacidad", voltar: "← Volver al sitio", site: "/site/es" }
+};
 
 export const metadata: Metadata = {
   title: "Pedir orçamento · Prime Vitória Transporte Executivo",
@@ -7,26 +14,38 @@ export const metadata: Metadata = {
 };
 
 /** Página pública para pessoa física (ou empresa nova) pedir orçamento. */
-export default function PedirPage() {
+export default async function PedirPage({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
+  const { lang: raw } = await searchParams;
+  const lang: FormLang = raw === "en" || raw === "es" ? raw : "pt";
+  const h = HEAD[lang];
   return (
-    <div className="min-h-dvh bg-[#F4F1EA]">
-      <header className="bg-[#111] px-5 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
-        <p className="text-xl font-bold tracking-[0.08em] text-[#fff]">
-          PRIME <span className="text-[#C9A84C]">VITÓRIA</span>
-        </p>
-        <p className="text-[10px] tracking-[0.28em] text-[#C9A84C]">TRANSPORTE EXECUTIVO</p>
-        <h1 className="mx-auto mt-6 max-w-md text-2xl font-semibold leading-tight" style={{ color: "#fff" }}>Peça seu orçamento</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-[#fff]/70">Transfer, aeroporto, casamento, turismo e eventos. Respondemos rapidinho pelo WhatsApp.</p>
+    <div className="min-h-dvh bg-[#F7F5F0]">
+      <header className="px-5 pb-6 pt-[max(1.75rem,env(safe-area-inset-top))] text-center">
+        <a href={h.site} className="inline-flex items-center gap-3">
+          <img src={SITE.img.logo} alt="" width={44} height={44} className="h-11 w-11 rounded-xl object-cover" />
+          <span className="text-left leading-tight">
+            <span className="block font-prime-display text-lg font-semibold text-[#111]">Prime Vitória</span>
+            <span className="block text-[9px] font-semibold uppercase tracking-[0.28em] text-[#A8873A]">Transporte executivo</span>
+          </span>
+        </a>
+        <h1 className="mx-auto mt-7 max-w-md font-prime-display text-[30px] leading-tight" style={{ color: "#111" }}>
+          {h.title}
+        </h1>
+        <p className="mx-auto mt-2 max-w-md text-sm text-[#6F6A60]">{h.sub}</p>
       </header>
-      <div className="h-1 bg-[#C9A84C]" />
       <main className="mx-auto max-w-xl px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5">
-        <PublicRequestForm />
+        <PublicRequestForm lang={lang} />
         <p className="mt-6 text-center text-[11px] text-[#9A9A9A]">
-          Ao enviar, você concorda com a{" "}
+          {h.termos}{" "}
           <a href="/privacidade" className="underline">
-            política de privacidade
+            {h.politica}
           </a>
           .
+        </p>
+        <p className="mt-4 text-center text-sm">
+          <a href={h.site} className="text-[#8A8A8A]">
+            {h.voltar}
+          </a>
         </p>
       </main>
     </div>
