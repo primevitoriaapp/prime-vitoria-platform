@@ -105,7 +105,7 @@ export function ClientAppShell({
       ]
     : [
         { id: "resumo", label: "Resumo" },
-        { id: "pedir", label: "Pedir corrida" },
+        { id: "pedir", label: "Agendar viagem" },
         { id: "corridas", label: "Corridas" },
         { id: "faturas", label: "Faturas" },
         { id: "equipe", label: "Equipe" }
@@ -268,7 +268,7 @@ export function ClientAppShell({
                     onClick={() => setTab("pedir")}
                     className="w-full rounded-xl bg-[#111] px-4 py-3.5 text-base font-semibold text-[#fff] hover:bg-black sm:w-auto"
                   >
-                    + Pedir corrida
+                    + Agende sua viagem
                   </button>
                 ) : null}
                 <ClientTripsPanel

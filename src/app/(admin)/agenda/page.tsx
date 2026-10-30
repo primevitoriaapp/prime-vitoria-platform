@@ -114,7 +114,7 @@ export default async function AgendaPage({
           <summary className="flex cursor-pointer list-none justify-center p-4 [&::-webkit-details-marker]:hidden">
             <span className="inline-flex items-center gap-3 rounded-2xl bg-prime-gold px-8 py-4 text-lg font-bold text-[#111] shadow-lg transition hover:brightness-105">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#111] text-xl text-prime-gold">+</span>
-              Nova corrida
+              Agendar corrida
             </span>
           </summary>
           <div className="space-y-3 border-t border-prime-border p-2 sm:p-4">

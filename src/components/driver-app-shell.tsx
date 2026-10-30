@@ -52,12 +52,30 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   }, [mode]);
   const hidePayments = mode === "motorista" && employmentType !== "parceiro";
 
+  // Preview do admin: motoristas com corrida em aberto aparecem primeiro (e já vêm selecionados).
+  const [withTrips, setWithTrips] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (mode !== "admin") return;
+    const from = new Date(Date.now() - 2 * 86400000).toISOString();
+    fetch(`/api/trips?scheduledFrom=${encodeURIComponent(from)}&pageSize=300&sortDir=asc`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((j: { data?: { items?: { driver_id?: string | null; operational_status: string }[] } }) => {
+        const map: Record<string, number> = {};
+        for (const t of j.data?.items ?? []) {
+          if (t.driver_id && ["dispatched", "accepted", "reassigned", "on_the_way", "arrived", "in_progress"].includes(t.operational_status)) map[t.driver_id] = (map[t.driver_id] ?? 0) + 1;
+        }
+        setWithTrips(map);
+      })
+      .catch(() => undefined);
+  }, [mode]);
+  const orderedDrivers = useMemo(() => [...drivers].sort((a, b) => (withTrips[b.id] ?? 0) - (withTrips[a.id] ?? 0)), [drivers, withTrips]);
+
   const selectedDriverId = useMemo(() => {
     if (mode === "motorista") return sessionDriverId ?? null;
     const fromUrl = searchParams.get("driver_id")?.trim();
     if (fromUrl) return fromUrl;
-    return drivers[0]?.id ?? null;
-  }, [mode, sessionDriverId, searchParams, drivers]);
+    return orderedDrivers[0]?.id ?? null;
+  }, [mode, sessionDriverId, searchParams, orderedDrivers]);
 
   const reloadDrivers = useCallback(async () => {
     if (mode !== "admin") return;
@@ -95,9 +113,10 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
                 onChange={(e) => onDriverChange(e.target.value)}
               >
                 {drivers.length === 0 ? <option value="">— carregando —</option> : null}
-                {drivers.map((d) => (
+                {orderedDrivers.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.profile_name?.trim() || `CPF ${d.cpf}`}
+                    {withTrips[d.id] ? ` · ${withTrips[d.id]} corrida(s)` : ""}
                   </option>
                 ))}
               </select>
@@ -136,7 +155,11 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           devFallbackRole={devRole}
         />
 
-        {hidePayments ? null : (
+        {mode === "admin" ? (
+          <p className="driver-card p-4 text-xs text-[#AAAAAA]">
+            Os ganhos do motorista aparecem aqui só quando ele entra com CPF e PIN. Para pagar repasses, use Financeiro → Repasses a parceiros.
+          </p>
+        ) : hidePayments ? null : (
           <section id="carteira" className="driver-card scroll-mt-6 p-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-[#AAAAAA]">Meus ganhos</h2>
             <p className="mt-1 text-xs text-[#AAAAAA]">

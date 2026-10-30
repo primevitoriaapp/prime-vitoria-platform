@@ -115,7 +115,7 @@ export function NewTripRequestAlert({ tenantId }: Props) {
       if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
       if (document.visibilityState === "visible") return;
       const when = alert.scheduledAt ? formatBrDateTime(alert.scheduledAt) : "";
-      const n = new Notification("Nova corrida solicitada", {
+      const n = new Notification("Novo agendamento de cliente", {
         body: [when, alert.origin && alert.destination ? `${alert.origin} → ${alert.destination}` : ""]
           .filter(Boolean)
           .join("\n"),
@@ -137,7 +137,7 @@ export function NewTripRequestAlert({ tenantId }: Props) {
       return;
     }
     let on = false;
-    const label = alerts.length === 1 ? "Nova corrida" : `${alerts.length} novas corridas`;
+    const label = alerts.length === 1 ? "Novo agendamento" : `${alerts.length} novos agendamentos`;
     const timer = window.setInterval(() => {
       on = !on;
       document.title = on ? `(${alerts.length}) ${label}` : baseTitleRef.current;
@@ -271,7 +271,7 @@ export function NewTripRequestAlert({ tenantId }: Props) {
               className="rounded-xl border-2 border-prime-gold bg-prime-card p-4 text-prime-text shadow-lg"
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-semibold">Nova corrida solicitada</p>
+                <p className="text-sm font-semibold">Novo agendamento de cliente</p>
                 <button
                   type="button"
                   onClick={() => dismiss(a.id)}

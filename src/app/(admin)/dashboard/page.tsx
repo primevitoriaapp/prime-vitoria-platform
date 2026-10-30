@@ -18,7 +18,7 @@ export default async function DashboardPage() {
       <AdminPageHeader title="Visão geral" subtitle="Como está a operação agora e no período escolhido" />
       <nav className="mb-5 flex flex-wrap gap-2" aria-label="Atalhos">
         <Link href={"/agenda?nova=1" as Route} className="btn-primary">
-          + Nova corrida
+          + Agendar corrida
         </Link>
         {[
           ["/orcamentos", "Orçamentos"],

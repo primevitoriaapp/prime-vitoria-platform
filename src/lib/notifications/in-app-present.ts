@@ -58,8 +58,8 @@ export function presentInAppNotification(row: InAppNotificationRow): InAppNotifi
         : "Nova conta a receber em aberto.";
       break;
     case "operations.trip_requested":
-      title = "Nova solicitação de corrida";
-      body = tripId ? `Corrida ${tripId.slice(0, 8)}… aguarda aprovação.` : "Nova corrida na fila operacional.";
+      title = "Novo agendamento de cliente";
+      body = tripId ? `Corrida ${tripId.slice(0, 8)}… aguarda aprovação.` : "Novo agendamento na fila da central.";
       break;
     case "operations.trip_approved":
       title = "Corrida aprovada";

@@ -406,3 +406,35 @@
   border: 2px solid transparent;
   background-clip: content-box;
 }
+
+/* App motorista: componentes antigos usavam tons azul-marinho (slate); padroniza em preto/grafite + dourado. */
+.prime-theme .driver-theme [class*="bg-slate-9"],
+.prime-theme .driver-theme [class*="bg-slate-8"] {
+  background-color: var(--driver-card) !important;
+  color: var(--driver-text) !important;
+}
+.prime-theme .driver-theme [class*="border-slate-"] {
+  border-color: var(--driver-border) !important;
+}
+.prime-theme .driver-theme .text-white,
+.prime-theme .driver-theme .text-slate-100,
+.prime-theme .driver-theme .text-slate-200,
+.prime-theme .driver-theme .text-slate-300,
+.prime-theme .driver-theme .text-prime-text {
+  color: var(--driver-text) !important;
+}
+.prime-theme .driver-theme .text-slate-400,
+.prime-theme .driver-theme .text-slate-500,
+.prime-theme .driver-theme .text-slate-600 {
+  color: var(--driver-muted) !important;
+}
+.prime-theme .driver-theme .prime-driver-hero {
+  background: linear-gradient(180deg, #2a2a2e 0%, #222225 100%);
+  border-color: color-mix(in srgb, var(--driver-gold) 55%, var(--driver-border));
+  color: var(--driver-text);
+}
+.prime-theme .driver-theme h1,
+.prime-theme .driver-theme h2,
+.prime-theme .driver-theme h3 {
+  color: var(--driver-text);
+}

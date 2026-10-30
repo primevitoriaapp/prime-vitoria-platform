@@ -416,7 +416,7 @@ export function OperadorTripCreatePanel({ scheduledFrom, scheduledTo }: Props) {
 
   return (
     <section className="card mb-6 border-prime-border">
-      <h2 className="text-lg font-semibold text-prime-text">Nova corrida</h2>
+      <h2 className="text-lg font-semibold text-prime-text">Agendar corrida</h2>
       <p className="mt-1 text-sm text-prime-muted">
         Valores da tabela do cliente são sugeridos automaticamente e podem ser editados. Sem tabela, preencha
         manualmente.
