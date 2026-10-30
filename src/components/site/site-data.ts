@@ -19,14 +19,17 @@ export const SITE = {
   address: "Rua Amélia da Cunha Ornellas, 89 · Bento Ferreira · Vitória/ES · 29050-620",
   links: {
     agendar: "/pedir",
-    empresa: "/login?next=/client"
+    empresa: "/login?next=/client",
+    motorista: "/driver/login"
   },
   google: {
     reviews: "https://www.google.com/maps/place/?q=place_id:ChIJNUgr8GYXuAAR894bMX1AjEM",
     write: "https://search.google.com/local/writereview?placeid=ChIJNUgr8GYXuAAR894bMX1AjEM"
   },
   /** Formulário de cadastro de motorista parceiro (Google Forms). Vazio = usa o WhatsApp. */
-  parceiroForm: "",
+  parceiroForm: "https://docs.google.com/forms/d/e/1FAIpQLScuort2h6K96AeWCMIoUoV3ocEjZjFN4FJXLuMCsrONpuLvPQ/viewform",
+  /** Formulário de cadastro de empresa. Vazio = usa o WhatsApp. */
+  empresaForm: "",
   /** Fotos reais da frota em operação (preencher quando chegarem). A seção só aparece com fotos. */
   operacao: [] as { src: string; alt: string }[],
   /** Logos de clientes (só com autorização). A faixa só aparece com logos. */

@@ -5,6 +5,7 @@ import { SITE } from "@/components/site/site-data";
 import { SITE_TEXT, type SiteLang } from "@/components/site/site-i18n";
 import { loadGoogleReviews } from "@/lib/integrations/google-reviews";
 import { GoogleReviewsTicker } from "@/components/site/google-reviews-ticker";
+import { BrazilMap } from "@/components/site/brazil-map";
 
 const SERVICE_ICONS = [
   "M2 16l20-6-3-2-6 2-6-6-2 1 4 6-5 2-2-1-1 1z",
@@ -12,7 +13,9 @@ const SERVICE_ICONS = [
   "M4 19l5-14 6 9 2-4 3 9",
   "M4 6h16v14H4zM4 10h16M9 3v5M15 3v5",
   "M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z",
-  "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"
+  "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z",
+  "M3 7h14l4 5v5h-2M3 7v10h2M9 17h6M3 12h18",
+  "M5 4h14a2 2 0 0 1 2 2v11H3V6a2 2 0 0 1 2-2zM3 11h18M7 17v2M17 17v2M7 14h.01M17 14h.01"
 ];
 const FLEET_IMG = [SITE.img.sedan, SITE.img.suv, SITE.img.van];
 const SOCIAL = [
@@ -23,7 +26,6 @@ const SOCIAL = [
   { id: "youtube", label: "YouTube", d: "M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM10 9l5 3-5 3z" }
 ] as const;
 
-const CIDADES = ["Vitória", "Vila Velha", "Serra", "Guarapari", "São Paulo", "Rio de Janeiro", "Belo Horizonte", "Salvador", "Recife"];
 
 function Icon({ d }: { d: string }) {
   return (
@@ -61,29 +63,30 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
   const wa = `https://wa.me/5527998063956?text=${encodeURIComponent(T.whatsappMsg)}`;
   const agendar = (lang === "pt" ? SITE.links.agendar : `${SITE.links.agendar}?lang=${lang}`) as Route;
   const empresa = SITE.links.empresa as Route;
+  const empresaCadastro = SITE.empresaForm || `https://wa.me/5527998063956?text=${encodeURIComponent(T.empresas.waMsg)}`;
 
   return (
     <div id="topo" lang={lang === "pt" ? "pt-BR" : lang} className="min-h-screen bg-[#F7F5F0] text-[#111]">
       <SiteNav lang={lang} />
 
       {/* Foto da ponte, mantida como marca do site */}
-      <section className="relative flex min-h-[100svh] items-end overflow-hidden">
+      <section className="relative flex min-h-[100svh] items-center overflow-hidden">
         <picture>
           <source media="(max-width: 767px)" srcSet={SITE.img.heroMobile} />
           <img src={SITE.img.hero} alt={T.hero.alt} className="absolute inset-0 h-full w-full object-cover" fetchPriority="high" />
         </picture>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/20" aria-hidden />
-        <div className="relative mx-auto w-full max-w-6xl px-5 pb-14 pt-32 sm:pb-20">
+        <div className="absolute inset-0 bg-black/55" aria-hidden />
+        <div className="relative mx-auto w-full max-w-4xl px-5 pb-16 pt-28 text-center">
           <p className="text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: "#D9BC6A" }}>
             {T.hero.kicker}
           </p>
-          <h1 className="mt-4 max-w-3xl font-prime-display text-[40px] leading-[1.05] sm:text-[64px]" style={{ color: "#fff" }}>
+          <h1 className="mx-auto mt-4 max-w-3xl font-prime-display text-[42px] leading-[1.05] sm:text-[72px]" style={{ color: "#fff" }}>
             {T.hero.title}
           </h1>
-          <p className="mt-5 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: "rgba(255,255,255,0.82)" }}>
+          <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: "rgba(255,255,255,0.82)" }}>
             {T.hero.sub}
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
             <Link href={agendar} className="rounded-full bg-[#fff] px-7 py-4 text-center text-base font-semibold text-[#111] shadow-lg">
               {T.nav.agendar}
             </Link>
@@ -91,7 +94,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
               {T.hero.whatsapp}
             </a>
           </div>
-          <div className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
+          <div className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
             {T.hero.badges.map((b) => (
               <span key={b}>✦ {b}</span>
             ))}
@@ -115,7 +118,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
       <section id="servicos" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 sm:py-28">
         <Kicker>{T.servicos.kicker}</Kicker>
         <H2>{T.servicos.title}</H2>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {T.servicos.items.map((s, i) => (
             <article key={s.t} className="rounded-[26px] border border-[#ECE7DB] bg-white p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
               <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F7F2E6]">
@@ -160,11 +163,8 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
                 </li>
               ))}
             </ul>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href={empresa} className="rounded-full bg-[#111] px-6 py-3.5 text-center font-semibold text-[#D9BC6A]">
-                {T.empresas.entrar}
-              </Link>
-              <a href={wa} target="_blank" rel="noopener noreferrer" className="rounded-full px-6 py-3.5 text-center font-medium text-[#111] ring-1 ring-[#E2DCCD]">
+            <div className="mt-8">
+              <a href={empresaCadastro} target="_blank" rel="noopener noreferrer" className="inline-block w-full rounded-full bg-[#111] px-7 py-4 text-center font-semibold text-[#D9BC6A] sm:w-auto">
                 {T.empresas.cadastrar}
               </a>
             </div>
@@ -252,6 +252,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
               <p className="mt-4 text-base text-[#6F6A60]">{T.google.sub}</p>
             </div>
             <div className="flex flex-col gap-3">
+              {google && google.reviews.length > 0 ? <GoogleReviewsTicker data={google} reviewsUrl={SITE.google.reviews} label={{ reviews: T.reviewsWord, close: T.close }} /> : null}
               <a href={SITE.google.reviews} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 rounded-full bg-[#111] px-6 py-4 font-semibold text-[#fff]">
                 <span className="text-lg text-[#D9BC6A]" aria-hidden>
                   ★★★★★
@@ -281,14 +282,11 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
             </ul>
           </div>
           <div>
-            <Kicker>{T.cidades.kicker}</Kicker>
-            <H2>{T.cidades.title}</H2>
-            <div className="mt-8 flex flex-wrap gap-2">
-              {CIDADES.map((c) => (
-                <span key={c} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-[#ECE7DB]">
-                  {c}
-                </span>
-              ))}
+            <Kicker>{T.mapa.kicker}</Kicker>
+            <H2>{T.mapa.title}</H2>
+            <p className="mt-4 text-base text-[#6F6A60]">{T.mapa.sub}</p>
+            <div className="mt-6 rounded-[28px] border border-[#ECE7DB] bg-white p-4">
+              <BrazilMap sedeLabel={T.mapa.sede} />
             </div>
           </div>
         </div>
@@ -311,30 +309,6 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
           <a href={parceiroHref} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-full bg-[#D9BC6A] px-7 py-4 text-center font-semibold text-[#111]">
             {T.parceiro.cta}
           </a>
-        </div>
-      </section>
-
-      {/* Chamada final */}
-      <section className="px-5 pb-20">
-        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[32px]">
-          <img src={SITE.img.heroMobile} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-          <div className="absolute inset-0 bg-black/60" aria-hidden />
-          <div className="relative px-6 py-14 text-center sm:py-20">
-            <h2 className="font-prime-display text-[30px] leading-tight sm:text-[44px]" style={{ color: "#fff" }}>
-              {T.cta.title}
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
-              {T.cta.sub}
-            </p>
-            <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href={agendar} className="rounded-full bg-[#fff] px-7 py-3.5 font-semibold text-[#111]">
-                {T.nav.agendar}
-              </Link>
-              <a href={wa} target="_blank" rel="noopener noreferrer" className="rounded-full px-7 py-3.5 font-medium text-[#fff] ring-1 ring-white/50">
-                WhatsApp
-              </a>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -387,6 +361,12 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
             <Link href={empresa} className="mt-1 block text-[#6F6A60]">
               {T.nav.area}
             </Link>
+            <Link href={SITE.links.motorista as Route} className="mt-1 block text-[#6F6A60]">
+              {T.nav.motorista}
+            </Link>
+            <a href={parceiroHref} target="_blank" rel="noopener noreferrer" className="mt-1 block text-[#6F6A60]">
+              {T.parceiro.cta}
+            </a>
             <a href={SITE.google.reviews} target="_blank" rel="noopener noreferrer" className="mt-1 block text-[#6F6A60]">
               Google
             </a>
@@ -399,10 +379,6 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
           © {new Date().getFullYear()} Prime Vitória · R J Prime Transporte LTDA · CNPJ 49.126.277/0001-54
         </p>
       </footer>
-
-      {google && google.reviews.length > 0 ? (
-        <GoogleReviewsTicker data={google} reviewsUrl={SITE.google.reviews} label={{ reviews: T.reviewsWord, close: T.close }} />
-      ) : null}
 
       {/* WhatsApp flutuante */}
       <a

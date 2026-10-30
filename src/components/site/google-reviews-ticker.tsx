@@ -5,53 +5,49 @@ import type { GoogleReviewsData } from "@/lib/integrations/google-reviews";
 
 type Props = { data: GoogleReviewsData; reviewsUrl: string; label: { reviews: string; close: string } };
 
-/** Selo flutuante com as avaliações do Google passando uma a uma. */
+/** Avaliações do Google passando uma a uma, dentro da seção de avaliações. */
 export function GoogleReviewsTicker({ data, reviewsUrl, label }: Props) {
   const [i, setI] = useState(0);
-  const [hidden, setHidden] = useState(false);
-  const [show, setShow] = useState(false);
+  const [paused, setPaused] = useState(false);
   const n = data.reviews.length;
 
-  // Aparece depois que a pessoa passa da foto do topo, para não cobrir a chamada principal.
   useEffect(() => {
-    const on = () => {
-      if (window.scrollY > window.innerHeight * 0.6) setShow(true);
-    };
-    on();
-    window.addEventListener("scroll", on, { passive: true });
-    return () => window.removeEventListener("scroll", on);
-  }, []);
-  useEffect(() => {
-    if (n < 2) return;
-    const t = window.setInterval(() => setI((v) => (v + 1) % n), 6500);
+    if (n < 2 || paused) return;
+    const t = window.setInterval(() => setI((v) => (v + 1) % n), 7000);
     return () => window.clearInterval(t);
-  }, [n]);
+  }, [n, paused]);
 
-  if (hidden || !show || n === 0) return null;
+  if (n === 0) return null;
   const r = data.reviews[i];
   return (
-    <div className="pv-float-in fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-4 z-40 w-[min(330px,calc(100vw-6.5rem))]">
-      <div className="relative rounded-[22px] border border-[#ECE7DB] bg-white/95 p-3.5 pr-8 shadow-[0_18px_40px_rgba(0,0,0,0.16)] backdrop-blur">
-        <button type="button" onClick={() => setHidden(true)} aria-label={label.close} className="absolute right-2.5 top-2 text-lg leading-none text-[#B5B0A5]">
-          ×
-        </button>
-        <a href={reviewsUrl} target="_blank" rel="noopener noreferrer" className="block">
-          <div className="flex items-center gap-2 text-xs">
-            <GoogleG />
-            <span className="font-semibold text-[#111]">{data.rating != null ? data.rating.toFixed(1).replace(".", ",") : "5,0"}</span>
-            <span className="text-[#E2B33C]">★★★★★</span>
-            {data.total ? <span className="text-[#8A8A8A]">· {data.total} {label.reviews}</span> : null}
-          </div>
-          <div key={i} className="pv-review-in mt-2">
-            <p className="line-clamp-3 text-[13px] leading-snug text-[#333]">“{r.text}”</p>
-            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#8A8A8A]">
-              {r.photo ? <img src={r.photo} alt="" width={16} height={16} className="h-4 w-4 rounded-full" referrerPolicy="no-referrer" /> : null}
-              <span className="font-medium text-[#555]">{r.author}</span>
-              {r.when ? <span>· {r.when}</span> : null}
-            </p>
-          </div>
-        </a>
-      </div>
+    <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="rounded-[24px] bg-[#F7F5F0] p-5">
+      <a href={reviewsUrl} target="_blank" rel="noopener noreferrer" className="block">
+        <div className="flex items-center gap-2 text-xs">
+          <GoogleG />
+          <span className="text-[#E2B33C]">{"★".repeat(Math.round(r.rating))}</span>
+          {r.when ? <span className="text-[#8A8A8A]">· {r.when}</span> : null}
+        </div>
+        <div key={i} className="pv-review-in mt-3 min-h-[7.5rem]">
+          <p className="line-clamp-5 text-[15px] leading-relaxed text-[#333]">“{r.text}”</p>
+          <p className="mt-3 flex items-center gap-2 text-sm">
+            {r.photo ? <img src={r.photo} alt="" width={24} height={24} className="h-6 w-6 rounded-full" referrerPolicy="no-referrer" /> : null}
+            <span className="font-semibold text-[#111]">{r.author}</span>
+          </p>
+        </div>
+      </a>
+      {n > 1 ? (
+        <div className="mt-4 flex gap-1.5" role="tablist" aria-label={label.reviews}>
+          {data.reviews.map((_, k) => (
+            <button
+              key={k}
+              type="button"
+              aria-label={`${k + 1}`}
+              onClick={() => setI(k)}
+              className={`h-1.5 rounded-full transition-all ${k === i ? "w-6 bg-[#111]" : "w-1.5 bg-[#D9CFB8]"}`}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

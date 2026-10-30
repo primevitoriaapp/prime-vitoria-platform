@@ -10,11 +10,12 @@ type Item = { t: string; d: string };
 
 export type SiteText = {
   meta: { title: string; description: string };
-  nav: { servicos: string; empresas: string; frota: string; contato: string; area: string; agendar: string };
+  nav: { servicos: string; empresas: string; frota: string; contato: string; area: string; agendar: string; entrar: string; cliente: string; motorista: string };
   hero: { kicker: string; title: string; sub: string; whatsapp: string; badges: [string, string, string]; alt: string };
+  mapa: { kicker: string; title: string; sub: string; sede: string };
   servicos: { kicker: string; title: string; items: Item[] };
   passos: { kicker: string; title: string; items: Item[] };
-  empresas: { kicker: string; title: string; sub: string; bullets: string[]; entrar: string; cadastrar: string; mock: { ola: string; sub: string; agendar: string; proximas: string; hoje: string; amanha: string } };
+  empresas: { kicker: string; title: string; sub: string; bullets: string[]; entrar: string; cadastrar: string; waMsg: string; mock: { ola: string; sub: string; agendar: string; proximas: string; hoje: string; amanha: string } };
   frota: { kicker: string; title: string; items: Item[]; extra: string };
   operacao: { kicker: string; title: string };
   google: { kicker: string; title: string; sub: string; ver: string; avaliar: string };
@@ -35,15 +36,16 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       title: "Prime Vitória · Transporte Executivo no Espírito Santo",
       description: "Transfer para aeroporto, motorista executivo à disposição, eventos, casamentos e viagens. Agende online e acompanhe o motorista ao vivo."
     },
-    nav: { servicos: "Serviços", empresas: "Empresas", frota: "Frota", contato: "Contato", area: "Área da empresa", agendar: "Agendar viagem" },
+    nav: { servicos: "Serviços", empresas: "Empresas", frota: "Frota", contato: "Contato", area: "Área do cliente", agendar: "Agendar viagem", entrar: "Entrar", cliente: "Área do cliente", motorista: "Área do motorista" },
     hero: {
-      kicker: "Transporte executivo · Espírito Santo",
-      title: "Sua agenda no horário. Seu conforto em primeiro lugar.",
-      sub: "Motoristas profissionais, carros executivos e acompanhamento ao vivo de cada viagem — do aeroporto à reunião, do evento ao hotel.",
+      kicker: "Prime Vitória · há 10 anos",
+      title: "Transporte executivo no Espírito Santo",
+      sub: "Carros executivos, vans, ônibus e blindados para empresas, eventos e viagens — com acompanhamento ao vivo de cada corrida.",
       whatsapp: "Falar no WhatsApp",
       badges: ["10 anos de estrada", "Monitoramento de voo", "Motorista ao vivo no seu celular"],
       alt: "Terceira Ponte, Vitória/ES"
     },
+    mapa: { kicker: "Onde atendemos", title: "De Vitória para todo o Brasil.", sub: "Nossa sede é no Espírito Santo, e levamos o mesmo padrão Prime para as principais cidades do país.", sede: "Sede" },
     servicos: {
       kicker: "Serviços",
       title: "Para cada compromisso, o carro certo.",
@@ -51,9 +53,11 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
         { t: "Transfer aeroporto", d: "Monitoramos o seu voo e o motorista te espera no desembarque, mesmo com atraso." },
         { t: "Executivo à disposição", d: "Carro e motorista por 5, 10 ou 15 horas para reuniões e agendas cheias." },
         { t: "Viagens intermunicipais", d: "Guarapari, Linhares, Domingos Martins e todo o estado com conforto." },
-        { t: "Eventos e convenções", d: "Logística de embarque para grupos, palestrantes e convidados, do aeroporto ao hotel." },
+        { t: "Eventos corporativos", d: "Logística de embarque para grupos, palestrantes e convidados, do aeroporto ao hotel." },
         { t: "Casamentos", d: "Carro dos noivos e transporte de convidados, com pontualidade no dia mais importante." },
-        { t: "Blindados", d: "Segurança com discrição para executivos, artistas e autoridades." }
+        { t: "Blindados", d: "Segurança com discrição para executivos, artistas e autoridades." },
+        { t: "Vans de 15 e 20 lugares", d: "Grupos, equipes e famílias viajando juntos com conforto." },
+        { t: "Ônibus e micro-ônibus", d: "Excursões, eventos e transporte de grandes grupos." }
       ]
     },
     passos: {
@@ -71,7 +75,8 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       sub: "Sua equipe agenda as viagens, você acompanha tudo em tempo real com centro de custo, relatórios e comprovação de cada corrida. Faturamento mensal sob consulta.",
       bullets: ["Cada colaborador com seu acesso", "Corridas separadas por centro de custo", "Faturamento mensal (consulte)", "Assinatura do passageiro ao final"],
       entrar: "Entrar na área da empresa",
-      cadastrar: "Cadastrar minha empresa",
+      cadastrar: "Cadastre sua empresa e faça parte",
+      waMsg: "Olá, quero cadastrar minha empresa na Prime Vitória.",
       mock: { ola: "Olá, Ana", sub: "Para onde sua empresa vai hoje?", agendar: "Agendar viagem", proximas: "Próximas viagens", hoje: "Hoje · 14h30", amanha: "Amanhã · 08h00" }
     },
     frota: {
@@ -105,7 +110,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
     diferenciais: {
       kicker: "Diferenciais",
       title: "O cuidado está nos detalhes.",
-      items: ["Monitoramento de voo", "Motorista acompanhado ao vivo", "Veículos higienizados diariamente", "Wi-fi, carregador e serviço de bordo", "Faturamento para empresas (consulte)", "Motoristas que falam inglês e espanhol"]
+      items: ["Monitoramento de voo", "Central acompanhando o motorista ao vivo, 24 horas", "Veículos higienizados todos os dias", "Wi-fi, carregador e serviço de bordo", "Motoristas bilíngues"]
     },
     cidades: { kicker: "Onde atendemos", title: "Base no Espírito Santo. Parceiros nas capitais." },
     cta: { title: "Pronto para a próxima viagem?", sub: "Peça agora e receba o orçamento em minutos." },
@@ -117,15 +122,16 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       title: "Prime Vitória · Executive Chauffeur Service in Espírito Santo, Brazil",
       description: "Airport transfers, chauffeur at your disposal, events, weddings and intercity trips in Vitória, Brazil. Track your driver live."
     },
-    nav: { servicos: "Services", empresas: "Companies", frota: "Fleet", contato: "Contact", area: "Company login", agendar: "Book a ride" },
+    nav: { servicos: "Services", empresas: "Companies", frota: "Fleet", contato: "Contact", area: "Client area", agendar: "Book a ride", entrar: "Log in", cliente: "Client area", motorista: "Driver area" },
     hero: {
-      kicker: "Executive chauffeur · Vitória, Brazil",
-      title: "On time for every meeting. Comfort comes first.",
-      sub: "Professional drivers, executive cars and live tracking of every ride — from the airport to your meeting, from the event to your hotel.",
+      kicker: "Prime Vitória · 10 years",
+      title: "Executive transportation in Espírito Santo, Brazil",
+      sub: "Executive cars, vans, coaches and armored vehicles for companies, events and travel — with live tracking of every ride.",
       whatsapp: "Chat on WhatsApp",
       badges: ["10 years on the road", "Flight monitoring", "Track your driver live"],
       alt: "Terceira Ponte bridge, Vitória, Brazil"
     },
+    mapa: { kicker: "Where we operate", title: "From Vitória to all of Brazil.", sub: "Headquartered in Espírito Santo, we bring the same Prime standard to Brazil's main cities.", sede: "Headquarters" },
     servicos: {
       kicker: "Services",
       title: "The right car for every occasion.",
@@ -133,9 +139,11 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
         { t: "Airport transfer", d: "We track your flight and your driver waits at arrivals, even if you are delayed." },
         { t: "Chauffeur at your disposal", d: "Car and driver for 5, 10 or 15 hours for meetings and busy schedules." },
         { t: "Intercity trips", d: "Guarapari, Linhares, Domingos Martins and the whole state in comfort." },
-        { t: "Events and conventions", d: "Ground logistics for groups, speakers and guests, from the airport to the hotel." },
+        { t: "Corporate events", d: "Ground logistics for groups, speakers and guests, from the airport to the hotel." },
         { t: "Weddings", d: "Bridal car and guest transportation, right on time on the big day." },
-        { t: "Armored vehicles", d: "Discreet security for executives, artists and officials." }
+        { t: "Armored vehicles", d: "Discreet security for executives, artists and officials." },
+        { t: "15 and 20-seat vans", d: "Groups, teams and families traveling together in comfort." },
+        { t: "Coaches and minibuses", d: "Tours, events and large group transportation." }
       ]
     },
     passos: {
@@ -153,7 +161,8 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       sub: "Your team books the rides, you follow everything in real time with cost centers, reports and proof of every ride. Monthly invoicing on request.",
       bullets: ["Individual access for each employee", "Rides split by cost center", "Monthly invoicing (on request)", "Passenger signature at drop-off"],
       entrar: "Company login",
-      cadastrar: "Register my company",
+      cadastrar: "Register your company",
+      waMsg: "Hello, I would like to register my company with Prime Vitória.",
       mock: { ola: "Hi, Anna", sub: "Where is your company going today?", agendar: "Book a ride", proximas: "Upcoming rides", hoje: "Today · 2:30 pm", amanha: "Tomorrow · 8:00 am" }
     },
     frota: {
@@ -187,7 +196,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
     diferenciais: {
       kicker: "Why Prime",
       title: "Care in every detail.",
-      items: ["Flight monitoring", "Live driver tracking", "Vehicles sanitized daily", "Wi-fi, chargers and onboard amenities", "Corporate invoicing (on request)", "English- and Spanish-speaking drivers"]
+      items: ["Flight monitoring", "24/7 control center tracking every driver live", "Vehicles sanitized every day", "Wi-fi, chargers and onboard amenities", "Bilingual drivers"]
     },
     cidades: { kicker: "Where we operate", title: "Based in Espírito Santo. Partners in major Brazilian cities." },
     cta: { title: "Ready for your next ride?", sub: "Request now and get your quote in minutes." },
@@ -199,15 +208,16 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       title: "Prime Vitória · Transporte Ejecutivo en Espírito Santo, Brasil",
       description: "Traslados al aeropuerto, chofer a disposición, eventos, bodas y viajes en Vitória, Brasil. Sigue a tu conductor en vivo."
     },
-    nav: { servicos: "Servicios", empresas: "Empresas", frota: "Flota", contato: "Contacto", area: "Área de empresas", agendar: "Reservar viaje" },
+    nav: { servicos: "Servicios", empresas: "Empresas", frota: "Flota", contato: "Contacto", area: "Área del cliente", agendar: "Reservar viaje", entrar: "Entrar", cliente: "Área del cliente", motorista: "Área del conductor" },
     hero: {
-      kicker: "Transporte ejecutivo · Vitória, Brasil",
-      title: "Puntual en cada compromiso. Tu comodidad primero.",
-      sub: "Conductores profesionales, autos ejecutivos y seguimiento en vivo de cada viaje — del aeropuerto a la reunión, del evento al hotel.",
+      kicker: "Prime Vitória · 10 años",
+      title: "Transporte ejecutivo en Espírito Santo, Brasil",
+      sub: "Autos ejecutivos, vans, autobuses y blindados para empresas, eventos y viajes — con seguimiento en vivo de cada viaje.",
       whatsapp: "Hablar por WhatsApp",
       badges: ["10 años en el camino", "Monitoreo de vuelos", "Tu conductor en vivo"],
       alt: "Tercer Puente, Vitória, Brasil"
     },
+    mapa: { kicker: "Dónde atendemos", title: "De Vitória a todo Brasil.", sub: "Nuestra sede está en Espírito Santo y llevamos el mismo estándar Prime a las principales ciudades del país.", sede: "Sede" },
     servicos: {
       kicker: "Servicios",
       title: "El auto ideal para cada ocasión.",
@@ -215,9 +225,11 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
         { t: "Traslado al aeropuerto", d: "Monitoreamos tu vuelo y el conductor te espera en llegadas, incluso con retraso." },
         { t: "Chofer a disposición", d: "Auto y conductor por 5, 10 o 15 horas para reuniones y agendas llenas." },
         { t: "Viajes interurbanos", d: "Guarapari, Linhares, Domingos Martins y todo el estado con comodidad." },
-        { t: "Eventos y convenciones", d: "Logística para grupos, ponentes e invitados, del aeropuerto al hotel." },
+        { t: "Eventos corporativos", d: "Logística para grupos, ponentes e invitados, del aeropuerto al hotel." },
         { t: "Bodas", d: "Auto de los novios y traslado de invitados, puntual en el gran día." },
-        { t: "Blindados", d: "Seguridad discreta para ejecutivos, artistas y autoridades." }
+        { t: "Blindados", d: "Seguridad discreta para ejecutivos, artistas y autoridades." },
+        { t: "Vans de 15 y 20 plazas", d: "Grupos, equipos y familias viajando juntos con comodidad." },
+        { t: "Autobuses y minibuses", d: "Excursiones, eventos y traslado de grandes grupos." }
       ]
     },
     passos: {
@@ -235,7 +247,8 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
       sub: "Tu equipo reserva los viajes, tú sigues todo en tiempo real con centros de costo, informes y comprobante de cada viaje. Facturación mensual a consultar.",
       bullets: ["Acceso individual para cada colaborador", "Viajes por centro de costo", "Facturación mensual (consultar)", "Firma del pasajero al final"],
       entrar: "Acceso de empresas",
-      cadastrar: "Registrar mi empresa",
+      cadastrar: "Registra tu empresa",
+      waMsg: "Hola, quiero registrar mi empresa en Prime Vitória.",
       mock: { ola: "Hola, Ana", sub: "¿A dónde va tu empresa hoy?", agendar: "Reservar viaje", proximas: "Próximos viajes", hoje: "Hoy · 14:30", amanha: "Mañana · 08:00" }
     },
     frota: {
@@ -269,7 +282,7 @@ export const SITE_TEXT: Record<SiteLang, SiteText> = {
     diferenciais: {
       kicker: "Diferenciales",
       title: "El cuidado está en los detalles.",
-      items: ["Monitoreo de vuelos", "Conductor en vivo", "Vehículos higienizados a diario", "Wi-fi, cargador y servicio a bordo", "Facturación para empresas (consultar)", "Conductores que hablan inglés y español"]
+      items: ["Monitoreo de vuelos", "Central que sigue al conductor en vivo, 24 horas", "Vehículos higienizados todos los días", "Wi-fi, cargador y servicio a bordo", "Conductores bilingües"]
     },
     cidades: { kicker: "Dónde atendemos", title: "Base en Espírito Santo. Socios en las principales ciudades de Brasil." },
     cta: { title: "¿Listo para tu próximo viaje?", sub: "Solicítalo ahora y recibe tu cotización en minutos." },
