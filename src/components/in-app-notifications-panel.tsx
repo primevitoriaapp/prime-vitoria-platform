@@ -13,6 +13,7 @@ type Item = {
   tripId: string | null;
   unread: boolean;
   createdAt: string;
+  trip?: { scheduled_at: string; route: string; client: string | null; driver: string | null; status: string } | null;
 };
 
 type Props = {
@@ -101,7 +102,7 @@ export function InAppNotificationsPanel({
   const collapsed = collapsible && !expanded;
 
   return (
-    <section className={`rounded-xl border border-slate-200 bg-white shadow-sm ${compact ? "mt-4" : "mt-6"}`}>
+    <section className={compact ? "" : "mt-6 rounded-xl border border-slate-200 bg-white shadow-sm"}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
         {collapsible ? (
           <button
@@ -132,6 +133,7 @@ export function InAppNotificationsPanel({
         )}
         {!collapsed ? (
           <div className="flex flex-wrap items-center gap-2 text-sm">
+{!compact ? (
             <label className="flex items-center gap-1 text-slate-600">
               <input
                 type="checkbox"
@@ -140,6 +142,7 @@ export function InAppNotificationsPanel({
               />
               Só não lidas
             </label>
+            ) : null}
             {unreadCount > 0 ? (
               <button type="button" className="btn-secondary text-sm" onClick={() => void markAllRead()}>
                 Marcar todas lidas
@@ -166,6 +169,40 @@ export function InAppNotificationsPanel({
             <p className="mt-3 text-sm text-slate-500">Sem notificações{unreadOnly ? " não lidas" : ""}.</p>
           ) : null}
 
+          {compact ? (
+            <ul className="mt-2 space-y-2">
+              {items.map((item) => {
+                const t = item.trip;
+                const needsDriver = t && !t.driver && ["requested", "approved"].includes(t.status);
+                const href = item.tripId ? `/agenda?trip=${item.tripId}#trip-detail` : "/agenda";
+                return (
+                  <li key={item.id} className={`rounded-xl border p-3 text-sm ${item.unread ? "border-prime-gold/60 bg-[#FBF7EC]" : "border-prime-border bg-white"}`}>
+                    <p className="font-semibold text-prime-text">{item.title}</p>
+                    {t ? (
+                      <p className="mt-0.5 text-prime-muted">
+                        {new Date(t.scheduled_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {t.route}
+                        {t.client ? ` · ${t.client}` : ""}
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 line-clamp-2 text-prime-muted">{item.body}</p>
+                    )}
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-xs text-prime-muted">
+                        {t?.driver ? `Motorista: ${t.driver}` : t ? "Sem motorista" : new Date(item.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                      </span>
+                      <Link
+                        href={href as never}
+                        onClick={() => item.unread && void markRead(item.id)}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${needsDriver ? "bg-[#111] text-prime-gold" : "ring-1 ring-prime-border"}`}
+                      >
+                        {needsDriver ? "Definir motorista" : "Abrir"}
+                      </Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
           <ul className="mt-3 divide-y divide-slate-200">
             {items.map((item) => (
               <li
@@ -204,6 +241,7 @@ export function InAppNotificationsPanel({
               </li>
             ))}
           </ul>
+          )}
 
           {!compact && total > items.length ? (
             <p className="mt-2 text-xs text-slate-500">

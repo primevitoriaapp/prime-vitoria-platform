@@ -55,9 +55,33 @@ export async function GET(request: Request) {
     const { data, error, count } = await query;
     if (error) return fail("IN_APP_NOTIFICATIONS_LIST_FAILED", error.message, 500);
 
-    const items = (data ?? []).map((row) =>
-      presentInAppNotification(row as InAppNotificationRow)
-    );
+    const baseItems = (data ?? []).map((row) => presentInAppNotification(row as InAppNotificationRow));
+    // Resumo da corrida em cada aviso (data, trajeto, cliente e se já tem motorista) para agir direto do sininho.
+    const tripIds = [...new Set(baseItems.map((i) => i.tripId).filter(Boolean))] as string[];
+    const tripMap = new Map<string, Record<string, unknown>>();
+    if (tripIds.length) {
+      const { data: trips } = await db
+        .from("trips")
+        .select("id, scheduled_at, origin_text, destination_text, passenger_name, driver_id, operational_status, client_id")
+        .in("id", tripIds);
+      const cIds = [...new Set((trips ?? []).map((t) => t.client_id as string).filter(Boolean))];
+      const dIds = [...new Set((trips ?? []).map((t) => t.driver_id as string).filter(Boolean))];
+      const [{ data: cs }, { data: ds }] = await Promise.all([
+        cIds.length ? db.from("clients").select("id, name, trade_name").in("id", cIds) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+        dIds.length ? db.from("drivers").select("id, full_name").in("id", dIds) : Promise.resolve({ data: [] as Record<string, unknown>[] })
+      ]);
+      const cn = new Map((cs ?? []).map((c) => [c.id as string, ((c.trade_name as string) || (c.name as string)) ?? ""]));
+      const dn = new Map((ds ?? []).map((d) => [d.id as string, (d.full_name as string) ?? ""]));
+      for (const t of trips ?? [])
+        tripMap.set(t.id as string, {
+          scheduled_at: t.scheduled_at,
+          route: `${String(t.origin_text ?? "").split(",")[0]} → ${String(t.destination_text ?? "").split(",")[0]}`,
+          client: cn.get(t.client_id as string) ?? null,
+          driver: t.driver_id ? (dn.get(t.driver_id as string) ?? "Motorista") : null,
+          status: t.operational_status
+        });
+    }
+    const items = baseItems.map((i) => ({ ...i, trip: i.tripId ? (tripMap.get(i.tripId) ?? null) : null }));
 
     const { count: unreadCount, error: unreadErr } = await db
       .from("notifications")

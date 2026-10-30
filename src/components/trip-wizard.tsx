@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAssignDrivers } from "@/components/quick-assign";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
@@ -31,6 +32,9 @@ function addDaysYmd(ymd: string, n: number) {
 export function TripWizard({ onDone }: { onDone?: () => void }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  // Motorista já na criação (opcional): a corrida sai atribuída e ele recebe o aviso na hora.
+  const { drivers: assignDrivers } = useAssignDrivers();
+  const [driverId, setDriverId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -265,13 +269,29 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       ...(roundTrip && returnIso ? { round_trip: true, return_scheduled_at: returnIso } : {})
     };
     const res = await fetchWithSupabaseSession("/api/trips", { method: "POST", body: JSON.stringify(body) }, "admin");
-    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { id: string }; error?: { message?: string } };
-    setBusy(false);
+    const json = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      data?: { id: string; operational_status?: string; trip_id_return?: string | null };
+      error?: { message?: string };
+    };
     if (!res.ok || !json.success || !json.data?.id) {
+      setBusy(false);
       setError(json.error?.message ?? "Não foi possível criar a corrida.");
       return;
     }
+    let assignNote = "";
+    if (driverId) {
+      const ids = [json.data.id, json.data.trip_id_return].filter(Boolean) as string[];
+      for (const id of ids) {
+        if (json.data.operational_status === "requested") await fetchWithSupabaseSession(`/api/trips/${id}/approve`, { method: "POST" }, "admin");
+        const d = await fetchWithSupabaseSession(`/api/trips/${id}/dispatch-directed`, { method: "POST", body: JSON.stringify({ driver_id: driverId }) }, "admin");
+        const dj = (await d.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
+        if (!d.ok || !dj.success) assignNote = dj.error?.message ?? "Não foi possível atribuir o motorista.";
+      }
+    }
+    setBusy(false);
     onDone?.();
+    if (assignNote) window.alert(`Corrida criada, mas o motorista não foi atribuído: ${assignNote}`);
     router.push(`/agenda?trip=${json.data.id}#trip-detail` as Route);
     router.refresh();
   }
@@ -757,9 +777,26 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 </div>
               </div>
             </dl>
-            <p className="text-sm text-prime-muted md:col-span-2">
-              Depois de criar, a corrida abre na tela dela para você escolher o motorista.
-            </p>
+            <label className="grid gap-1 rounded-2xl border-2 border-prime-gold/50 bg-[#FBF7EC] p-4 text-sm md:col-span-2">
+              <span className="font-semibold">Motorista (opcional)</span>
+              <select className={input} value={driverId} onChange={(e) => setDriverId(e.target.value)}>
+                <option value="">Escolher depois</option>
+                {[...assignDrivers]
+                  .sort((a, b) => Number(Boolean(b.categoryIds?.includes(category.id))) - Number(Boolean(a.categoryIds?.includes(category.id))))
+                  .map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                      {d.vehicle ? ` · ${d.vehicle.model} ${d.vehicle.plate}` : ""}
+                      {d.categoryIds?.length && !d.categoryIds.includes(category.id) ? " (outra categoria)" : ""}
+                    </option>
+                  ))}
+              </select>
+              <span className="text-xs text-prime-muted">
+                {driverId
+                  ? "Ao criar, a corrida já vai para ele e o celular dele avisa. Se ele tiver outra corrida no mesmo horário, o sistema avisa e não atribui."
+                  : "Se deixar em branco, a corrida abre na tela dela para você escolher o motorista."}
+              </span>
+            </label>
           </div>
         ) : null}
 
@@ -786,7 +823,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
             </button>
           ) : (
             <button type="button" disabled={busy} className="btn-primary ml-auto disabled:opacity-50" onClick={() => void submit()}>
-              {busy ? "Criando…" : roundTrip ? "Criar ida e volta" : "Criar corrida"}
+              {busy ? "Criando…" : `${roundTrip ? "Criar ida e volta" : "Criar corrida"}${driverId ? " e enviar ao motorista" : ""}`}
             </button>
           )}
         </div>
