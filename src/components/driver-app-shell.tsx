@@ -203,6 +203,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           devFallbackRole={devRole}
           view={tab === "agenda" ? "agenda" : tab === "corridas" ? "historico" : "inicio"}
           onSeeAll={() => go("agenda")}
+          onGoHome={() => setTab("inicio")}
           hidden={tab === "perfil" || tab === "carteira"}
         />
 

@@ -95,3 +95,10 @@ canvas {
     touch-action: manipulation;
   }
 }
+
+/* Card flutuante de corrida agendada (app do motorista) */
+@keyframes pv-float-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.pv-float-in { animation: pv-float-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }

@@ -134,7 +134,8 @@ export async function processNotificationJobs(opts?: NotificationProcessOptions)
       const PUSH_EVENTS: Record<string, string> = {
         "operations.trip_requested": "🔔 Novo agendamento de cliente",
         "operations.trip_cancelled": "❌ Corrida cancelada",
-        "operations.trip_no_show": "Passageiro não compareceu"
+        "operations.trip_no_show": "Passageiro não compareceu",
+        "operations.trip_review": "⚠️ Corrida para revisar (GPS)"
       };
       if (PUSH_EVENTS[eventType] && jobTenantId) {
         try {

@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { OperationsReportExport } from "@/components/operations-report-export";
 import { DashboardOverview } from "@/components/dashboard-overview";
+import { TripsToReviewAlert } from "@/components/trip-review-banner";
 import { can } from "@/lib/security/rbac";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { getSessionContext } from "@/lib/server/session";
@@ -36,6 +37,9 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </nav>
+      <div className="mb-5 empty:hidden">
+        <TripsToReviewAlert />
+      </div>
       <DashboardOverview tenantId={realtimeTenantId} showMoney={showMoney} />
 
 

@@ -30,6 +30,7 @@ import { TripEditPanel } from "@/components/trip-edit-panel";
 import { TripAssignCard } from "@/components/trip-assign-card";
 import { TripProofCard } from "@/components/trip-proof-card";
 import { StaleTripsPanel } from "@/components/stale-trips-panel";
+import { TripReviewBanner, TripsToReviewAlert } from "@/components/trip-review-banner";
 import { TripExpensesReview } from "@/components/trip-expenses";
 export default async function AgendaPage({
   searchParams
@@ -80,6 +81,7 @@ export default async function AgendaPage({
             driverAmount={focusTrip?.driver_amount}
             margin={focusTrip?.margin}
           />
+          {showClaimBar ? <TripReviewBanner tripId={focusTripId} /> : null}
           {showClaimBar ? <TripAssignCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripEditPanel tripId={focusTripId} /> : null}
           {showClaimBar ? <TripProofCard tripId={focusTripId} /> : null}
@@ -131,6 +133,7 @@ export default async function AgendaPage({
         </details>
       ) : null}
       <div className="mb-4">
+        <TripsToReviewAlert />
         <StaleTripsPanel />
       </div>
       <BookingsBoard tenantId={realtimeTenantId} createHref={null} initialPeriod={sp.periodo} initialGroup={sp.grupo} showCalendar />

@@ -57,6 +57,10 @@ export function presentInAppNotification(row: InAppNotificationRow): InAppNotifi
         ? `Nova conta a receber ligada à corrida ${tripId.slice(0, 8)}… (pós-corrida).`
         : "Nova conta a receber em aberto.";
       break;
+    case "operations.trip_review":
+      title = "⚠️ Corrida para revisar";
+      body = typeof payload.reason === "string" && payload.reason ? payload.reason : "O motorista não confirmou o local pelo GPS.";
+      break;
     case "operations.trip_requested":
       title = "Novo agendamento de cliente";
       body = tripId ? `Corrida ${tripId.slice(0, 8)}… aguarda aprovação.` : "Novo agendamento na fila da central.";

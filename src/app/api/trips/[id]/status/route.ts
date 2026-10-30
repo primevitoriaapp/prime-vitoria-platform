@@ -18,6 +18,7 @@ import { isOperationalTripStatusEvent } from "@/lib/notifications/operational-st
 import { finalizeWaitFields } from "@/lib/trips/finalize-trip-wait";
 import { odometerDistance, parseOdometer } from "@/lib/trips/odometer";
 import { ensureTripTrackToken } from "@/lib/public/ensure-track-token";
+import { formatDistance, geofenceCheck } from "@/lib/geo/geofence";
 import {
   allPickupStopsCompleted,
   hasMultiplePickupStops,
@@ -42,7 +43,10 @@ const bodySchema = z.object({
   actual_km: z.coerce.number().positive().optional(),
   odometer_start: z.union([z.string(), z.number()]).optional(),
   odometer_end: z.union([z.string(), z.number()]).optional(),
-  km_from_gps: z.boolean().optional()
+  km_from_gps: z.boolean().optional(),
+  position: z.object({ lat: z.number(), lng: z.number(), accuracy: z.number().nullable().optional() }).nullable().optional(),
+  force_review: z.boolean().optional(),
+  review_reason: z.string().trim().max(300).optional()
 });
 
 const TRACK_END: string[] = ["completed", "cancelled", "no_show"];
@@ -126,6 +130,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
+    // Local certo: chegar/iniciar no embarque e finalizar no destino (GPS do celular do motorista).
+    let reviewNote: string | null = null;
+    if (session.role === "motorista" && ["arrived", "in_progress", "completed"].includes(body.to_status)) {
+      const isDiaria = String(trip.service_mode ?? "").startsWith("diaria");
+      const atDestination = body.to_status === "completed";
+      const target = atDestination
+        ? isDiaria
+          ? null
+          : { lat: trip.destination_lat as number | null, lng: trip.destination_lng as number | null }
+        : { lat: trip.origin_lat as number | null, lng: trip.origin_lng as number | null };
+      const check = geofenceCheck(body.position ?? null, target);
+      if (!check.ok) {
+        const where = atDestination ? "do destino" : "do local de embarque";
+        const detail = check.reason === "sem_gps" ? "GPS do celular não informou a localização" : `motorista a ${formatDistance(check.distance ?? 0)} ${where}`;
+        if (!body.force_review) {
+          return fail(
+            "GEOFENCE",
+            check.reason === "sem_gps"
+              ? "Não consegui confirmar sua localização. Ative o GPS do celular e tente de novo."
+              : `Você está a ${formatDistance(check.distance ?? 0)} ${where}. ${atDestination ? "Finalize quando chegar ao destino." : "Essa etapa só libera quando você chegar ao local."}`,
+            409,
+            check.reason
+          );
+        }
+        reviewNote = `${body.to_status === "arrived" ? "Chegada" : body.to_status === "in_progress" ? "Início" : "Fim"} fora do local: ${detail}${body.review_reason ? ` · motorista: ${body.review_reason}` : ""}`;
+      }
+    }
+
     // KM do painel: inicial ao iniciar a viagem, final ao finalizar. A distância cobrada vem da diferença.
     const odoStart = parseOdometer(body.odometer_start ?? null);
     const odoEnd = parseOdometer(body.odometer_end ?? null);
@@ -156,6 +188,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       body.to_status === "in_progress" ? finalizeWaitFields(trip.wait_minutes, trip.wait_started_at) : null;
 
     const statusUpdate: Record<string, unknown> = { operational_status: body.to_status };
+    if (reviewNote) {
+      statusUpdate.review_required = true;
+      statusUpdate.review_reason = [trip.review_reason, reviewNote].filter(Boolean).join(" | ");
+    }
     if (waitFinalize) {
       statusUpdate.wait_minutes = waitFinalize.wait_minutes;
       statusUpdate.wait_started_at = waitFinalize.wait_started_at;
@@ -198,6 +234,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (TRACK_END.includes(body.to_status)) {
       await runBestEffort("trip.track_token_expire", async () => {
         await db.from("trip_public_track_tokens").update({ expires_at: new Date(Date.now() + 3 * 3600000).toISOString() }).eq("trip_id", id).gt("expires_at", new Date().toISOString());
+      });
+    }
+
+    if (reviewNote) {
+      await runBestEffort("trip.review_push", async () => {
+        const { notifyTripReview } = await import("@/lib/notifications/operational-notify");
+        await notifyTripReview(tenantId, id, reviewNote as string);
       });
     }
 

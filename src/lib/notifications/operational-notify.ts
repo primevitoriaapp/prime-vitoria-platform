@@ -131,3 +131,13 @@ export async function notifyTripStatusToStaff(
     }
   );
 }
+
+/** Motorista não confirmou o local pelo GPS: a central precisa revisar a corrida. */
+export async function notifyTripReview(tenantId: string, tripId: string, reason: string): Promise<number> {
+  return enqueueInAppForTenantRoles(
+    tenantId,
+    [...STAFF_ROLES],
+    { eventType: "operations.trip_review", tripId, reason },
+    { correlation_id: `trip-${tripId}-review-${Date.now()}` }
+  );
+}

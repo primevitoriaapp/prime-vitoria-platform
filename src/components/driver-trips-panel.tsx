@@ -34,6 +34,20 @@ const HISTORY: TripOperationalStatus[] = ["completed", "cancelled", "no_show", "
 const FOCUS_EVENT = "pv-driver-focus-trip";
 const ALERT_STATUSES: TripOperationalStatus[] = ["dispatched", "accepted", "approved"];
 
+type StatusExtra = { odometer_start?: string; odometer_end?: string; force_review?: boolean; review_reason?: string };
+
+/** Posição atual do celular (alta precisão). Null se o GPS não responder. */
+function currentPosition(): Promise<{ lat: number; lng: number; accuracy: number | null } | null> {
+  return new Promise((resolve) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : null }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 15_000 }
+    );
+  });
+}
+
 type Props = {
   tenantId?: string | null;
   driverIdFilter?: string | null;
@@ -43,6 +57,8 @@ type Props = {
   onSeeAll?: () => void;
   /** Mantém a lógica (avisos, GPS) rodando mesmo com outra aba aberta. */
   hidden?: boolean;
+  /** Abre a aba Início (card flutuante de corrida agendada). */
+  onGoHome?: () => void;
 };
 
 export function DriverTripsPanel({
@@ -51,7 +67,8 @@ export function DriverTripsPanel({
   devFallbackRole = "motorista",
   view = "inicio",
   onSeeAll,
-  hidden = false
+  hidden = false,
+  onGoHome
 }: Props) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +80,9 @@ export function DriverTripsPanel({
   const [waitTick, setWaitTick] = useState(0);
   const [completeKmByTrip, setCompleteKmByTrip] = useState<Record<string, string>>({});
   const [sheet, setSheet] = useState<{ tripId: string; mode: "start" | "finish" } | null>(null);
+  const [geoBlock, setGeoBlock] = useState<{ tripId: string; to_status: TripOperationalStatus; extra?: StatusExtra; message: string } | null>(null);
+  const [geoReason, setGeoReason] = useState("");
+  const [floatDismissed, setFloatDismissed] = useState(false);
   const docVisible = useDocumentVisible();
   const knownTripIdsRef = useRef<Set<string>>(new Set());
   const tripsInitializedRef = useRef(false);
@@ -197,7 +217,7 @@ export function DriverTripsPanel({
   async function setStatus(
     tripId: string,
     to_status: TripOperationalStatus,
-    extra?: { odometer_start?: string; odometer_end?: string }
+    extra?: StatusExtra
   ) {
     const trip = trips.find((item) => item.id === tripId);
     // KM do painel: pede o inicial ao iniciar e o final (com assinatura) ao finalizar.
@@ -234,6 +254,8 @@ export function DriverTripsPanel({
     }
     setBusyTrip(tripId);
     setMessage(null);
+    const needsPlace = ["arrived", "in_progress", "completed"].includes(to_status);
+    const position = needsPlace ? await currentPosition() : null;
     const res = await fetchWithSupabaseSession(
       `/api/trips/${tripId}/status`,
       {
@@ -242,17 +264,24 @@ export function DriverTripsPanel({
         body: JSON.stringify({
           to_status,
           ...(actualKm != null ? { actual_km: actualKm, km_from_gps: kmFromGps } : {}),
-          ...(extra ?? {})
+          ...(extra ?? {}),
+          ...(needsPlace ? { position } : {})
         })
       },
       devFallbackRole
     );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    const json = (await res.json()) as { success?: boolean; error?: { code?: string; message?: string } };
     setBusyTrip(null);
     if (!res.ok || !json.success) {
+      if (json.error?.code === "GEOFENCE") {
+        setGeoReason("");
+        setGeoBlock({ tripId, to_status, extra, message: json.error.message ?? "Você não está no local." });
+        return;
+      }
       setMessage(json.error?.message ?? "Falha ao atualizar estado.");
       return;
     }
+    setGeoBlock(null);
     setSheet(null);
     if (to_status === "completed") {
       clearTripTrail(tripId);
@@ -262,7 +291,9 @@ export function DriverTripsPanel({
         return next;
       });
     }
-    setMessage(`Estado: ${STATUS_CORRIDA_PT[to_status]}.`);
+    setMessage(
+      extra?.force_review ? `${STATUS_CORRIDA_PT[to_status]} · enviada para a central revisar.` : `Estado: ${STATUS_CORRIDA_PT[to_status]}.`
+    );
     await load();
   }
 
@@ -332,7 +363,107 @@ export function DriverTripsPanel({
   const hm = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).replace(":", "h");
   const short = (a?: string | null) => String(a ?? "—").split(",")[0];
 
+  const floatTrip =
+    primaryTrip && ["dispatched", "accepted", "approved"].includes(primaryTrip.operational_status) ? primaryTrip : null;
+  const floatSoon = floatTrip ? new Date(floatTrip.scheduled_at).getTime() - Date.now() < 3 * 3600_000 : false;
+
+  function openFloatTrip() {
+    if (!floatTrip) return;
+    onGoHome?.();
+    setFloatDismissed(true);
+    setHighlightTripId(floatTrip.id);
+    window.setTimeout(() => {
+      document.querySelector(`[data-driver-trip-id="${floatTrip.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+  }
+
   return (
+    <>
+    {floatTrip && !floatDismissed && !sheet && !geoBlock ? (
+      <div className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-40 px-4 pv-float-in">
+        <div className="mx-auto flex max-w-lg items-center gap-3 rounded-[28px] border border-[#ECE7DB] bg-white/95 p-3 pl-4 shadow-[0_18px_40px_rgba(0,0,0,0.16)] backdrop-blur">
+          <button type="button" onClick={openFloatTrip} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#111] text-lg" aria-hidden>
+              🚘
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-[#111]">Você tem uma corrida agendada</span>
+              <span className="block truncate text-xs text-[#8A8A8A]">
+                {groupByDay([floatTrip])[0]?.label} · {hm(floatTrip.scheduled_at)} · {short(floatTrip.origin_text)}
+              </span>
+            </span>
+          </button>
+          {floatSoon ? (
+            <button
+              type="button"
+              disabled={busyTrip === floatTrip.id}
+              onClick={() => {
+                openFloatTrip();
+                void setStatus(floatTrip.id, "on_the_way");
+              }}
+              className="shrink-0 rounded-full bg-[#111] px-4 py-2.5 text-xs font-semibold text-prime-gold disabled:opacity-60"
+            >
+              A caminho
+            </button>
+          ) : (
+            <button type="button" onClick={openFloatTrip} className="shrink-0 rounded-full bg-[#F4F1EA] px-4 py-2.5 text-xs font-semibold text-[#111]">
+              Ver
+            </button>
+          )}
+          <button type="button" aria-label="Fechar" onClick={() => setFloatDismissed(true)} className="shrink-0 px-1 text-lg text-[#B5B0A5]">
+            ×
+          </button>
+        </div>
+      </div>
+    ) : null}
+
+    {geoBlock ? (
+      <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-3 sm:items-center" role="dialog" aria-modal="true">
+        <div className="w-full max-w-md rounded-[28px] bg-white p-5 pb-[calc(20px+env(safe-area-inset-bottom))] shadow-2xl">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FBF3E0] text-2xl" aria-hidden>
+            📍
+          </div>
+          <h3 className="mt-3 text-lg font-semibold text-[#111]">Local não confirmado</h3>
+          <p className="mt-1 text-sm text-[#555]">{geoBlock.message}</p>
+          <button
+            type="button"
+            onClick={() => {
+              const g = geoBlock;
+              setGeoBlock(null);
+              void setStatus(g.tripId, g.to_status, g.extra);
+            }}
+            className="mt-4 w-full rounded-2xl bg-[#111] py-3.5 text-sm font-semibold text-prime-gold"
+          >
+            Tentar de novo
+          </button>
+          <div className="mt-4 rounded-2xl border border-[#ECE7DB] p-3">
+            <p className="text-xs font-semibold text-[#111]">Não consegue confirmar pelo GPS?</p>
+            <textarea
+              value={geoReason}
+              onChange={(e) => setGeoReason(e.target.value)}
+              rows={2}
+              placeholder="Explique rapidamente (ex.: GPS sem sinal no subsolo do aeroporto)"
+              className="mt-2 w-full rounded-xl border border-[#E7E2D7] px-3 py-2 text-base text-[#111]"
+            />
+            <button
+              type="button"
+              disabled={geoReason.trim().length < 5 || busyTrip === geoBlock.tripId}
+              onClick={() => {
+                const g = geoBlock;
+                void setStatus(g.tripId, g.to_status, { ...(g.extra ?? {}), force_review: true, review_reason: geoReason.trim() });
+              }}
+              className="mt-2 w-full rounded-2xl py-3 text-sm font-semibold text-[#8A5A00] ring-1 ring-[#E9D8A6] disabled:opacity-50"
+            >
+              Continuar e enviar para a central revisar
+            </button>
+          </div>
+          <button type="button" onClick={() => setGeoBlock(null)} className="mt-3 w-full py-2 text-sm text-[#8A8A8A]">
+            Voltar
+          </button>
+        </div>
+      </div>
+    ) : null}
+
     <div className={hidden ? "hidden" : "space-y-5"}>
       {newTripBanner ? (
         <DriverNewTripBanner
@@ -501,6 +632,7 @@ export function DriverTripsPanel({
         </section>
       ) : null}
     </div>
+    </>
   );
 }
 
