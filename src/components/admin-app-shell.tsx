@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logoutAction } from "@/app/login/actions";
@@ -221,14 +222,14 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             { href: "/dashboard", label: "Início", d: "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" },
             { href: "/agenda", label: "Agenda", d: "M4 6h16v14H4zM4 10h16M9 3v5M15 3v5" }
           ].map((t) => (
-            <Link key={t.href} href={t.href} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActivePath(pathname, t.href) ? "font-semibold text-prime-text" : "text-prime-muted"}`}>
+            <Link key={t.href} href={t.href as Route} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActivePath(pathname, t.href) ? "font-semibold text-prime-text" : "text-prime-muted"}`}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isActivePath(pathname, t.href) ? "#C9A84C" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d={t.d} />
               </svg>
               {t.label}
             </Link>
           ))}
-          <Link href="/agenda?nova=1" className="-mt-5 flex flex-col items-center gap-0.5 text-[11px] font-semibold text-prime-text">
+          <Link href={"/agenda?nova=1" as Route} className="-mt-5 flex flex-col items-center gap-0.5 text-[11px] font-semibold text-prime-text">
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#111] text-3xl leading-none text-prime-gold shadow-lg ring-4 ring-white">+</span>
             Agendar
           </Link>
