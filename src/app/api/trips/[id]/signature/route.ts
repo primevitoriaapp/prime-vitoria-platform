@@ -35,7 +35,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       odometer_start: c.trip.odometer_start ?? null,
       odometer_end: c.trip.odometer_end ?? null,
       actual_km: c.trip.actual_km ?? null,
-      km_source: c.trip.km_source ?? null
+      km_source: c.trip.km_source ?? null,
+      rating: (await db.from("trip_ratings").select("stars, comment, created_at").eq("trip_id", id).maybeSingle()).data ?? null
     });
   } catch (error) {
     return mapApiError(error);

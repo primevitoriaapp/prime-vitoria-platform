@@ -24,6 +24,7 @@ export type PublicTrackSnapshot = {
   vehicle: { label: string; color: string | null; plate: string | null } | null;
   category: string | null;
   central_phone: string | null;
+  rated: boolean;
 };
 
 export async function resolvePublicTrackSnapshot(rawToken: string): Promise<PublicTrackSnapshot | null> {
@@ -76,7 +77,8 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
     destination_text: trip.destination_text,
     passenger_name: (trip.passenger_name as string | null) ?? null,
     scheduled_at: trip.scheduled_at,
-    location: locationPoint
+    // Terminou: não mostra mais onde o carro está.
+    location: locationPoint && !["completed", "cancelled", "rejected", "no_show"].includes(trip.operational_status as string)
       ? {
           ...locationPoint,
           recorded_at: loc?.recorded_at as string
@@ -91,6 +93,12 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
     driver: d?.full_name ? { first_name: d.full_name.trim().split(/\s+/)[0], photo_url: d.photo_url ?? null } : null,
     vehicle: v ? { label: [v.brand, v.model].filter(Boolean).join(" ") || "Veículo", color: v.color ?? null, plate: v.plate ?? null } : null,
     category: ((cat.data as { name?: string } | null)?.name as string | undefined) ?? null,
-    central_phone: company?.phone || null
+    central_phone: company?.phone || null,
+    rated: await db
+      .from("trip_ratings")
+      .select("id")
+      .eq("trip_id", row.trip_id)
+      .maybeSingle()
+      .then((r) => Boolean(r.data))
   };
 }

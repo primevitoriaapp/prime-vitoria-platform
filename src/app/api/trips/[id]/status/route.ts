@@ -197,7 +197,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     if (TRACK_END.includes(body.to_status)) {
       await runBestEffort("trip.track_token_expire", async () => {
-        await db.from("trip_public_track_tokens").update({ expires_at: new Date().toISOString() }).eq("trip_id", id).gt("expires_at", new Date().toISOString());
+        await db.from("trip_public_track_tokens").update({ expires_at: new Date(Date.now() + 3 * 3600000).toISOString() }).eq("trip_id", id).gt("expires_at", new Date().toISOString());
       });
     }
 

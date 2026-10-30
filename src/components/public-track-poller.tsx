@@ -22,6 +22,7 @@ export type TrackPayload = {
   vehicle?: { label: string; color: string | null; plate: string | null } | null;
   category?: string | null;
   central_phone?: string | null;
+  rated?: boolean;
 };
 
 const STEPS: { key: string; label: string; match: TripOperationalStatus[] }[] = [
@@ -173,6 +174,8 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
         ) : null}
       </section>
 
+      {status === "completed" && !ended && !data.rated ? <TripRating token={token} /> : null}
+
       {data.driver || data.vehicle ? (
         <section className="flex items-center gap-4 rounded-3xl bg-[#111] p-5 text-[#fff]">
           {mounted && data.driver?.photo_url && !photoFailed ? (
@@ -235,5 +238,56 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
         </a>
       ) : null}
     </div>
+  );
+}
+
+function TripRating({ token }: { token: string }) {
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
+  async function send() {
+    setState("sending");
+    const res = await fetch(`/api/public/track/${encodeURIComponent(token)}/rating`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stars, comment: comment || undefined })
+    });
+    setState(res.ok ? "done" : "error");
+  }
+  if (state === "done") {
+    return <section className="rounded-3xl bg-white p-5 text-center text-sm font-semibold text-[#111] shadow-[0_8px_30px_rgba(0,0,0,0.06)]">Obrigado pela avaliação! ⭐</section>;
+  }
+  return (
+    <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+      <p className="text-center text-base font-semibold text-[#111]">Como foi sua viagem?</p>
+      <div className="mt-3 flex justify-center gap-2" role="radiogroup" aria-label="Nota">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            aria-label={`${n} estrela${n > 1 ? "s" : ""}`}
+            onClick={() => setStars(n)}
+            className={`text-4xl leading-none transition ${n <= stars ? "text-[#C9A84C]" : "text-[#DDD5C2]"}`}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      {stars ? (
+        <>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder={stars <= 3 ? "O que podemos melhorar?" : "Quer deixar um elogio? (opcional)"}
+            className="mt-3 w-full rounded-xl border border-[#DDD5C2] px-3 py-2 text-base"
+            rows={2}
+          />
+          <button type="button" disabled={state === "sending"} onClick={() => void send()} className="mt-3 w-full rounded-2xl bg-[#111] px-4 py-3 font-semibold text-[#C9A84C] disabled:opacity-60">
+            {state === "sending" ? "Enviando…" : "Enviar avaliação"}
+          </button>
+          {state === "error" ? <p className="mt-2 text-center text-xs text-red-700">Não foi possível enviar agora.</p> : null}
+        </>
+      ) : null}
+    </section>
   );
 }

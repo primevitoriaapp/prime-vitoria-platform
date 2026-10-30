@@ -51,7 +51,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (!count) await db.from("drivers").update({ operational_status: "online", operational_status_updated_at: new Date().toISOString() }).eq("id", trip.driver_id);
     }
     await runBestEffort("trip.force_close.track_expire", async () => {
-      await db.from("trip_public_track_tokens").update({ expires_at: new Date().toISOString() }).eq("trip_id", id).gt("expires_at", new Date().toISOString());
+      await db.from("trip_public_track_tokens").update({ expires_at: new Date(Date.now() + 3 * 3600000).toISOString() }).eq("trip_id", id).gt("expires_at", new Date().toISOString());
     });
     if (body.action === "completed") await runPostTripAutomationSafely({ tripId: id, tenantId, actorUserId: session.userId });
 

@@ -10,6 +10,7 @@ type Proof = {
   odometer_end: number | null;
   actual_km: number | null;
   km_source: string | null;
+  rating: { stars: number; comment: string | null } | null;
 };
 
 const n = (v: number | null) => (v == null ? "—" : Number(v).toLocaleString("pt-BR"));
@@ -24,7 +25,7 @@ export function TripProofCard({ tripId }: { tripId: string }) {
       if (j.success && j.data) setP(j.data);
     })();
   }, [tripId]);
-  if (!p || (p.odometer_start == null && !p.signature)) return null;
+  if (!p || (p.odometer_start == null && !p.signature && !p.rating)) return null;
   const panelKm = p.odometer_start != null && p.odometer_end != null ? Math.round((p.odometer_end - p.odometer_start) * 10) / 10 : null;
   const gap = panelKm != null && p.actual_km != null && p.actual_km > 0 ? Math.abs(panelKm - p.actual_km) / p.actual_km : 0;
   return (
@@ -48,6 +49,13 @@ export function TripProofCard({ tripId }: { tripId: string }) {
           </p>
         </div>
       </div>
+      {p.rating ? (
+        <p className={`mt-3 rounded-xl p-3 text-sm ${p.rating.stars <= 3 ? "bg-red-50 text-red-900" : "bg-prime-bg"}`}>
+          Avaliação do passageiro: <b className="text-prime-gold">{"★".repeat(p.rating.stars)}</b>
+          <span className="text-prime-muted">{"★".repeat(5 - p.rating.stars)}</span>
+          {p.rating.comment ? ` · “${p.rating.comment}”` : ""}
+        </p>
+      ) : null}
       {gap > 0.2 && (panelKm ?? 0) > 2 ? (
         <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
           GPS e painel do carro diferem mais de 20%. Vale conferir antes de faturar.
