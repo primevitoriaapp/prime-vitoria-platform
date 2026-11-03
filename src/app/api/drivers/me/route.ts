@@ -31,9 +31,15 @@ export async function GET() {
     const [withProfile] = await attachProfileNamesToDrivers([driver]);
     const vehicle = await resolveDefaultVehicleForDriver(driver.id as string);
     let vehicleColor: string | null = null;
+    let categoryName: string | null = null;
     if (vehicle) {
-      const { data: v } = await db.from("vehicles").select("color").eq("id", vehicle.id).maybeSingle();
+      const { data: v } = await db.from("vehicles").select("color, vehicle_category_id, category").eq("id", vehicle.id).maybeSingle();
       vehicleColor = (v?.color as string | null) ?? null;
+      categoryName = (v?.category as string | null) ?? null;
+      if (v?.vehicle_category_id) {
+        const { data: c } = await db.from("vehicle_categories").select("name").eq("id", v.vehicle_category_id as string).maybeSingle();
+        categoryName = (c?.name as string | null) ?? categoryName;
+      }
     }
     const photo_url = await resolveDriverPhotoDisplayUrl(driver.photo_url as string | null);
     const shaped = driverRowToApiShape(withProfile as Record<string, unknown>);
@@ -46,7 +52,7 @@ export async function GET() {
       employment_type: (driver.employment_type as string | null) === "funcionario" ? "funcionario" : "parceiro",
       photo_url,
       operational_status: (driver.operational_status as string | null) ?? "offline",
-      vehicle: vehicle ? { ...vehicle, color: vehicleColor } : null
+      vehicle: vehicle ? { ...vehicle, color: vehicleColor, category: categoryName } : null
     });
   } catch (error) {
     return mapApiError(error);

@@ -1,5 +1,6 @@
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { DriversFleetPanel } from "@/components/drivers-fleet-panel";
+import { DriverRequestsPanel } from "@/components/driver-requests-panel";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
 
 async function getDrivers() {
@@ -23,6 +24,7 @@ export default async function DriversPage() {
         title="Motoristas"
         subtitle="Gestão da frota executiva e documentação"
       />
+      <DriverRequestsPanel />
       <DriversFleetPanel initialDrivers={drivers} />
     </>
   );

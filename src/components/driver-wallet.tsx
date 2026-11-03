@@ -40,7 +40,7 @@ export function DriverWallet() {
         </p>
         <p className="mt-1 text-4xl font-bold text-prime-gold">{brl(s.liberado)}</p>
         <p className="mt-1 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
-          Liberado para pagar{w.pix_key ? ` · cai no PIX ${w.pix_key}` : " · cadastre seu PIX com a central"}
+          Liberado para pagar{w.pix_key ? ` · cai no PIX ${w.pix_key}` : " · cadastre seu PIX em Perfil"}
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl bg-white/10 p-3">

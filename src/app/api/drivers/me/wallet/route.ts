@@ -38,6 +38,7 @@ export async function GET() {
       const released = recByTrip.get(p.trip_id as string) === "paid" || (t?.client_invoice_id ? invPaid.has(t.client_invoice_id as string) : false);
       return {
         id: p.id as string,
+        trip_id: (p.trip_id as string | null) ?? null,
         amount: Number(p.amount) || 0,
         trip_at: (t?.scheduled_at as string) ?? null,
         route: t ? `${short(t.origin_text)} → ${short(t.destination_text)}` : "Corrida",

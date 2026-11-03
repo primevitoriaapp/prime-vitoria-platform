@@ -59,6 +59,8 @@ type Props = {
   hidden?: boolean;
   /** Abre a aba Início (card flutuante de corrida agendada). */
   onGoHome?: () => void;
+  /** Avisa qual é a próxima corrida (para o mapa do início). */
+  onPrimaryTrip?: (trip: Trip | null) => void;
 };
 
 export function DriverTripsPanel({
@@ -68,7 +70,8 @@ export function DriverTripsPanel({
   view = "inicio",
   onSeeAll,
   hidden = false,
-  onGoHome
+  onGoHome,
+  onPrimaryTrip
 }: Props) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +86,18 @@ export function DriverTripsPanel({
   const [geoBlock, setGeoBlock] = useState<{ tripId: string; to_status: TripOperationalStatus; extra?: StatusExtra; message: string } | null>(null);
   const [geoReason, setGeoReason] = useState("");
   const [floatDismissed, setFloatDismissed] = useState(false);
+  const [payByTrip, setPayByTrip] = useState<Record<string, { stage: string; amount: number; paid_at: string | null }>>({});
+  useEffect(() => {
+    if (view !== "historico" || devFallbackRole !== "motorista") return;
+    void fetch("/api/drivers/me/wallet", { credentials: "include" })
+      .then((r) => r.json())
+      .then((j: { success?: boolean; data?: { items?: { trip_id: string | null; stage: string; amount: number; paid_at: string | null }[] } }) => {
+        const m: Record<string, { stage: string; amount: number; paid_at: string | null }> = {};
+        for (const i of j.data?.items ?? []) if (i.trip_id) m[i.trip_id] = { stage: i.stage, amount: i.amount, paid_at: i.paid_at };
+        setPayByTrip(m);
+      })
+      .catch(() => undefined);
+  }, [view, devFallbackRole]);
   const docVisible = useDocumentVisible();
   const knownTripIdsRef = useRef<Set<string>>(new Set());
   const tripsInitializedRef = useRef(false);
@@ -137,6 +152,11 @@ export function DriverTripsPanel({
   const primaryId = useMemo(() => pickDriverFocusTripId(active), [active]);
   const primaryTrip = active.find((t) => t.id === primaryId) ?? null;
   const otherActive = active.filter((t) => t.id !== primaryId);
+  const primaryKey = primaryTrip ? `${primaryTrip.id}:${primaryTrip.operational_status}` : "";
+  useEffect(() => {
+    onPrimaryTrip?.(primaryTrip);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [primaryKey]);
 
   useEffect(() => {
     if (docVisible) clearDriverTabAlertBadge();
@@ -625,6 +645,22 @@ export function DriverTripsPanel({
                   <p className="mt-0.5 truncate text-sm text-[#8A8A8A]">
                     {short(trip.origin_text)} → {short(trip.destination_text)}
                   </p>
+                  {payByTrip[trip.id] ? (
+                    <p className="mt-1 flex items-center justify-between text-xs">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 font-semibold ${
+                          payByTrip[trip.id].stage === "pago" ? "bg-[#EAF6EF] text-[#1F7A4C]" : payByTrip[trip.id].stage === "liberado" ? "bg-[#FBF3E0] text-[#8A5A00]" : "bg-[#F1EFEA] text-[#6F6A60]"
+                        }`}
+                      >
+                        {payByTrip[trip.id].stage === "pago"
+                          ? `✓ Pago${payByTrip[trip.id].paid_at ? ` em ${new Date(payByTrip[trip.id].paid_at as string).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}` : ""}`
+                          : payByTrip[trip.id].stage === "liberado"
+                            ? "Liberado · no próximo repasse"
+                            : "A receber"}
+                      </span>
+                      <span className="font-semibold text-[#111]">{payByTrip[trip.id].amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ul>

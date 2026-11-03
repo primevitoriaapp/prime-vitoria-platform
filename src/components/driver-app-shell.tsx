@@ -9,6 +9,9 @@ import { OperationalRealtimeBridge } from "@/components/operational-realtime-bri
 import { DriverProfilePanel } from "@/components/driver-profile-panel";
 import { PushSetup } from "@/components/push-setup";
 import { InstallAppCard } from "@/components/install-app-card";
+import { DriverHomeMap } from "@/components/driver-home-map";
+import { DriverAccountEditor } from "@/components/driver-account-editor";
+import type { Trip } from "@/lib/domain/types";
 
 type DriverOption = { id: string; cpf: string; profile_name?: string | null };
 type Me = {
@@ -59,6 +62,12 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   const [tab, setTab] = useState<Tab>("inicio");
   const [statusBusy, setStatusBusy] = useState(false);
   const [withTrips, setWithTrips] = useState<Record<string, number>>({});
+  const [nextTrip, setNextTrip] = useState<Trip | null>(null);
+  useEffect(() => {
+    const a = searchParams.get("aba");
+    if (a && TABS.some((t) => t.id === a)) setTab(a as Tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadMe = useCallback(async () => {
     if (mode !== "motorista") return;
@@ -120,37 +129,93 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
       <OperationalRealtimeBridge tenantId={tenantId} />
       <DriverTripDeepLink />
 
+      {tab === "inicio" ? (
+        <div className="relative isolate z-0">
+          <DriverHomeMap
+            height="46dvh"
+            pickup={nextTrip?.origin_lat != null && nextTrip?.origin_lng != null ? { lat: Number(nextTrip.origin_lat), lng: Number(nextTrip.origin_lng) } : null}
+            dropoff={nextTrip?.destination_lat != null && nextTrip?.destination_lng != null ? { lat: Number(nextTrip.destination_lat), lng: Number(nextTrip.destination_lng) } : null}
+          />
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] px-4 pt-[max(0.9rem,env(safe-area-inset-top))]">
+            <div className="pointer-events-auto mx-auto flex max-w-lg items-center justify-between gap-3 rounded-full bg-white/95 py-2 pl-4 pr-2 shadow-[0_8px_24px_rgba(0,0,0,0.15)] backdrop-blur">
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold tracking-[0.08em] text-[#111]">
+                  PRIME <span className="text-prime-gold">VITÓRIA</span>
+                </p>
+                {mode === "motorista" ? (
+                  <button type="button" disabled={statusBusy} onClick={() => void toggleStatus()} className="flex items-center gap-1.5 text-xs text-[#555]">
+                    <span className={`h-2.5 w-2.5 rounded-full ${online ? "bg-emerald-500" : "bg-gray-400"}`} />
+                    {online ? "Disponível" : "Offline · toque para ficar disponível"}
+                  </button>
+                ) : (
+                  <p className="text-xs text-[#555]">Prévia do app</p>
+                )}
+              </div>
+              {me?.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={me.photo_url} alt="" className="h-11 w-11 shrink-0 rounded-full border-2 border-prime-gold object-cover" />
+              ) : (
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-prime-gold bg-[#111] text-lg font-semibold text-prime-gold">{name.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
       <header className="rounded-b-[2rem] bg-[#111] px-5 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] text-[#fff]">
-        <div className="mx-auto max-w-lg">
-          <div className="flex items-center justify-between">
-            <p className="text-lg font-bold tracking-[0.08em]" style={{ color: "#fff" }}>
-              PRIME <span className="text-prime-gold">VITÓRIA</span>
+          <div className="mx-auto max-w-lg">
+            <div className="flex items-center justify-between">
+              <p className="text-lg font-bold tracking-[0.08em]" style={{ color: "#fff" }}>
+                PRIME <span className="text-prime-gold">VITÓRIA</span>
+              </p>
+              {me?.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={me.photo_url} alt="" className="h-14 w-14 rounded-full border-2 border-prime-gold object-cover" />
+              ) : (
+                <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-prime-gold bg-[#1d1d1d] text-xl font-semibold text-prime-gold">
+                  {name.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <p className="mt-4 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+              {greeting()}, motorista
             </p>
-            {me?.photo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={me.photo_url} alt="" className="h-14 w-14 rounded-full border-2 border-prime-gold object-cover" />
+            <p className="text-2xl font-bold leading-tight" style={{ color: "#fff" }}>
+              {name}
+            </p>
+            {mode === "motorista" ? (
+              <button type="button" disabled={statusBusy} onClick={() => void toggleStatus()} className="mt-2 flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
+                <span className={`h-3 w-3 rounded-full ${online ? "bg-emerald-400" : "bg-gray-500"}`} />
+                {online ? "Disponível para os serviços agendados" : "Offline · toque para ficar disponível"}
+              </button>
             ) : (
-              <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-prime-gold bg-[#1d1d1d] text-xl font-semibold text-prime-gold">
-                {name.charAt(0).toUpperCase()}
-              </span>
+              <label className="mt-3 block text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
+                Vendo o app como:
+                <select
+                  className="mt-1 w-full rounded-xl border border-white/20 bg-[#1d1d1d] px-3 py-2 text-sm text-[#fff]"
+                  value={selectedDriverId ?? ""}
+                  onChange={(e) => router.replace(`/driver?driver_id=${e.target.value}`, { scroll: false })}
+                >
+                  {orderedDrivers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.profile_name?.trim() || `CPF ${d.cpf}`}
+                      {withTrips[d.id] ? ` · ${withTrips[d.id]} corrida(s)` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
             )}
           </div>
-          <p className="mt-4 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
-            {greeting()}, motorista
-          </p>
-          <p className="text-2xl font-bold leading-tight" style={{ color: "#fff" }}>
-            {name}
-          </p>
-          {mode === "motorista" ? (
-            <button type="button" disabled={statusBusy} onClick={() => void toggleStatus()} className="mt-2 flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
-              <span className={`h-3 w-3 rounded-full ${online ? "bg-emerald-400" : "bg-gray-500"}`} />
-              {online ? "Disponível para os serviços agendados" : "Offline · toque para ficar disponível"}
-            </button>
-          ) : (
-            <label className="mt-3 block text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
-              Vendo o app como:
+        </header>
+      )}
+
+      <main className={`relative mx-auto max-w-lg space-y-5 px-4 ${tab === "inicio" ? "-mt-7 rounded-t-[2rem] bg-[#F1F0EC] pt-5" : "pt-5"}`}>
+        {tab === "inicio" ? (
+          <div className="px-1">
+            <p className="text-sm text-[#8A8A8A]">{greeting()},</p>
+            <p className="text-2xl font-bold leading-tight text-[#111]">{name}</p>
+            {mode === "admin" ? (
               <select
-                className="mt-1 w-full rounded-xl border border-white/20 bg-[#1d1d1d] px-3 py-2 text-sm text-[#fff]"
+                className="mt-2 w-full rounded-xl border border-[#DDD5C2] bg-white px-3 py-2 text-sm"
                 value={selectedDriverId ?? ""}
                 onChange={(e) => router.replace(`/driver?driver_id=${e.target.value}`, { scroll: false })}
               >
@@ -161,12 +226,22 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
                   </option>
                 ))}
               </select>
-            </label>
-          )}
-        </div>
-      </header>
+            ) : null}
+          </div>
+        ) : null}
 
-      <main className="mx-auto max-w-lg space-y-5 px-4 pt-5">
+        <DriverTripsPanel
+          key={`trips-${selectedDriverId ?? "none"}`}
+          tenantId={tenantId}
+          driverIdFilter={selectedDriverId ?? sessionDriverId ?? null}
+          devFallbackRole={devRole}
+          view={tab === "agenda" ? "agenda" : tab === "corridas" ? "historico" : "inicio"}
+          onSeeAll={() => go("agenda")}
+          onGoHome={() => setTab("inicio")}
+          onPrimaryTrip={setNextTrip}
+          hidden={tab === "perfil" || tab === "carteira"}
+        />
+
         {tab === "inicio" ? (
           <>
             {mode === "motorista" ? <InstallAppCard /> : null}
@@ -184,10 +259,10 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
                   {me?.vehicle ? (
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{[me.vehicle.brand, me.vehicle.model].filter(Boolean).join(" ")}</p>
-                      <p className="text-sm text-[#8A8A8A]">{[me.vehicle.color, me.vehicle.plate].filter(Boolean).join(" · ")}</p>
+                      <p className="text-sm text-[#8A8A8A]">{[me.vehicle.category, me.vehicle.color, me.vehicle.plate].filter(Boolean).join(" · ")}</p>
                     </div>
                   ) : (
-                    <p className="flex-1 text-sm text-[#8A8A8A]">Nenhum carro vinculado. Peça para a central cadastrar o veículo que você usa.</p>
+                    <p className="flex-1 text-sm text-[#8A8A8A]">Nenhum carro vinculado. Cadastre em Perfil › Meu veículo.</p>
                   )}
                   {me?.vehicle ? <span className="rounded-full bg-[#EAF6EF] px-3 py-1 text-xs font-semibold text-[#1F7A4C]">Ativo</span> : null}
                 </div>
@@ -195,17 +270,6 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
             ) : null}
           </>
         ) : null}
-
-        <DriverTripsPanel
-          key={`trips-${selectedDriverId ?? "none"}`}
-          tenantId={tenantId}
-          driverIdFilter={selectedDriverId ?? sessionDriverId ?? null}
-          devFallbackRole={devRole}
-          view={tab === "agenda" ? "agenda" : tab === "corridas" ? "historico" : "inicio"}
-          onSeeAll={() => go("agenda")}
-          onGoHome={() => setTab("inicio")}
-          hidden={tab === "perfil" || tab === "carteira"}
-        />
 
         {tab === "carteira" ? (
           mode === "motorista" ? (
@@ -223,6 +287,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
             {mode === "motorista" ? (
               <>
                 <DriverProfilePanel devFallbackRole={devRole} />
+                <DriverAccountEditor />
                 <ChangePinCard />
                 <PushSetup audience="motorista" />
               </>
