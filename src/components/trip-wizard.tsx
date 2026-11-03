@@ -591,9 +591,10 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                         ? "Já preenchido com a tabela do cliente. Pode mudar."
                         : "Sem tabela para este serviço: digite os valores combinados."}
                   </p>
+                  {mode === "km" ? <KmTable prices={prices} categoryId={categoryId} kmMin={kmMin} /> : null}
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <label className="grid gap-1 text-sm">
-                      <span className="font-medium">Cliente paga (R$)</span>
+                      <span className="font-medium">{mode === "km" ? "Valor fechado do cliente (opcional)" : "Cliente paga (R$)"}</span>
                       <input
                         className={`${input} text-xl font-semibold`}
                         inputMode="decimal"
@@ -602,9 +603,12 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                         onChange={(e) => setClientAmount(e.target.value)}
                       />
                       {tablePrice?.client_price != null ? <span className="text-xs text-emerald-700">Tabela: {brl(tablePrice.client_price)}</span> : null}
+                      {mode === "km" && Number(clientAmount.replace(",", ".")) > 0 && Number(clientAmount.replace(",", ".")) < 15 ? (
+                        <span className="text-xs font-semibold text-red-700">Isso parece o preço por km. Aqui vai o valor TOTAL da corrida — deixe em branco para cobrar por km.</span>
+                      ) : null}
                     </label>
                     <label className="grid gap-1 text-sm">
-                      <span className="font-medium">Motorista recebe (R$)</span>
+                      <span className="font-medium">{mode === "km" ? "Valor fechado do motorista (opcional)" : "Motorista recebe (R$)"}</span>
                       <input
                         className={`${input} text-xl font-semibold`}
                         inputMode="decimal"
@@ -897,6 +901,34 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+/** Corrida por km: mostra o preço por km de cada bandeira e o mínimo, para não digitar no lugar errado. */
+function KmTable({ prices, categoryId, kmMin }: { prices: PriceRow[]; categoryId: string; kmMin: number | null }) {
+  const get = (s: string) => prices.find((p) => p.category_id === categoryId && p.service === s && p.enabled);
+  const b1 = get("km_b1");
+  const b2 = get("km_b2");
+  if (!b1 && !b2) return <p className="mt-3 text-sm text-amber-800">Sem preço por km na tabela deste cliente para este veículo.</p>;
+  return (
+    <div className="mt-3 grid gap-2 rounded-xl bg-white p-3 text-sm sm:grid-cols-3">
+      <div>
+        <p className="text-xs text-prime-muted">Bandeira 1 (06h–18h59)</p>
+        <p className="font-semibold">{b1?.client_price != null ? `${brl(b1.client_price)}/km` : "—"}</p>
+        {b1?.partner_price != null ? <p className="text-xs text-prime-muted">motorista {brl(b1.partner_price)}/km</p> : null}
+      </div>
+      <div>
+        <p className="text-xs text-prime-muted">Bandeira 2 (19h–05h59)</p>
+        <p className="font-semibold">{b2?.client_price != null ? `${brl(b2.client_price)}/km` : "—"}</p>
+        {b2?.partner_price != null ? <p className="text-xs text-prime-muted">motorista {brl(b2.partner_price)}/km</p> : null}
+      </div>
+      <div>
+        <p className="text-xs text-prime-muted">KM mínimo</p>
+        <p className="font-semibold">{kmMin ? `${kmMin} km` : "sem mínimo"}</p>
+        {kmMin && b1?.client_price != null ? <p className="text-xs text-prime-muted">mínimo de {brl(kmMin * b1.client_price)} (bandeira 1)</p> : null}
       </div>
     </div>
   );

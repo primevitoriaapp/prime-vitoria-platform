@@ -222,6 +222,12 @@ export async function POST(request: Request) {
       );
     }
 
+    // Corrida por km: valor total muito baixo é o preço por km digitado no lugar errado. Deixa a tabela calcular.
+    if (body.service_mode === "km" && body.client_amount != null && body.client_amount > 0 && body.client_amount < 15) {
+      body.client_amount = undefined;
+      body.driver_amount = undefined;
+      body.margin = undefined;
+    }
     const clientAmount =
       legTotals?.client_amount ?? body.client_amount ?? null;
     const driverAmount =
