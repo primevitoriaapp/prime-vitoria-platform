@@ -6,7 +6,7 @@ import { ClientBillingTermsSection } from "@/components/client-billing-terms-sec
 import { ClientCategoryPricesSection } from "@/components/client-category-prices-section";
 import { ClientTeamPortalSection } from "@/components/client-team-portal-section";
 import { ClientContractUploadSection } from "@/components/client-contract-upload-section";
-import type { ClientServiceTypeId } from "@/lib/clients/client-service-types";
+import { CLIENT_SERVICE_TYPE_OPTIONS, type ClientServiceTypeId } from "@/lib/clients/client-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
