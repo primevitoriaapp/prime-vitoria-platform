@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ClientAppShell } from "@/components/client-app-shell";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { db } from "@/lib/server/db";
@@ -18,6 +19,9 @@ export default async function ClientPage() {
   const session = await getSessionContext();
   const isCliente = session.role === "cliente" && Boolean(session.clientId);
   const isAdminPreview = session.role === "admin";
+
+  // Sem login (ex.: abriu o app pela primeira vez no celular): vai direto para a tela de entrar.
+  if (session.role === "guest" || session.userId === "anonymous") redirect("/login?next=/client");
 
   if (!isCliente && !isAdminPreview) {
     return (

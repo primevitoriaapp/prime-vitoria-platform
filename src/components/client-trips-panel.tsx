@@ -16,7 +16,11 @@ import {
   tripShortNumber
 } from "@/lib/client/client-status";
 
-type TripRow = Trip & { driver_name?: string | null; vehicle_label?: string | null };
+type TripRow = Trip & {
+  driver_name?: string | null;
+  vehicle_label?: string | null;
+  requester?: { name: string; matricula: string | null; sector: string | null } | null;
+};
 
 type Props = {
   tenantId: string;
@@ -54,6 +58,7 @@ export function ClientTripsPanel({
   const [tab, setTab] = useState<"upcoming" | "history">("upcoming");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [sector, setSector] = useState("todos");
 
   const load = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -107,11 +112,18 @@ export function ClientTripsPanel({
     const up: TripRow[] = [];
     const hist: TripRow[] = [];
     for (const t of trips) {
+      if (sector !== "todos" && (t.requester?.sector ?? "Sem setor") !== sector) continue;
       (isUpcomingForClient(t.operational_status, t.scheduled_at, now) ? up : hist).push(t);
     }
     up.sort((a, b) => scheduledAtSortMs(a.scheduled_at) - scheduledAtSortMs(b.scheduled_at));
     hist.sort((a, b) => scheduledAtSortMs(b.scheduled_at) - scheduledAtSortMs(a.scheduled_at));
     return { upcoming: up, history: hist };
+  }, [trips, sector]);
+
+  const sectors = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of trips) if (t.requester) set.add(t.requester.sector ?? "Sem setor");
+    return [...set].sort();
   }, [trips]);
 
   const visible = compact || tab === "upcoming" ? upcoming : history;
@@ -140,6 +152,19 @@ export function ClientTripsPanel({
           </div>
         ) : null}
       </div>
+      {!compact && sectors.length > 1 ? (
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-prime-muted">Setor</span>
+          <select className="rounded-lg border border-prime-border bg-white px-3 py-1.5" value={sector} onChange={(e) => setSector(e.target.value)}>
+            <option value="todos">Todos os setores</option>
+            {sectors.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       {loadError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
@@ -206,6 +231,13 @@ export function ClientTripsPanel({
                     {trip.passenger_name?.trim() || "Passageiro a definir"}
                     {trip.passenger_count != null && trip.passenger_count > 1 ? ` · ${trip.passenger_count} pessoas` : ""}
                     {trip.driver_name ? <span className="text-prime-text"> · Motorista: {trip.driver_name}</span> : null}
+                    {trip.requester ? (
+                      <span className="block text-xs">
+                        Pedido por {trip.requester.name}
+                        {trip.requester.matricula ? ` · Mat. ${trip.requester.matricula}` : ""}
+                        {trip.requester.sector ? ` · ${trip.requester.sector}` : ""}
+                      </span>
+                    ) : null}
                   </p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     {amount ? <span className="font-semibold text-prime-text">{amount}</span> : null}

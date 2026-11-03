@@ -1,5 +1,6 @@
 "use client";
 
+import { InstallAppCard } from "@/components/install-app-card";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ClientRequestConsole } from "@/components/client-request-console";
@@ -245,6 +246,7 @@ export function ClientAppShell({
           </p>
         ) : null}
         {readOnly ? <ClientPortalReadonlyNotice readOnly /> : null}
+        {mode === "cliente" ? <InstallAppCard /> : null}
 
         {tab === "inicio" || (isSolicitante && tab === "pedir") ? (
           <div>

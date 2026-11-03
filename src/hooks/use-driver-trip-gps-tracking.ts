@@ -12,7 +12,8 @@ import {
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { DriverTripGpsState } from "@/lib/trips/driver-complete-km";
 
-const SAMPLE_INTERVAL_MS = 30_000;
+/** Envia a posição a cada 10 s: o passageiro vê o carro andando e o KM fica mais preciso. */
+const SAMPLE_INTERVAL_MS = 10_000;
 
 export type { DriverTripGpsState } from "@/lib/trips/driver-complete-km";
 
@@ -138,6 +139,8 @@ export function useDriverTripGpsTracking({ trips, devFallbackRole = "motorista" 
       },
       (err) => {
         if (tripIdRef.current !== tripId) return;
+        // Sem sinal por um momento (túnel, subsolo) não pode desligar o rastreio da corrida inteira.
+        if (err.code !== err.PERMISSION_DENIED) return;
         const message =
           err.code === err.PERMISSION_DENIED
             ? "Permissão de localização negada."

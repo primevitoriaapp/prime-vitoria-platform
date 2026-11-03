@@ -3,6 +3,8 @@ import type { TripOperationalStatus } from "@/lib/domain/types";
 import { normalizePublicTrackToken } from "./track-token";
 import { publicTrackNumber, publicTrackPoint } from "./public-track-values";
 import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
+import { resolveDriverPhotoDisplayUrl } from "@/lib/storage/driver-photo-upload";
+import { resolveDefaultVehicleForDriver } from "@/lib/vehicles/driver-default-vehicle";
 
 export type PublicTrackSnapshot = {
   trip_id: string;
@@ -12,6 +14,8 @@ export type PublicTrackSnapshot = {
   passenger_name: string | null;
   scheduled_at: string;
   location: { lat: number; lng: number; recorded_at: string } | null;
+  /** Últimos pontos do carro (caminho percorrido), do mais antigo ao mais novo. */
+  trail: { lat: number; lng: number }[];
   origin_coords: { lat: number; lng: number } | null;
   destination_coords: { lat: number; lng: number } | null;
   planned_km: number | null;
@@ -51,13 +55,17 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
 
   if (!trip) return null;
 
-  const { data: loc } = await db
+  const { data: locs } = await db
     .from("driver_locations")
     .select("lat, lng, recorded_at")
     .eq("trip_id", row.trip_id)
     .order("recorded_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(60);
+  const loc = (locs ?? [])[0] ?? null;
+  const trail = (locs ?? [])
+    .map((p) => publicTrackPoint(p.lat, p.lng))
+    .filter((p): p is { lat: number; lng: number } => Boolean(p))
+    .reverse();
 
   const locationPoint = publicTrackPoint(loc?.lat, loc?.lng);
 
@@ -68,7 +76,17 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
     getTenantCompanyProfile(trip.tenant_id as string).catch(() => null)
   ]);
   const d = drv.data as { full_name?: string | null; photo_url?: string | null } | null;
-  const v = veh.data as { brand?: string | null; model?: string | null; color?: string | null; plate?: string | null } | null;
+  let v = veh.data as { brand?: string | null; model?: string | null; color?: string | null; plate?: string | null } | null;
+  // Corrida sem carro gravado: usa o carro padrão do motorista.
+  if (!v && trip.driver_id) {
+    const def = await resolveDefaultVehicleForDriver(trip.driver_id as string).catch(() => null);
+    if (def) {
+      const { data: c } = await db.from("vehicles").select("color").eq("id", def.id).maybeSingle();
+      v = { brand: def.brand ?? null, model: def.model, plate: def.plate, color: (c?.color as string | null) ?? null };
+    }
+  }
+  const photo = d?.photo_url ? await resolveDriverPhotoDisplayUrl(d.photo_url).catch(() => null) : null;
+  const ended = ["completed", "cancelled", "rejected", "no_show"].includes(trip.operational_status as string);
 
   return {
     trip_id: row.trip_id,
@@ -84,13 +102,14 @@ export async function resolvePublicTrackSnapshot(rawToken: string): Promise<Publ
           recorded_at: loc?.recorded_at as string
         }
       : null,
+    trail: ended ? [] : trail,
     origin_coords: publicTrackPoint(trip.origin_lat, trip.origin_lng),
     destination_coords: publicTrackPoint(trip.destination_lat, trip.destination_lng),
     planned_km: publicTrackNumber(trip.planned_km),
     actual_km: publicTrackNumber(trip.actual_km),
     km_updated_at: (trip.km_updated_at as string | null) ?? null,
     expires_at: row.expires_at as string,
-    driver: d?.full_name ? { first_name: d.full_name.trim().split(/\s+/)[0], photo_url: d.photo_url ?? null } : null,
+    driver: d?.full_name ? { first_name: d.full_name.trim().split(/\s+/)[0], photo_url: photo } : null,
     vehicle: v ? { label: [v.brand, v.model].filter(Boolean).join(" ") || "Veículo", color: v.color ?? null, plate: v.plate ?? null } : null,
     category: ((cat.data as { name?: string } | null)?.name as string | undefined) ?? null,
     central_phone: company?.phone || null,

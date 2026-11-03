@@ -20,6 +20,7 @@ export type TrackPayload = {
   actual_km?: number | null;
   km_updated_at?: string | null;
   driver?: { first_name: string; photo_url: string | null } | null;
+  trail?: { lat: number; lng: number }[];
   vehicle?: { label: string; color: string | null; plate: string | null } | null;
   category?: string | null;
   central_phone?: string | null;
@@ -160,6 +161,7 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
               origin={data.origin_coords ? { ...data.origin_coords, label: "Embarque" } : null}
               destination={data.destination_coords ? { ...data.destination_coords, label: "Destino" } : null}
               driver={data.location ? { lat: data.location.lat, lng: data.location.lng, label: "Motorista" } : null}
+              trail={data.trail ?? []}
             />
             {!data.location ? (
               <p className="absolute inset-x-3 top-3 z-[500] rounded-xl bg-white/95 px-3 py-2 text-center text-xs text-[#6B6B6B] shadow">

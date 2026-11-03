@@ -17,6 +17,7 @@ type TripDetail = Trip & {
   notes?: string | null;
   driver_name?: string | null;
   vehicle?: { model?: string | null; plate?: string | null } | null;
+  requester?: { name: string; matricula: string | null; sector: string | null } | null;
 };
 
 type Props = {
@@ -118,6 +119,13 @@ export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRol
                 {trip.passenger_phone?.trim() ? <p className="text-prime-muted">{trip.passenger_phone.trim()}</p> : null}
                 {trip.passenger_count && trip.passenger_count > 1 ? <p className="text-prime-muted">{trip.passenger_count} pessoas</p> : null}
                 {trip.flight_number ? <p className="text-prime-muted">Voo {trip.flight_number}</p> : null}
+                {trip.requester ? (
+                  <p className="mt-1 text-prime-muted">
+                    Pedido por {trip.requester.name}
+                    {trip.requester.matricula ? ` · Mat. ${trip.requester.matricula}` : ""}
+                    {trip.requester.sector ? ` · ${trip.requester.sector}` : ""}
+                  </p>
+                ) : null}
                 {cc ? <p className="mt-1 text-prime-muted">Centro de custo: {cc.code ? `${cc.code} · ` : ""}{cc.name}</p> : null}
               </div>
               <div className="rounded-2xl border border-prime-border bg-white p-4 text-sm">

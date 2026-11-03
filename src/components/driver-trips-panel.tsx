@@ -267,17 +267,20 @@ export function DriverTripsPanel({
     } else if (to_status === "completed") {
       const manualKm = parseDriverKmInput(completeKmByTrip[tripId] ?? "");
       const resolved = resolveActualKmForComplete(tripId, manualKm);
-      if (resolved == null) {
-        setMessage("Informe o KM percorrido para finalizar");
+      if (resolved == null && !extra?.force_review) {
+        setGeoReason("");
+        setGeoBlock({ tripId, to_status, extra, message: "Não consegui medir o KM desta corrida (GPS ou KM do painel)." });
         return;
       }
-      actualKm = resolved;
+      if (resolved != null) actualKm = resolved;
     }
     setBusyTrip(tripId);
     setMessage(null);
     const needsPlace = ["arrived", "in_progress", "completed"].includes(to_status);
     const position = needsPlace ? await currentPosition() : null;
-    const res = await fetchWithSupabaseSession(
+    let res: Response;
+    try {
+      res = await fetchWithSupabaseSession(
       `/api/trips/${tripId}/status`,
       {
         method: "POST",
@@ -291,12 +294,18 @@ export function DriverTripsPanel({
       },
       devFallbackRole
     );
-    const json = (await res.json()) as { success?: boolean; error?: { code?: string; message?: string } };
+    } catch {
+      setBusyTrip(null);
+      setMessage("Sem internet agora. Confira o sinal e toque de novo — nada foi perdido.");
+      return;
+    }
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { code?: string; message?: string } };
     setBusyTrip(null);
     if (!res.ok || !json.success) {
-      if (json.error?.code === "GEOFENCE") {
+      const fixable = ["GEOFENCE", "ACTUAL_KM_REQUIRED", "SIGNATURE_REQUIRED", "ODOMETER_INVALID", "ODOMETER_START_REQUIRED"];
+      if (fixable.includes(json.error?.code ?? "") || (to_status === "completed" && res.status >= 500)) {
         setGeoReason("");
-        setGeoBlock({ tripId, to_status, extra, message: json.error.message ?? "Você não está no local." });
+        setGeoBlock({ tripId, to_status, extra, message: json.error?.message ?? "Não foi possível concluir esta etapa." });
         return;
       }
       setMessage(json.error?.message ?? "Falha ao atualizar estado.");
@@ -444,8 +453,44 @@ export function DriverTripsPanel({
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FBF3E0] text-2xl" aria-hidden>
             📍
           </div>
-          <h3 className="mt-3 text-lg font-semibold text-[#111]">Local não confirmado</h3>
+          <h3 className="mt-3 text-lg font-semibold text-[#111]">
+            {geoBlock.to_status === "completed" ? "Aconteceu algum problema para finalizar?" : "Aconteceu algum problema?"}
+          </h3>
           <p className="mt-1 text-sm text-[#555]">{geoBlock.message}</p>
+          <p className="mt-3 text-xs font-semibold text-[#111]">O que aconteceu?</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {(geoBlock.to_status === "completed"
+              ? ["Já deixei o passageiro no destino", "GPS sem sinal / não marcou", "Passageiro desceu em outro lugar", "Passageiro não quis assinar"]
+              : ["Já estou no local", "GPS sem sinal / não marcou", "Embarque em outro ponto"]
+            ).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setGeoReason(r)}
+                className={`rounded-full px-3 py-1.5 text-xs ring-1 ${geoReason === r ? "bg-[#111] text-prime-gold ring-[#111]" : "text-[#333] ring-[#E7E2D7]"}`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={geoReason}
+            onChange={(e) => setGeoReason(e.target.value)}
+            rows={2}
+            placeholder="Ou escreva com suas palavras"
+            className="mt-2 w-full rounded-xl border border-[#E7E2D7] px-3 py-2 text-base text-[#111]"
+          />
+          <button
+            type="button"
+            disabled={geoReason.trim().length < 3 || busyTrip === geoBlock.tripId}
+            onClick={() => {
+              const g = geoBlock;
+              void setStatus(g.tripId, g.to_status, { ...(g.extra ?? {}), force_review: true, review_reason: geoReason.trim() });
+            }}
+            className="mt-3 w-full rounded-2xl bg-[#111] py-3.5 text-sm font-semibold text-prime-gold disabled:opacity-40"
+          >
+            {geoBlock.to_status === "completed" ? "Finalizar mesmo assim e avisar a central" : "Continuar e avisar a central"}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -453,31 +498,10 @@ export function DriverTripsPanel({
               setGeoBlock(null);
               void setStatus(g.tripId, g.to_status, g.extra);
             }}
-            className="mt-4 w-full rounded-2xl bg-[#111] py-3.5 text-sm font-semibold text-prime-gold"
+            className="mt-2 w-full rounded-2xl py-3 text-sm font-semibold text-[#111] ring-1 ring-[#E7E2D7]"
           >
             Tentar de novo
           </button>
-          <div className="mt-4 rounded-2xl border border-[#ECE7DB] p-3">
-            <p className="text-xs font-semibold text-[#111]">Não consegue confirmar pelo GPS?</p>
-            <textarea
-              value={geoReason}
-              onChange={(e) => setGeoReason(e.target.value)}
-              rows={2}
-              placeholder="Explique rapidamente (ex.: GPS sem sinal no subsolo do aeroporto)"
-              className="mt-2 w-full rounded-xl border border-[#E7E2D7] px-3 py-2 text-base text-[#111]"
-            />
-            <button
-              type="button"
-              disabled={geoReason.trim().length < 5 || busyTrip === geoBlock.tripId}
-              onClick={() => {
-                const g = geoBlock;
-                void setStatus(g.tripId, g.to_status, { ...(g.extra ?? {}), force_review: true, review_reason: geoReason.trim() });
-              }}
-              className="mt-2 w-full rounded-2xl py-3 text-sm font-semibold text-[#8A5A00] ring-1 ring-[#E9D8A6] disabled:opacity-50"
-            >
-              Continuar e enviar para a central revisar
-            </button>
-          </div>
           <button type="button" onClick={() => setGeoBlock(null)} className="mt-3 w-full py-2 text-sm text-[#8A8A8A]">
             Voltar
           </button>

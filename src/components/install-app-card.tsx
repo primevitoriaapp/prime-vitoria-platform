@@ -62,7 +62,7 @@ export function InstallAppCard() {
         </ol>
       ) : (
         <>
-          <p className="mt-1 text-[#555]">Abre em tela cheia, como um aplicativo, e recebe os avisos de corrida.</p>
+          <p className="mt-1 text-[#555]">Abre em tela cheia, como um aplicativo, direto no seu login.</p>
           <button
             type="button"
             className="mt-3 w-full rounded-2xl bg-[#111] px-4 py-3 font-semibold text-prime-gold"

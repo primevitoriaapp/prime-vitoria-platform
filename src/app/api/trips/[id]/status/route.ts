@@ -130,6 +130,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
+    // Motorista com problema (GPS, KM, assinatura) pode seguir informando o motivo: a corrida vai para revisão da central.
+    const forced = session.role === "motorista" && body.force_review === true && (body.review_reason ?? "").trim().length >= 3;
+    const forcedNotes: string[] = [];
+
     // Local certo: chegar/iniciar no embarque e finalizar no destino (GPS do celular do motorista).
     let reviewNote: string | null = null;
     if (session.role === "motorista" && ["arrived", "in_progress", "completed"].includes(body.to_status)) {
@@ -162,26 +166,38 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const odoStart = parseOdometer(body.odometer_start ?? null);
     const odoEnd = parseOdometer(body.odometer_end ?? null);
     if (body.to_status === "in_progress" && session.role === "motorista" && odoStart == null) {
-      return fail("ODOMETER_START_REQUIRED", "Informe o KM do painel antes de iniciar a viagem", 400);
+      if (!forced) return fail("ODOMETER_START_REQUIRED", "Informe o KM do painel antes de iniciar a viagem", 400);
+      forcedNotes.push("iniciada sem KM do painel");
     }
     let odometerKm: number | null = null;
     if (body.to_status === "completed" && trip.odometer_start != null && (session.role === "motorista" || odoEnd != null)) {
       const dist = odometerDistance(Number(trip.odometer_start), odoEnd);
-      if (!dist.ok) return fail("ODOMETER_INVALID", dist.message, 400);
-      odometerKm = dist.km;
+      if (!dist.ok) {
+        if (!forced) return fail("ODOMETER_INVALID", dist.message, 400);
+        forcedNotes.push(`KM do painel não conferiu (${dist.message})`);
+      } else odometerKm = dist.km;
     }
 
     if (body.to_status === "completed" && session.role === "motorista") {
       // Distância cobrada = GPS do celular; o KM do painel é registro de contexto (e reserva se o GPS falhar).
       const kmFromBody = body.actual_km ?? odometerKm;
       if (kmFromBody == null || !Number.isFinite(kmFromBody) || kmFromBody <= 0) {
-        return fail("ACTUAL_KM_REQUIRED", "Informe o KM percorrido para finalizar", 400);
+        if (!forced) return fail("ACTUAL_KM_REQUIRED", "Informe o KM percorrido para finalizar", 400);
+        forcedNotes.push("finalizada sem KM (central precisa conferir)");
       }
       const { data: client } = await db.from("clients").select("type").eq("id", trip.client_id).maybeSingle();
       if (client?.type === "PJ") {
         const { data: sig } = await db.from("trip_signatures").select("id").eq("trip_id", id).maybeSingle();
-        if (!sig) return fail("SIGNATURE_REQUIRED", "Colha a assinatura do passageiro (ou informe por que não assinou)", 409);
+        if (!sig) {
+          if (!forced) return fail("SIGNATURE_REQUIRED", "Colha a assinatura do passageiro (ou informe por que não assinou)", 409);
+          forcedNotes.push("sem assinatura do passageiro");
+        }
       }
+    }
+
+    if (forcedNotes.length) {
+      const extraNote = `${body.to_status === "completed" ? "Fim" : "Etapa"} com problema: ${forcedNotes.join("; ")} · motorista: ${(body.review_reason ?? "").trim()}`;
+      reviewNote = [reviewNote, extraNote].filter(Boolean).join(" | ");
     }
 
     const waitFinalize =

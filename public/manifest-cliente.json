@@ -1,0 +1,27 @@
+{
+  "name": "Prime Vitória Empresas",
+  "short_name": "Prime Empresas",
+  "description": "Peça e acompanhe as corridas da sua empresa.",
+  "start_url": "/client",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "lang": "pt-BR",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "id": "/client"
+}

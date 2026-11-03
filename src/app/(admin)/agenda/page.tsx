@@ -16,6 +16,7 @@ type AgendaTrip = TripRow & {
   margin?: number | null;
   driver_id?: string | null;
   vehicle?: { id: string; model: string; plate: string } | null;
+  requester?: { name: string; matricula: string | null; sector: string | null } | null;
 };
 import { OperadorTripCreatePanel } from "@/components/operador-trip-create-panel";
 import { TripFocusHeader } from "@/components/trip-focus-header";
@@ -77,6 +78,7 @@ export default async function AgendaPage({
             passengerCount={focusTrip?.passenger_count}
             passengerName={focusTrip?.passenger_name}
             passengerPhone={focusTrip?.passenger_phone}
+            requester={focusTrip?.requester ?? null}
             clientAmount={focusTrip?.client_amount}
             driverAmount={focusTrip?.driver_amount}
             margin={focusTrip?.margin}

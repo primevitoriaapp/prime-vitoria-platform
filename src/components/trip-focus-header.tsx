@@ -14,6 +14,7 @@ type Props = {
   passengerCount?: number | null;
   passengerName?: string | null;
   passengerPhone?: string | null;
+  requester?: { name: string; matricula: string | null; sector: string | null } | null;
   clientAmount?: number | null;
   driverAmount?: number | null;
   margin?: number | null;
@@ -32,6 +33,7 @@ export function TripFocusHeader({
   passengerCount,
   passengerName,
   passengerPhone,
+  requester,
   clientAmount,
   driverAmount,
   margin
@@ -70,6 +72,14 @@ export function TripFocusHeader({
           {passengerCount != null && passengerCount > 0 ? (
             <span className="text-prime-muted"> · {passengerCount} pax</span>
           ) : null}
+        </span>
+      ) : null}
+      {requester ? (
+        <span className="text-sm text-prime-text">
+          <span className="text-prime-muted">Pedido por: </span>
+          {requester.name}
+          {requester.matricula ? <span className="text-prime-muted"> · Mat. {requester.matricula}</span> : null}
+          {requester.sector ? <span className="text-prime-muted"> · {requester.sector}</span> : null}
         </span>
       ) : null}
       <TripVoucherButton tripId={tripId} />
