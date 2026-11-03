@@ -3,7 +3,7 @@
   "short_name": "Prime Motorista",
   "description": "Operação e status de corridas para motoristas.",
   "start_url": "/driver",
-  "scope": "/",
+  "scope": "/driver",
   "display": "standalone",
   "background_color": "#111111",
   "theme_color": "#111111",

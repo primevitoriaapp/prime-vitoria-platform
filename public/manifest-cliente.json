@@ -3,7 +3,7 @@
   "short_name": "Prime Empresas",
   "description": "Peça e acompanhe as corridas da sua empresa.",
   "start_url": "/client",
-  "scope": "/",
+  "scope": "/client",
   "display": "standalone",
   "background_color": "#111111",
   "theme_color": "#111111",
