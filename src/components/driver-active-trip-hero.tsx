@@ -300,10 +300,15 @@ export function DriverActiveTripHero({
             <p className="mt-1 text-sm text-emerald-900">A aguardar sinal GPS…</p>
           )}
           <p className="mt-1 text-xs text-emerald-800/80">
-            {gps.pointCount > 0
-              ? `${gps.pointCount} pontos cadastrados · actualização a cada 30s`
-              : "Registo automático a cada 30 segundos"}
+            {gps.pointCount > 0 ? `${gps.pointCount} pontos registrados · mede a cada 10 segundos` : "Mede sozinho a cada 10 segundos"}
           </p>
+          {gps.lastGapMinutes ? (
+            <p className="mt-2 rounded-lg bg-amber-100 px-2.5 py-2 text-sm font-medium text-amber-950">
+              ⚠ O app ficou {gps.lastGapMinutes} min fechado e o GPS não mediu esse trecho. Deixe o app da Prime aberto na tela até o fim da corrida. O KM do painel do carro garante a cobrança certa — digite com atenção.
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-emerald-900/80">Deixe o app aberto na tela durante a corrida: com a tela apagada o GPS para de medir.</p>
+          )}
         </div>
       ) : null}
 

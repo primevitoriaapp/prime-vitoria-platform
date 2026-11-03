@@ -53,3 +53,58 @@ export function actualKmFromTrail(points: GpsPoint[], opts?: { maxSegmentKm?: nu
   }
   return total > 0 ? Math.round(total * 100) / 100 : null;
 }
+
+/** Quanto do trajeto GPS foi "chutado" em linha reta porque o celular parou de mandar posição (app fechado/tela apagada). */
+export function gpsTrailGaps(points: GpsPoint[], gapSeconds = 60): { totalKm: number; gapKm: number; gaps: number } {
+  const sorted = points.filter(validPoint).sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
+  let totalKm = 0;
+  let gapKm = 0;
+  let gaps = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    const seg = haversineKm(sorted[i - 1].lat, sorted[i - 1].lng, sorted[i].lat, sorted[i].lng);
+    totalKm += seg;
+    const secs = (Date.parse(sorted[i].recorded_at) - Date.parse(sorted[i - 1].recorded_at)) / 1000;
+    if (secs > gapSeconds) {
+      gaps++;
+      gapKm += seg;
+    }
+  }
+  return { totalKm: Math.round(totalKm * 100) / 100, gapKm: Math.round(gapKm * 100) / 100, gaps };
+}
+
+export type BillableKmChoice = { km: number | null; source: "gps_trail" | "odometer" | "manual"; note: string | null };
+
+/**
+ * Regra de cobrança (definida por Rubens em 03/11/2026):
+ * GPS quando ele mediu o trajeto inteiro; KM do painel quando o GPS teve buracos e o painel deu mais.
+ * Painel absurdamente acima do GPS (mais que o dobro + 5 km) não é aceito sozinho: fica o GPS e a central confere.
+ */
+export function chooseBillableKm(input: {
+  gpsKm: number | null;
+  gpsGapKm: number;
+  gpsGaps: number;
+  odometerKm: number | null;
+  fromGps: boolean;
+}): BillableKmChoice {
+  const { gpsKm, gpsGapKm, gpsGaps, odometerKm, fromGps } = input;
+  if (gpsKm == null || gpsKm <= 0) {
+    return odometerKm != null ? { km: odometerKm, source: "odometer", note: null } : { km: null, source: "manual", note: null };
+  }
+  if (!fromGps) return { km: gpsKm, source: "manual", note: null };
+  if (odometerKm == null) return { km: gpsKm, source: "gps_trail", note: null };
+  const unreliable = gpsGaps > 0 && gpsGapKm >= Math.max(1, gpsKm * 0.15);
+  if (!unreliable || odometerKm <= gpsKm) return { km: gpsKm, source: "gps_trail", note: null };
+  const fmt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  if (odometerKm > gpsKm * 2 + 5) {
+    return {
+      km: gpsKm,
+      source: "gps_trail",
+      note: `GPS perdeu sinal (${gpsGaps} trechos) e o painel deu ${fmt(odometerKm)} km contra ${fmt(gpsKm)} km do GPS — diferença grande demais, conferir antes de faturar`
+    };
+  }
+  return {
+    km: odometerKm,
+    source: "odometer",
+    note: `GPS perdeu sinal em ${gpsGaps} trechos (${fmt(gpsGapKm)} km em linha reta); cobrado pelo painel do carro: ${fmt(odometerKm)} km (GPS mediu ${fmt(gpsKm)} km)`
+  };
+}

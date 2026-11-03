@@ -49,7 +49,7 @@ export async function runPostTripAutomation(input: PostTripAutomationInput): Pro
   const { data: trip } = await db
     .from("trips")
     .select(
-      "id, client_id, driver_id, origin_lat, origin_lng, destination_lat, destination_lng, planned_km, actual_km, operational_status, scheduled_at"
+      "id, client_id, driver_id, origin_lat, origin_lng, destination_lat, destination_lng, planned_km, actual_km, km_source, operational_status, scheduled_at"
     )
     .eq("id", tripId)
     .eq("tenant_id", tenantId)
@@ -63,8 +63,10 @@ export async function runPostTripAutomation(input: PostTripAutomationInput): Pro
   let actual: number | null = null;
   let kmSource: TripKmSource | null = null;
   const previousActual = trip.actual_km != null ? Number(trip.actual_km) : null;
+  // KM decidido pelo painel do carro na finalização (GPS com buracos): não recalcula pelo GPS por cima.
+  const keepOdometer = trip.km_source === "odometer" && previousActual != null;
 
-  if (trip.driver_id) {
+  if (trip.driver_id && !keepOdometer) {
     const { data: locs } = await db
       .from("driver_locations")
       .select("lat, lng, recorded_at")
@@ -87,11 +89,13 @@ export async function runPostTripAutomation(input: PostTripAutomationInput): Pro
   }
 
   const now = new Date().toISOString();
-  kmSource = postTripKmSource({
-    plannedKm: planned,
-    actualKmFromTrail: actual,
-    previousActualKm: previousActual
-  });
+  kmSource = keepOdometer
+    ? "odometer"
+    : postTripKmSource({
+        plannedKm: planned,
+        actualKmFromTrail: actual,
+        previousActualKm: previousActual
+      });
   await db
     .from("trips")
     .update({

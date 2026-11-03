@@ -1,4 +1,4 @@
-export type TripKmSource = "coords" | "gps_trail" | "manual";
+export type TripKmSource = "coords" | "gps_trail" | "manual" | "odometer";
 
 export function postTripKmSource(input: {
   plannedKm: number | null;

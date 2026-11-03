@@ -95,3 +95,32 @@ test("agenda .ics sem valores e com aviso de sem motorista", () => {
   assert.match(ics, /Ana\\; Silva/);
   assert.doesNotMatch(ics, /R\$/);
 });
+
+import { chooseBillableKm, gpsTrailGaps } from "../src/lib/trips/km-distance.ts";
+
+test("KM cobrado: GPS inteiro vale o GPS; GPS com buracos vale o painel", () => {
+  // Corrida real da Comexport (03/11): GPS 18,67 com 10,65 km em buracos; painel 25.
+  assert.deepEqual(chooseBillableKm({ gpsKm: 18.67, gpsGapKm: 10.65, gpsGaps: 7, odometerKm: 25, fromGps: true }).km, 25);
+  assert.equal(chooseBillableKm({ gpsKm: 18.67, gpsGapKm: 10.65, gpsGaps: 7, odometerKm: 25, fromGps: true }).source, "odometer");
+  // GPS sem buracos: fica o GPS mesmo com painel maior.
+  assert.equal(chooseBillableKm({ gpsKm: 20, gpsGapKm: 0, gpsGaps: 0, odometerKm: 25, fromGps: true }).km, 20);
+  // Painel menor que o GPS: fica o GPS.
+  assert.equal(chooseBillableKm({ gpsKm: 20, gpsGapKm: 8, gpsGaps: 3, odometerKm: 18, fromGps: true }).km, 20);
+  // Painel absurdo: fica o GPS e pede conferência.
+  const c = chooseBillableKm({ gpsKm: 10, gpsGapKm: 5, gpsGaps: 2, odometerKm: 90, fromGps: true });
+  assert.equal(c.km, 10);
+  assert.match(c.note ?? "", /conferir/);
+  // Sem painel: GPS.
+  assert.equal(chooseBillableKm({ gpsKm: 12, gpsGapKm: 6, gpsGaps: 2, odometerKm: null, fromGps: true }).km, 12);
+});
+
+test("buracos no rastro do GPS", () => {
+  const pts = [
+    { lat: -20.3, lng: -40.3, recorded_at: "2026-11-03T20:00:00Z" },
+    { lat: -20.301, lng: -40.3, recorded_at: "2026-11-03T20:00:10Z" },
+    { lat: -20.33, lng: -40.3, recorded_at: "2026-11-03T20:05:00Z" }
+  ];
+  const g = gpsTrailGaps(pts);
+  assert.equal(g.gaps, 1);
+  assert.ok(g.gapKm > 3 && g.gapKm < 3.5);
+});

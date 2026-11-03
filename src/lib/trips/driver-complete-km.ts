@@ -4,6 +4,8 @@ export type DriverTripGpsState = {
   tracking: boolean;
   requiresManualKm: boolean;
   gpsError: string | null;
+  /** Minutos que o app ficou fechado/tela apagada sem medir (último buraco), para avisar o motorista. */
+  lastGapMinutes?: number | null;
 };
 
 export function parseDriverKmInput(raw: string): number | null {

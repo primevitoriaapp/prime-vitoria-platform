@@ -99,7 +99,7 @@ export function useDriverTripGpsTracking({ trips, devFallbackRole = "motorista" 
       lastSampleAtRef.current = Date.now();
       setStateByTrip((prev) => ({
         ...prev,
-        [activeTripId]: gpsStateFromPoints(next, true, false, null)
+        [activeTripId]: { ...gpsStateFromPoints(next, true, false, null), lastGapMinutes: prev[activeTripId]?.lastGapMinutes ?? null }
       }));
       void postDriverLocation(activeTripId, point, devFallbackRole);
     },
@@ -156,7 +156,23 @@ export function useDriverTripGpsTracking({ trips, devFallbackRole = "motorista" 
 
     watchIdRef.current = watchId;
 
+    // Celular "congela" o app com a tela apagada ou com outro app na frente: avisa quanto tempo ficou sem medir.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || tripIdRef.current !== tripId) return;
+      const last = pointsRef.current[pointsRef.current.length - 1];
+      if (!last) return;
+      const minutes = Math.floor((Date.now() - Date.parse(last.recorded_at)) / 60_000);
+      if (minutes >= 1) {
+        setStateByTrip((prev) => ({
+          ...prev,
+          [tripId]: { ...(prev[tripId] ?? gpsStateFromPoints(pointsRef.current, true, false, null)), lastGapMinutes: minutes }
+        }));
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
+      document.removeEventListener("visibilitychange", onVisible);
       stopWatch();
     };
   }, [tripId, recordPoint, stopWatch]);

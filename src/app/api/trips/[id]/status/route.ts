@@ -17,6 +17,7 @@ import { assertClientMayUsePortalWrites } from "@/lib/clients/client-portal-acce
 import { isOperationalTripStatusEvent } from "@/lib/notifications/operational-status-event";
 import { finalizeWaitFields } from "@/lib/trips/finalize-trip-wait";
 import { odometerDistance, parseOdometer } from "@/lib/trips/odometer";
+import { chooseBillableKm, gpsTrailGaps } from "@/lib/trips/km-distance";
 import { ensureTripTrackToken } from "@/lib/public/ensure-track-token";
 import { formatDistance, geofenceCheck } from "@/lib/geo/geofence";
 import {
@@ -215,9 +216,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (body.to_status === "in_progress" && odoStart != null) statusUpdate.odometer_start = odoStart;
     if (odometerKm != null) statusUpdate.odometer_end = odoEnd;
     if (body.to_status === "completed" && body.actual_km != null && Number.isFinite(body.actual_km)) {
-      statusUpdate.actual_km = body.actual_km;
-      statusUpdate.km_source = body.km_from_gps ? "gps_trail" : "manual";
+      // GPS com buracos (app fechado/tela apagada) mede menos: aí vale o painel do carro.
+      let gapInfo = { gapKm: 0, gaps: 0 };
+      if (body.km_from_gps && odometerKm != null) {
+        const { data: pts } = await db
+          .from("driver_locations")
+          .select("lat, lng, recorded_at")
+          .eq("trip_id", id)
+          .order("recorded_at", { ascending: true })
+          .limit(5000);
+        gapInfo = gpsTrailGaps(((pts ?? []) as { lat: number; lng: number; recorded_at: string }[]).map((p) => ({ lat: Number(p.lat), lng: Number(p.lng), recorded_at: p.recorded_at })));
+      }
+      const choice = chooseBillableKm({
+        gpsKm: body.actual_km,
+        gpsGapKm: gapInfo.gapKm,
+        gpsGaps: gapInfo.gaps,
+        odometerKm,
+        fromGps: Boolean(body.km_from_gps)
+      });
+      statusUpdate.actual_km = choice.km ?? body.actual_km;
+      statusUpdate.km_source = choice.source;
       statusUpdate.km_updated_at = new Date().toISOString();
+      if (choice.note) {
+        statusUpdate.review_required = true;
+        statusUpdate.review_reason = [statusUpdate.review_reason ?? trip.review_reason, `KM: ${choice.note}`].filter(Boolean).join(" | ");
+      }
     } else if (odometerKm != null) {
       statusUpdate.actual_km = odometerKm;
       statusUpdate.km_source = "odometer";
