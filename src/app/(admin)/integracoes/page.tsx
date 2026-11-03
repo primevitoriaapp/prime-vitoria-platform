@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { CalendarFeedCard } from "@/components/calendar-feed-card";
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { getSessionContext } from "@/lib/server/session";
 
@@ -58,6 +59,12 @@ function list(): { group: string; items: Integration[] }[] {
           what: "Corrida entra na agenda do celular do motorista com lembrete 1 dia e 3 horas antes.",
           status: has("RESEND_API_KEY") ? (emailFromOwnDomain ? "ligado" : "parcial") : "desligado",
           note: "Vai junto com o e-mail de atribuição. Depende do e-mail acima estar liberado."
+        },
+        {
+          name: "Google Agenda da central",
+          what: "Todas as corridas no seu Google Agenda ou iPhone, por um link para assinar.",
+          status: "ligado",
+          note: "Crie e copie o link no quadro dourado no topo desta página."
         }
       ]
     },
@@ -80,11 +87,13 @@ function list(): { group: string; items: Integration[] }[] {
           hrefLabel: "Abrir mapa"
         },
         {
-          name: "Flightradar24",
-          what: "Acompanhar o voo do passageiro e avisar atraso automaticamente.",
-          status: "em_breve",
-          note: "Hoje o número do voo é guardado e vira link. O acompanhamento automático precisa do plano de API deles.",
-          cost: "A partir de US$ 9/mês"
+          name: "Acompanhamento de voo (AeroDataBox)",
+          what: "Confere o voo do passageiro antes da corrida, mostra o horário atualizado na agenda e avisa a central e o motorista quando atrasa ou cancela.",
+          status: has("AERODATABOX_RAPIDAPI_KEY") ? "ligado" : "desligado",
+          note: has("AERODATABOX_RAPIDAPI_KEY")
+            ? "Ativo. Confere a partir de 6h antes da corrida, enquanto o painel estiver aberto."
+            : "Pronto no sistema. Falta criar a conta no RapidAPI, assinar o AeroDataBox (plano grátis) e colocar a chave no Vercel como AERODATABOX_RAPIDAPI_KEY.",
+          cost: "Grátis até 600 consultas/mês (≈ US$ 5/mês acima disso)"
         }
       ]
     },
@@ -140,6 +149,7 @@ export default async function IntegracoesPage() {
         subtitle="O que a plataforma usa de fora, o que já está ligado e o que falta para ligar."
       />
       <div className="space-y-8">
+        <CalendarFeedCard />
         {groups.map((g) => (
           <section key={g.group}>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-prime-muted">{g.group}</h2>

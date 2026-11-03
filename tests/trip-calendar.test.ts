@@ -35,5 +35,5 @@ test("googleCalendarLink e duração", () => {
   assert.match(link, /dates=20261029T190000Z%2F20261030T050000Z/);
   assert.equal(tripDurationMinutes("diaria_seda"), 600);
   assert.equal(tripDurationMinutes("transfer_seda"), 90);
-  assert.equal(icsEscape("a;b,c"), "a\;b\\,c");
+  assert.equal(icsEscape("a;b,c"), "a\\;b\\,c");
 });

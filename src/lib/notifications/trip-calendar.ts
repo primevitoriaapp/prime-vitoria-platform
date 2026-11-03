@@ -20,7 +20,7 @@ function icsDate(d: Date): string {
 
 /** Escapa texto conforme RFC 5545 (vírgula, ponto e vírgula, barra, quebra de linha). */
 export function icsEscape(text: string): string {
-  return text.replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+  return text.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 }
 
 /** Quebra linhas longas em 75 octetos (aprox. por caractere). */

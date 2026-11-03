@@ -9,6 +9,7 @@ import { formatBrTime } from "@/lib/dates/br-date";
 import { shortAddress } from "@/lib/client/short-address";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { QuickAssign, type AssignDriver } from "@/components/quick-assign";
+import { FlightBadge } from "@/components/flight-badge";
 import { SERVICE_EXTRAS } from "@/lib/trips/service-extras";
 import { AgendaMonthCalendar } from "@/components/agenda-month-calendar";
 import {
@@ -35,6 +36,10 @@ type Trip = {
   client_amount?: number | null;
   driver_amount?: number | null;
   flight_number?: string | null;
+  flight_status?: string | null;
+  flight_eta?: string | null;
+  flight_delay_minutes?: number | null;
+  flight_leg?: string | null;
   driver_id?: string | null;
   presentation_minutes?: number | null;
   vehicle_category_id?: string | null;
@@ -281,9 +286,14 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
                         {" · "}
                         {t.passenger_name?.trim() || "passageiro a definir"}
                         {t.passenger_count && t.passenger_count > 1 ? ` (+${t.passenger_count - 1})` : ""}
-                        {t.flight_number ? ` · voo ${t.flight_number}` : ""}
+                        {t.flight_number && !t.flight_eta ? ` · voo ${t.flight_number}` : ""}
                       </span>
                     </p>
+                    {t.flight_eta || t.flight_status ? (
+                      <p>
+                        <FlightBadge t={t} />
+                      </p>
+                    ) : null}
                     {t.service_extras?.length ? (
                       <p className="flex flex-wrap gap-1">
                         {SERVICE_EXTRAS.filter((e) => t.service_extras?.includes(e.id)).map((e) => (
