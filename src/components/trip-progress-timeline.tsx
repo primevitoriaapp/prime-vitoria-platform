@@ -50,7 +50,7 @@ export function TripProgressTimeline({
                 <span className={`absolute left-[9px] top-5 h-[calc(100%-12px)] w-0.5 ${s.state === "done" ? "bg-prime-gold" : "bg-gray-200"}`} aria-hidden />
               ) : null}
               <span
-                className={`relative z-[1] mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                className={`relative z-[1] mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${
                   s.state === "done"
                     ? "bg-prime-gold text-[#111]"
                     : s.state === "current"

@@ -9,7 +9,7 @@ export function TripLegLabelBadge({ label, className = "" }: Props) {
   return (
     <span
       className={[
-        "inline-flex shrink-0 items-center rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+        "inline-flex shrink-0 items-center rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide",
         isIda ? "bg-sky-600 text-white" : "bg-violet-600 text-white",
         className
       ].join(" ")}

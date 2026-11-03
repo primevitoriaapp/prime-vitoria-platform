@@ -18,7 +18,7 @@ export default function EsqueciSenhaPage() {
             Se este e-mail tiver uma conta, você vai receber em instantes um link para criar uma senha nova. Confira
             também a caixa de spam.
           </p>
-          <Link href="/login" className="text-prime-gold hover:underline">
+          <Link href="/login" className="text-prime-gold-ink hover:underline">
             ← Voltar para o login
           </Link>
         </div>
@@ -39,7 +39,7 @@ export default function EsqueciSenhaPage() {
               {pending ? "Enviando…" : "Enviar link"}
             </button>
           </form>
-          <Link href="/login" className="text-prime-gold hover:underline">
+          <Link href="/login" className="text-prime-gold-ink hover:underline">
             ← Voltar para o login
           </Link>
         </>

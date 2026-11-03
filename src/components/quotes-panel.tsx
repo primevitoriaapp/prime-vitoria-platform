@@ -511,18 +511,18 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                 {!locked ? (
                   <span className="flex flex-wrap gap-3 text-xs">
                     {!diaria ? (
-                      <button type="button" className="text-prime-gold hover:underline" onClick={() => setItems((l) => [...l.slice(0, idx + 1), { ...it, origin: it.dest, dest: it.origin, time: "" }, ...l.slice(idx + 1)])}>
+                      <button type="button" className="text-prime-gold-ink hover:underline" onClick={() => setItems((l) => [...l.slice(0, idx + 1), { ...it, origin: it.dest, dest: it.origin, time: "" }, ...l.slice(idx + 1)])}>
                         + Volta
                       </button>
                     ) : null}
                     <button
                       type="button"
-                      className="text-prime-gold hover:underline"
+                      className="text-prime-gold-ink hover:underline"
                       onClick={() => setItems((l) => [...l.slice(0, idx + 1), { ...it, date: it.date ? plusDays(it.date, 1) : "" }, ...l.slice(idx + 1)])}
                     >
                       Repetir no dia seguinte
                     </button>
-                    <button type="button" className="text-prime-gold hover:underline" onClick={() => setItems((l) => [...l.slice(0, idx + 1), { ...it }, ...l.slice(idx + 1)])}>
+                    <button type="button" className="text-prime-gold-ink hover:underline" onClick={() => setItems((l) => [...l.slice(0, idx + 1), { ...it }, ...l.slice(idx + 1)])}>
                       Duplicar
                     </button>
                     {items.length > 1 ? (
@@ -669,7 +669,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
               <label className="grid gap-1 text-sm">
                 <span>Motorista recebe (R$)</span>
                 <input className={`${input} bg-prime-bg`} inputMode="decimal" disabled={locked} placeholder="0,00" value={it.driver_amount} onChange={(e) => setItem(idx, { driver_amount: e.target.value.replace(/[^0-9.,]/g, "") })} onBlur={(e) => setItem(idx, { driver_amount: e.target.value ? money2(toNum(e.target.value)) : "" })} />
-                <span className="text-[11px] text-prime-muted">Interno: não aparece para o cliente</span>
+                <span className="text-[12px] text-prime-muted">Interno: não aparece para o cliente</span>
               </label>
               <label className="grid gap-1 text-sm sm:col-span-6">
                 <span>Observação do serviço (aparece no orçamento)</span>

@@ -312,7 +312,7 @@ export function DriverPayablesPanel({
             >
               <p className="text-xs font-medium uppercase tracking-wide text-prime-muted">{card.label}</p>
               <p className="mt-1 text-xl font-semibold text-prime-text">{card.value}</p>
-              <p className="mt-1 text-[11px] text-prime-muted">{card.hint}</p>
+              <p className="mt-1 text-[12px] text-prime-muted">{card.hint}</p>
             </div>
           ))}
         </div>
@@ -438,7 +438,7 @@ function DriverPayableTripCard({ row }: { row: PayableRow }) {
           ) : null}
         </div>
         <span
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+          className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
             row.payout_stage === "pago"
               ? "border-emerald-400 text-emerald-600"
               : row.payout_stage === "liberado"

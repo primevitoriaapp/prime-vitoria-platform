@@ -98,11 +98,11 @@ export function DriverAccountEditor() {
             </span>
             <div className="min-w-0">
               <p className="font-semibold">{[d.vehicle.brand, d.vehicle.model, d.vehicle.model_year].filter(Boolean).join(" ")}</p>
-              <p className="text-sm text-[#8A8A8A]">{[d.vehicle.category_name, d.vehicle.color, d.vehicle.plate].filter(Boolean).join(" · ")}</p>
+              <p className="text-sm text-[#6B6F76]">{[d.vehicle.category_name, d.vehicle.color, d.vehicle.plate].filter(Boolean).join(" · ")}</p>
             </div>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-[#8A8A8A]">Nenhum carro cadastrado ainda.</p>
+          <p className="mt-2 text-sm text-[#6B6F76]">Nenhum carro cadastrado ainda.</p>
         )}
         <Status k="vehicle" />
         {open === "vehicle" ? (
@@ -156,7 +156,7 @@ export function DriverAccountEditor() {
           {d.cnh.number ? `Nº ${d.cnh.number} · categoria ${d.cnh.category ?? "—"}` : "CNH não cadastrada"}
         </p>
         {d.cnh.expires_at ? (
-          <p className={`mt-1 text-sm ${cnhDays !== null && cnhDays < 0 ? "font-semibold text-red-700" : cnhDays !== null && cnhDays <= 30 ? "font-semibold text-[#8A5A00]" : "text-[#8A8A8A]"}`}>
+          <p className={`mt-1 text-sm ${cnhDays !== null && cnhDays < 0 ? "font-semibold text-red-700" : cnhDays !== null && cnhDays <= 30 ? "font-semibold text-[#8A5A00]" : "text-[#6B6F76]"}`}>
             {cnhDays !== null && cnhDays < 0 ? `Vencida desde ${br(d.cnh.expires_at)}` : `Válida até ${br(d.cnh.expires_at)}${cnhDays !== null && cnhDays <= 30 ? ` · vence em ${cnhDays} dia(s)` : ""}`}
           </p>
         ) : null}
@@ -198,7 +198,7 @@ export function DriverAccountEditor() {
                 Nova chave PIX
                 <input name="pix_key" required className={field} placeholder="CPF, e-mail, celular ou chave aleatória" />
               </label>
-              <p className="text-xs text-[#8A8A8A]">Por segurança, a central confirma com você antes de trocar a chave onde os repasses caem.</p>
+              <p className="text-xs text-[#6B6F76]">Por segurança, a central confirma com você antes de trocar a chave onde os repasses caem.</p>
               <Buttons />
             </form>
           ) : null}

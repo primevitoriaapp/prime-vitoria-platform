@@ -3,25 +3,25 @@
  */
 .prime-theme,
 .admin-theme {
-  --prime-bg: #f4f2ee;
+  --prime-bg: #f6f5f2;
   --prime-card-bg: #ffffff;
   --prime-input-bg: #ffffff;
   --prime-input-border: #d4cfc4;
-  --prime-border: #e8e4dc;
+  --prime-border: #e7e4dd;
   --prime-gold: #c9a84c;
   --prime-gold-hover: #b8943e;
-  --prime-text: #1a1a1a;
-  --prime-text-muted: #666666;
+  --prime-text: #111317;
+  --prime-text-muted: #5f636b;
   --prime-sidebar-bg: #ffffff;
-  --prime-sidebar-text: #6f6a60;
+  --prime-sidebar-text: #4a4d55;
   --prime-sidebar-text-active: #111111;
   --prime-sidebar-hover: #f6f3ec;
   --prime-status-green: #2e7d32;
   --prime-status-red: #c62828;
   --prime-status-amber: #e65100;
   --prime-radius-btn: 12px;
-  --prime-radius-card: 18px;
-  --prime-card-shadow: 0 1px 2px rgba(17, 17, 17, 0.04), 0 10px 28px -16px rgba(17, 17, 17, 0.18);
+  --prime-radius-card: 16px;
+  --prime-card-shadow: 0 1px 2px rgba(16, 17, 20, 0.04), 0 4px 16px -8px rgba(16, 17, 20, 0.1);
   --prime-gold-gradient: linear-gradient(135deg, #dcc072 0%, #c9a84c 45%, #a8873a 100%);
   --prime-dark-gradient: linear-gradient(135deg, #0f0f0f 0%, #1c1a16 60%, #2a2416 100%);
 
@@ -30,16 +30,11 @@
   color: var(--prime-text);
 }
 
-.prime-theme h1,
-.prime-theme h2,
-.prime-theme h3,
-.admin-theme h1,
-.admin-theme h2,
-.admin-theme h3 {
-  font-family: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+:where(.prime-theme, .admin-theme) :where(h1, h2, h3) {
+  font-family: var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
   color: var(--prime-text);
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-weight: 650;
+  letter-spacing: -0.015em;
 }
 
 .prime-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
@@ -65,10 +60,10 @@
   border: 1px solid var(--prime-input-border);
   background-color: var(--prime-input-bg);
   color: var(--prime-text);
-  padding: 0.5rem 0.625rem;
+  padding: 0.6rem 0.75rem;
   width: 100%;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.4rem;
 }
 
 .prime-input:focus {
@@ -93,8 +88,8 @@
   background: #111;
   color: #d9bc6a;
   font-weight: 600;
-  padding: 0.55rem 1.1rem;
-  font-size: 0.875rem;
+  padding: 0.65rem 1.2rem;
+  font-size: 0.9375rem;
   border: none;
   box-shadow: 0 6px 16px -10px rgba(17, 17, 17, 0.55);
   transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
@@ -110,19 +105,20 @@
 .prime-theme .btn-outline,
 .admin-theme .btn-outline {
   border-radius: var(--prime-radius-btn);
-  border: 1px solid var(--prime-gold);
-  color: var(--prime-gold);
-  background: transparent;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  border: 1px solid var(--prime-border);
+  color: var(--prime-text);
+  background: #fff;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .prime-theme .btn-outline:hover:not(:disabled),
 .admin-theme .btn-outline:hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--prime-gold) 10%, transparent);
-  color: var(--prime-gold-hover);
-  border-color: var(--prime-gold-hover);
+  background-color: #faf8f3;
+  color: var(--prime-text);
+  border-color: var(--prime-gold);
 }
 
 .prime-theme .text-slate-600,
@@ -180,7 +176,7 @@
 .admin-theme aside.prime-sidebar .prime-nav-active,
 .prime-sidebar .prime-nav-active {
   border: 1px solid transparent;
-  background: #f4f1ea;
+  background: #f7f0de;
   color: var(--prime-sidebar-text-active);
   font-weight: 600;
 }
@@ -368,7 +364,6 @@
 }
 .admin-theme aside.prime-sidebar .prime-nav-active {
   position: relative;
-  box-shadow: inset 3px 0 0 var(--prime-gold);
 }
 
 /* Faixa de título premium */

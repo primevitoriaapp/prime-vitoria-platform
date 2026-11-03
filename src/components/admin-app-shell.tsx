@@ -81,7 +81,7 @@ type SessionPayload = { role: string; tenantId?: string | null };
 
 function navClass(active: boolean) {
   return [
-    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
+    "flex items-center gap-3 rounded-[10px] px-3 py-2 text-[14.5px] font-medium transition-colors",
     active ? "prime-nav-active" : "prime-nav-item hover:bg-prime-sidebar-hover"
   ].join(" ");
 }
@@ -133,7 +133,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
               if (!items.length) return null;
               return (
                 <div key={g} className="mb-3">
-                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-prime-sidebar-text">{g}</p>
+                  <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9A9DA3]">{g}</p>
                   <div className="space-y-0.5">
                     {items.map((item) => (
                       <Link key={item.href} href={item.href} className={navClass(isActivePath(pathname, item.href))}>
@@ -147,7 +147,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             })}
             {isAdmin ? (
               <div className="mb-3">
-                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-prime-sidebar-text">Sistema</p>
+                <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9A9DA3]">Sistema</p>
                 <div className="space-y-0.5">
                   {ADMIN_EXTRA.map((item) => (
                     <Link key={item.href} href={item.href} className={navClass(isActivePath(pathname, item.href))}>
@@ -176,7 +176,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
     <CompanyProvider>
     <div className="admin-theme flex h-dvh flex-col overflow-hidden bg-prime-bg text-prime-text">
       <div className="flex min-h-0 flex-1">
-        <aside className="prime-sidebar hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-[#ECE7DB] bg-prime-sidebar md:flex print:hidden">
+        <aside className="prime-sidebar hidden h-full w-64 shrink-0 flex-col overflow-hidden border-r border-[#ECE7DB] bg-prime-sidebar md:flex print:hidden">
           {sidebarBody}
         </aside>
 
@@ -218,13 +218,14 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
                   className="hidden h-9 w-9 items-center sm:flex justify-center rounded-full bg-gradient-to-br from-prime-gold to-prime-gold-hover text-sm font-bold text-prime-text"
                   aria-hidden
                 >
-                  AM
+                  {isAdmin ? "AD" : isFinanceiro ? "FI" : isOperador ? "OP" : "PV"}
                 </span>
               </div>
             </div>
           </header>
 
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-5 md:pb-6 md:pt-6 lg:px-8 lg:py-8 print:overflow-visible">
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-5 md:pb-8 md:pt-7 lg:px-10 lg:py-9 print:overflow-visible">
+            <div className="mx-auto w-full max-w-[1440px]">
             {session && !showFullNav && !isFinanceiro ? (
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
                 <span>
@@ -239,6 +240,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
               </div>
             ) : null}
             {children}
+            </div>
           </main>
         </div>
       </div>
@@ -251,25 +253,25 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             { href: "/dashboard", label: "Início", d: "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" },
             { href: "/agenda", label: "Agenda", d: "M4 6h16v14H4zM4 10h16M9 3v5M15 3v5" }
           ].map((t) => (
-            <Link key={t.href} href={t.href as Route} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActivePath(pathname, t.href) ? "font-semibold text-prime-text" : "text-prime-muted"}`}>
+            <Link key={t.href} href={t.href as Route} className={`flex flex-col items-center gap-0.5 py-2 text-[12px] ${isActivePath(pathname, t.href) ? "font-semibold text-prime-text" : "text-prime-muted"}`}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isActivePath(pathname, t.href) ? "#C9A84C" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d={t.d} />
               </svg>
               {t.label}
             </Link>
           ))}
-          <Link href={"/agenda?nova=1" as Route} className="-mt-5 flex flex-col items-center gap-0.5 text-[11px] font-semibold text-prime-text">
+          <Link href={"/agenda?nova=1" as Route} className="-mt-5 flex flex-col items-center gap-0.5 text-[12px] font-semibold text-prime-text">
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#111] text-3xl leading-none text-prime-gold shadow-lg ring-4 ring-white">+</span>
             Agendar
           </Link>
-          <Link href="/ao-vivo" className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActivePath(pathname, "/ao-vivo") ? "font-semibold text-prime-text" : "text-prime-muted"}`}>
+          <Link href="/ao-vivo" className={`flex flex-col items-center gap-0.5 py-2 text-[12px] ${isActivePath(pathname, "/ao-vivo") ? "font-semibold text-prime-text" : "text-prime-muted"}`}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isActivePath(pathname, "/ao-vivo") ? "#C9A84C" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" aria-hidden>
               <path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z" />
               <circle cx="12" cy="9" r="2.5" />
             </svg>
             Ao vivo
           </Link>
-          <button type="button" onClick={() => setMenuOpen(true)} className="flex flex-col items-center gap-0.5 py-2 text-[11px] text-prime-muted">
+          <button type="button" onClick={() => setMenuOpen(true)} className="flex flex-col items-center gap-0.5 py-2 text-[12px] text-prime-muted">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
               <path d="M4 7h16M4 12h16M4 17h16" />
             </svg>

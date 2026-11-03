@@ -414,7 +414,7 @@ export function TripAgendaDispatchPanel({
               <p className="text-sm text-prime-muted">Motoristas que receberão a oferta:</p>
               <button
                 type="button"
-                className="text-xs font-medium text-prime-gold hover:underline"
+                className="text-xs font-medium text-prime-gold-ink hover:underline"
                 onClick={selectAllDrivers}
                 disabled={loading || drivers.length === 0}
               >

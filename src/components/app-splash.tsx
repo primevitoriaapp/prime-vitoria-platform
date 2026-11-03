@@ -45,7 +45,7 @@ export function AppSplash() {
         PRIME <span style={{ color: "#C9A84C" }}>VITÓRIA</span>
       </p>
       <span className="mt-2 block h-px bg-[#C9A84C]" style={{ animation: "pvLine .6s 1s both" }} />
-      <p className="mt-2 text-[11px] uppercase tracking-[0.32em]" style={{ color: "#C9A84C", animation: "pvUp .6s 1.1s both" }}>
+      <p className="mt-2 text-[12px] uppercase tracking-[0.32em]" style={{ color: "#C9A84C", animation: "pvUp .6s 1.1s both" }}>
         Transporte executivo
       </p>
     </div>

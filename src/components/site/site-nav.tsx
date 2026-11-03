@@ -34,7 +34,7 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
         <a href="#topo" className="group flex items-center gap-3" aria-label="Prime Vitória — início">
           <img src={SITE.img.logo} alt="" width={40} height={40} className="h-10 w-10 rounded-xl object-cover transition-transform duration-300 group-hover:scale-125" />
           <span className="leading-tight">
-            <span className="block whitespace-nowrap font-prime-display text-[17px] font-semibold" style={{ color: dark ? "#111" : "#fff" }}>
+            <span className="block whitespace-nowrap font-prime-serif text-[17px] font-semibold" style={{ color: dark ? "#111" : "#fff" }}>
               Prime Vitória
             </span>
             <span className="hidden whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.28em] sm:block" style={{ color: "#C9A84C" }}>
@@ -70,7 +70,7 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
               className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium ring-1 ${dark ? "text-[#111] ring-[#E2DCCD]" : "text-[#fff] ring-white/40"}`}
             >
               {T.entrar}
-              <span className={`text-[10px] transition ${login ? "rotate-180" : ""}`} aria-hidden>
+              <span className={`text-[11px] transition ${login ? "rotate-180" : ""}`} aria-hidden>
                 ▾
               </span>
             </button>
@@ -144,7 +144,7 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
 
 function Langs({ lang, dark }: { lang: SiteLang; dark: boolean }) {
   return (
-    <div className={`flex rounded-full p-0.5 text-[11px] font-semibold ${dark ? "bg-[#F4F1EA]" : "bg-white/15 backdrop-blur"}`}>
+    <div className={`flex rounded-full p-0.5 text-[12px] font-semibold ${dark ? "bg-[#F4F1EA]" : "bg-white/15 backdrop-blur"}`}>
       {SITE_LANGS.map((l) => (
         <a
           key={l.id}

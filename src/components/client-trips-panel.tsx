@@ -241,10 +241,10 @@ export function ClientTripsPanel({
                   </p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     {amount ? <span className="font-semibold text-prime-text">{amount}</span> : null}
-                    <Link href={`/client/viagens/${trip.id}`} className="font-medium text-prime-gold hover:underline">
+                    <Link href={`/client/viagens/${trip.id}`} className="font-medium text-prime-gold-ink hover:underline">
                       Detalhes
                     </Link>
-                    <Link href={`/voucher/${trip.id}`} className="font-medium text-prime-gold hover:underline">
+                    <Link href={`/voucher/${trip.id}`} className="font-medium text-prime-gold-ink hover:underline">
                       Voucher
                     </Link>
                     {canCancel ? (

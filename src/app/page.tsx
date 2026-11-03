@@ -45,7 +45,7 @@ export default function HomePage() {
             >
               <span className="text-lg font-semibold text-[#fff]">{e.title}</span>
               <span className="mt-2 flex-1 text-sm text-[#fff]/60">{e.text}</span>
-              <span className="mt-5 text-sm font-semibold text-prime-gold group-hover:underline">{e.cta} →</span>
+              <span className="mt-5 text-sm font-semibold text-prime-gold-ink group-hover:underline">{e.cta} →</span>
             </Link>
           ))}
         </div>

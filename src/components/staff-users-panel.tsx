@@ -72,6 +72,62 @@ export function StaffUsersPanel() {
     void load();
   }
 
+  const isTest = (u: Staff) => /@example\.com$/i.test(u.email ?? "") || /staging/i.test(u.name ?? "");
+  const real = list.filter((u) => !isTest(u));
+  const tests = list.filter(isTest);
+  const renderCard = (u: Staff) => (
+            <article key={u.id} className={`rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card ${u.active === false ? "opacity-60" : ""}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">
+                    {u.name ?? "Sem nome"} {u.me ? <span className="text-xs text-prime-muted">(você)</span> : null}
+                  </p>
+                  <p className="truncate text-xs text-prime-muted">{u.email ?? "—"}</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-prime-bg px-2.5 py-1 text-[12px] font-semibold ring-1 ring-prime-border">
+                  {u.active === false ? "Desativado" : roleLabel(u.role)}
+                </span>
+              </div>
+              {!u.me ? (
+                <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-prime-border pt-3 text-sm">
+                  <select
+                    className={`${PRIME_INPUT_CLASS} w-auto`}
+                    value={u.role}
+                    disabled={busy}
+                    onChange={(e) => void patch(u, { role: e.target.value }, "Papel alterado.")}
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="text-prime-gold-ink hover:underline"
+                    onClick={() => window.confirm(`Gerar nova senha para ${u.name}?`) && void patch(u, { reset_password: true }, "")}
+                  >
+                    Nova senha
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className={u.active === false ? "text-emerald-700 hover:underline" : "text-red-700 hover:underline"}
+                    onClick={() =>
+                      u.active === false
+                        ? void patch(u, { active: true }, "Acesso reativado.")
+                        : window.confirm(`Tirar o acesso de ${u.name}? Ele não consegue mais entrar.`) &&
+                          void patch(u, { active: false }, "Acesso desativado.")
+                    }
+                  >
+                    {u.active === false ? "Reativar" : "Desativar"}
+                  </button>
+                </div>
+              ) : null}
+            </article>
+  );
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -146,60 +202,16 @@ export function StaffUsersPanel() {
         <div className="h-24 animate-pulse rounded-2xl border border-prime-border bg-white" />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {list.map((u) => (
-            <article key={u.id} className={`rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card ${u.active === false ? "opacity-60" : ""}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">
-                    {u.name ?? "Sem nome"} {u.me ? <span className="text-xs text-prime-muted">(você)</span> : null}
-                  </p>
-                  <p className="truncate text-xs text-prime-muted">{u.email ?? "—"}</p>
-                </div>
-                <span className="shrink-0 rounded-full bg-prime-bg px-2.5 py-1 text-[11px] font-semibold ring-1 ring-prime-border">
-                  {u.active === false ? "Desativado" : roleLabel(u.role)}
-                </span>
-              </div>
-              {!u.me ? (
-                <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-prime-border pt-3 text-sm">
-                  <select
-                    className={`${PRIME_INPUT_CLASS} w-auto`}
-                    value={u.role}
-                    disabled={busy}
-                    onChange={(e) => void patch(u, { role: e.target.value }, "Papel alterado.")}
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    className="text-prime-gold hover:underline"
-                    onClick={() => window.confirm(`Gerar nova senha para ${u.name}?`) && void patch(u, { reset_password: true }, "")}
-                  >
-                    Nova senha
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    className={u.active === false ? "text-emerald-700 hover:underline" : "text-red-700 hover:underline"}
-                    onClick={() =>
-                      u.active === false
-                        ? void patch(u, { active: true }, "Acesso reativado.")
-                        : window.confirm(`Tirar o acesso de ${u.name}? Ele não consegue mais entrar.`) &&
-                          void patch(u, { active: false }, "Acesso desativado.")
-                    }
-                  >
-                    {u.active === false ? "Reativar" : "Desativar"}
-                  </button>
-                </div>
-              ) : null}
-            </article>
-          ))}
+          {real.map((u) => renderCard(u))}
         </div>
       )}
+      {!loading && tests.length ? (
+        <details className="rounded-2xl border border-dashed border-prime-border bg-white px-5 py-4">
+          <summary className="cursor-pointer text-sm font-semibold text-prime-text">Contas de teste do sistema ({tests.length})</summary>
+          <p className="mt-1 text-sm text-prime-muted">Usadas só para testar o sistema. Se não precisar, pode desativar.</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{tests.map((u) => renderCard(u))}</div>
+        </details>
+      ) : null}
     </section>
   );
 }

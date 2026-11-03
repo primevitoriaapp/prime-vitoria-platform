@@ -76,7 +76,7 @@ export function DriverOperationalTimeline({ current, variant = "default" }: Prop
             </span>
             <span
               className={[
-                "max-w-[5.5rem] truncate text-[10px] font-medium leading-tight sm:max-w-none sm:text-xs",
+                "max-w-[5.5rem] truncate text-[11px] font-medium leading-tight sm:max-w-none sm:text-xs",
                 active ? "text-amber-300" : done ? "text-slate-400" : "text-slate-600"
               ].join(" ")}
               title={STATUS_CORRIDA_PT[step]}

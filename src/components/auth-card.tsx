@@ -8,7 +8,7 @@ export function AuthCard({ title, children }: { title: string; children: React.R
         <PrimeLogoMark size={40} />
         <div className="leading-tight">
           <p className="font-semibold text-prime-text">Prime Vitória</p>
-          <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-prime-gold">Transporte executivo</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-prime-gold">Transporte executivo</p>
         </div>
       </div>
       <section className="w-full max-w-sm rounded-2xl border border-prime-border bg-white p-6 shadow-prime-card">

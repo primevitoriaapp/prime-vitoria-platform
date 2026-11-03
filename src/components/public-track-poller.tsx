@@ -138,7 +138,7 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
     <div className="space-y-4">
       <section className="overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
         <div className="p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">{when}</p>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#C9A84C]">{when}</p>
           <h1 className="mt-1 text-2xl font-semibold leading-tight text-[#111]">{h.title}</h1>
           <p className="mt-1 text-sm text-[#6B6B6B]">{h.sub}</p>
 
@@ -147,7 +147,7 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
               {STEPS.map((s, i) => (
                 <li key={s.key} className="text-center">
                   <span className={`block h-1.5 rounded-full ${i <= stepIdx ? "bg-[#C9A84C]" : "bg-[#EEE9DC]"}`} />
-                  <span className={`mt-1.5 block text-[10px] leading-tight sm:text-xs ${i === stepIdx ? "font-semibold text-[#111]" : "text-[#9A9A9A]"}`}>{s.label}</span>
+                  <span className={`mt-1.5 block text-[11px] leading-tight sm:text-xs ${i === stepIdx ? "font-semibold text-[#111]" : "text-[#9A9A9A]"}`}>{s.label}</span>
                 </li>
               ))}
             </ol>
@@ -168,7 +168,7 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
                 A posição do carro aparece aqui quando o motorista estiver a caminho.
               </p>
             ) : (
-              <p className="absolute left-3 top-3 z-[500] rounded-full bg-[#111]/85 px-3 py-1 text-[11px] text-[#fff]">
+              <p className="absolute left-3 top-3 z-[500] rounded-full bg-[#111]/85 px-3 py-1 text-[12px] text-[#fff]">
                 <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
                 ao vivo · {updatedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
               </p>
@@ -218,11 +218,11 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
           </div>
           <div className="min-w-0 flex-1 space-y-4 text-sm">
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-[#9A9A9A]">Embarque</p>
+              <p className="text-[12px] uppercase tracking-wide text-[#9A9A9A]">Embarque</p>
               <p className="font-medium text-[#111]">{shortAddress(data.origin_text)}</p>
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-[#9A9A9A]">Destino</p>
+              <p className="text-[12px] uppercase tracking-wide text-[#9A9A9A]">Destino</p>
               <p className="font-medium text-[#111]">{shortAddress(data.destination_text)}</p>
             </div>
           </div>

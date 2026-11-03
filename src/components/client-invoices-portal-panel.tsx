@@ -76,18 +76,18 @@ export function ClientInvoicesPortalPanel({ devFallbackRole = "cliente" }: { dev
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-3 border-t border-prime-border pt-3 text-sm">
-                  <a href={`/fatura/${r.id}`} className="font-medium text-prime-gold hover:underline">
+                  <a href={`/fatura/${r.id}`} className="font-medium text-prime-gold-ink hover:underline">
                     Ver relatório / imprimir
                   </a>
-                  <a href={`/api/client-invoices/${r.id}/csv`} className="font-medium text-prime-gold hover:underline">
+                  <a href={`/api/client-invoices/${r.id}/csv`} className="font-medium text-prime-gold-ink hover:underline">
                     Planilha (Excel)
                   </a>
                   {r.nf_path ? (
-                    <a href={`/api/client-invoices/${r.id}/files?kind=nf`} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold hover:underline">
+                    <a href={`/api/client-invoices/${r.id}/files?kind=nf`} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold-ink hover:underline">
                       Nota fiscal {r.nf_number ? `nº ${r.nf_number}` : ""}
                     </a>
                   ) : r.nf_url ? (
-                    <a href={r.nf_url} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold hover:underline">
+                    <a href={r.nf_url} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold-ink hover:underline">
                       Nota fiscal {r.nf_number ? `nº ${r.nf_number}` : ""}
                     </a>
                   ) : r.nf_number ? (
@@ -98,7 +98,7 @@ export function ClientInvoicesPortalPanel({ devFallbackRole = "cliente" }: { dev
                       Baixar boleto
                     </a>
                   ) : r.boleto_url && r.status !== "paga" ? (
-                    <a href={r.boleto_url} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold hover:underline">
+                    <a href={r.boleto_url} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold-ink hover:underline">
                       2ª via do boleto
                     </a>
                   ) : null}

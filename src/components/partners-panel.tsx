@@ -407,7 +407,7 @@ function PartnerDetail({ id, onBack }: { id: string; onBack: () => void }) {
           >
             Vincular
           </button>
-          <Link href="/drivers" className="text-sm text-prime-gold hover:underline">
+          <Link href="/drivers" className="text-sm text-prime-gold-ink hover:underline">
             Cadastrar motorista novo →
           </Link>
         </div>

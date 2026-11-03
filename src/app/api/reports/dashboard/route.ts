@@ -4,7 +4,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability, can } from "@/lib/security/rbac";
 import { clientIdsOfCompany, companyFromRequest } from "@/lib/company/company-scope-server";
-import { dashRanges, pctChange, summarize, topBy, type DashPeriod, type MetricTrip } from "@/lib/operations/dashboard-metrics";
+import { buildSeries, dashRanges, pctChange, seriesRange, summarize, topBy, type DashPeriod, type MetricTrip } from "@/lib/operations/dashboard-metrics";
 
 const PERIODS: DashPeriod[] = ["hoje", "7d", "mes", "ano"];
 
@@ -19,6 +19,8 @@ async function tripsBetween(tenantId: string, from: string, to: string) {
   if (error) throw new Error(error.message);
   return (data ?? []) as (MetricTrip & { id: string; scheduled_at: string })[];
 }
+
+const showMoneyFor = (session: Awaited<ReturnType<typeof getSessionContext>>) => can(session, "finance.read") || session.role === "admin";
 
 export async function GET(request: Request) {
   try {
@@ -99,6 +101,10 @@ export async function GET(request: Request) {
       payablesOverdue = count ?? 0;
     }
 
+    const sr = seriesRange(period, now);
+    const seriesTrips = sr.from === r.from && sr.to === r.to ? curr : await tripsBetween(tenantId, sr.from, sr.to).then(inScope);
+    const series = buildSeries(seriesTrips, period, now);
+
     const s = summarize(curr);
     const ps = summarize(prev);
     const showMoney = can(session, "finance.read") || session.role === "admin";
@@ -149,7 +155,8 @@ export async function GET(request: Request) {
       activeDrivers: (drivers.data ?? []).filter((d) => d.active !== false).length,
       topClients: topBy(curr, "client_id").map((x) => ({ ...x, name: clientName.get(x.id) ?? "Cliente", revenue: showMoney ? x.revenue : null })),
       topDrivers: topBy(curr, "driver_id").map((x) => ({ ...x, name: driverName.get(x.id) ?? "Motorista", revenue: null })),
-      alerts
+      alerts,
+      series: showMoneyFor(session) ? series : series.map((p) => ({ ...p, revenue: 0, profit: 0 }))
     });
   } catch (error) {
     return mapApiError(error);

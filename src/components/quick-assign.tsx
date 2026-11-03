@@ -190,7 +190,7 @@ export function QuickAssign({
               );
             })}
           </ul>
-          <p className="mt-2 text-[11px] text-prime-muted">
+          <p className="mt-2 text-[12px] text-prime-muted">
             O motorista recebe a corrida no app{isSwap ? "; o anterior é avisado da troca" : ""}. Pedido novo é confirmado junto.
           </p>
         </div>

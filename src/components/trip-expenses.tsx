@@ -76,7 +76,7 @@ export function DriverTripExpenses({ tripId, devFallbackRole = "motorista" }: { 
           ))}
         </ul>
       ) : !open ? (
-        <p className="mt-1 text-xs text-[#8A8A8A]">Pagou algo na corrida? Lance aqui com a foto do comprovante para ser reembolsado.</p>
+        <p className="mt-1 text-xs text-[#6B6F76]">Pagou algo na corrida? Lance aqui com a foto do comprovante para ser reembolsado.</p>
       ) : null}
       {open ? (
         <div className="mt-3 space-y-3">

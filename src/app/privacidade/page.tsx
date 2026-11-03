@@ -13,7 +13,7 @@ export default function PrivacidadePage() {
         <p className="text-lg font-bold tracking-[0.08em] text-[#fff]">
           PRIME <span className="text-[#C9A84C]">VITÓRIA</span>
         </p>
-        <p className="text-[10px] tracking-[0.28em] text-[#C9A84C]">TRANSPORTE EXECUTIVO</p>
+        <p className="text-[11px] tracking-[0.28em] text-[#C9A84C]">TRANSPORTE EXECUTIVO</p>
       </header>
       <div className="h-1 bg-[#C9A84C]" />
       <main className="mx-auto max-w-3xl px-5 py-8 text-[15px] leading-relaxed text-[#333]">

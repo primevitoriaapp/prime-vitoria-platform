@@ -105,7 +105,7 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
           return (
             <li key={c.id} className="rounded-xl border border-prime-border">
               <button type="button" onClick={() => setOpen(isOpen ? null : c.id)} className="flex w-full items-center gap-3 p-3 text-left">
-                <span className="flex h-12 w-16 items-center justify-center overflow-hidden rounded-md bg-prime-bg text-[10px] text-prime-muted">
+                <span className="flex h-12 w-16 items-center justify-center overflow-hidden rounded-md bg-prime-bg text-[11px] text-prime-muted">
                   {c.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={c.photo_url} alt="" className="h-full w-full object-contain" />

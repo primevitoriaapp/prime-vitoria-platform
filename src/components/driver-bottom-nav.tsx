@@ -25,7 +25,7 @@ export function DriverBottomNav({ showWallet = true }: { showWallet?: boolean })
           <li key={tab.id}>
             <Link
               href={tab.href}
-              className="flex min-w-[4rem] flex-col items-center gap-0.5 rounded-lg px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-prime-muted hover:text-prime-gold"
+              className="flex min-w-[4rem] flex-col items-center gap-0.5 rounded-lg px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-prime-muted hover:text-prime-gold"
             >
               <span className="text-base leading-none" aria-hidden>
                 {tab.icon}

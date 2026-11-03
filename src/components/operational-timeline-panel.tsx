@@ -59,11 +59,12 @@ type Props = {
 };
 
 function profileLabel(id: string | null, names: Record<string, string>): string {
-  if (!id) return "(sistema)";
-  return names[id]?.trim() || `${id.slice(0, 8)}…`;
+  if (!id) return "automático";
+  return names[id]?.trim() || "equipe Prime";
 }
 
 export function OperationalTimelinePanel({ tripId, devFallbackRole = "operador" }: Props) {
+  const [showNotices, setShowNotices] = useState(false);
   const [items, setItems] = useState<Entry[]>([]);
   const [profileNames, setProfileNames] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -102,31 +103,35 @@ export function OperationalTimelinePanel({ tripId, devFallbackRole = "operador" 
     void load();
   }, [load]);
 
+  const when = (iso: string) =>
+    new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const st = (v: string | null) => (v && v in STATUS_CORRIDA_PT ? STATUS_CORRIDA_PT[v as keyof typeof STATUS_CORRIDA_PT] : (v ?? "—"));
+  const SOURCE: Record<string, string> = { driver: "pelo motorista", admin: "pela central", system: "automático", client: "pelo cliente", cron: "automático" };
+  const RECIPIENT: Record<string, string> = { driver: "motorista", client: "cliente", staff: "equipe", passenger: "passageiro", profile: "equipe" };
+  // "Estado alterado" da auditoria repete a linha de status: mostra só uma vez.
+  const visible = items.filter((e) => (showNotices || e.kind !== "notification") && !(e.kind === "audit" && e.action === "trip.status"));
+  const notices = items.filter((e) => e.kind === "notification").length;
+
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-2">
+    <section className="rounded-2xl border border-prime-border bg-white p-5 shadow-prime-card">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">Histórico operacional</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Auditoria, transições de estado e notas internas, por ordem cronológica inversa.
-          </p>
+          <h2 className="text-[17px] font-semibold tracking-tight text-prime-text">Histórico da corrida</h2>
+          <p className="mt-0.5 text-sm text-prime-muted">Tudo o que aconteceu, do mais recente para o mais antigo.</p>
         </div>
-        <div className="flex flex-wrap gap-1 text-xs">
-          <span className="self-center text-slate-500">Auditoria:</span>
+        <div className="inline-flex rounded-xl bg-[#ECEAE5] p-1 text-sm">
           {(
             [
               ["", "Tudo"],
-              ["finance.", "Financeiro"],
-              ["trip.", "Viagem"]
+              ["trip.", "Corrida"],
+              ["finance.", "Financeiro"]
             ] as const
           ).map(([value, label]) => (
             <button
               key={value || "all"}
               type="button"
               onClick={() => setAuditFilter(value)}
-              className={`rounded border px-2 py-0.5 ${
-                auditFilter === value ? "border-amber-600 bg-amber-50 text-amber-900" : "border-slate-200 text-slate-600"
-              }`}
+              className={`rounded-lg px-3 py-1.5 ${auditFilter === value ? "bg-white font-semibold text-prime-text shadow-sm" : "text-[#4A4D55]"}`}
             >
               {label}
             </button>
@@ -134,89 +139,75 @@ export function OperationalTimelinePanel({ tripId, devFallbackRole = "operador" 
         </div>
       </div>
       {loading ? (
-        <ul className="mt-3 animate-pulse space-y-2" aria-busy="true">
+        <ul className="mt-4 animate-pulse space-y-2" aria-busy="true">
           {[1, 2, 3].map((i) => (
-            <li key={i} className="h-10 rounded bg-slate-100" />
+            <li key={i} className="h-10 rounded-lg bg-prime-bg" />
           ))}
         </ul>
       ) : null}
       {error ? (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <p className="text-sm text-red-700" role="alert">
             {error}
           </p>
-          <button type="button" onClick={() => void load()} className="text-sm font-medium text-amber-800 underline">
-            Tentar novamente
+          <button type="button" onClick={() => void load()} className="text-sm font-semibold text-prime-gold-ink underline">
+            Tentar de novo
           </button>
         </div>
       ) : null}
       {!loading && !error ? (
-        <ul className="mt-3 max-h-80 space-y-3 overflow-y-auto text-sm">
-          {items.length === 0 ? (
-            <li className="text-slate-500">Sem eventos cadastrados para esta viagem.</li>
-          ) : (
-            items.map((e) => (
-              <li
-                key={e.kind === "note" ? `n-${e.id}` : e.id}
-                className="border-b border-slate-100 pb-2 last:border-0"
-              >
-                <p className="font-mono text-xs text-slate-400">
-                  {new Date(e.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" })}
-                </p>
-                {e.kind === "audit" ? (
-                  <div className="mt-1">
-                    <span className="font-medium text-amber-800">{timelineAuditLabel(e.action)}</span>
-                    <span className="ml-2 font-mono text-[11px] text-slate-400">{e.action}</span>
-                    <span className="ml-2 text-xs text-slate-500">{profileLabel(e.actor_user_id, profileNames)}</span>
-                    {timelineMetadataSummary(e.metadata) ? (
-                      <p className="mt-1 text-xs text-slate-500">{timelineMetadataSummary(e.metadata)}</p>
-                    ) : null}
-                  </div>
-                ) : e.kind === "status" ? (
-                  <div className="mt-1">
-                    <span className="text-xs font-medium uppercase text-slate-500">Estado</span>
-                    <p className="mt-1 text-slate-800">
-                      {e.from_status && e.from_status in STATUS_CORRIDA_PT
-                        ? STATUS_CORRIDA_PT[e.from_status as keyof typeof STATUS_CORRIDA_PT]
-                        : (e.from_status ?? "—")}{" "}
-                      →{" "}
-                      <span className="font-medium">
-                        {e.to_status in STATUS_CORRIDA_PT
-                          ? STATUS_CORRIDA_PT[e.to_status as keyof typeof STATUS_CORRIDA_PT]
-                          : e.to_status}
-                      </span>
-                    </p>
-                    {e.source ? <p className="mt-1 text-xs text-slate-500">Origem: {e.source}</p> : null}
-                  </div>
-                ) : e.kind === "claim" ? (
-                  <div className="mt-1">
-                    <span className="text-xs font-medium uppercase text-slate-500">Multiatendimento</span>
-                    <p className="mt-1 text-slate-800">
-                      {e.action === "assumed" ? "Atendimento assumido" : "Atendimento libertado"}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">{profileLabel(e.operator_profile_id, profileNames)}</p>
-                  </div>
-                ) : e.kind === "notification" ? (
-                  <div className="mt-1">
-                    <span className="text-xs font-medium uppercase text-slate-500">Notificação</span>
-                    <p className="mt-1 text-slate-800">{notificationTimelineTitle({ eventType: e.event_type, channel: e.channel }, e.status)}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {e.recipient_type}
-                      {e.recipient_id ? ` ${e.recipient_id.slice(0, 8)}…` : ""} · {e.correlation_id}
-                    </p>
-                    {e.last_error ? <p className="mt-1 text-xs text-red-700">{e.last_error}</p> : null}
-                  </div>
-                ) : (
-                  <div className="mt-1">
-                    <span className="text-xs font-medium uppercase text-slate-500">Nota interna</span>
-                    <p className="mt-1 whitespace-pre-wrap text-slate-800">{e.body}</p>
-                    <p className="mt-1 text-xs text-slate-500">{profileLabel(e.author_profile_id, profileNames)}</p>
-                  </div>
-                )}
-              </li>
-            ))
-          )}
-        </ul>
+        <>
+          <ol className="mt-4 max-h-96 overflow-y-auto pr-1">
+            {visible.length === 0 ? (
+              <li className="text-sm text-prime-muted">Nada registrado ainda.</li>
+            ) : (
+              visible.map((e) => {
+                let title = "";
+                let detail: string | null = null;
+                let dot = "bg-[#C9A84C]";
+                if (e.kind === "audit") {
+                  title = timelineAuditLabel(e.action);
+                  detail = [profileLabel(e.actor_user_id, profileNames), timelineMetadataSummary(e.metadata)].filter(Boolean).join(" · ") || null;
+                } else if (e.kind === "status") {
+                  title = `${st(e.to_status)}`;
+                  detail = [e.from_status ? `antes: ${st(e.from_status)}` : null, e.source ? (SOURCE[e.source] ?? e.source) : null].filter(Boolean).join(" · ") || null;
+                  dot = "bg-[#1A1B1E]";
+                } else if (e.kind === "claim") {
+                  title = e.action === "assumed" ? "Atendente assumiu a corrida" : "Atendente liberou a corrida";
+                  detail = profileLabel(e.operator_profile_id, profileNames);
+                } else if (e.kind === "notification") {
+                  title = notificationTimelineTitle({ eventType: e.event_type, channel: e.channel }, e.status);
+                  detail = `aviso para ${RECIPIENT[e.recipient_type] ?? e.recipient_type}`;
+                  dot = e.last_error ? "bg-red-500" : "bg-[#C9C6BE]";
+                } else {
+                  title = "Nota da equipe";
+                  detail = profileLabel(e.author_profile_id, profileNames);
+                  dot = "bg-blue-500";
+                }
+                return (
+                  <li key={e.kind === "note" ? `n-${e.id}` : e.id} className="relative flex gap-3 pb-4 pl-1 last:pb-0">
+                    <span className="absolute left-[8px] top-4 h-full w-px bg-prime-border" aria-hidden />
+                    <span className={`relative z-[1] mt-1.5 h-3 w-3 shrink-0 rounded-full ring-4 ring-white ${dot}`} aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <p className="text-[15px] font-medium text-prime-text">{title}</p>
+                        <p className="text-xs text-prime-muted">{when(e.at)}</p>
+                      </div>
+                      {e.kind === "note" ? <p className="mt-0.5 whitespace-pre-wrap text-sm text-prime-text">{e.body}</p> : null}
+                      {detail ? <p className="mt-0.5 text-sm text-prime-muted">{detail}</p> : null}
+                      {e.kind === "notification" && e.last_error ? <p className="mt-0.5 text-sm text-red-700">Falhou: {e.last_error}</p> : null}
+                    </div>
+                  </li>
+                );
+              })
+            )}
+          </ol>
+          {notices > 0 ? (
+            <button type="button" onClick={() => setShowNotices((v) => !v)} className="mt-3 text-sm font-semibold text-prime-gold-ink hover:underline">
+              {showNotices ? "Esconder avisos enviados" : `Mostrar avisos enviados (${notices})`}
+            </button>
+          ) : null}
+        </>
       ) : null}
     </section>
   );

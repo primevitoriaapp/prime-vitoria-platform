@@ -111,7 +111,7 @@ export function ClientTeamImport({
         <div className="mt-4 space-y-3 text-sm">
           <ol className="list-decimal space-y-1 pl-5 text-prime-muted">
             <li>
-              <button type="button" className="font-medium text-prime-gold hover:underline" onClick={downloadTemplate}>
+              <button type="button" className="font-medium text-prime-gold-ink hover:underline" onClick={downloadTemplate}>
                 Baixe o modelo
               </button>{" "}
               e preencha (abre no Excel).

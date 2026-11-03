@@ -418,7 +418,7 @@ export function DriverTripsPanel({
             </span>
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-[#111]">Você tem uma corrida agendada</span>
-              <span className="block truncate text-xs text-[#8A8A8A]">
+              <span className="block truncate text-xs text-[#6B6F76]">
                 {groupByDay([floatTrip])[0]?.label} · {hm(floatTrip.scheduled_at)} · {short(floatTrip.origin_text)}
               </span>
             </span>
@@ -502,7 +502,7 @@ export function DriverTripsPanel({
           >
             Tentar de novo
           </button>
-          <button type="button" onClick={() => setGeoBlock(null)} className="mt-3 w-full py-2 text-sm text-[#8A8A8A]">
+          <button type="button" onClick={() => setGeoBlock(null)} className="mt-3 w-full py-2 text-sm text-[#6B6F76]">
             Voltar
           </button>
         </div>
@@ -553,7 +553,7 @@ export function DriverTripsPanel({
                   </span>
                   <div className="min-w-0">
                     <p className="font-semibold text-[#111]">Nenhuma corrida agora</p>
-                    <p className="text-xs text-[#8A8A8A]">Quando a central te passar uma corrida, ela aparece aqui e o celular avisa.</p>
+                    <p className="text-xs text-[#6B6F76]">Quando a central te passar uma corrida, ela aparece aqui e o celular avisa.</p>
                   </div>
                 </div>
               ) : (
@@ -563,14 +563,14 @@ export function DriverTripsPanel({
                       <span className="rounded-full bg-[#FBF3E0] px-3 py-1 text-xs font-semibold text-[#8A5A00]">
                         {groupByDay([primaryTrip])[0]?.label} · {hm(primaryTrip.scheduled_at)}
                       </span>
-                      <span className="text-xs font-medium text-[#8A8A8A]">Ver detalhes ›</span>
+                      <span className="text-xs font-medium text-[#6B6F76]">Ver detalhes ›</span>
                     </div>
                     <p className="mt-2 text-base font-semibold text-[#111]">{primaryTrip.passenger_name?.trim() || "Passageiro"}</p>
                     <div className="mt-2 grid grid-cols-[14px_1fr] gap-x-2 gap-y-1 text-sm">
                       <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-[#111]" aria-hidden />
                       <span className="truncate text-[#333]">{short(primaryTrip.origin_text)}</span>
                       <span className="mt-1.5 h-2.5 w-2.5 rounded-sm bg-prime-gold" aria-hidden />
-                      <span className="truncate text-[#8A8A8A]">{short(primaryTrip.destination_text)}</span>
+                      <span className="truncate text-[#6B6F76]">{short(primaryTrip.destination_text)}</span>
                     </div>
                   </button>
                   {["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? (
@@ -588,7 +588,7 @@ export function DriverTripsPanel({
                     </button>
                   )}
                   {otherActive.length > 0 && onSeeAll ? (
-                    <button type="button" onClick={onSeeAll} className="mt-2 w-full text-center text-xs text-[#8A8A8A]">
+                    <button type="button" onClick={onSeeAll} className="mt-2 w-full text-center text-xs text-[#6B6F76]">
                       + {otherActive.length} corrida{otherActive.length === 1 ? "" : "s"} agendada{otherActive.length === 1 ? "" : "s"} · ver agenda
                     </button>
                   ) : null}
@@ -626,7 +626,7 @@ export function DriverTripsPanel({
                   {["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) ? (
                     <DriverTripExpenses tripId={primaryTrip.id} devFallbackRole={devFallbackRole} />
                   ) : null}
-                  <button type="button" onClick={() => setDetailOpen(false)} className="w-full rounded-2xl py-3 text-sm text-[#8A8A8A]">
+                  <button type="button" onClick={() => setDetailOpen(false)} className="w-full rounded-2xl py-3 text-sm text-[#6B6F76]">
                     Fechar
                   </button>
                 </div>
@@ -642,7 +642,7 @@ export function DriverTripsPanel({
           {loading ? (
             <DriverTripSkeleton />
           ) : active.length === 0 ? (
-            <div className={`${card} text-center text-sm text-[#8A8A8A]`}>Nenhuma corrida agendada para você.</div>
+            <div className={`${card} text-center text-sm text-[#6B6F76]`}>Nenhuma corrida agendada para você.</div>
           ) : (
             groupByDay(active).map((g) => (
               <div key={g.key} className={card}>
@@ -655,7 +655,7 @@ export function DriverTripsPanel({
                         <StatusBadge status={t.operational_status} />
                       </div>
                       <p className="mt-0.5 text-sm font-medium text-[#111]">{t.passenger_name?.trim() || "Passageiro"}</p>
-                      <p className="text-sm text-[#8A8A8A]">
+                      <p className="text-sm text-[#6B6F76]">
                         {short(t.origin_text)} → {short(t.destination_text)}
                       </p>
                     </li>
@@ -686,7 +686,7 @@ export function DriverTripsPanel({
         <section className="space-y-3">
           <h2 className="px-1 text-lg font-semibold text-[#111]">Corridas realizadas</h2>
           {recentHistory.length === 0 ? (
-            <div className={`${card} text-center text-sm text-[#8A8A8A]`}>Nenhuma corrida finalizada ainda.</div>
+            <div className={`${card} text-center text-sm text-[#6B6F76]`}>Nenhuma corrida finalizada ainda.</div>
           ) : (
             <ul className={`${card} divide-y divide-[#F0ECE3] !py-2`}>
               {recentHistory.map((trip) => (
@@ -695,7 +695,7 @@ export function DriverTripsPanel({
                     <span className="text-sm font-semibold text-[#111]">{formatBrDateTime(trip.scheduled_at)}</span>
                     <StatusBadge status={trip.operational_status} />
                   </div>
-                  <p className="mt-0.5 truncate text-sm text-[#8A8A8A]">
+                  <p className="mt-0.5 truncate text-sm text-[#6B6F76]">
                     {short(trip.origin_text)} → {short(trip.destination_text)}
                   </p>
                   {payByTrip[trip.id] ? (

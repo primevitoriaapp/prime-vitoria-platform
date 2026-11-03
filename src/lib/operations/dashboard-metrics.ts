@@ -117,3 +117,53 @@ export function topBy<T extends MetricTrip>(
   }
   return [...map.values()].sort((a, b) => b.revenue - a.revenue || b.trips - a.trips).slice(0, limit);
 }
+
+export type SeriesPoint = { key: string; label: string; revenue: number; profit: number; trips: number };
+
+const ymdSp = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(iso));
+const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/** Intervalo do gráfico: Hoje mostra os últimos 14 dias (um dia só não faz gráfico), 7 dias, mês por dia, ano por mês. */
+export function seriesRange(period: DashPeriod, now: Date = new Date()) {
+  const today = brToday(now);
+  if (period === "hoje" || period === "7d") {
+    const days = period === "hoje" ? 14 : 7;
+    return { from: new Date(start(addDays(today, -(days - 1)))).toISOString(), to: new Date(start(addDays(today, 1))).toISOString(), unit: "day" as const, firstDay: addDays(today, -(days - 1)), days };
+  }
+  const r = dashRanges(period, now);
+  if (period === "mes") {
+    const [y, m] = today.split("-").map(Number);
+    const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return { from: r.from, to: r.to, unit: "day" as const, firstDay: `${today.slice(0, 7)}-01`, days };
+  }
+  return { from: r.from, to: r.to, unit: "month" as const, firstDay: `${today.slice(0, 4)}-01-01`, days: 12 };
+}
+
+/** Faturamento, lucro e corridas por dia (ou por mês no ano). Só corridas finalizadas entram no dinheiro. */
+export function buildSeries(trips: (MetricTrip & { scheduled_at: string })[], period: DashPeriod, now: Date = new Date()): SeriesPoint[] {
+  const r = seriesRange(period, now);
+  const points: SeriesPoint[] = [];
+  if (r.unit === "day") {
+    for (let i = 0; i < r.days; i++) {
+      const d = addDays(r.firstDay, i);
+      points.push({ key: d, label: `${d.slice(8, 10)}/${d.slice(5, 7)}`, revenue: 0, profit: 0, trips: 0 });
+    }
+  } else {
+    const y = r.firstDay.slice(0, 4);
+    for (let m = 1; m <= 12; m++) points.push({ key: `${y}-${String(m).padStart(2, "0")}`, label: MONTHS[m - 1], revenue: 0, profit: 0, trips: 0 });
+  }
+  const idx = new Map(points.map((p, i) => [p.key, i]));
+  for (const t of trips) {
+    if (CANCELLED.has(t.operational_status)) continue;
+    const day = ymdSp(t.scheduled_at);
+    const i = idx.get(r.unit === "day" ? day : day.slice(0, 7));
+    if (i === undefined) continue;
+    points[i].trips += 1;
+    if (t.operational_status === "completed") {
+      const c = Number(t.client_amount) || 0;
+      points[i].revenue += c;
+      points[i].profit += c - (Number(t.driver_amount) || 0);
+    }
+  }
+  return points.map((p) => ({ ...p, revenue: Math.round(p.revenue * 100) / 100, profit: Math.round(p.profit * 100) / 100 }));
+}

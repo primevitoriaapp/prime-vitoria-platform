@@ -225,7 +225,7 @@ export function FinanceDashboardPanel() {
                     </p>
                     <p className="font-medium">{b.label}</p>
                     <p className={`mt-1 text-xl font-semibold ${b.balance < 0 ? "text-red-700" : ""}`}>{brl(b.balance)}</p>
-                    <p className="text-[11px] text-prime-muted">{b.balance_date ? `até ${brDate(b.balance_date)}` : "sem extrato importado"}</p>
+                    <p className="text-[12px] text-prime-muted">{b.balance_date ? `até ${brDate(b.balance_date)}` : "sem extrato importado"}</p>
                   </div>
                 ))}
               </div>
@@ -443,7 +443,7 @@ function MonthlyChart({ data }: { data: Report["monthly"] }) {
               <span className="w-1/2 rounded-t bg-prime-gold" style={{ height: `${(m.revenue / max) * 100}%` }} />
               <span className={`w-1/2 rounded-t ${m.result < 0 ? "bg-red-500" : "bg-emerald-600"}`} style={{ height: `${(Math.abs(m.result) / max) * 100}%` }} />
             </div>
-            <span className="text-[10px] capitalize text-prime-muted">{label(m.month)}</span>
+            <span className="text-[11px] capitalize text-prime-muted">{label(m.month)}</span>
           </div>
         ))}
       </div>

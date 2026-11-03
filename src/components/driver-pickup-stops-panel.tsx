@@ -55,7 +55,7 @@ export function DriverPickupStopsPanel({ stops, isBusy = false, onCompleteStop }
               <p className="mt-0.5 text-xs">{stop.pickup_text}</p>
               {stop.passenger_phone?.trim() ? (
                 <p className="mt-1 text-xs">
-                  <a href={`tel:${stop.passenger_phone.trim()}`} className="text-prime-gold hover:underline">
+                  <a href={`tel:${stop.passenger_phone.trim()}`} className="text-prime-gold-ink hover:underline">
                     {stop.passenger_phone.trim()}
                   </a>
                 </p>

@@ -83,7 +83,7 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
               <li key={st.status} className="relative flex flex-col items-center">
                 {i > 0 ? <span className={`absolute right-1/2 top-[7px] h-0.5 w-full ${i <= stepIdx ? "bg-prime-gold" : "bg-white/20"}`} /> : null}
                 <span className={`relative z-10 h-4 w-4 rounded-full ${i <= stepIdx ? "bg-prime-gold" : "bg-white/25"}`} />
-                <span className="mt-1 text-[10px]" style={{ color: i === stepIdx ? "#fff" : "rgba(255,255,255,0.55)" }}>
+                <span className="mt-1 text-[11px]" style={{ color: i === stepIdx ? "#fff" : "rgba(255,255,255,0.55)" }}>
                   {st.label}
                 </span>
               </li>
@@ -100,7 +100,7 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
               {goingToDestination ? "Levar o passageiro para" : multi && stopIdx != null ? `Buscar na parada ${stopIdx + 1}` : "Buscar o passageiro em"}
             </p>
             <p className="mt-1 text-xl font-bold leading-snug text-[#111]">{targetText.split(",")[0]}</p>
-            {targetText.includes(",") ? <p className="text-sm text-[#8A8A8A]">{targetText.split(",").slice(1).join(",").trim()}</p> : null}
+            {targetText.includes(",") ? <p className="text-sm text-[#6B6F76]">{targetText.split(",").slice(1).join(",").trim()}</p> : null}
             {!goingToDestination && presentation ? (
               <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
                 Estar no local às {new Date(presentation).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}
@@ -144,24 +144,24 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
                   ⏱ Começar a contar espera
                 </button>
               )}
-              <p className="mt-2 text-xs text-[#8A8A8A]">A espera fica registrada para a central cobrar hora parada, quando houver.</p>
+              <p className="mt-2 text-xs text-[#6B6F76]">A espera fica registrada para a central cobrar hora parada, quando houver.</p>
             </section>
           ) : null}
 
           {s === "in_progress" ? (
             <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#8A8A8A]">Distância desta viagem (GPS)</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#6B6F76]">Distância desta viagem (GPS)</p>
               <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-[#111]">
                 {formatDriverGpsKm(gps.accumulatedKm)} <span className="text-lg font-medium">km</span>
               </p>
-              {gps.gpsError ? <p className="mt-1 text-xs text-amber-800">{gps.gpsError}</p> : <p className="mt-1 text-xs text-[#8A8A8A]">Mantenha o app aberto durante a viagem.</p>}
+              {gps.gpsError ? <p className="mt-1 text-xs text-amber-800">{gps.gpsError}</p> : <p className="mt-1 text-xs text-[#6B6F76]">Mantenha o app aberto durante a viagem.</p>}
             </section>
           ) : null}
 
           <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#8A8A8A]">Passageiro</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#6B6F76]">Passageiro</p>
             <p className="mt-1 text-lg font-semibold text-[#111]">{trip.passenger_name?.trim() || "Passageiro"}</p>
-            <p className="text-sm text-[#8A8A8A]">
+            <p className="text-sm text-[#6B6F76]">
               {trip.passenger_count ? `${trip.passenger_count} pessoa(s)` : ""}
               {trip.flight_number ? (
                 <>

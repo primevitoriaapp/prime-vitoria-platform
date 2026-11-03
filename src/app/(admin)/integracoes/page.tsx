@@ -150,14 +150,14 @@ export default async function IntegracoesPage() {
                   <article key={it.name} className="flex flex-col rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
                     <div className="flex items-start justify-between gap-3">
                       <h3 className="text-base font-semibold">{it.name}</h3>
-                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${st.cls}`}>{st.label}</span>
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold ring-1 ${st.cls}`}>{st.label}</span>
                     </div>
                     <p className="mt-2 text-sm">{it.what}</p>
                     <p className="mt-2 text-sm text-prime-muted">{it.note}</p>
                     <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-xs text-prime-muted">
                       <span>{it.cost ?? ""}</span>
                       {it.href ? (
-                        <Link href={it.href as Route} className="font-semibold text-prime-gold hover:underline">
+                        <Link href={it.href as Route} className="font-semibold text-prime-gold-ink hover:underline">
                           {it.hrefLabel ?? "Abrir"} →
                         </Link>
                       ) : null}

@@ -30,7 +30,7 @@ export function DriverPinLoginForm({ defaultNext }: { defaultNext?: string }) {
         <p className="mt-3 text-lg font-semibold tracking-tight" style={{ color: "#fff" }}>
           Prime Vitória
         </p>
-        <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-prime-gold">Transporte executivo</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-prime-gold">Transporte executivo</p>
       </div>
 
       <section className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
@@ -107,7 +107,7 @@ export function DriverPinLoginForm({ defaultNext }: { defaultNext?: string }) {
 
       <p className="mt-6 text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>
         É da central?{" "}
-        <Link href="/login" className="text-prime-gold hover:underline">
+        <Link href="/login" className="text-prime-gold-ink hover:underline">
           Entrar com e-mail
         </Link>
       </p>

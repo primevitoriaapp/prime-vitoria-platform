@@ -144,7 +144,7 @@ export function WhatsappPanel({ tenantId }: { tenantId: string | null }) {
                       {m.trip_id ? (
                         <>
                           {" · "}
-                          <a href={`/agenda?trip=${m.trip_id}`} className="text-prime-gold hover:underline">
+                          <a href={`/agenda?trip=${m.trip_id}`} className="text-prime-gold-ink hover:underline">
                             abrir corrida
                           </a>
                         </>

@@ -99,7 +99,7 @@ export function DriverRequestsPanel() {
                   </>
                 )}
               </div>
-              {r.kind === "pix" ? <p className="mt-2 text-[11px] text-amber-800">Confirme a troca com o motorista por telefone antes de aprovar.</p> : null}
+              {r.kind === "pix" ? <p className="mt-2 text-[12px] text-amber-800">Confirme a troca com o motorista por telefone antes de aprovar.</p> : null}
               <div className="mt-3 flex gap-2">
                 <button type="button" disabled={busy === r.id} onClick={() => void decide(r.id, "reject")} className="flex-1 rounded-lg px-3 py-2 text-sm ring-1 ring-prime-border">
                   Recusar

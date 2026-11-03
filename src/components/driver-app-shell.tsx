@@ -135,7 +135,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-prime-gold bg-[#111] text-lg font-semibold text-prime-gold">{name.charAt(0).toUpperCase()}</span>
                 )}
                 <div className="min-w-0 leading-tight">
-                  <p className="text-xs text-[#8A8A8A]">{greeting()},</p>
+                  <p className="text-xs text-[#6B6F76]">{greeting()},</p>
                   <p className="truncate text-[15px] font-semibold text-[#111]">{name}</p>
                 </div>
               </div>
@@ -231,7 +231,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
               <DriverWallet />
             </section>
           ) : (
-            <p className="rounded-3xl bg-white p-4 text-sm text-[#8A8A8A]">A carteira aparece quando o próprio motorista entra com CPF e PIN.</p>
+            <p className="rounded-3xl bg-white p-4 text-sm text-[#6B6F76]">A carteira aparece quando o próprio motorista entra com CPF e PIN.</p>
           )
         ) : null}
 
@@ -246,9 +246,9 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
                 <PushSetup audience="motorista" />
               </>
             ) : (
-              <p className="rounded-3xl bg-white p-4 text-sm text-[#8A8A8A]">O perfil aparece quando o próprio motorista entra com CPF e PIN.</p>
+              <p className="rounded-3xl bg-white p-4 text-sm text-[#6B6F76]">O perfil aparece quando o próprio motorista entra com CPF e PIN.</p>
             )}
-            <p className="text-center text-xs text-[#8A8A8A]">
+            <p className="text-center text-xs text-[#6B6F76]">
               <a href="/privacidade" className="underline">
                 Termos de uso e privacidade
               </a>
@@ -264,7 +264,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
               <button
                 type="button"
                 onClick={() => go(t.id)}
-                className={`flex w-full flex-col items-center gap-1 py-2.5 text-xs ${tab === t.id ? "font-semibold text-[#111]" : "text-[#8A8A8A]"}`}
+                className={`flex w-full flex-col items-center gap-1 py-2.5 text-xs ${tab === t.id ? "font-semibold text-[#111]" : "text-[#6B6F76]"}`}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={tab === t.id ? "#C9A84C" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d={ICONS[t.id]} />

@@ -343,7 +343,7 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
                   {d.location ? ` · posição ${ago(d.location.recorded_at)}` : " · sem posição de GPS"}
                 </span>
                 {d.location && isStale(d.location.recorded_at) ? (
-                  <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-900">
+                  <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 text-[12px] font-semibold text-amber-900">
                     sinal antigo: app fechado ou sem internet
                   </span>
                 ) : null}
@@ -357,20 +357,20 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
             </button>
             <div className="mt-2 flex flex-wrap gap-3 text-xs">
               {d.next_trip ? (
-                <Link href={`/agenda?trip=${d.next_trip.id}#trip-detail`} className="font-semibold text-prime-gold hover:underline">
+                <Link href={`/agenda?trip=${d.next_trip.id}#trip-detail`} className="font-semibold text-prime-gold-ink hover:underline">
                   Abrir corrida
                 </Link>
               ) : null}
               {d.phone ? (
                 <>
-                  <a href={`tel:${d.phone.replace(/\D/g, "")}`} className="text-prime-gold hover:underline">
+                  <a href={`tel:${d.phone.replace(/\D/g, "")}`} className="text-prime-gold-ink hover:underline">
                     Ligar
                   </a>
                   <a
                     href={`https://wa.me/55${d.phone.replace(/\D/g, "").replace(/^55/, "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-prime-gold hover:underline"
+                    className="text-prime-gold-ink hover:underline"
                   >
                     WhatsApp
                   </a>

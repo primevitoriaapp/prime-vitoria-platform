@@ -25,7 +25,7 @@ export function GoogleReviewsTicker({ data, reviewsUrl, label }: Props) {
         <div className="flex items-center gap-2 text-xs">
           <GoogleG />
           <span className="text-[#E2B33C]">{"★".repeat(Math.round(r.rating))}</span>
-          {r.when ? <span className="text-[#8A8A8A]">· {r.when}</span> : null}
+          {r.when ? <span className="text-[#6B6F76]">· {r.when}</span> : null}
         </div>
         <div key={i} className="pv-review-in mt-3 min-h-[7.5rem]">
           <p className="line-clamp-5 text-[15px] leading-relaxed text-[#333]">“{r.text}”</p>

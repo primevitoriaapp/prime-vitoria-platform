@@ -32,7 +32,7 @@ export function BrandLogo({
           Prime Vitória
         </p>
         <p
-          className={`truncate text-[10px] font-medium uppercase tracking-[0.2em] ${
+          className={`truncate text-[11px] font-medium uppercase tracking-[0.2em] ${
             onDark ? "text-prime-gold/90" : "text-prime-gold"
           }`}
         >

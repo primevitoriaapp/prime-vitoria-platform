@@ -15,7 +15,7 @@ export default async function ClientTripDetailPage({ params }: { params: Promise
   if (!isCliente && !isAdmin) {
     return (
       <div className="min-h-screen bg-prime-bg px-5 py-16 text-prime-text">
-        <Link href="/login?next=/client" className="text-prime-gold hover:underline">
+        <Link href="/login?next=/client" className="text-prime-gold-ink hover:underline">
           Entrar no portal
         </Link>
       </div>

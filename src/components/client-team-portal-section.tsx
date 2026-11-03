@@ -587,14 +587,14 @@ export function ClientTeamPortalSection({
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className="text-xs text-prime-gold hover:underline"
+                          className="text-xs text-prime-gold-ink hover:underline"
                           onClick={() => startEdit(p)}
                         >
                           Editar
                         </button>
                         {p.profile_id ? (
                           <>
-                            <button type="button" className="text-xs text-prime-gold hover:underline" onClick={() => void onGrantClick(p)}>
+                            <button type="button" className="text-xs text-prime-gold-ink hover:underline" onClick={() => void onGrantClick(p)}>
                               Reenviar convite
                             </button>
                             <button type="button" className="text-xs text-red-700 hover:underline" onClick={() => void onRevokeClick(p)}>
@@ -602,7 +602,7 @@ export function ClientTeamPortalSection({
                             </button>
                           </>
                         ) : (
-                          <button type="button" className="text-xs font-medium text-prime-gold hover:underline" onClick={() => void onGrantClick(p)}>
+                          <button type="button" className="text-xs font-medium text-prime-gold-ink hover:underline" onClick={() => void onGrantClick(p)}>
                             Dar acesso ao portal
                           </button>
                         )}

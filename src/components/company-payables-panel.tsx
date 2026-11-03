@@ -344,7 +344,7 @@ export function CompanyPayablesPanel() {
                           </button>
                         </>
                       ) : (
-                        <button type="button" disabled={busy} onClick={() => void act(r, "reabrir")} className="text-prime-gold hover:underline">
+                        <button type="button" disabled={busy} onClick={() => void act(r, "reabrir")} className="text-prime-gold-ink hover:underline">
                           Reabrir
                         </button>
                       )}

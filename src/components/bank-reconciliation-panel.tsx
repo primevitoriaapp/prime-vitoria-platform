@@ -474,14 +474,14 @@ function LineRow({
           {line.suggestions.length === 0 ? <p className="text-xs text-prime-muted">Nada em aberto com esse valor.</p> : null}
 
           <div className="flex flex-wrap gap-3 pt-1 text-xs">
-            <button type="button" className="font-semibold text-prime-gold hover:underline" onClick={() => setManual((v) => !v)}>
+            <button type="button" className="font-semibold text-prime-gold-ink hover:underline" onClick={() => setManual((v) => !v)}>
               Procurar na lista
             </button>
             {!credit ? (
               <button
                 type="button"
                 disabled={busy}
-                className="font-semibold text-prime-gold hover:underline"
+                className="font-semibold text-prime-gold-ink hover:underline"
                 onClick={() => {
                   const d = window.prompt("Descrição da conta paga:", line.description.slice(0, 120));
                   if (!d) return;

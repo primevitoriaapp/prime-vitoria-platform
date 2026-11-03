@@ -12,7 +12,7 @@ function Brand() {
       <p className="text-lg font-bold tracking-[0.08em] text-[#fff]">
         PRIME <span className="text-[#C9A84C]">VITÓRIA</span>
       </p>
-      <p className="text-[10px] tracking-[0.28em] text-[#C9A84C]">TRANSPORTE EXECUTIVO</p>
+      <p className="text-[11px] tracking-[0.28em] text-[#C9A84C]">TRANSPORTE EXECUTIVO</p>
     </header>
   );
 }
@@ -38,7 +38,7 @@ export default async function PublicTrackPage({ params }: PageProps) {
             </p>
           </section>
         )}
-        <p className="text-center text-[11px] text-[#9A9A9A]">
+        <p className="text-center text-[12px] text-[#9A9A9A]">
           Link privado da sua corrida. Não compartilhe. ·{" "}
           <a href="/privacidade" className="underline">
             Privacidade

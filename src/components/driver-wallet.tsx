@@ -25,7 +25,7 @@ export function DriverWallet() {
   }, []);
 
   if (!w) return <div className={`${card} h-40 animate-pulse`} />;
-  if (w.funcionario) return <div className={`${card} text-sm text-[#8A8A8A]`}>Você é motorista contratado da Prime: seu pagamento é o salário combinado, por isso os valores das corridas não aparecem aqui.</div>;
+  if (w.funcionario) return <div className={`${card} text-sm text-[#6B6F76]`}>Você é motorista contratado da Prime: seu pagamento é o salário combinado, por isso os valores das corridas não aparecem aqui.</div>;
 
   const s = w.summary!;
   const items = w.items ?? [];
@@ -65,7 +65,7 @@ export function DriverWallet() {
       <section className={card}>
         <h3 className="text-base font-semibold">Próximos recebimentos</h3>
         {proximos.length === 0 ? (
-          <p className="mt-2 text-sm text-[#8A8A8A]">Nada pendente agora.</p>
+          <p className="mt-2 text-sm text-[#6B6F76]">Nada pendente agora.</p>
         ) : (
           <ul className="mt-2 divide-y divide-[#F0ECE3]">
             {proximos.map((i) => (
@@ -74,7 +74,7 @@ export function DriverWallet() {
                   <span className="block text-sm font-semibold">
                     {d(i.trip_at)} · {i.route}
                   </span>
-                  <span className={`text-xs ${i.stage === "liberado" ? "font-semibold text-[#1F7A4C]" : "text-[#8A8A8A]"}`}>
+                  <span className={`text-xs ${i.stage === "liberado" ? "font-semibold text-[#1F7A4C]" : "text-[#6B6F76]"}`}>
                     {i.stage === "liberado" ? "Liberado · será pago no próximo repasse" : "Aguardando o cliente pagar a Prime"}
                   </span>
                 </span>
@@ -88,7 +88,7 @@ export function DriverWallet() {
       <section className={card}>
         <h3 className="text-base font-semibold">Já recebidos</h3>
         {pagos.length === 0 ? (
-          <p className="mt-2 text-sm text-[#8A8A8A]">Nenhum repasse pago ainda.</p>
+          <p className="mt-2 text-sm text-[#6B6F76]">Nenhum repasse pago ainda.</p>
         ) : (
           <ul className="mt-2 divide-y divide-[#F0ECE3]">
             {pagos.slice(0, 30).map((i) => (
@@ -97,7 +97,7 @@ export function DriverWallet() {
                   <span className="block truncate text-sm">
                     {d(i.trip_at)} · {i.route}
                   </span>
-                  <span className="text-xs text-[#8A8A8A]">Pago em {d(i.paid_at)}</span>
+                  <span className="text-xs text-[#6B6F76]">Pago em {d(i.paid_at)}</span>
                 </span>
                 <span className="shrink-0 font-semibold text-[#1F7A4C]">{brl(i.amount)}</span>
               </li>
@@ -105,7 +105,7 @@ export function DriverWallet() {
           </ul>
         )}
       </section>
-      <p className="px-2 text-center text-xs text-[#8A8A8A]">A Prime paga o repasse depois que o cliente paga a corrida.</p>
+      <p className="px-2 text-center text-xs text-[#6B6F76]">A Prime paga o repasse depois que o cliente paga a corrida.</p>
     </div>
   );
 }

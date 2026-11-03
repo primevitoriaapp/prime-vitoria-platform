@@ -182,7 +182,7 @@ export function SheetImportPanel() {
           <p className="mt-1 text-sm text-prime-muted">
             Pode ser a sua, em Excel (.xlsx) ou CSV. A primeira linha precisa ter os nomes das colunas. Se preferir, baixe o modelo.
           </p>
-          <button type="button" onClick={downloadTemplate} className="mt-3 text-sm font-semibold text-prime-gold hover:underline">
+          <button type="button" onClick={downloadTemplate} className="mt-3 text-sm font-semibold text-prime-gold-ink hover:underline">
             Baixar modelo →
           </button>
         </li>

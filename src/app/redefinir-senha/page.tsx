@@ -97,7 +97,7 @@ export default function RedefinirSenhaPage() {
       {phase === "invalid" ? (
         <div className="grid gap-3">
           <p>{error ?? "Este link não é válido ou já expirou."} Peça um link novo.</p>
-          <Link href="/login/esqueci-senha" className="text-prime-gold hover:underline">
+          <Link href="/login/esqueci-senha" className="text-prime-gold-ink hover:underline">
             Pedir link novo
           </Link>
         </div>

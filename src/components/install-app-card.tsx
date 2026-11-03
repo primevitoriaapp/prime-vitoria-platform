@@ -37,7 +37,7 @@ export function InstallAppCard() {
         <p className="font-semibold">📲 Coloque o app na tela do celular</p>
         <button
           type="button"
-          className="text-xs text-[#8A8A8A]"
+          className="text-xs text-[#6B6F76]"
           onClick={() => {
             setHidden(true);
             try {

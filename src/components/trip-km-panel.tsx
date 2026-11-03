@@ -75,41 +75,45 @@ export function TripKmPanel({ tripId, devFallbackRole = "operador", canEdit = tr
       setMessage(json.error?.message ?? "Falha ao salvar KM.");
       return;
     }
-    setMessage("KM actual salvo.");
+    setMessage("KM salvo.");
     notifyOperationalClaimChanged(tripId);
     await load();
   }
 
-  if (loading) return <p className="text-sm text-slate-600">Carregando distâncias…</p>;
+  if (loading) return <div className="h-24 animate-pulse rounded-2xl border border-prime-border bg-white" />;
   if (!data) return message ? <p className="text-sm text-red-700">{message}</p> : null;
+  const SRC: Record<string, string> = { gps_trail: "GPS do celular", manual: "digitado", odometer: "painel do carro", coords: "estimado pelo mapa" };
+  const km = (n: number | null | undefined) => (n != null ? `${Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km` : "—");
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-      <h3 className="font-semibold text-slate-900">Distância (KM)</h3>
-      <p className="mt-1 text-slate-700">
-        Planeada: {data.planned_km != null ? `${data.planned_km} km` : "—"} · Real:{" "}
-        {data.actual_km != null ? `${data.actual_km} km` : "—"}
-        {data.km_source ? ` · fonte: ${data.km_source}` : null}
-      </p>
+    <section className="rounded-2xl border border-prime-border bg-white p-5 shadow-prime-card">
+      <h3 className="text-[17px] font-semibold tracking-tight text-prime-text">Distância</h3>
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:max-w-md">
+        <div className="rounded-xl bg-prime-bg px-4 py-3">
+          <p className="text-sm text-prime-muted">Prevista</p>
+          <p className="text-xl font-semibold tracking-tight">{km(data.planned_km)}</p>
+        </div>
+        <div className="rounded-xl bg-prime-bg px-4 py-3">
+          <p className="text-sm text-prime-muted">Rodada</p>
+          <p className="text-xl font-semibold tracking-tight">{km(data.actual_km)}</p>
+          {data.km_source ? <p className="text-xs text-prime-muted">{SRC[data.km_source] ?? data.km_source}</p> : null}
+        </div>
+      </div>
       {canEdit ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" className="text-sm font-medium text-amber-800" onClick={() => void recalculate()}>
-            Recalcular (coords + GPS)
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium">Corrigir KM rodado</span>
+            <input type="number" step="0.1" inputMode="decimal" value={manualActual} onChange={(e) => setManualActual(e.target.value)} placeholder="Ex.: 32,5" className="prime-input w-36" />
+          </label>
+          <button type="button" className="btn-primary" disabled={!manualActual} onClick={() => void saveManual()}>
+            Salvar
           </button>
-          <input
-            type="number"
-            step="0.01"
-            value={manualActual}
-            onChange={(e) => setManualActual(e.target.value)}
-            placeholder="KM real manual"
-            className="w-32 rounded border border-slate-300 px-2 py-1 text-sm"
-          />
-          <button type="button" className="text-sm text-amber-800" onClick={() => void saveManual()}>
-            Salvar KM real
+          <button type="button" className="btn-outline" onClick={() => void recalculate()}>
+            Recalcular pelo GPS
           </button>
         </div>
       ) : null}
-      {message ? <p className="mt-2 text-slate-600">{message}</p> : null}
+      {message ? <p className="mt-2 text-sm text-prime-text">{message}</p> : null}
     </section>
   );
 }

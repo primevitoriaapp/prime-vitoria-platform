@@ -329,7 +329,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                       </div>
                     </div>
                     <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold ${
                         inactive ? "bg-gray-100 text-gray-600" : "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200"
                       }`}
                     >
@@ -361,7 +361,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                       <span className="text-xs text-amber-700">Sem categorias marcadas</span>
                     ) : (
                       (driver.vehicle_category_ids ?? []).map((id) => (
-                        <span key={id} className="rounded-full bg-prime-gold/20 px-2 py-0.5 text-[11px] font-semibold">
+                        <span key={id} className="rounded-full bg-prime-gold/20 px-2 py-0.5 text-[12px] font-semibold">
                           {catNames.get(id) ?? "Categoria"}
                         </span>
                       ))
@@ -371,7 +371,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
                   <div className="mt-4 flex items-center justify-between gap-2 border-t border-prime-border pt-3 text-sm">
                     <button
                       type="button"
-                      className="font-semibold text-prime-gold hover:underline"
+                      className="font-semibold text-prime-gold-ink hover:underline"
                       onClick={() => {
                         setFichaDriverId(driver.id);
                         setFeedback(null);

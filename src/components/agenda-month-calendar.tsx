@@ -99,7 +99,7 @@ export function AgendaMonthCalendar({
             ›
           </button>
           {month !== today.slice(0, 7) ? (
-            <button type="button" className="text-sm text-prime-gold hover:underline" onClick={() => setMonth(today.slice(0, 7))}>
+            <button type="button" className="text-sm text-prime-gold-ink hover:underline" onClick={() => setMonth(today.slice(0, 7))}>
               Hoje
             </button>
           ) : null}
@@ -112,7 +112,7 @@ export function AgendaMonthCalendar({
         </p>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-prime-muted">
+      <div className="grid grid-cols-7 gap-1 text-center text-[12px] font-semibold uppercase text-prime-muted">
         {WEEK.map((w) => (
           <span key={w} className="py-1">
             {w}
@@ -141,7 +141,7 @@ export function AgendaMonthCalendar({
                   <span className={`block font-semibold ${sel ? "text-prime-gold" : ""}`}>{s.total} corr.</span>
                   {s.noDriver > 0 && !past ? (
                     <span
-                      className={`block rounded px-1 text-[10px] font-bold ${d <= urgentLimit ? "bg-red-600 text-[#fff]" : "bg-amber-200 text-amber-900"}`}
+                      className={`block rounded px-1 text-[11px] font-bold ${d <= urgentLimit ? "bg-red-600 text-[#fff]" : "bg-amber-200 text-amber-900"}`}
                       title={d <= urgentLimit ? "Prazo da Prime: motorista definido até 3 dias antes" : undefined}
                     >
                       {s.noDriver} sem motorista

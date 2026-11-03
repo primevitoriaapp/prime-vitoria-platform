@@ -220,7 +220,7 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                     {r.boleto_path ? (
                       <>
                         {" · "}
-                        <a href={`/api/client-invoices/${r.id}/files?kind=boleto`} target="_blank" rel="noopener noreferrer" className="text-prime-gold hover:underline">
+                        <a href={`/api/client-invoices/${r.id}/files?kind=boleto`} target="_blank" rel="noopener noreferrer" className="text-prime-gold-ink hover:underline">
                           boleto
                         </a>
                       </>
@@ -232,7 +232,7 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                     {r.nf_path ? (
                       <>
                         {" · "}
-                        <a href={`/api/client-invoices/${r.id}/files?kind=nf`} target="_blank" rel="noopener noreferrer" className="text-prime-gold hover:underline">
+                        <a href={`/api/client-invoices/${r.id}/files?kind=nf`} target="_blank" rel="noopener noreferrer" className="text-prime-gold-ink hover:underline">
                           NF{r.nf_number ? ` ${r.nf_number}` : ""}
                         </a>
                       </>
@@ -243,21 +243,21 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                     )}
                   </td>
                   <td className="whitespace-nowrap text-right text-xs">
-                    <a href={`/fatura/${r.id}`} target="_blank" rel="noopener noreferrer" className="text-prime-gold hover:underline">
+                    <a href={`/fatura/${r.id}`} target="_blank" rel="noopener noreferrer" className="text-prime-gold-ink hover:underline">
                       Abrir
                     </a>
                     {r.status !== "cancelada" && r.status !== "paga" ? (
                       <>
                         {" · "}
-                        <button type="button" disabled={busy} onClick={() => pickFile(r, "boleto")} className="text-prime-gold hover:underline">
+                        <button type="button" disabled={busy} onClick={() => pickFile(r, "boleto")} className="text-prime-gold-ink hover:underline">
                           {r.boleto_path ? "Trocar boleto" : "Anexar boleto"}
                         </button>
                         {" · "}
-                        <button type="button" disabled={busy} onClick={() => pickFile(r, "nf")} className="text-prime-gold hover:underline">
+                        <button type="button" disabled={busy} onClick={() => pickFile(r, "nf")} className="text-prime-gold-ink hover:underline">
                           {r.nf_path ? "Trocar nota" : "Anexar nota"}
                         </button>
                         {" · "}
-                        <button type="button" disabled={busy} onClick={() => void send(r.id)} className="text-prime-gold hover:underline">
+                        <button type="button" disabled={busy} onClick={() => void send(r.id)} className="text-prime-gold-ink hover:underline">
                           Enviar
                         </button>
                         {" · "}

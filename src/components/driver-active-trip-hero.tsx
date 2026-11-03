@@ -123,9 +123,9 @@ export function DriverActiveTripHero({
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#8A8A8A]">Serviço PV-{trip.id.slice(0, 6).toUpperCase()}</p>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#6B6F76]">Serviço PV-{trip.id.slice(0, 6).toUpperCase()}</p>
           <p className="mt-1 text-4xl font-bold tracking-tight text-[#111]">{timeLabel}</p>
-          <p className="text-xs capitalize text-[#8A8A8A]">{dayLabel}</p>
+          <p className="text-xs capitalize text-[#6B6F76]">{dayLabel}</p>
         </div>
         <span className="rounded-full bg-[#EAF6EF] px-3 py-1 text-sm font-semibold text-[#1F7A4C]">{STEPS[stepIdx]?.label ?? "Agendada"}</span>
       </div>
@@ -136,7 +136,7 @@ export function DriverActiveTripHero({
         </span>
         <div className="min-w-0">
           <p className="truncate text-lg font-semibold text-[#111]">{trip.passenger_name?.trim() || "Passageiro"}</p>
-          <p className="text-sm text-[#8A8A8A]">
+          <p className="text-sm text-[#6B6F76]">
             {trip.passenger_count ? `${trip.passenger_count} passageiro(s)` : "Passageiro"}
             {trip.passenger_phone?.trim() ? (
               <>
@@ -160,11 +160,11 @@ export function DriverActiveTripHero({
           <div className="min-w-0 flex-1 space-y-3">
             <div>
               <p className="font-semibold text-[#111]">{multiPickup ? `Paradas: ${pickupStops.map((x) => x.passenger_name).join(" → ")}` : short(trip.origin_text)}</p>
-              {!multiPickup && rest(trip.origin_text) ? <p className="text-sm text-[#8A8A8A]">{rest(trip.origin_text)}</p> : null}
+              {!multiPickup && rest(trip.origin_text) ? <p className="text-sm text-[#6B6F76]">{rest(trip.origin_text)}</p> : null}
             </div>
             <div>
               <p className="font-semibold text-[#111]">{short(trip.destination_text)}</p>
-              {rest(trip.destination_text) ? <p className="text-sm text-[#8A8A8A]">{rest(trip.destination_text)}</p> : null}
+              {rest(trip.destination_text) ? <p className="text-sm text-[#6B6F76]">{rest(trip.destination_text)}</p> : null}
             </div>
           </div>
         </div>
@@ -175,11 +175,11 @@ export function DriverActiveTripHero({
           <li key={st.label} className="relative flex flex-col items-center text-center">
             {i > 0 ? <span className={`absolute right-1/2 top-[7px] h-0.5 w-full ${i <= stepIdx ? "bg-prime-gold" : "bg-[#E5E1D8]"}`} /> : null}
             <span className={`relative z-10 h-4 w-4 rounded-full ${i <= stepIdx ? "bg-prime-gold" : "bg-[#E5E1D8]"}`} />
-            <span className={`mt-1.5 text-[10px] leading-tight ${i === stepIdx ? "font-semibold text-[#111]" : "text-[#8A8A8A]"}`}>{st.label}</span>
+            <span className={`mt-1.5 text-[11px] leading-tight ${i === stepIdx ? "font-semibold text-[#111]" : "text-[#6B6F76]"}`}>{st.label}</span>
           </li>
         ))}
       </ol>
-      <p className="mt-3 text-center text-xs text-[#8A8A8A]">{driverOperationalHint(trip.operational_status)}</p>
+      <p className="mt-3 text-center text-xs text-[#6B6F76]">{driverOperationalHint(trip.operational_status)}</p>
 
       {presentationAtIso(trip.scheduled_at, (trip as { presentation_minutes?: number | null }).presentation_minutes) ? (
         <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
@@ -204,7 +204,7 @@ export function DriverActiveTripHero({
             href={flightTrackerUrl(trip.flight_number)}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-medium text-prime-gold hover:underline"
+            className="font-medium text-prime-gold-ink hover:underline"
           >
             ver horário e atraso
           </a>
@@ -355,7 +355,7 @@ export function DriverActiveTripHero({
         {blockStartTrip ? (
           <p className="text-xs text-amber-800">Conclua todos os embarques antes de iniciar a viagem ao destino.</p>
         ) : null}
-        <button type="button" disabled={isBusy} onClick={() => onGps(trip)} className="text-center text-xs text-[#8A8A8A] underline disabled:opacity-50">
+        <button type="button" disabled={isBusy} onClick={() => onGps(trip)} className="text-center text-xs text-[#6B6F76] underline disabled:opacity-50">
           Enviar minha localização agora
         </button>
         {extraSteps.length > 0 ? (
@@ -384,7 +384,7 @@ export function DriverActiveTripHero({
           {routeNavLinks.map((link, i) => (
             <span key={link.id}>
               {i > 0 ? " · " : null}
-              <a href={link.href} className="text-prime-gold hover:underline" target="_blank" rel="noopener noreferrer">
+              <a href={link.href} className="text-prime-gold-ink hover:underline" target="_blank" rel="noopener noreferrer">
                 Rota completa ({link.label})
               </a>
             </span>
@@ -395,7 +395,7 @@ export function DriverActiveTripHero({
               {secondaryNavLinks.map((link, i) => (
                 <span key={`${link.id}-alt`}>
                   {i > 0 ? " · " : null}
-                  <a href={link.href} className="text-prime-gold hover:underline" target="_blank" rel="noopener noreferrer">
+                  <a href={link.href} className="text-prime-gold-ink hover:underline" target="_blank" rel="noopener noreferrer">
                     {navigatingToDestination ? "Embarque" : "Destino"} ({link.label})
                   </a>
                 </span>

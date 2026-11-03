@@ -267,7 +267,7 @@ export function VehiclesFleetPanel({ initialVehicles }: Props) {
                   </div>
                   <span className="shrink-0 rounded-lg border-2 border-[#111] px-2 py-1 font-mono text-sm font-bold">{v.plate}</span>
                 </div>
-                <span className={`mt-3 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${BADGE[worst].cls}`}>{BADGE[worst].label}</span>
+                <span className={`mt-3 inline-block rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${BADGE[worst].cls}`}>{BADGE[worst].label}</span>
                 <ul className="mt-2 space-y-0.5 text-xs">
                   {VEHICLE_DOCS.map((d) => {
                     const st = docState(v[d.key], t);
@@ -280,7 +280,7 @@ export function VehiclesFleetPanel({ initialVehicles }: Props) {
                   })}
                 </ul>
                 <div className="mt-3 flex gap-3 text-sm">
-                  <button type="button" className="font-semibold text-prime-gold hover:underline" onClick={() => open(v)}>
+                  <button type="button" className="font-semibold text-prime-gold-ink hover:underline" onClick={() => open(v)}>
                     Editar
                   </button>
                   <button type="button" className="text-red-700 hover:underline" onClick={() => void deactivate(v)}>

@@ -130,7 +130,7 @@ export function MessageTemplatesEditor() {
                   <span className="flex items-center gap-2">
                     Para: <strong>{AUDIENCE_LABEL[t.audience]}</strong>
                     {t.is_custom ? (
-                      <span className="rounded-full border border-prime-gold px-2 text-[10px] text-prime-gold">editado</span>
+                      <span className="rounded-full border border-prime-gold px-2 text-[11px] text-prime-gold">editado</span>
                     ) : null}
                   </span>
                   <textarea

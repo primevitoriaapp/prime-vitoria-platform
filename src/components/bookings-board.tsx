@@ -223,7 +223,7 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
         {group !== "todas" || search ? (
           <button
             type="button"
-            className="text-sm text-prime-gold hover:underline"
+            className="text-sm text-prime-gold-ink hover:underline"
             onClick={() => {
               setGroup("todas");
               setSearch("");
@@ -287,7 +287,7 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
                     {t.service_extras?.length ? (
                       <p className="flex flex-wrap gap-1">
                         {SERVICE_EXTRAS.filter((e) => t.service_extras?.includes(e.id)).map((e) => (
-                          <span key={e.id} className="rounded-full bg-prime-gold/20 px-2 py-0.5 text-[11px] font-semibold">
+                          <span key={e.id} className="rounded-full bg-prime-gold/20 px-2 py-0.5 text-[12px] font-semibold">
                             {e.short}
                           </span>
                         ))}

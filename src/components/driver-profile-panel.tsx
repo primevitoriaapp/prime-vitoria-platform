@@ -50,7 +50,7 @@ export function DriverProfilePanel({ devFallbackRole = "motorista" }: Props) {
 
   return (
     <section className="scroll-mt-6 rounded-3xl border border-[#ECE7DB] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.05)]">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-[#8A8A8A]">Perfil</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-[#6B6F76]">Perfil</h2>
 
       {loading ? (
         <p className="mt-4 text-sm text-prime-muted">Carregando…</p>

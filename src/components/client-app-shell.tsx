@@ -191,7 +191,7 @@ export function ClientAppShell({
             <PrimeLogoMark size={44} />
             <div className="min-w-0 leading-tight">
               <p className="truncate text-[15px] font-semibold text-[#111]">{clientName}</p>
-              <p className="truncate text-[10px] uppercase tracking-[0.22em] text-[#A8873A]">Prime Vitória</p>
+              <p className="truncate text-[11px] uppercase tracking-[0.22em] text-[#A8873A]">Prime Vitória</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -230,7 +230,7 @@ export function ClientAppShell({
               type="button"
               onClick={() => setTab(t.id)}
               className={`border-b-2 px-4 py-2.5 text-sm transition ${
-                tab === t.id ? "border-prime-gold font-semibold text-[#111]" : "border-transparent text-[#8A8A8A] hover:text-[#111]"
+                tab === t.id ? "border-prime-gold font-semibold text-[#111]" : "border-transparent text-[#6B6F76] hover:text-[#111]"
               }`}
             >
               {t.label}
@@ -241,7 +241,7 @@ export function ClientAppShell({
 
       <div role="main" className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:px-6">
         {mode === "admin" ? (
-          <p className="rounded-full bg-white px-4 py-2 text-center text-xs text-[#8A8A8A] ring-1 ring-[#ECE7DB]">
+          <p className="rounded-full bg-white px-4 py-2 text-center text-xs text-[#6B6F76] ring-1 ring-[#ECE7DB]">
             Visualizando como o cliente vê
           </p>
         ) : null}
@@ -251,7 +251,7 @@ export function ClientAppShell({
         {tab === "inicio" || (isSolicitante && tab === "pedir") ? (
           <div>
             <h1 className="font-prime-display text-[28px] leading-tight text-[#111] sm:text-3xl">{greeting.title}</h1>
-            <p className="mt-1 max-w-2xl text-sm text-[#8A8A8A]">{greeting.sub}</p>
+            <p className="mt-1 max-w-2xl text-sm text-[#6B6F76]">{greeting.sub}</p>
           </div>
         ) : null}
 
@@ -270,7 +270,7 @@ export function ClientAppShell({
                     <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#111] text-3xl leading-none text-prime-gold">+</span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-lg font-semibold text-[#111]">Agendar viagem</span>
-                      <span className="block text-sm text-[#8A8A8A]">Transfer, aeroporto ou carro à disposição</span>
+                      <span className="block text-sm text-[#6B6F76]">Transfer, aeroporto ou carro à disposição</span>
                     </span>
                     <span className="text-xl text-[#C9A84C]" aria-hidden>
                       →
@@ -362,7 +362,7 @@ export function ClientAppShell({
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`flex flex-col items-center gap-0.5 pb-2 pt-1.5 text-[11px] ${tab === t.id ? "font-semibold text-prime-text" : "text-prime-muted"}`}
+            className={`flex flex-col items-center gap-0.5 pb-2 pt-1.5 text-[12px] ${tab === t.id ? "font-semibold text-prime-text" : "text-prime-muted"}`}
           >
             <span className={`mb-0.5 block h-1 w-6 rounded-full ${tab === t.id ? "bg-prime-gold" : "bg-transparent"}`} />
             <TabIcon id={t.id} active={tab === t.id} />

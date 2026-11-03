@@ -56,12 +56,12 @@ function PhoneIcon() {
 }
 
 function Kicker({ children }: { children: React.ReactNode }) {
-  return <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#A8873A]">{children}</p>;
+  return <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-[#A8873A]">{children}</p>;
 }
 
 function H2({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mt-3 font-prime-display text-[30px] leading-[1.15] sm:text-[40px]" style={{ color: "#111" }}>
+    <h2 className="mt-3 font-prime-serif text-[30px] leading-[1.15] sm:text-[40px]" style={{ color: "#111" }}>
       {children}
     </h2>
   );
@@ -97,10 +97,10 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
         </picture>
         <div className="absolute inset-0 bg-black/55" aria-hidden />
         <div className="relative mx-auto w-full max-w-4xl px-5 pb-16 pt-28 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: "#D9BC6A" }}>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.3em]" style={{ color: "#D9BC6A" }}>
             {T.hero.kicker}
           </p>
-          <h1 className="mx-auto mt-4 max-w-3xl font-prime-display text-[42px] leading-[1.05] sm:text-[72px]" style={{ color: "#fff" }}>
+          <h1 className="mx-auto mt-4 max-w-3xl font-prime-serif text-[42px] leading-[1.05] sm:text-[72px]" style={{ color: "#fff" }}>
             {T.hero.title}
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: "rgba(255,255,255,0.82)" }}>
@@ -125,7 +125,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
       {/* Logos de clientes (aparece quando houver logos autorizados) */}
       {SITE.clientes.length > 0 ? (
         <section className="border-b border-[#ECE7DB] bg-white py-10">
-          <p className="text-center text-xs uppercase tracking-[0.24em] text-[#8A8A8A]">{T.clientes}</p>
+          <p className="text-center text-xs uppercase tracking-[0.24em] text-[#6B6F76]">{T.clientes}</p>
           <div className="mx-auto mt-6 flex max-w-5xl flex-wrap items-center justify-center gap-x-10 gap-y-6 px-5">
             {SITE.clientes.map((c) => (
               <img key={c.name} src={c.src} alt={c.name} className="h-9 w-auto object-contain opacity-70 grayscale" loading="lazy" />
@@ -159,7 +159,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
           <ol className="mt-12 grid gap-10 sm:grid-cols-3">
             {T.passos.items.map((p, i) => (
               <li key={p.t}>
-                <span className="mb-3 block font-prime-display text-5xl text-[#D9BC6A]">{i + 1}</span>
+                <span className="mb-3 block font-prime-serif text-5xl text-[#D9BC6A]">{i + 1}</span>
                 <H3>{p.t}</H3>
                 <p className="mt-1.5 text-sm leading-relaxed text-[#6F6A60]">{p.d}</p>
               </li>
@@ -173,10 +173,10 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
         <img src="/site/equipe.webp" alt={T.equipe.title} loading="lazy" className="aspect-[2/1] w-full object-cover sm:aspect-auto sm:h-[620px] sm:object-[center_70%]" />
         <div className="absolute inset-0 hidden bg-gradient-to-t from-black/85 via-black/20 to-transparent sm:block" aria-hidden />
         <div className="mx-auto max-w-6xl px-5 pb-10 pt-6 sm:absolute sm:inset-x-0 sm:bottom-0 sm:pt-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: "#D9BC6A" }}>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.28em]" style={{ color: "#D9BC6A" }}>
             {T.equipe.kicker}
           </p>
-          <h2 className="mt-3 max-w-xl font-prime-display text-[30px] leading-tight sm:text-[40px]" style={{ color: "#fff" }}>
+          <h2 className="mt-3 max-w-xl font-prime-serif text-[30px] leading-tight sm:text-[40px]" style={{ color: "#fff" }}>
             {T.equipe.title}
           </h2>
           <p className="mt-3 max-w-lg text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
@@ -195,7 +195,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
             <ul className="mt-6 space-y-3 text-[15px]">
               {T.empresas.bullets.map((x) => (
                 <li key={x} className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#111] text-[11px] text-[#D9BC6A]">✓</span>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#111] text-[12px] text-[#D9BC6A]">✓</span>
                   {x}
                 </li>
               ))}
@@ -209,11 +209,11 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
           {/* Miniatura do portal (ilustrativa) */}
           <div className="mx-auto w-full max-w-sm rounded-[36px] border border-[#ECE7DB] bg-[#F4F2EE] p-4 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.35)]" aria-hidden>
             <div className="rounded-[26px] bg-white p-4">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-[#A8873A]">Prime Vitória</p>
-              <p className="mt-3 font-prime-display text-2xl" style={{ color: "#111" }}>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-[#A8873A]">Prime Vitória</p>
+              <p className="mt-3 font-prime-serif text-2xl" style={{ color: "#111" }}>
                 {T.empresas.mock.ola}
               </p>
-              <p className="text-sm text-[#8A8A8A]">{T.empresas.mock.sub}</p>
+              <p className="text-sm text-[#6B6F76]">{T.empresas.mock.sub}</p>
               <div className="mt-4 flex items-center gap-3 rounded-2xl border border-[#ECE7DB] p-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#111] text-xl text-[#D9BC6A]">+</span>
                 <span className="text-sm font-semibold">{T.empresas.mock.agendar}</span>
@@ -225,7 +225,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
               ].map(([a, b]) => (
                 <div key={a} className="mt-2 rounded-2xl bg-[#F7F5F0] p-3">
                   <p className="text-sm font-semibold">{a}</p>
-                  <p className="text-xs text-[#8A8A8A]">{b}</p>
+                  <p className="text-xs text-[#6B6F76]">{b}</p>
                 </div>
               ))}
             </div>
@@ -264,7 +264,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
               className={`group relative overflow-hidden rounded-[22px] ${i === 0 ? "col-span-2 row-span-2 aspect-[4/3] sm:aspect-auto" : "aspect-square"}`}
             >
               <img src={src} alt={T.operacao.legendas[i]} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-              <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2.5 pt-8 text-[11px] sm:text-xs" style={{ color: "#fff" }}>
+              <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2.5 pt-8 text-[12px] sm:text-xs" style={{ color: "#fff" }}>
                 {T.operacao.legendas[i]}
               </figcaption>
             </figure>
@@ -307,9 +307,9 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
               <H2>{T.google.title}</H2>
               {google?.rating ? (
                 <p className="mt-4 flex items-baseline gap-2">
-                  <span className="font-prime-display text-5xl text-[#111]">{google.rating.toFixed(1).replace(".", ",")}</span>
+                  <span className="font-prime-serif text-5xl text-[#111]">{google.rating.toFixed(1).replace(".", ",")}</span>
                   <span className="text-xl text-[#E2B33C]">★★★★★</span>
-                  {google.total ? <span className="text-sm text-[#8A8A8A]">{google.total} {T.reviewsWord}</span> : null}
+                  {google.total ? <span className="text-sm text-[#6B6F76]">{google.total} {T.reviewsWord}</span> : null}
                 </p>
               ) : null}
               <p className="mt-4 text-base text-[#6F6A60]">{T.google.sub}</p>
@@ -359,10 +359,10 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
       <section className="px-5 pb-16">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 rounded-[32px] bg-[#111] p-7 sm:flex-row sm:items-center sm:justify-between sm:p-12">
           <div className="max-w-xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: "#D9BC6A" }}>
+            <p className="text-[12px] font-semibold uppercase tracking-[0.28em]" style={{ color: "#D9BC6A" }}>
               {T.parceiro.kicker}
             </p>
-            <h2 className="mt-3 font-prime-display text-[28px] leading-tight sm:text-[36px]" style={{ color: "#fff" }}>
+            <h2 className="mt-3 font-prime-serif text-[28px] leading-tight sm:text-[36px]" style={{ color: "#fff" }}>
               {T.parceiro.title}
             </h2>
             <p className="mt-3 text-sm" style={{ color: "rgba(255,255,255,0.72)" }}>
@@ -382,7 +382,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
             <div className="flex items-center gap-3">
               <img src={SITE.img.logo} alt="" width={44} height={44} className="h-11 w-11 rounded-xl object-cover" />
               <div>
-                <p className="font-prime-display text-lg font-semibold">Prime Vitória</p>
+                <p className="font-prime-serif text-lg font-semibold">Prime Vitória</p>
                 <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#A8873A]">Transporte executivo</p>
               </div>
             </div>
@@ -395,7 +395,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
               { label: T.footer.celular, num: SITE.mobile, tel: SITE.mobileHref, wa }
             ].map((c) => (
               <div key={c.num} className="mt-3 rounded-2xl border border-[#ECE7DB] p-3">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-[#A8873A]">{c.label}</p>
+                <p className="text-[12px] uppercase tracking-[0.18em] text-[#A8873A]">{c.label}</p>
                 <p className="mt-0.5 font-semibold text-[#111]">{c.num}</p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <a href={c.tel} className="flex items-center justify-center gap-1.5 rounded-full bg-[#111] py-2 text-xs font-semibold text-[#D9BC6A]">
@@ -449,7 +449,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
             </Link>
           </div>
         </div>
-        <p className="border-t border-[#F2EEE6] px-5 py-5 text-center text-xs text-[#8A8A8A]">
+        <p className="border-t border-[#F2EEE6] px-5 py-5 text-center text-xs text-[#6B6F76]">
           © {new Date().getFullYear()} Prime Vitória · R J Prime Transporte LTDA · CNPJ 49.126.277/0001-54
         </p>
       </footer>

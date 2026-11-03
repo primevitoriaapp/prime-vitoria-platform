@@ -210,7 +210,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
                       {client.trade_name ? <p className="truncate text-xs text-prime-muted">{client.name}</p> : null}
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-full bg-prime-bg px-2 py-0.5 text-[11px] font-semibold text-prime-muted ring-1 ring-prime-border">
+                  <span className="shrink-0 rounded-full bg-prime-bg px-2 py-0.5 text-[12px] font-semibold text-prime-muted ring-1 ring-prime-border">
                     {inactive ? "Desativada" : client.type}
                   </span>
                 </div>
@@ -240,7 +240,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      className="font-semibold text-prime-gold hover:underline"
+                      className="font-semibold text-prime-gold-ink hover:underline"
                       onClick={() => {
                         setEditingId(client.id);
                         setMessage(null);
@@ -248,7 +248,7 @@ export function ClientsFleetPanel({ initialClients }: Props) {
                     >
                       Editar
                     </button>
-                    <Link href={`/clients/relatorio?cliente=${client.id}` as Route} className="font-semibold text-prime-gold hover:underline">
+                    <Link href={`/clients/relatorio?cliente=${client.id}` as Route} className="font-semibold text-prime-gold-ink hover:underline">
                       Relatório
                     </Link>
                   </div>

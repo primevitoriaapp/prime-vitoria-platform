@@ -43,7 +43,7 @@ export function TripProofCard({ tripId }: { tripId: string }) {
         <div className="rounded-xl bg-prime-bg p-3">
           <p className="text-xs text-prime-muted">Percorrido (cobrado)</p>
           <p className="font-semibold">{p.actual_km != null ? `${n(p.actual_km)} km` : "—"}</p>
-          <p className="text-[11px] text-prime-muted">
+          <p className="text-[12px] text-prime-muted">
             {p.km_source === "gps_trail" ? "pelo GPS" : p.km_source === "odometer" ? "pelo painel (GPS falhou)" : p.km_source === "manual" ? "digitado" : ""}
             {panelKm != null && p.km_source !== "odometer" ? ` · painel: ${n(panelKm)} km` : ""}
           </p>

@@ -51,7 +51,7 @@ export function NotificationsBell({
       >
         🔔
         {unread > 0 ? (
-          <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-red-600 px-1 text-center text-[10px] font-bold leading-[18px] text-[#fff]">
+          <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-red-600 px-1 text-center text-[11px] font-bold leading-[18px] text-[#fff]">
             {unread > 99 ? "99+" : unread}
           </span>
         ) : null}

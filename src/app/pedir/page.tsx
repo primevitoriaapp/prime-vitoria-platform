@@ -40,7 +40,7 @@ export default async function PedirPage({ searchParams }: { searchParams: Promis
       </header>
       <main className="mx-auto max-w-xl px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5">
         <PublicRequestForm lang={lang} />
-        <p className="mt-6 text-center text-[11px] text-[#9A9A9A]">
+        <p className="mt-6 text-center text-[12px] text-[#9A9A9A]">
           {h.termos}{" "}
           <a href="/privacidade" className="underline">
             {h.politica}
@@ -48,7 +48,7 @@ export default async function PedirPage({ searchParams }: { searchParams: Promis
           .
         </p>
         <p className="mt-4 text-center text-sm">
-          <a href={h.site} className="text-[#8A8A8A]">
+          <a href={h.site} className="text-[#6B6F76]">
             {h.voltar}
           </a>
         </p>

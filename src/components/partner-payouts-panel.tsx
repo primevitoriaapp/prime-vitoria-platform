@@ -169,7 +169,7 @@ function PayoutGroupCard({
     <li className="rounded-2xl border border-prime-border bg-white shadow-prime-card">
       <button type="button" onClick={onToggle} className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left">
         <span className="min-w-0">
-          <span className={`mr-2 rounded-full px-2 py-0.5 text-[11px] font-semibold ${k.cls}`}>{k.label}</span>
+          <span className={`mr-2 rounded-full px-2 py-0.5 text-[12px] font-semibold ${k.cls}`}>{k.label}</span>
           <span className="font-semibold">{g.name}</span>
           <span className="mt-0.5 block truncate text-xs text-prime-muted">
             {g.rows.length} serviço(s) · {g.drivers.join(", ")}

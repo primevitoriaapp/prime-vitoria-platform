@@ -22,7 +22,7 @@ export function LoginForm({ defaultNext, switchAccount }: { defaultNext?: string
       <div className="mb-6 flex flex-col items-center text-center">
         <PrimeLogoMark size={72} />
         <p className="mt-3 text-lg font-semibold tracking-tight text-[#fff]">Prime Vitória</p>
-        <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-prime-gold">Transporte executivo</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-prime-gold">Transporte executivo</p>
       </div>
 
       <section className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
@@ -86,7 +86,7 @@ export function LoginForm({ defaultNext, switchAccount }: { defaultNext?: string
         </form>
 
         <div className="mt-4 text-center text-sm">
-          <Link href="/login/esqueci-senha" className="text-prime-gold hover:underline">
+          <Link href="/login/esqueci-senha" className="text-prime-gold-ink hover:underline">
             Esqueci minha senha
           </Link>
         </div>
@@ -106,7 +106,7 @@ export function LoginForm({ defaultNext, switchAccount }: { defaultNext?: string
 
       <p className="mt-6 text-sm text-white/60">
         É motorista?{" "}
-        <Link href="/driver/login" className="text-prime-gold hover:underline">
+        <Link href="/driver/login" className="text-prime-gold-ink hover:underline">
           Entrar com CPF e PIN
         </Link>
       </p>
