@@ -7,6 +7,7 @@ import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { pdfToWords } from "@/lib/vouchers/pdf-words-client";
 import type { VoucherLeg } from "@/lib/vouchers/voucher-legs";
 import { TypedDateTime } from "@/components/typed-date-time";
+import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { saoPauloDateAndTimeToUtcIso, saoPauloTodayYmd } from "@/lib/dates/br-date";
 import { normalizeFlightNumber } from "@/lib/trips/flight";
@@ -72,12 +73,48 @@ export function VoucherImportPanel() {
       }
       setParsed(json.data);
       setClientId(json.data.client?.id ?? "");
-      setLegs(json.data.legs.map((l) => ({ ...l, include: !json.data!.existingRefs.includes(l.ref) })));
+      const base = json.data.legs.map((l) => ({ ...l, include: !json.data!.existingRefs.includes(l.ref) }));
+      setLegs(base);
+      setBusy("Localizando os endereços no mapa…");
+      setLegs(await locateAll(base));
     } catch {
       setError("Não consegui abrir o PDF. Confira a internet e tente de novo.");
     } finally {
       setBusy(null);
     }
+  }
+
+  /** Acha cada endereço do voucher no mapa (primeira sugestão do Google), para ter localização e distância. */
+  async function locate(text: string): Promise<{ lat: number; lng: number } | null> {
+    const q = text.trim();
+    if (q.length < 5) return null;
+    try {
+      const r = await fetchWithSupabaseSession(`/api/integrations/address-search?q=${encodeURIComponent(q.slice(0, 180))}`, {}, "admin");
+      const j = (await r.json().catch(() => ({}))) as { success?: boolean; data?: { place_id?: string; lat?: number | null; lng?: number | null }[] };
+      const hit = j.success ? j.data?.[0] : undefined;
+      if (!hit) return null;
+      if (hit.lat != null && hit.lng != null) return { lat: Number(hit.lat), lng: Number(hit.lng) };
+      if (!hit.place_id) return null;
+      const d = await fetchWithSupabaseSession(`/api/integrations/address-details?place_id=${encodeURIComponent(String(hit.place_id))}`, {}, "admin");
+      const dj = (await d.json().catch(() => ({}))) as { success?: boolean; data?: { lat: number; lng: number } };
+      return dj.success && dj.data ? { lat: dj.data.lat, lng: dj.data.lng } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function locateAll(list: VoucherLeg[]): Promise<VoucherLeg[]> {
+    const cache = new Map<string, Promise<{ lat: number; lng: number } | null>>();
+    const get = (t: string) => {
+      if (!cache.has(t)) cache.set(t, locate(t));
+      return cache.get(t)!;
+    };
+    return Promise.all(
+      list.map(async (l) => {
+        const [o, d] = await Promise.all([get(l.origin), get(l.destination)]);
+        return { ...l, originLat: o?.lat ?? null, originLng: o?.lng ?? null, destLat: d?.lat ?? null, destLng: d?.lng ?? null };
+      })
+    );
   }
 
   const patch = (key: string, p: Partial<VoucherLeg>) => setLegs((ls) => ls.map((l) => (l.key === key ? { ...l, ...p } : l)));
@@ -115,7 +152,11 @@ export function VoucherImportPanel() {
         service_mode: "transfer",
         scheduled_at: iso,
         origin_text: l.origin.trim(),
+        origin_lat: l.originLat ?? undefined,
+        origin_lng: l.originLng ?? undefined,
         destination_text: l.destination.trim(),
+        destination_lat: l.destLat ?? undefined,
+        destination_lng: l.destLng ?? undefined,
         passenger_name: l.passengerName.trim() || undefined,
         passenger_phone: l.passengerPhone.trim() || undefined,
         passenger_count: l.passengerCount,
@@ -239,14 +280,29 @@ export function VoucherImportPanel() {
                               ))}
                             </select>
                           </label>
-                          <label className="grid gap-1 text-sm md:col-span-2">
-                            <span>Embarque</span>
-                            <input className={input} value={l.origin} onChange={(e) => patch(l.key, { origin: e.target.value })} />
-                          </label>
-                          <label className="grid gap-1 text-sm md:col-span-2">
-                            <span>Destino</span>
-                            <input className={input} value={l.destination} onChange={(e) => patch(l.key, { destination: e.target.value })} />
-                          </label>
+                          <div className="md:col-span-2">
+                            <AddressAutocompleteInput
+                              label="Embarque"
+                              value={l.origin}
+                              hasCoords={l.originLat != null}
+                              onChange={(t) => patch(l.key, { origin: t, originLat: null, originLng: null })}
+                              onPlaceSelect={(p) => patch(l.key, { origin: p.displayName, originLat: p.lat, originLng: p.lng })}
+                              onCoordsClear={() => patch(l.key, { originLat: null, originLng: null })}
+                              devFallbackRole="admin"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <AddressAutocompleteInput
+                              label="Destino"
+                              value={l.destination}
+                              placeholder="Digite e escolha na lista"
+                              hasCoords={l.destLat != null}
+                              onChange={(t) => patch(l.key, { destination: t, destLat: null, destLng: null })}
+                              onPlaceSelect={(p) => patch(l.key, { destination: p.displayName, destLat: p.lat, destLng: p.lng })}
+                              onCoordsClear={() => patch(l.key, { destLat: null, destLng: null })}
+                              devFallbackRole="admin"
+                            />
+                          </div>
                           <label className="grid gap-1 text-sm">
                             <span>Passageiro</span>
                             <input className={input} value={l.passengerName} onChange={(e) => patch(l.key, { passengerName: e.target.value })} />

@@ -21,6 +21,11 @@ export type VoucherLeg = {
   notes: string;
   /** Texto curto explicando de onde veio (ex.: "Parte 2 de 2 do veículo disponível 5h"). */
   label: string;
+  /** Posição no mapa (achada pela busca de endereço na tela). */
+  originLat?: number | null;
+  originLng?: number | null;
+  destLat?: number | null;
+  destLng?: number | null;
 };
 
 type Cat = { id: string; name: string; kind: string };
