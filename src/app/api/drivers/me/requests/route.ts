@@ -23,7 +23,7 @@ export async function GET() {
     const s = await driverSession();
     if (!s) return fail("FORBIDDEN", "Apenas motoristas", 403);
     const [{ data: d }, vehicle, { data: reqs }, { data: cats }] = await Promise.all([
-      db.from("drivers").select(`cnh_number, cnh_category, cnh_expires_at, cnh_expiry, pix_key, employment_type, photo_url, ${PROFILE_FIELDS.map((f) => f.key).join(", ")}`).eq("id", s.driverId).maybeSingle(),
+      db.from("drivers").select(`cnh_number, cnh_category, cnh_expires_at, cnh_expiry, pix_key, employment_type, photo_url, ${PROFILE_FIELDS.map((f) => f.key).join(", ")}` as "*").eq("id", s.driverId).maybeSingle(),
       resolveDefaultVehicleForDriver(s.driverId),
       db.from("driver_change_requests").select("id, kind, payload, status, review_note, created_at, reviewed_at").eq("driver_id", s.driverId).order("created_at", { ascending: false }).limit(20),
       db.from("vehicle_categories").select("id, name").eq("tenant_id", s.tenantId).eq("active", true).order("sort")
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     const input = Object.fromEntries([...form.entries()].filter(([, v]) => typeof v === "string")) as Record<string, string>;
     let current: Record<string, unknown> = {};
     if (kind === "profile") {
-      const { data: cur } = await db.from("drivers").select(PROFILE_FIELDS.map((f) => f.key).join(", ")).eq("id", s.driverId).maybeSingle();
+      const { data: cur } = await db.from("drivers").select(PROFILE_FIELDS.map((f) => f.key).join(", ") as "*").eq("id", s.driverId).maybeSingle();
       current = (cur as Record<string, unknown> | null) ?? {};
     }
     const parsed =

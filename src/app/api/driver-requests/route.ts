@@ -12,7 +12,7 @@ export async function GET() {
     const tenantId = assertTenantScope(session);
     const { data } = await db.from("driver_change_requests").select("*").eq("tenant_id", tenantId).eq("status", "pendente").order("created_at").limit(50);
     const ids = [...new Set((data ?? []).map((r) => r.driver_id as string))];
-    const { data: drivers } = ids.length ? await db.from("drivers").select(`id, full_name, cnh_number, cnh_category, cnh_expires_at, pix_key, ${PROFILE_FIELDS.map((f) => f.key).filter((k) => k !== "full_name").join(", ")}`).in("id", ids) : { data: [] };
+    const { data: drivers } = ids.length ? await db.from("drivers").select(`id, full_name, cnh_number, cnh_category, cnh_expires_at, pix_key, ${PROFILE_FIELDS.map((f) => f.key).filter((k) => k !== "full_name").join(", ")}` as "*").in("id", ids) : { data: [] };
     const byId = new Map((drivers ?? []).map((d) => [d.id as string, d]));
     const catIds = (data ?? []).map((r) => (r.payload as Record<string, unknown>)?.vehicle_category_id as string).filter(Boolean);
     const { data: cats } = catIds.length ? await db.from("vehicle_categories").select("id, name").in("id", catIds) : { data: [] };
