@@ -20,6 +20,8 @@ type FormState = {
   invoice_auto_close: boolean;
   invoiced: boolean;
   km_minimum: string;
+  reconciliation_business_days: string;
+  requires_passenger_list: boolean;
 };
 
 const TERM_PRESETS = [
@@ -43,7 +45,9 @@ function toForm(d: Record<string, unknown> | undefined): FormState {
     invoice_closing_day: s(d?.invoice_closing_day, "0"),
     invoice_auto_close: d?.invoice_auto_close !== false,
     invoiced: d?.invoiced !== false,
-    km_minimum: s(d?.km_minimum)
+    km_minimum: s(d?.km_minimum),
+    reconciliation_business_days: s(d?.reconciliation_business_days, "0"),
+    requires_passenger_list: d?.requires_passenger_list === true
   };
 }
 
@@ -90,7 +94,9 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
       invoice_closing_day: Number(form.invoice_closing_day) || 0,
       invoice_auto_close: form.invoice_auto_close,
       invoiced: form.invoiced,
-      km_minimum: numOrNull(form.km_minimum)
+      km_minimum: numOrNull(form.km_minimum),
+      reconciliation_business_days: Math.max(0, Math.min(15, Math.round(numOrNull(form.reconciliation_business_days) ?? 0))),
+      requires_passenger_list: form.requires_passenger_list
     };
     const res = await fetchWithSupabaseSession(
       `/api/clients/${clientId}/billing-terms`,
@@ -258,6 +264,47 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
             <span className="font-medium">Fechar automaticamente</span>
             <span className="block text-xs text-prime-muted">
               No dia seguinte ao fechamento o sistema soma as corridas e cria a fatura. Você só anexa o boleto e envia.
+            </span>
+          </span>
+        </label>
+
+        <label className="grid gap-1 text-sm">
+          <span>Conciliação bancária (dias úteis)</span>
+          <select
+            id="reconciliation-days"
+            className={PRIME_INPUT_CLASS}
+            value={form.reconciliation_business_days}
+            onChange={(e) => setForm((f) => ({ ...f, reconciliation_business_days: e.target.value }))}
+            disabled={off}
+          >
+            <option value="0">Na hora (PIX)</option>
+            <option value="1">1 dia útil</option>
+            <option value="2">2 dias úteis (boleto)</option>
+            <option value="3">3 dias úteis</option>
+            <option value="5">5 dias úteis</option>
+          </select>
+          <span className="text-xs text-prime-muted">Entra na data de pagamento que o motorista parceiro vê na carteira.</span>
+        </label>
+        <div className="self-end rounded-lg bg-prime-bg p-3 text-sm">
+          <p className="font-medium">Pagamento previsto ao motorista</p>
+          <p className="text-xs text-prime-muted">
+            Fechamento {form.invoice_closing_day === "0" ? "no fim do mês" : `no dia ${form.invoice_closing_day}`} + {form.payment_term_days || "30"} dias para o cliente pagar
+            {form.reconciliation_business_days !== "0" ? ` + ${form.reconciliation_business_days} dia(s) útil(eis) de conciliação` : ""}; cai sempre em dia útil.
+          </p>
+        </div>
+        <label className="flex items-start gap-2 rounded-lg border border-prime-border p-3 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={form.requires_passenger_list}
+            onChange={(e) => setForm((f) => ({ ...f, requires_passenger_list: e.target.checked }))}
+            disabled={off}
+          />
+          <span>
+            <span className="font-medium">Exigir lista de passageiros no embarque</span>
+            <span className="block text-xs text-prime-muted">
+              Ao iniciar a viagem, o motorista marca quem embarcou (da lista de funcionários desta empresa) e o app monta uma parada de desembarque para cada um.
+              Cadastre nome e endereço de casa dos funcionários em “Equipe”.
             </span>
           </span>
         </label>

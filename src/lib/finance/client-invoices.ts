@@ -136,6 +136,10 @@ export async function generateClientInvoices(input: {
       .eq("tenant_id", input.tenantId)
       .neq("status", "paid");
 
+    await import("@/lib/finance/driver-payout-sync")
+      .then(({ resyncOpenDriverPayoutDates }) => resyncOpenDriverPayoutDates(input.tenantId, { tripIds: ids }))
+      .catch(() => undefined);
+
     results.push({
       client_id: clientId,
       client_name: name,
@@ -228,6 +232,19 @@ export async function updateClientInvoiceStatus(
   }
   if (patch.status === "cancelada") {
     await db.from("trips").update({ client_invoice_id: null }).eq("client_invoice_id", id).eq("tenant_id", tenantId);
+  }
+  if (patch.status === "paga" || patch.status === "cancelada") {
+    // Cliente pagou (ou a fatura caiu): a data prevista do repasse ao motorista muda junto.
+    let tripIds: string[] | undefined;
+    if (patch.status === "paga") {
+      const { data: invTrips } = await db.from("trips").select("id").eq("tenant_id", tenantId).eq("client_invoice_id", id).limit(5000);
+      tripIds = (invTrips ?? []).map((t) => t.id as string);
+    }
+    if (!tripIds || tripIds.length) {
+      await import("@/lib/finance/driver-payout-sync")
+        .then(({ resyncOpenDriverPayoutDates }) => resyncOpenDriverPayoutDates(tenantId, tripIds ? { tripIds } : {}))
+        .catch(() => undefined);
+    }
   }
   return data as ClientInvoiceRow;
 }

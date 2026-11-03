@@ -1,6 +1,7 @@
 import { db } from "@/lib/server/db";
 import { driverPayableAmountFromFinancial } from "@/lib/finance/driver-payable-amount";
 import { driverPayableDueDate } from "@/lib/finance/driver-payable-forecast";
+import { driverPayoutDateForTrip } from "@/lib/finance/driver-payout-sync";
 
 /** Cria pagável ao motorista a partir de `trip_financials` se a viagem foi concluída e ainda não existe título. */
 export async function ensureDriverPayableFromTripFinancials(
@@ -36,6 +37,9 @@ export async function ensureDriverPayableFromTripFinancials(
   const amount = driverPayableAmountFromFinancial(tf?.amount_driver);
   if (amount == null) return { created: false };
 
+  // Data prevista: fechamento do cliente + prazo + conciliação, em dia útil.
+  const forecast = await driverPayoutDateForTrip(tripId).catch(() => null);
+
   const { data: inserted, error } = await db
     .from("driver_payables")
     .insert({
@@ -43,7 +47,7 @@ export async function ensureDriverPayableFromTripFinancials(
       tenant_id: tenantId,
       driver_id: trip.driver_id,
       amount,
-      due_date: driverPayableDueDate(),
+      due_date: forecast?.payout ?? driverPayableDueDate(),
       status: "open"
     })
     .select("id")

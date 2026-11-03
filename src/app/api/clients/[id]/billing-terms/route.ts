@@ -17,7 +17,9 @@ const bodySchema = z.object({
   invoice_closing_day: z.coerce.number().int().min(0).max(28).default(0),
   invoice_auto_close: z.boolean().default(true),
   invoiced: z.boolean().default(true),
-  km_minimum: z.coerce.number().min(0).max(1000).nullable().optional()
+  km_minimum: z.coerce.number().min(0).max(1000).nullable().optional(),
+  reconciliation_business_days: z.coerce.number().int().min(0).max(15).optional(),
+  requires_passenger_list: z.boolean().optional()
 });
 
 async function clientExists(id: string, tenantId: string): Promise<boolean> {
@@ -48,6 +50,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const body = bodySchema.parse(await request.json());
     const { data, error } = await updateClientBillingTerms(id, tenantId, body);
     if (error) return fail("BILLING_TERMS_SAVE_FAILED", error.message, 500);
+    // Prazo mudou: recalcula a data prevista dos repasses ainda em aberto deste cliente.
+    await import("@/lib/finance/driver-payout-sync")
+      .then(({ resyncOpenDriverPayoutDates }) => resyncOpenDriverPayoutDates(tenantId, { clientId: id }))
+      .catch(() => undefined);
     return ok(data);
   } catch (error) {
     return mapApiError(error);

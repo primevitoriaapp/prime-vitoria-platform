@@ -41,6 +41,10 @@ export type ClientBillingTerms = {
   invoiced: boolean;
   /** Km mínimo cobrado por corrida na cobrança por km (null = sem mínimo). */
   km_minimum?: number | null;
+  /** Dias úteis até o pagamento aparecer conciliado no banco (PIX 0, boleto ~2). */
+  reconciliation_business_days?: number;
+  /** Motorista informa no embarque quem veio; cada passageiro vira uma parada de desembarque. */
+  requires_passenger_list?: boolean;
 };
 
 export const DEFAULT_WAIT_TOLERANCE_MINUTES = 15;
@@ -55,7 +59,9 @@ export function emptyClientBillingTerms(): ClientBillingTerms {
     invoice_closing_day: 0,
     invoice_auto_close: true,
     invoiced: true,
-    km_minimum: null
+    km_minimum: null,
+    reconciliation_business_days: 0,
+    requires_passenger_list: false
   };
 }
 

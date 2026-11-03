@@ -12,6 +12,23 @@ type Wallet = {
 
 const brl = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const d = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" }) : "—");
+const todaySp = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+const payday = (day: string) =>
+  new Date(`${day}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC", weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+
+/** Soma os repasses pela data prevista de pagamento (liberados primeiro). */
+function groupByPayday(items: Item[]) {
+  const map = new Map<string, { day: string | null; total: number; items: Item[] }>();
+  for (const i of items) {
+    const key = i.due_date ?? "";
+    const g = map.get(key) ?? { day: i.due_date, total: 0, items: [] };
+    g.total += i.amount;
+    g.items.push(i);
+    map.set(key, g);
+  }
+  return [...map.values()].sort((a, b) => String(a.day ?? "9999").localeCompare(String(b.day ?? "9999")));
+}
+
 const card = "rounded-3xl border border-[#ECE7DB] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.05)]";
 
 /** Carteira do motorista: quanto vai receber, o que já está liberado e o que já caiu. */
@@ -67,21 +84,43 @@ export function DriverWallet() {
         {proximos.length === 0 ? (
           <p className="mt-2 text-sm text-[#6B6F76]">Nada pendente agora.</p>
         ) : (
-          <ul className="mt-2 divide-y divide-[#F0ECE3]">
-            {proximos.map((i) => (
-              <li key={i.id} className="flex items-center justify-between gap-3 py-3">
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold">
-                    {d(i.trip_at)} · {i.route}
-                  </span>
-                  <span className={`text-xs ${i.stage === "liberado" ? "font-semibold text-[#1F7A4C]" : "text-[#6B6F76]"}`}>
-                    {i.stage === "liberado" ? "Liberado · será pago no próximo repasse" : "Aguardando o cliente pagar a Prime"}
-                  </span>
-                </span>
-                <span className="shrink-0 font-bold">{brl(i.amount)}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-2 space-y-4">
+            {groupByPayday(proximos).map((g) => {
+              const late = g.day != null && g.day < todaySp() && g.items.some((i) => i.stage === "aguardando");
+              return (
+                <div key={g.day ?? "sem-data"} className="rounded-2xl border border-[#F0ECE3]">
+                  <div className="flex items-center justify-between gap-3 rounded-t-2xl bg-[#FBF6EA] px-3 py-2.5">
+                    <span>
+                      <span className="block text-xs uppercase tracking-wide text-[#8A6A1F]">Pagamento previsto</span>
+                      <span className="text-sm font-semibold">{g.day ? payday(g.day) : "A definir"}</span>
+                    </span>
+                    <span className="text-right">
+                      <span className="block text-lg font-bold">{brl(g.total)}</span>
+                      <span className="text-xs text-[#6B6F76]">{g.items.length} corrida(s)</span>
+                    </span>
+                  </div>
+                  {late ? (
+                    <p className="px-3 pt-2 text-xs font-medium text-[#8A5A00]">O cliente ainda não pagou: a data muda quando o pagamento entrar.</p>
+                  ) : null}
+                  <ul className="divide-y divide-[#F0ECE3] px-3">
+                    {g.items.map((i) => (
+                      <li key={i.id} className="flex items-center justify-between gap-3 py-2.5">
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm">
+                            {d(i.trip_at)} · {i.route}
+                          </span>
+                          <span className={`text-xs ${i.stage === "liberado" ? "font-semibold text-[#1F7A4C]" : "text-[#6B6F76]"}`}>
+                            {i.stage === "liberado" ? "Cliente já pagou · liberado" : "Aguardando o cliente pagar a Prime"}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-semibold">{brl(i.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
 
@@ -105,7 +144,9 @@ export function DriverWallet() {
           </ul>
         )}
       </section>
-      <p className="px-2 text-center text-xs text-[#6B6F76]">A Prime paga o repasse depois que o cliente paga a corrida.</p>
+      <p className="px-2 text-center text-xs text-[#6B6F76]">
+        A data prevista segue o fechamento e o prazo de cada empresa. A Prime paga o repasse depois que o cliente paga: se o cliente atrasar, o repasse atrasa junto.
+      </p>
     </div>
   );
 }

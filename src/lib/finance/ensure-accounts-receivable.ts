@@ -1,6 +1,7 @@
 import { db } from "@/lib/server/db";
 import { accountsReceivableAmountFromFinancial } from "@/lib/finance/accounts-receivable-amount";
 import { getClientBillingTerms, receivableDueDate } from "@/lib/clients/client-billing-terms";
+import { driverPayoutDateForTrip } from "@/lib/finance/driver-payout-sync";
 
 /** Cria conta a receber a partir de `trip_financials.amount_client` se a viagem está concluída e ainda não existe título. */
 export async function ensureAccountsReceivableFromTripFinancials(
@@ -32,8 +33,10 @@ export async function ensureAccountsReceivableFromTripFinancials(
   if (amount == null) return { created: false };
 
   // Vencimento pelo prazo do cliente (cadastro → Cobrança); sem prazo, 30 dias.
-  const terms = await getClientBillingTerms(trip.client_id as string, tenantId);
-  const dueDate = receivableDueDate(terms.payment_term_days);
+  // Faturado: vence no fechamento + prazo; não faturado: no dia da corrida.
+  const forecast = await driverPayoutDateForTrip(tripId).catch(() => null);
+  const terms = forecast ? null : await getClientBillingTerms(trip.client_id as string, tenantId);
+  const dueDate = forecast?.clientDue ?? receivableDueDate(terms?.payment_term_days);
   const issueDate = new Date().toISOString().slice(0, 10);
 
   const { data: inserted, error } = await db
