@@ -37,7 +37,7 @@ import { TripExpensesReview } from "@/components/trip-expenses";
 export default async function AgendaPage({
   searchParams
 }: {
-  searchParams: Promise<{ trip?: string; nova?: string; periodo?: string; grupo?: string }>;
+  searchParams: Promise<{ trip?: string; nova?: string; periodo?: string; grupo?: string; editar?: string }>;
 }) {
   const session = await getSessionContext();
   const sp = await searchParams;
@@ -85,8 +85,8 @@ export default async function AgendaPage({
             margin={focusTrip?.margin}
           />
           {showClaimBar ? <TripReviewBanner tripId={focusTripId} /> : null}
+          {showClaimBar ? <TripEditPanel tripId={focusTripId} defaultOpen={sp.editar === "1"} /> : null}
           {showClaimBar ? <TripAssignCard tripId={focusTripId} /> : null}
-          {showClaimBar ? <TripEditPanel tripId={focusTripId} /> : null}
           {showClaimBar ? <TripProofCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripExpensesReview tripId={focusTripId} /> : null}
           <TripAgendaFocusPanel

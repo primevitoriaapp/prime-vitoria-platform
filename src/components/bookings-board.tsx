@@ -331,6 +331,12 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
                 </Link>
                 {g.id === "agendada" || g.id === "atribuida" ? (
                   <div className="flex items-center justify-end gap-2 border-t border-prime-border px-4 py-2">
+                    <Link
+                      href={`/agenda?trip=${t.id}&editar=1#editar-corrida` as Route}
+                      className="mr-auto inline-flex items-center gap-1.5 rounded-xl border border-prime-border bg-white px-3 py-1.5 text-sm font-semibold hover:border-prime-gold"
+                    >
+                      ✎ Editar
+                    </Link>
                     <QuickAssign
                       tripId={t.id}
                       status={t.operational_status}

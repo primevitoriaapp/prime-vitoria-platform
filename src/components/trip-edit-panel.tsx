@@ -46,9 +46,9 @@ function spParts(iso: string) {
 }
 
 /** Botão "Editar corrida" na tela da corrida: muda horário, trajeto, passageiro e marcações, com motivo. */
-export function TripEditPanel({ tripId }: { tripId: string }) {
+export function TripEditPanel({ tripId, defaultOpen = false }: { tripId: string; defaultOpen?: boolean }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -142,13 +142,16 @@ export function TripEditPanel({ tripId }: { tripId: string }) {
   }
 
   return (
-    <section className="rounded-2xl border border-prime-border bg-white shadow-prime-card">
+    <section id="editar-corrida" className="scroll-mt-6 rounded-2xl border-2 border-prime-gold/60 bg-white shadow-prime-card">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between px-4 py-3 text-left font-semibold"
       >
-        <span>✎ Editar corrida</span>
+        <span className="inline-flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-prime-gold text-[#111]">✎</span>
+          Editar corrida
+        </span>
         <span className="text-sm text-prime-muted">{open ? "Fechar" : "Horário, trajeto, passageiro, marcações"}</span>
       </button>
       {open ? (
