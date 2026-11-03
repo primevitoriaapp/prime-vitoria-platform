@@ -2,7 +2,7 @@ import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { getSessionContext } from "@/lib/server/session";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
-import { loadLogoBytes, loadQuoteDoc } from "@/lib/quotes/quote-document";
+import { loadLogoBytes, loadQuoteDoc, loadVehiclePhotos } from "@/lib/quotes/quote-document";
 import { buildQuotePdf } from "@/lib/quotes/quote-pdf";
 
 export const runtime = "nodejs";
@@ -28,7 +28,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
   if (!q) return new Response("Orçamento não encontrado", { status: 404 });
   const doc = await loadQuoteDoc(q);
-  const bytes = buildQuotePdf(doc, await loadLogoBytes(doc.logoPath));
+  const [logo, photos] = await Promise.all([loadLogoBytes(doc.logoPath), loadVehiclePhotos(doc.vehicles)]);
+  const bytes = buildQuotePdf(doc, logo, photos);
   const who = doc.client.name.normalize("NFD").replace(/[^\w ]/g, "").trim().replace(/\s+/g, "-").slice(0, 40) || "Cliente";
   const file = `Orcamento-${doc.number.replace(/\D/g, "")}-${who}.pdf`;
   const inline = url.searchParams.get("download") !== "1";

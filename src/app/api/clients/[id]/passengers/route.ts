@@ -20,7 +20,10 @@ const createSchema = z.object({
   sector: z.string().optional().nullable(),
   cpf: z.string().max(20).optional().nullable(),
   email: z.string().max(254).optional().nullable(),
-  active: z.boolean().optional()
+  postal_code: z.string().max(12).optional().nullable(),
+  active: z.boolean().optional(),
+  can_request: z.boolean().optional(),
+  allowed_category_ids: z.array(z.string().uuid()).max(30).optional().nullable()
 });
 
 async function assertClientAccess(

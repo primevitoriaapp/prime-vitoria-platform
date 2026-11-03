@@ -28,7 +28,7 @@ function loadXlsx(): Promise<NonNullable<Window["XLSX"]>> {
   });
 }
 
-async function readTable(file: File): Promise<string[][]> {
+export async function readTable(file: File): Promise<string[][]> {
   const name = file.name.toLowerCase();
   if (name.endsWith(".csv") || name.endsWith(".txt")) return parseCsv(await file.text());
   const XLSX = await loadXlsx();

@@ -15,6 +15,11 @@ export type ClientPassengerRow = {
   email?: string | null;
   /** Login do funcionário no portal, quando tem acesso. */
   profile_id?: string | null;
+  postal_code?: string | null;
+  /** Pode pedir corrida pelo portal. */
+  can_request?: boolean;
+  /** Categorias liberadas (null = todas da empresa). */
+  allowed_category_ids?: string[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -27,7 +32,10 @@ export type ClientPassengerInput = {
   sector?: string | null;
   cpf?: string | null;
   email?: string | null;
+  postal_code?: string | null;
   active?: boolean;
+  can_request?: boolean;
+  allowed_category_ids?: string[] | null;
 };
 
 export function normalizeCpf(raw: string | null | undefined): string | null {
@@ -86,7 +94,10 @@ export async function createClientPassenger(
       sector: body.sector?.trim() || null,
       cpf: normalizeCpf(body.cpf),
       email: body.email?.trim().toLowerCase() || null,
+      postal_code: body.postal_code?.trim() || null,
       active: body.active !== false,
+      can_request: body.can_request !== false,
+      allowed_category_ids: body.allowed_category_ids?.length ? body.allowed_category_ids : null,
       updated_at: new Date().toISOString()
     })
     .select("*")
@@ -111,6 +122,9 @@ export async function updateClientPassenger(
   if (body.cpf !== undefined) patch.cpf = normalizeCpf(body.cpf);
   if (body.email !== undefined) patch.email = body.email?.trim().toLowerCase() || null;
   if (body.active !== undefined) patch.active = body.active;
+  if (body.postal_code !== undefined) patch.postal_code = body.postal_code?.trim() || null;
+  if (body.can_request !== undefined) patch.can_request = body.can_request;
+  if (body.allowed_category_ids !== undefined) patch.allowed_category_ids = body.allowed_category_ids?.length ? body.allowed_category_ids : null;
 
   const { data, error } = await db
     .from("client_passengers")

@@ -513,6 +513,7 @@ export function ClientRequestConsole({
                   <span className="p-3">
                     <span className="block font-semibold text-prime-text">{c.name}</span>
                     <span className="block text-xs text-prime-muted">Até {c.passengers} passageiros</span>
+                    {c.description ? <span className="mt-1 block text-xs leading-snug text-prime-text/80">{c.description}</span> : null}
                   </span>
                 </button>
               );

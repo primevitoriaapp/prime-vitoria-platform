@@ -22,6 +22,8 @@ export type QuoteDoc = {
   notes: string | null;
   conditions: string | null;
   logoPath: string | null;
+  /** Veículos usados no orçamento, com foto e descrição (para o cliente entender a diferença). */
+  vehicles: { id: string; name: string; description: string | null; passengers: number | null; photoPath: string | null; photoUrl: string | null }[];
 };
 
 const ymdSP = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(iso));
@@ -37,7 +39,7 @@ export async function loadQuoteDoc(quote: Record<string, unknown>): Promise<Quot
     getTenantCompanyProfile(tenantId)
   ]);
   const catIds = [...new Set((items ?? []).map((i) => i.vehicle_category_id as string).filter(Boolean))];
-  const { data: cats } = catIds.length ? await db.from("vehicle_categories").select("id, name").in("id", catIds) : { data: [] };
+  const { data: cats } = catIds.length ? await db.from("vehicle_categories").select("id, name, description, passengers, photo_path").in("id", catIds) : { data: [] };
   const catName = new Map((cats ?? []).map((c) => [c.id as string, c.name as string]));
 
   const dayKey = (i: Record<string, unknown>) => (i.scheduled_at ? ymdSP(i.scheduled_at as string) : ((i.service_date as string | null) ?? ""));
@@ -115,8 +117,28 @@ export async function loadQuoteDoc(quote: Record<string, unknown>): Promise<Quot
     totals,
     notes: (quote.notes as string | null) || null,
     conditions: (quote.conditions as string | null) || null,
-    logoPath: company.logo_storage_path
+    logoPath: company.logo_storage_path,
+    vehicles: (cats ?? []).map((c) => ({
+      id: c.id as string,
+      name: c.name as string,
+      description: (c.description as string | null) || null,
+      passengers: (c.passengers as number | null) ?? null,
+      photoPath: (c.photo_path as string | null) || null,
+      photoUrl: c.photo_path ? `/api/public/category-photo/${c.id}?v=${encodeURIComponent(String(c.photo_path).slice(-12))}` : null
+    }))
   };
+}
+
+/** Fotos (JPEG) das categorias do orçamento, para o PDF. */
+export async function loadVehiclePhotos(vehicles: QuoteDoc["vehicles"]): Promise<Map<string, Uint8Array>> {
+  const out = new Map<string, Uint8Array>();
+  await Promise.all(
+    vehicles.map(async (v) => {
+      const bytes = await loadLogoBytes(v.photoPath);
+      if (bytes) out.set(v.id, bytes);
+    })
+  );
+  return out;
 }
 
 /** Logo cadastrada (JPEG) para o PDF. */

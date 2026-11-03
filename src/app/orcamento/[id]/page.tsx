@@ -194,6 +194,28 @@ export default async function OrcamentoPage({
           </div>
         </section>
 
+        {d.vehicles.length ? (
+          <section style={{ padding: "8px 26px 14px" }}>
+            <div style={{ fontSize: 10, letterSpacing: ".08em", color: "#7A6A3A", textTransform: "uppercase", marginBottom: 8 }}>Sobre os veículos</div>
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+              {d.vehicles.map((v) => (
+                <div key={v.id} style={{ display: "flex", gap: 12, alignItems: "center", background: "#F8F5EE", borderRadius: 10, padding: 8 }}>
+                  <div style={{ width: 96, height: 64, flexShrink: 0, background: "#fff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    {v.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={v.photoUrl} alt={v.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                    ) : null}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#333" }}>
+                    <div style={{ fontWeight: 700, color: "#111" }}>{v.name}</div>
+                    <div style={{ color: "#6F6A60", lineHeight: 1.35 }}>{v.description ?? (v.passengers ? `Até ${v.passengers} passageiros.` : "")}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {d.notes || d.conditions ? (
           <section style={{ padding: "8px 26px 18px", fontSize: 12, color: "#333", display: "grid", gap: 10 }}>
             {d.notes ? (

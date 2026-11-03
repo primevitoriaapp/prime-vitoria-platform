@@ -1,3 +1,4 @@
+import { categoryAllowed, permissionForProfile } from "@/lib/clients/passenger-permissions";
 import { normalizeFlightNumber } from "@/lib/trips/flight";
 import { z } from "zod";
 import { cleanServiceExtras } from "@/lib/trips/service-extras";
@@ -150,6 +151,11 @@ export async function POST(request: Request) {
       } catch (error) {
         return mapTripError(error);
       }
+      // Permissão do funcionário: pode pedir? Esta categoria está liberada para ele?
+      const perm = await permissionForProfile(body.client_id, session.userId);
+      if (perm && !perm.canRequest) return fail("FORBIDDEN", "Seu acesso permite só acompanhar as viagens. Peça ao gestor da sua empresa.", 403);
+      if (perm?.allowed && !categoryAllowed(perm, body.vehicle_category_id ?? null))
+        return fail("CATEGORY_NOT_ALLOWED", "Esta categoria de veículo não está liberada para você. Escolha outra ou fale com o gestor.", 403);
     }
 
     const uiServiceType = normalizePrimeServiceType(body.service_type);

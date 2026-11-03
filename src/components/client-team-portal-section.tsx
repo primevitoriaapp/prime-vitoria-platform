@@ -6,6 +6,7 @@ import type { CostCenterRow } from "@/lib/clients/client-cost-centers";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { PRIME_SURFACE_CARD } from "@/lib/ui/prime-surface-card";
+import { ClientTeamImport } from "@/components/client-team-import";
 
 type Tab = "funcionarios" | "centros";
 
@@ -25,6 +26,9 @@ type PassengerForm = {
   cpf: string;
   email: string;
   giveAccess: boolean;
+  can_request: boolean;
+  /** null = todas as categorias da empresa. */
+  allowed: string[] | null;
 };
 
 function formatCpf(value: string): string {
@@ -51,7 +55,9 @@ const emptyPassenger = (): PassengerForm => ({
   postal_code: "",
   cpf: "",
   email: "",
-  giveAccess: true
+  giveAccess: true,
+  can_request: true,
+  allowed: null
 });
 
 const emptyCenter = (): CenterForm => ({
@@ -76,6 +82,23 @@ export function ClientTeamPortalSection({
   const [busy, setBusy] = useState(false);
   const [cepBusy, setCepBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!canManage) return;
+    void (async () => {
+      try {
+        const res = await fetchWithSupabaseSession(`/api/clients/${clientId}/catalog`, {}, devFallbackRole);
+        const json = (await res.json()) as { success?: boolean; data?: { id: string; name: string }[] };
+        if (res.ok && json.success) setCategories((json.data ?? []).map((c) => ({ id: c.id, name: c.name })));
+      } catch {
+        /* sem catálogo: só não mostra as categorias */
+      }
+    })();
+  }, [clientId, canManage, devFallbackRole]);
+
+  const catNames = (ids: string[] | null | undefined) =>
+    !ids?.length ? "todas as categorias" : ids.map((id) => categories.find((c) => c.id === id)?.name).filter(Boolean).join(", ") || "categorias restritas";
 
   const loadPassengers = useCallback(async () => {
     const q = canManage ? "?include_inactive=1" : "";
@@ -146,10 +169,12 @@ export function ClientTeamPortalSection({
       address: row.address ?? "",
       matricula: row.matricula ?? "",
       sector: row.sector ?? "",
-      postal_code: "",
+      postal_code: row.postal_code ?? "",
       cpf: row.cpf ? formatCpf(row.cpf) : "",
       email: row.email ?? "",
-      giveAccess: !row.profile_id
+      giveAccess: !row.profile_id,
+      can_request: row.can_request !== false,
+      allowed: row.allowed_category_ids?.length ? row.allowed_category_ids : null
     });
   }
 
@@ -165,7 +190,10 @@ export function ClientTeamPortalSection({
       matricula: pForm.matricula.trim() || null,
       sector: pForm.sector.trim() || null,
       cpf: pForm.cpf.trim() || null,
-      email: pForm.email.trim() || null
+      email: pForm.email.trim() || null,
+      postal_code: pForm.postal_code.trim() || null,
+      can_request: pForm.can_request,
+      allowed_category_ids: pForm.allowed?.length ? pForm.allowed : null
     };
     const res = editingId
       ? await fetchWithSupabaseSession(
@@ -189,7 +217,7 @@ export function ClientTeamPortalSection({
       return;
     }
     const savedRow = json.data;
-    if (pForm.giveAccess && pForm.email.trim() && savedRow && !savedRow.profile_id) {
+    if (pForm.giveAccess && pForm.can_request && pForm.email.trim() && savedRow && !savedRow.profile_id) {
       const sent = await grantAccess(savedRow.id, pForm.email.trim());
       setMessage(
         sent
@@ -322,6 +350,15 @@ export function ClientTeamPortalSection({
       ) : tab === "funcionarios" ? (
         <div className="space-y-4">
           {canManage ? (
+            <ClientTeamImport
+              clientId={clientId}
+              categories={categories}
+              passengers={passengers}
+              devFallbackRole={devFallbackRole}
+              onDone={() => void loadPassengers()}
+            />
+          ) : null}
+          {canManage ? (
             <form onSubmit={(e) => void savePassenger(e)} className={`${PRIME_SURFACE_CARD} grid gap-3 sm:grid-cols-2`}>
               <label className="grid gap-1 text-sm sm:col-span-2">
                 <span>Nome completo *</span>
@@ -427,6 +464,65 @@ export function ClientTeamPortalSection({
                   disabled={busy}
                 />
               </label>
+                <div className="space-y-2 rounded-lg border border-prime-border p-3 text-sm sm:col-span-2">
+                  <p className="font-medium">Permissões de corrida</p>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={pForm.can_request}
+                      onChange={(e) => setPForm((f) => ({ ...f, can_request: e.target.checked }))}
+                      disabled={busy}
+                    />
+                    Pode pedir corrida pelo portal
+                  </label>
+                  {pForm.can_request && categories.length ? (
+                    <div className="space-y-1 pl-6">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          checked={pForm.allowed === null}
+                          onChange={() => setPForm((f) => ({ ...f, allowed: null }))}
+                          disabled={busy}
+                        />
+                        Qualquer categoria
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          checked={pForm.allowed !== null}
+                          onChange={() => setPForm((f) => ({ ...f, allowed: f.allowed ?? [categories[0].id] }))}
+                          disabled={busy}
+                        />
+                        Só estas:
+                      </label>
+                      {pForm.allowed !== null ? (
+                        <div className="flex flex-wrap gap-2 pl-6">
+                          {categories.map((c) => {
+                            const on = pForm.allowed?.includes(c.id) ?? false;
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                disabled={busy}
+                                onClick={() =>
+                                  setPForm((f) => {
+                                    const cur = f.allowed ?? [];
+                                    const next = on ? cur.filter((x) => x !== c.id) : [...cur, c.id];
+                                    return { ...f, allowed: next.length ? next : cur };
+                                  })
+                                }
+                                className={`rounded-full border px-3 py-1 text-xs ${on ? "border-prime-gold bg-prime-gold/20 font-medium" : "border-prime-border text-prime-muted"}`}
+                              >
+                                {on ? "✓ " : ""}
+                                {c.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               <div className="flex flex-wrap gap-2 sm:col-span-2">
                 <button type="submit" disabled={busy} className="btn-primary disabled:opacity-50">
                   {busy ? "Salvando…" : editingId ? "Atualizar" : "Adicionar funcionário"}
@@ -477,6 +573,11 @@ export function ClientTeamPortalSection({
                             Sem acesso ao portal
                           </p>
                         )
+                      ) : null}
+                      {canManage ? (
+                        <p className="mt-1 text-xs text-prime-muted">
+                          {p.can_request === false ? "Não pede corrida" : `Pede corrida · ${catNames(p.allowed_category_ids)}`}
+                        </p>
                       ) : null}
                       {p.address ? (
                         <p className="mt-0.5 text-xs text-prime-muted">{p.address}</p>

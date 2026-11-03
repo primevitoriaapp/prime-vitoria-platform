@@ -1,4 +1,4 @@
-import { SimplePdf, wrap, type RGB } from "../pdf/simple-pdf.ts";
+import { SimplePdf, jpegInfo, wrap, type RGB } from "../pdf/simple-pdf.ts";
 import type { QuoteDoc } from "./quote-document.ts";
 
 const INK: RGB = [17, 17, 17];
@@ -13,7 +13,7 @@ const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 const brDate = (ymd: string) => ymd.slice(0, 10).split("-").reverse().join("/");
 
 /** Orçamento em PDF no padrão preto e dourado da Prime. */
-export function buildQuotePdf(q: QuoteDoc, logo: Uint8Array | null): Uint8Array {
+export function buildQuotePdf(q: QuoteDoc, logo: Uint8Array | null, photos: Map<string, Uint8Array> = new Map()): Uint8Array {
   const pdf = new SimplePdf();
   const M = 36;
   const R = pdf.W - M;
@@ -142,6 +142,43 @@ export function buildQuotePdf(q: QuoteDoc, logo: Uint8Array | null): Uint8Array 
   pdf.text("TOTAL", tx0 + 12, y + 24, { font: "B", size: 8, color: [200, 200, 200], spacing: 1.2 });
   pdf.text(brl(q.totals.total), R - 12, y + 26, { font: "B", size: 16, color: GOLD, align: "right" });
   y += 54;
+
+  // ---------- Sobre os veículos ----------
+  if (q.vehicles.length) {
+    const cardH = 74;
+    if (y + 24 + cardH > pdf.H - footerSpace) {
+      pdf.addPage();
+      y = 40;
+    }
+    pdf.text("SOBRE OS VEÍCULOS", M, y, { font: "B", size: 7, color: GOLD_DARK, spacing: 1.2 });
+    y += 10;
+    for (const v of q.vehicles) {
+      if (y + cardH > pdf.H - footerSpace) {
+        pdf.addPage();
+        y = 40;
+      }
+      pdf.roundRect(M, y, CW, cardH - 8, 8, SOFT);
+      const img = photos.get(v.id);
+      const box = { x: M + 8, y: y + 6, w: 96, h: cardH - 20 };
+      pdf.roundRect(box.x, box.y, box.w, box.h, 6, WHITE);
+      const info = img ? jpegInfo(img) : null;
+      if (img && info) {
+        const s = Math.min((box.w - 6) / info.w, (box.h - 6) / info.h);
+        const w = info.w * s;
+        const h = info.h * s;
+        pdf.image(img, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h);
+      }
+      const tx2 = box.x + box.w + 12;
+      const tw2 = R - 10 - tx2;
+      pdf.text(v.name, tx2, y + 20, { font: "B", size: 10 });
+      const desc = v.description ?? (v.passengers ? `Até ${v.passengers} passageiros.` : "");
+      wrap(desc, "R", 8.5, tw2)
+        .slice(0, 3)
+        .forEach((l, k) => pdf.text(l, tx2, y + 34 + k * 11, { size: 8.5, color: MUTED }));
+      y += cardH;
+    }
+    y += 6;
+  }
 
   // ---------- Observações e condições ----------
   const block = (label: string, body: string | null) => {
