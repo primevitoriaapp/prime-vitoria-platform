@@ -51,80 +51,122 @@ function CategoryCard({ c, onChanged }: { c: Category; onChanged: () => void }) 
     if (res.ok) onChanged();
   }
 
+  const [editing, setEditing] = useState(false);
+
   return (
-    <li className={`rounded-xl border border-prime-border bg-white p-4 shadow-prime-card ${c.active ? "" : "opacity-60"}`}>
-      <div className="flex gap-4">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="flex h-24 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-prime-border bg-prime-bg text-xs text-prime-muted hover:border-prime-gold"
-          title="Trocar foto"
-        >
-          {c.photo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={c.photo_url} alt={c.name} className="h-full w-full object-contain" />
-          ) : (
-            "+ Foto"
-          )}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void upload(f);
-            e.target.value = "";
-          }}
-        />
-        <div className="grid flex-1 gap-2 sm:grid-cols-[1fr_110px_120px]">
-          <input className={PRIME_INPUT_CLASS} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome" />
-          <label className="flex items-center gap-1 text-xs text-prime-muted">
-            <input
-              type="number"
-              min={1}
-              max={80}
-              className={PRIME_INPUT_CLASS}
-              value={form.passengers}
-              onChange={(e) => setForm({ ...form, passengers: Number(e.target.value) || 1 })}
-            />
-            lugares
-          </label>
-          <select className={PRIME_INPUT_CLASS} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as Category["kind"] })}>
-            {Object.entries(KIND_LABEL).map(([k, l]) => (
-              <option key={k} value={k}>
-                {l}
-              </option>
-            ))}
-          </select>
-          <input
-            className={`${PRIME_INPUT_CLASS} sm:col-span-3`}
-            value={form.description ?? ""}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Descrição curta (aparece para o cliente)"
-          />
-          <label className="flex items-center gap-2 text-sm sm:col-span-3">
-            <input type="checkbox" checked={Boolean(form.allows_km)} onChange={(e) => setForm({ ...form, allows_km: e.target.checked })} />
-            Pode ser cobrada por km (bandeira 1 e 2). Desmarcado = só transfer e diárias.
-          </label>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            void save({ name: form.name, passengers: form.passengers, kind: form.kind, description: form.description || null, allows_km: Boolean(form.allows_km) })
-          }
-          className="btn-primary disabled:opacity-50"
-        >
-          Salvar
-        </button>
-        <button type="button" disabled={busy} onClick={() => void save({ active: !c.active })} className="text-prime-muted hover:underline">
-          {c.active ? "Desativar" : "Reativar"}
-        </button>
-        {msg ? <span className="text-xs text-prime-muted">{msg}</span> : null}
+    <li className={`flex flex-col overflow-hidden rounded-2xl border border-prime-border bg-white shadow-prime-card ${c.active ? "" : "opacity-60"}`}>
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        className="group relative flex h-48 items-center justify-center bg-gradient-to-b from-[#F7F6F2] to-[#ECEAE4]"
+        title="Trocar foto"
+      >
+        {c.photo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={c.photo_url} alt={c.name} className="h-full w-full object-contain p-4" />
+        ) : (
+          <span className="text-sm text-prime-muted">+ Enviar foto do carro</span>
+        )}
+        <span className="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-prime-text opacity-0 shadow transition group-hover:opacity-100">
+          Trocar foto
+        </span>
+        {!c.active ? <span className="absolute left-3 top-3 rounded-full bg-[#111] px-2.5 py-1 text-xs font-semibold text-white">Desativada</span> : null}
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void upload(f);
+          e.target.value = "";
+        }}
+      />
+      <div className="flex flex-1 flex-col p-5">
+        {!editing ? (
+          <>
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-lg font-semibold tracking-tight text-prime-text">{c.name}</h3>
+              <span className="shrink-0 rounded-full bg-prime-bg px-2.5 py-1 text-xs font-semibold text-[#4A4D55]">
+                {KIND_LABEL[c.kind]} · {c.passengers} lugares
+              </span>
+            </div>
+            <p className="mt-2 flex-1 text-sm leading-relaxed text-prime-muted">{c.description || "Sem descrição. Toque em Editar para escrever o que o cliente vê."}</p>
+            <p className="mt-3 text-xs text-prime-muted">{c.allows_km ? "Transfer, diárias e cobrança por km" : "Transfer e diárias"}</p>
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-prime-border pt-4">
+              <button type="button" className="btn-outline" onClick={() => setEditing(true)}>
+                Editar
+              </button>
+              <button type="button" disabled={busy} onClick={() => void save({ active: !c.active })} className="px-2 text-sm text-prime-muted hover:text-prime-text hover:underline">
+                {c.active ? "Desativar" : "Reativar"}
+              </button>
+              {msg ? <span className="ml-auto text-sm text-prime-muted">{msg}</span> : null}
+            </div>
+          </>
+        ) : (
+          <div className="grid gap-3">
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium">Nome</span>
+              <input className={PRIME_INPUT_CLASS} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Lugares</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={80}
+                  className={PRIME_INPUT_CLASS}
+                  value={form.passengers}
+                  onChange={(e) => setForm({ ...form, passengers: Number(e.target.value) || 1 })}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">Tipo</span>
+                <select className={PRIME_INPUT_CLASS} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as Category["kind"] })}>
+                  {Object.entries(KIND_LABEL).map(([k, l]) => (
+                    <option key={k} value={k}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium">Descrição (o cliente vê no pedido e no orçamento)</span>
+              <textarea className={PRIME_INPUT_CLASS} rows={3} value={form.description ?? ""} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={Boolean(form.allows_km)} onChange={(e) => setForm({ ...form, allows_km: e.target.checked })} />
+              Pode ser cobrada por km (bandeira 1 e 2)
+            </label>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  void save({ name: form.name, passengers: form.passengers, kind: form.kind, description: form.description || null, allows_km: Boolean(form.allows_km) }).then(() =>
+                    setEditing(false)
+                  )
+                }
+                className="btn-primary disabled:opacity-50"
+              >
+                Salvar
+              </button>
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => {
+                  setForm(c);
+                  setEditing(false);
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </li>
   );
@@ -160,20 +202,17 @@ export function VehicleCategoriesEditor() {
   }
 
   return (
-    <section className="card space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Categorias de veículos</h2>
-        <p className="text-sm text-prime-muted">
-          Clique no quadro da foto para enviar a imagem (PNG, JPG ou WEBP). Para definir preços, vá em Clientes → abrir a empresa → Veículos e
-          preços.
-        </p>
-      </div>
-      <ul className="grid gap-3 xl:grid-cols-2">
+    <section className="space-y-5">
+      <p className="text-[15px] text-prime-muted">
+        Toque na foto para trocar (PNG, JPG ou WEBP). Os preços de cada categoria ficam no cadastro de cada empresa, em <b>Veículos e preços</b>.
+      </p>
+      <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {items.map((c) => (
           <CategoryCard key={c.id} c={c} onChanged={() => void load()} />
         ))}
       </ul>
-      <div className="flex flex-wrap items-end gap-2 rounded-xl bg-prime-bg p-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-dashed border-prime-border bg-white p-5">
+        <p className="w-full text-[15px] font-semibold text-prime-text">Nova categoria</p>
         <input
           className={`${PRIME_INPUT_CLASS} max-w-xs`}
           placeholder="Nova categoria (ex.: Blindado)"

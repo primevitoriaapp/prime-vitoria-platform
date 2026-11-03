@@ -65,7 +65,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       q,
       activeOnly: !(includeInactive && canManage)
     });
-    return ok(canManage ? rows : rows.map(redactPassengerForColleague));
+    if (!canManage) return ok(rows.map(redactPassengerForColleague));
+    // Nível de acesso ao portal de quem tem login (gestor ou solicitante).
+    const pids = rows.map((r) => r.profile_id).filter((x): x is string => Boolean(x));
+    const { data: profs } = pids.length ? await db.from("profiles").select("id, client_access, active").in("id", pids) : { data: [] };
+    const acc = new Map((profs ?? []).map((p) => [p.id as string, p.active === false ? null : ((p.client_access as string) ?? "solicitante")]));
+    return ok(rows.map((r) => ({ ...r, portal_access: r.profile_id ? (acc.get(r.profile_id) ?? null) : null })));
   } catch (error) {
     return mapApiError(error);
   }

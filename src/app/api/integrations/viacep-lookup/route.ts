@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   try {
     const session = await getSessionContext();
     if (
+      session.role !== "motorista" &&
       !can(session, "client.read") &&
       !can(session, "driver.read") &&
       !can(session, "trip.request")

@@ -20,6 +20,8 @@ export type ClientPassengerRow = {
   can_request?: boolean;
   /** Categorias liberadas (null = todas da empresa). */
   allowed_category_ids?: string[] | null;
+  /** Só para quem administra: nível do login no portal. */
+  portal_access?: "gestor" | "solicitante" | null;
   created_at: string;
   updated_at: string;
 };

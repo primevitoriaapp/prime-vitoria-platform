@@ -5,6 +5,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { normalizePlate } from "@/lib/drivers/change-request-rules";
 import { pushToDriver } from "@/lib/push/web-push";
+import { PROFILE_FIELDS } from "@/lib/drivers/change-request-rules";
 
 const body = z.object({ action: z.enum(["approve", "reject"]), note: z.string().trim().max(300).optional() });
 
@@ -28,6 +29,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (error) return fail("APPLY_FAILED", error.message, 500);
       } else if (r.kind === "cnh") {
         const { error } = await db.from("drivers").update({ cnh_number: p.cnh_number, cnh_category: p.cnh_category, cnh_expires_at: p.cnh_expires_at, cnh_expiry: p.cnh_expires_at }).eq("id", driverId);
+        if (error) return fail("APPLY_FAILED", error.message, 500);
+      } else if (r.kind === "profile") {
+        const allowed = new Set(PROFILE_FIELDS.map((f) => f.key));
+        const patch = Object.fromEntries(Object.entries(p).filter(([k]) => allowed.has(k)));
+        if (patch.birth_date === "") patch.birth_date = null;
+        const { error } = await db.from("drivers").update(patch).eq("id", driverId);
+        if (error) return fail("APPLY_FAILED", error.message, 500);
+      } else if (r.kind === "photo") {
+        if (!r.file_path) return fail("APPLY_FAILED", "Pedido sem foto", 400);
+        const { data: blob, error: dl } = await db.storage.from("driver-docs").download(r.file_path as string);
+        if (dl || !blob) return fail("APPLY_FAILED", "Não consegui abrir a foto enviada", 500);
+        const ext = String(r.file_path).split(".").pop() || "jpg";
+        const dest = `${tenantId}/${driverId}/${crypto.randomUUID()}.${ext}`;
+        const up = await db.storage.from("driver-photos").upload(dest, Buffer.from(await blob.arrayBuffer()), { contentType: blob.type || "image/jpeg", upsert: true });
+        if (up.error) return fail("APPLY_FAILED", up.error.message, 500);
+        const { error } = await db.from("drivers").update({ photo_url: dest }).eq("id", driverId);
         if (error) return fail("APPLY_FAILED", error.message, 500);
       } else if (r.kind === "vehicle") {
         const plate = normalizePlate(p.plate as string);
@@ -71,7 +88,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .update({ status: b.action === "approve" ? "aprovado" : "recusado", review_note: b.note || null, reviewed_by: session.userId, reviewed_at: new Date().toISOString() })
       .eq("id", id);
     if (error) return fail("SAVE_FAILED", error.message, 500);
-    const label = r.kind === "vehicle" ? "troca de veículo" : r.kind === "cnh" ? "CNH nova" : "chave PIX";
+    const label = r.kind === "vehicle" ? "troca de veículo" : r.kind === "cnh" ? "CNH nova" : r.kind === "profile" ? "atualização dos seus dados" : r.kind === "photo" ? "foto nova" : "chave PIX";
     await pushToDriver(tenantId, driverId, {
       title: b.action === "approve" ? `✅ ${label} aprovada` : `Pedido de ${label} recusado`,
       body: b.action === "approve" ? "Seu cadastro já foi atualizado." : b.note || "Fale com a central para saber o motivo.",

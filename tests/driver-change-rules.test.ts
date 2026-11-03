@@ -26,3 +26,13 @@ test("PIX", () => {
   assert.equal(parsePix({ pix_key: "27999998888" }).ok, true);
   assert.equal(parsePix({ pix_key: "x" }).ok, false);
 });
+
+import { parseProfile } from "../src/lib/drivers/change-request-rules.ts";
+
+test("dados pessoais: só o que mudou", () => {
+  const r = parseProfile({ full_name: "João Vitor Souza", city: "Vitória", state: "es", postal_code: "29050620" }, { full_name: "João Vitor Souza", city: "Serra" }, new Date("2026-11-03"));
+  assert.ok(r.ok);
+  if (r.ok) assert.deepEqual(r.value, { city: "Vitória", state: "ES", postal_code: "29050-620" });
+  assert.equal(parseProfile({ city: "Serra" }, { city: "Serra" }).ok, false);
+  assert.equal(parseProfile({ birth_date: "2015-01-01" }, {}, new Date("2026-11-03")).ok, false);
+});

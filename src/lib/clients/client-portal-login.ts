@@ -66,7 +66,12 @@ export async function grantPortalAccess(input: {
   tenantId: string;
   email: string;
   origin: string;
+  /** gestor = responsável: vê tudo da empresa e cadastra a equipe. Padrão: solicitante. */
+  access?: "gestor" | "solicitante";
+  /** Só mudar o nível de quem já tem login, sem mandar e-mail de senha. */
+  skipEmail?: boolean;
 }): Promise<{ email: string; invited: boolean }> {
+  const access = input.access === "gestor" ? "gestor" : "solicitante";
   const email = normalizePortalEmail(input.email);
   const passenger = await loadPassenger(input.passengerId, input.clientId, input.tenantId);
   const admin = db.auth.admin;
@@ -90,7 +95,7 @@ export async function grantPortalAccess(input: {
     }
     if (existing?.role === "cliente" && existing.client_id === input.clientId) {
       const { data: gestor } = await db.from("profiles").select("client_access").eq("id", userId).maybeSingle();
-      if (gestor?.client_access === "gestor") {
+      if (gestor?.client_access === "gestor" && access !== "gestor") {
         throw new PortalAccessError("EMAIL_IS_MANAGER", "Este e-mail já é o gestor da conta.", 409);
       }
     }
@@ -121,7 +126,7 @@ export async function grantPortalAccess(input: {
       name: passenger.name,
       role: "cliente",
       client_id: input.clientId,
-      client_access: "solicitante",
+      client_access: access,
       active: true
     },
     { onConflict: "id" }
@@ -134,7 +139,7 @@ export async function grantPortalAccess(input: {
     .eq("id", passenger.id);
   if (linkErr) throw new PortalAccessError("LINK_FAILED", linkErr.message, 500);
 
-  if (!invited) await sendPasswordLink(email, input.origin);
+  if (!invited && !input.skipEmail) await sendPasswordLink(email, input.origin);
 
   return { email, invited };
 }
@@ -147,8 +152,7 @@ export async function revokePortalAccess(input: { passengerId: string; clientId:
       .from("profiles")
       .update({ active: false })
       .eq("id", passenger.profile_id)
-      .eq("client_id", input.clientId)
-      .eq("client_access", "solicitante");
+      .eq("client_id", input.clientId);
   }
   await db
     .from("client_passengers")

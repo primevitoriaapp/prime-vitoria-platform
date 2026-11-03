@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { BoletoReader } from "@/components/boleto-reader";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { inCompany, useCompany, companyLabel } from "@/lib/company/company-context";
 import { PAYABLE_CATEGORIES, categoryLabel, payableSituation, type PayableSituation } from "@/lib/finance/company-payables-calc";
@@ -213,6 +214,7 @@ export function CompanyPayablesPanel() {
 
       {showForm ? (
         <div className="grid gap-3 rounded-2xl border-2 border-prime-gold/60 bg-white p-4 shadow-prime-card sm:grid-cols-2 lg:grid-cols-4">
+          <BoletoReader onFill={(f) => setForm((cur) => ({ ...cur, ...f, issuer: f.issuer ?? cur.issuer, due_date: f.due_date || cur.due_date }))} />
           <label className="grid gap-1 text-sm sm:col-span-2">
             <span>Descrição *</span>
             <input className={PRIME_INPUT_CLASS} placeholder="Ex.: Seguro do Corolla, Aluguel da sede" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />

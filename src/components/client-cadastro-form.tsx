@@ -1,14 +1,12 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
-import { ClientPricingServicesSection } from "@/components/client-pricing-services-section";
 import { ClientBillingTermsSection } from "@/components/client-billing-terms-section";
 import { ClientCategoryPricesSection } from "@/components/client-category-prices-section";
-import { ClientPassengersAdminSection } from "@/components/client-passengers-admin-section";
-import { ClientCostCentersAdminSection } from "@/components/client-cost-centers-admin-section";
+import { ClientTeamPortalSection } from "@/components/client-team-portal-section";
 import { ClientContractUploadSection } from "@/components/client-contract-upload-section";
-import { CLIENT_SERVICE_TYPE_OPTIONS, type ClientServiceTypeId } from "@/lib/clients/client-service-types";
+import type { ClientServiceTypeId } from "@/lib/clients/client-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
@@ -111,22 +109,50 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function toggleServiceType(id: ClientServiceTypeId) {
-    setForm((f) => {
-      const has = f.service_types.includes(id);
-      return {
-        ...f,
-        service_types: has ? f.service_types.filter((s) => s !== id) : [...f.service_types, id]
-      };
-    });
+  const lastCnpj = useRef("");
+  const lastCep = useRef("");
+  const [cepBusy, setCepBusy] = useState(false);
+
+  /** CNPJ completo e válido: consulta sozinho na Receita (Brasil API). */
+  function onDocumentChange(value: string) {
+    set("document", value);
+    const d = value.replace(/\D/g, "");
+    if (form.type === "PJ" && d.length === 14 && isValidCnpj(d) && lastCnpj.current !== d) {
+      lastCnpj.current = d;
+      void lookupCnpj(d);
+    }
   }
 
-  async function lookupCnpj() {
+  /** CEP com 8 números: preenche rua, cidade e UF. */
+  async function onCepChange(value: string) {
+    set("postal_code", value);
+    const d = value.replace(/\D/g, "");
+    if (d.length !== 8 || lastCep.current === d) return;
+    lastCep.current = d;
+    setCepBusy(true);
+    try {
+      const res = await fetchWithSupabaseSession(`/api/integrations/viacep-lookup?cep=${d}`, {}, "admin");
+      const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { logradouro?: string; bairro?: string; localidade?: string; uf?: string } };
+      const v = json.data;
+      if (res.ok && json.success && v) {
+        setForm((f) => ({
+          ...f,
+          address_line: [v.logradouro, v.bairro].filter(Boolean).join(", ") ? `${[v.logradouro, v.bairro].filter(Boolean).join(", ")}, ` : f.address_line,
+          city: v.localidade || f.city,
+          state: (v.uf || f.state).toUpperCase()
+        }));
+      }
+    } finally {
+      setCepBusy(false);
+    }
+  }
+
+  async function lookupCnpj(auto?: string) {
     if (form.type !== "PJ") {
       setFeedback({ kind: "info", message: "Consulta CNPJ disponível apenas para PJ." });
       return;
     }
-    const digits = form.document.replace(/\D/g, "");
+    const digits = (auto ?? form.document).replace(/\D/g, "");
     if (digits.length !== 14) {
       setFeedback({ kind: "error", message: "Informe um CNPJ com 14 dígitos." });
       return;
@@ -166,6 +192,8 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
           registry_status?: string | null;
           main_activity?: string | null;
           cnpj?: string;
+          phone?: string | null;
+          email?: string | null;
         };
       if (!d?.legal_name && !d?.trade_name) {
         setFeedback({
@@ -185,6 +213,8 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         state: d.state ?? f.state,
         postal_code: d.postal_code ?? f.postal_code,
         registry_status: d.registry_status ?? f.registry_status,
+        phone: f.phone || d.phone || "",
+        email: f.email || d.email || "",
         notes: d.main_activity ? `CNAE: ${d.main_activity}` : f.notes
       }));
       setFeedback({
@@ -237,8 +267,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         notes: form.notes.trim() || null,
         registry_status: form.registry_status.trim() || null,
         active: form.active,
-        portal_requests_enabled: form.portal_requests_enabled,
-        ...(form.type === "PJ" ? { service_types: form.service_types } : {})
+        portal_requests_enabled: form.portal_requests_enabled
       };
       const url = clientId ? `/api/clients/${clientId}` : "/api/clients";
       const res = await fetchWithSupabaseSession(
@@ -306,16 +335,17 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
               <input
                 className={inputClass}
                 value={form.document}
-                onChange={(e) => set("document", e.target.value)}
-                placeholder="00.000.000/0000-00"
+                inputMode="numeric"
+                onChange={(e) => onDocumentChange(e.target.value)}
+                placeholder="Digite o CNPJ: os dados vêm sozinhos"
               />
               <button
                 type="button"
                 disabled={lookupBusy}
                 onClick={() => void lookupCnpj()}
-                className="shrink-0 rounded-lg border border-amber-700 px-3 py-2 text-sm text-amber-900 hover:bg-amber-50 disabled:opacity-50"
+                className="btn-outline shrink-0 disabled:opacity-50"
               >
-                {lookupBusy ? "…" : "Consultar"}
+                {lookupBusy ? "Buscando…" : "Buscar"}
               </button>
             </div>
           ) : (
@@ -337,23 +367,6 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
             <input className={inputClass} value={form.trade_name} onChange={(e) => set("trade_name", e.target.value)} />
           </label>
         ) : null}
-        {form.type === "PJ" ? (
-          <fieldset className="grid gap-2 md:col-span-2">
-            <legend className="text-sm font-medium text-slate-800">Tipos de serviço utilizados</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {CLIENT_SERVICE_TYPE_OPTIONS.map((opt) => (
-                <label key={opt.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.service_types.includes(opt.id)}
-                    onChange={() => toggleServiceType(opt.id)}
-                  />
-                  <span>{opt.label}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        ) : null}
         <label className="grid gap-1 text-sm">
           <span>E-mail</span>
           <input
@@ -374,8 +387,8 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
           <input className={inputClass} value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} />
         </label>
         <label className="grid gap-1 text-sm">
-          <span>CEP</span>
-          <input className={inputClass} value={form.postal_code} onChange={(e) => set("postal_code", e.target.value)} />
+          <span>CEP {cepBusy ? <span className="text-xs text-prime-muted">buscando endereço…</span> : null}</span>
+          <input className={inputClass} inputMode="numeric" placeholder="Digite o CEP: a rua vem sozinha" value={form.postal_code} onChange={(e) => void onCepChange(e.target.value)} />
         </label>
         <label className="grid gap-1 text-sm md:col-span-2">
           <span>Endereço</span>
@@ -442,17 +455,11 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         {clientId && form.type === "PJ" ? (
           <>
             <ClientCategoryPricesSection clientId={clientId} disabled={busy} />
-            <details className="card md:col-span-2">
-              <summary className="cursor-pointer text-sm font-medium text-prime-muted">
-                Tabela antiga de serviços (vale só enquanto a tabela de veículos acima não estiver ligada)
-              </summary>
-              <div className="mt-3">
-                <ClientPricingServicesSection clientId={clientId} disabled={busy} />
-              </div>
-            </details>
             <ClientBillingTermsSection clientId={clientId} disabled={busy} />
-            <ClientPassengersAdminSection clientId={clientId} disabled={busy} />
-            <ClientCostCentersAdminSection clientId={clientId} disabled={busy} />
+            {/* Mesma tela de Equipe do portal: importar planilha, permissões, gestor e acesso ao portal. */}
+            <div className="md:col-span-2" onSubmit={(e) => e.stopPropagation()}>
+              <ClientTeamPortalSection clientId={clientId} canManage devFallbackRole="admin" />
+            </div>
             <ClientContractUploadSection clientId={clientId} disabled={busy} />
           </>
         ) : null}
@@ -460,9 +467,9 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
           <button
             type="submit"
             disabled={busy}
-            className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="btn-primary disabled:opacity-50"
           >
-            {busy ? "Salvando…" : clientId ? "Atualizar cliente" : "Cadastrar cliente"}
+            {busy ? "Salvando…" : clientId ? "Salvar alterações" : "Cadastrar cliente"}
           </button>
           {onCancel ? (
             <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">

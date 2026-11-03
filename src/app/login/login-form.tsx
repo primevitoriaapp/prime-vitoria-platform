@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { LoginStagingAccounts } from "@/components/login-staging-accounts";
 import { PrimeLogoMark } from "@/components/prime-logo-mark";
+import { InstallAppCard } from "@/components/install-app-card";
 import { isStagingSmokeHintsEnabled } from "@/lib/staging/smoke-hints";
 import { loginAction, type LoginState } from "./actions";
 
@@ -16,18 +17,24 @@ export function LoginForm({ defaultNext, switchAccount }: { defaultNext?: string
   const [state, formAction, pending] = useActionState(loginAction, initial);
   const [showPassword, setShowPassword] = useState(false);
   const staging = isStagingSmokeHintsEnabled();
+  // Quem vem do portal da empresa vê a tela da empresa; o resto vê a da central.
+  const empresa = (defaultNext ?? "").startsWith("/client");
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-[#111] px-5 py-10 sm:justify-center">
       <div className="mb-6 flex flex-col items-center text-center">
         <PrimeLogoMark size={72} />
         <p className="mt-3 text-lg font-semibold tracking-tight text-[#fff]">Prime Vitória</p>
-        <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-prime-gold">Transporte executivo</p>
+        <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-prime-gold">{empresa ? "Portal da empresa" : "Central Prime"}</p>
       </div>
 
       <section className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-        <h1 className="font-prime-display text-2xl text-prime-text">Entrar</h1>
-        <p className="mt-1 text-sm text-prime-muted">Use o e-mail e a senha da sua conta.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-prime-text">{empresa ? "Agende suas viagens" : "Entrar na central"}</h1>
+        <p className="mt-1 text-sm text-prime-muted">
+          {empresa
+            ? "Peça corridas, acompanhe o motorista em tempo real e veja o histórico da sua empresa. Entre com o seu e-mail e senha."
+            : "Use o e-mail e a senha da sua conta da Prime."}
+        </p>
         {switchAccount ? (
           <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             O painel da Prime é só para a equipe da central. Entre com a conta da Prime (ex.: contato@primevitoria.com).
@@ -104,9 +111,15 @@ export function LoginForm({ defaultNext, switchAccount }: { defaultNext?: string
         </p>
       </section>
 
+      {empresa ? (
+        <div className="mt-5 w-full max-w-sm">
+          <InstallAppCard appName="o portal da empresa" dismissible={false} />
+        </div>
+      ) : null}
+
       <p className="mt-6 text-sm text-white/60">
         É motorista?{" "}
-        <Link href="/driver/login" className="text-prime-gold-ink hover:underline">
+        <Link href="/driver/login" className="text-prime-gold hover:underline">
           Entrar com CPF e PIN
         </Link>
       </p>

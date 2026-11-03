@@ -1,6 +1,6 @@
 /** Regras puras dos pedidos de alteração do motorista (veículo, CNH, PIX). */
 
-export type ChangeKind = "vehicle" | "cnh" | "pix";
+export type ChangeKind = "vehicle" | "cnh" | "pix" | "profile" | "photo";
 
 export type VehiclePayload = { brand: string; model: string; plate: string; color: string | null; model_year: number | null; vehicle_category_id: string | null };
 export type CnhPayload = { cnh_number: string; cnh_category: string; cnh_expires_at: string };
@@ -62,4 +62,58 @@ export function parsePix(input: Record<string, unknown>): { ok: true; value: Pix
   return { ok: true, value: { pix_key: key } };
 }
 
-export const KIND_LABEL: Record<ChangeKind, string> = { vehicle: "Troca de veículo", cnh: "CNH nova", pix: "Nova chave PIX" };
+export const KIND_LABEL: Record<ChangeKind, string> = {
+  vehicle: "Troca de veículo",
+  cnh: "CNH nova",
+  pix: "Nova chave PIX",
+  profile: "Dados pessoais",
+  photo: "Foto nova"
+};
+
+/** Campos que o motorista pode completar ou corrigir pelo app (vão para a central aprovar). */
+export const PROFILE_FIELDS: { key: string; label: string; max: number; kind?: "date" | "uf" | "email" | "cep" }[] = [
+  { key: "full_name", label: "Nome completo", max: 120 },
+  { key: "birth_date", label: "Data de nascimento", max: 10, kind: "date" },
+  { key: "phone", label: "Telefone", max: 30 },
+  { key: "whatsapp", label: "WhatsApp", max: 30 },
+  { key: "email", label: "E-mail", max: 120, kind: "email" },
+  { key: "postal_code", label: "CEP", max: 9, kind: "cep" },
+  { key: "address_line", label: "Rua", max: 160 },
+  { key: "number", label: "Número", max: 20 },
+  { key: "complement", label: "Complemento", max: 60 },
+  { key: "district", label: "Bairro", max: 80 },
+  { key: "city", label: "Cidade", max: 80 },
+  { key: "state", label: "UF", max: 2, kind: "uf" },
+  { key: "bank_name", label: "Banco", max: 60 },
+  { key: "bank_agency", label: "Agência", max: 20 },
+  { key: "bank_account", label: "Conta", max: 30 },
+  { key: "bank_account_type", label: "Tipo de conta", max: 20 }
+];
+
+export type ProfilePayload = Record<string, string | null>;
+
+/** Só vão no pedido os campos que mudaram em relação ao cadastro atual. */
+export function parseProfile(
+  input: Record<string, unknown>,
+  current: Record<string, unknown> = {},
+  today = new Date()
+): { ok: true; value: ProfilePayload } | { ok: false; error: string } {
+  const out: ProfilePayload = {};
+  for (const f of PROFILE_FIELDS) {
+    if (!(f.key in input)) continue;
+    let v = String(input[f.key] ?? "").trim().slice(0, f.max);
+    if (f.kind === "uf") v = v.toUpperCase().replace(/[^A-Z]/g, "");
+    if (f.kind === "cep") v = v.replace(/\D/g, "").replace(/^(\d{5})(\d{3})$/, "$1-$2");
+    if (f.kind === "email" && v && !/^\S+@\S+\.\S+$/.test(v)) return { ok: false, error: "E-mail inválido." };
+    if (f.kind === "date" && v) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return { ok: false, error: "Data de nascimento inválida." };
+      const age = (today.getTime() - Date.parse(`${v}T12:00:00Z`)) / (365.25 * 86400000);
+      if (age < 18 || age > 90) return { ok: false, error: "Confira a data de nascimento." };
+    }
+    if (f.key === "full_name" && v.length < 5) return { ok: false, error: "Informe o nome completo." };
+    const now = String(current[f.key] ?? "").trim();
+    if (v !== now) out[f.key] = v || null;
+  }
+  if (!Object.keys(out).length) return { ok: false, error: "Nada mudou no cadastro." };
+  return { ok: true, value: out };
+}

@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { PROFILE_FIELDS } from "@/lib/drivers/change-request-rules";
 
-type Kind = "vehicle" | "cnh" | "pix";
+type Kind = "vehicle" | "cnh" | "pix" | "profile" | "photo";
 type Data = {
   cnh: { number: string | null; category: string | null; expires_at: string | null };
   pix_key: string | null;
+  profile: Record<string, string | null>;
+  photo_url: string | null;
   funcionario: boolean;
   vehicle: { brand: string | null; model: string; plate: string; color: string | null; model_year: number | null; vehicle_category_id: string | null; category_name: string | null } | null;
   categories: { id: string; name: string }[];
@@ -54,6 +57,8 @@ export function DriverAccountEditor() {
   const pending = (k: Kind) => d.requests.find((r) => r.kind === k && r.status === "pendente");
   const lastDecided = (k: Kind) => d.requests.find((r) => r.kind === k && r.status !== "pendente");
   const cnhDays = daysTo(d.cnh.expires_at);
+  const filled = PROFILE_FIELDS.filter((f) => (d.profile?.[f.key] ?? "").toString().trim()).length;
+  const total = PROFILE_FIELDS.length;
 
   const Status = ({ k }: { k: Kind }) => {
     const p = pending(k);
@@ -67,7 +72,7 @@ export function DriverAccountEditor() {
     <div className="flex items-center justify-between">
       <h3 className="text-base font-semibold">{title}</h3>
       {open !== k ? (
-        <button type="button" className="text-sm font-semibold text-prime-gold" onClick={() => setOpen(k)}>
+        <button type="button" className="text-sm font-semibold text-prime-gold-ink" onClick={() => setOpen(k)}>
           {action}
         </button>
       ) : null}
@@ -87,6 +92,43 @@ export function DriverAccountEditor() {
   return (
     <div className="space-y-4">
       {msg ? <p className={`rounded-2xl px-4 py-3 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>{msg.text}</p> : null}
+
+      {/* Foto */}
+      <section className={card}>
+        <Head title="Minha foto" k="photo" action="Trocar foto" />
+        <div className="mt-3 flex items-center gap-4">
+          {d.photo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={d.photo_url} alt="" className="h-16 w-16 rounded-full border-2 border-prime-gold object-cover" />
+          ) : (
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#F6EEDC] text-2xl">🙂</span>
+          )}
+          <p className="text-sm text-[#555]">É a foto que o passageiro vê no link de acompanhamento. Use uma foto de rosto, de frente e com boa luz.</p>
+        </div>
+        <Status k="photo" />
+        {open === "photo" ? (
+          <form className="mt-4 grid gap-3" onSubmit={(e) => void submit("photo", e)}>
+            <input name="file" type="file" accept="image/*" capture="user" required className="block w-full text-sm" />
+            <Buttons />
+          </form>
+        ) : null}
+      </section>
+
+      {/* Dados pessoais */}
+      <section className={card}>
+        <Head title="Meus dados" k="profile" action={filled < total ? "Completar" : "Editar"} />
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#555]">Cadastro {filled === total ? "completo" : `${filled} de ${total} preenchidos`}</span>
+            <span className="font-semibold">{Math.round((filled / total) * 100)}%</span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#F1EFEA]">
+            <div className={`h-full rounded-full ${filled === total ? "bg-emerald-500" : "bg-prime-gold"}`} style={{ width: `${(filled / total) * 100}%` }} />
+          </div>
+        </div>
+        <Status k="profile" />
+        {open === "profile" ? <ProfileForm d={d} busy={busy} onSubmit={(e) => void submit("profile", e)} onCancel={() => setOpen(null)} /> : null}
+      </section>
 
       {/* Veículo */}
       <section className={card}>
@@ -205,5 +247,84 @@ export function DriverAccountEditor() {
         </section>
       ) : null}
     </div>
+  );
+}
+
+
+/** Formulário com todos os dados da ficha; CEP preenche a rua sozinho. */
+function ProfileForm({ d, busy, onSubmit, onCancel }: { d: Data; busy: boolean; onSubmit: (e: React.FormEvent<HTMLFormElement>) => void; onCancel: () => void }) {
+  const ref = useRef<HTMLFormElement | null>(null);
+  const [cepMsg, setCepMsg] = useState<string | null>(null);
+  const v = (k: string) => d.profile?.[k] ?? "";
+  const groups: { title: string; keys: string[] }[] = [
+    { title: "Pessoal", keys: ["full_name", "birth_date", "phone", "whatsapp", "email"] },
+    { title: "Endereço", keys: ["postal_code", "address_line", "number", "complement", "district", "city", "state"] },
+    { title: "Conta bancária", keys: ["bank_name", "bank_agency", "bank_account", "bank_account_type"] }
+  ];
+
+  async function cep(value: string) {
+    const digits = value.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    setCepMsg("Buscando endereço…");
+    const j = await fetch(`/api/integrations/viacep-lookup?cep=${digits}`, { credentials: "include" }).then((r) => r.json()).catch(() => null);
+    const a = j?.data as { logradouro?: string; bairro?: string; localidade?: string; uf?: string } | undefined;
+    if (!a || !ref.current) return setCepMsg(null);
+    const set = (name: string, val?: string) => {
+      const el = ref.current?.elements.namedItem(name) as HTMLInputElement | null;
+      if (el && val) el.value = val;
+    };
+    set("address_line", a.logradouro);
+    set("district", a.bairro);
+    set("city", a.localidade);
+    set("state", a.uf);
+    setCepMsg("Endereço preenchido. Confira e coloque o número.");
+  }
+
+  return (
+    <form ref={ref} className="mt-4 grid gap-5" onSubmit={onSubmit}>
+      {groups.map((g) => (
+        <fieldset key={g.title} className="grid gap-3">
+          <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6B6F76]">{g.title}</legend>
+          {g.keys.map((k) => {
+            const f = PROFILE_FIELDS.find((x) => x.key === k)!;
+            const empty = !String(v(k)).trim();
+            return (
+              <label key={k} className="text-sm text-[#555]">
+                {f.label}
+                {empty ? <span className="ml-1 text-xs font-semibold text-[#8A5A00]">· falta</span> : null}
+                {k === "bank_account_type" ? (
+                  <select name={k} defaultValue={v(k)} className={field}>
+                    <option value="">Escolha</option>
+                    <option value="corrente">Corrente</option>
+                    <option value="poupanca">Poupança</option>
+                    {v(k) && !["corrente", "poupanca"].includes(String(v(k))) ? <option value={String(v(k))}>{String(v(k))}</option> : null}
+                  </select>
+                ) : (
+                  <input
+                    name={k}
+                    defaultValue={v(k)}
+                    type={f.kind === "date" ? "date" : f.kind === "email" ? "email" : "text"}
+                    inputMode={f.kind === "cep" || k === "number" || k === "bank_agency" || k === "bank_account" ? "numeric" : k === "phone" || k === "whatsapp" ? "tel" : undefined}
+                    maxLength={f.max}
+                    className={`${field} ${f.kind === "uf" ? "uppercase" : ""}`}
+                    onChange={f.kind === "cep" ? (e) => void cep(e.target.value) : undefined}
+                  />
+                )}
+                {f.kind === "cep" && cepMsg ? <span className="mt-1 block text-xs text-[#6B6F76]">{cepMsg}</span> : null}
+              </label>
+            );
+          })}
+        </fieldset>
+      ))}
+      <p className="text-xs text-[#6B6F76]">A central confere e aprova. Você recebe um aviso quando o cadastro for atualizado.</p>
+      <div className="flex gap-2">
+        <button type="button" className="flex-1 rounded-xl border border-[#DDD5C2] px-3 py-3 text-sm" onClick={onCancel}>
+          Cancelar
+        </button>
+        <button type="submit" disabled={busy} className="flex-[2] rounded-xl bg-[#111] px-3 py-3 text-sm font-semibold text-prime-gold disabled:opacity-50">
+          {busy ? "Enviando…" : "Enviar para a central"}
+        </button>
+      </div>
+    </form>
   );
 }

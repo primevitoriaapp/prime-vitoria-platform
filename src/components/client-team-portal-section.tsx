@@ -26,6 +26,8 @@ type PassengerForm = {
   cpf: string;
   email: string;
   giveAccess: boolean;
+  /** Responsável da empresa: vê tudo e cadastra a equipe. */
+  gestor: boolean;
   can_request: boolean;
   /** null = todas as categorias da empresa. */
   allowed: string[] | null;
@@ -56,6 +58,7 @@ const emptyPassenger = (): PassengerForm => ({
   cpf: "",
   email: "",
   giveAccess: true,
+  gestor: false,
   can_request: true,
   allowed: null
 });
@@ -173,6 +176,7 @@ export function ClientTeamPortalSection({
       cpf: row.cpf ? formatCpf(row.cpf) : "",
       email: row.email ?? "",
       giveAccess: !row.profile_id,
+      gestor: row.portal_access === "gestor",
       can_request: row.can_request !== false,
       allowed: row.allowed_category_ids?.length ? row.allowed_category_ids : null
     });
@@ -217,8 +221,13 @@ export function ClientTeamPortalSection({
       return;
     }
     const savedRow = json.data;
-    if (pForm.giveAccess && pForm.can_request && pForm.email.trim() && savedRow && !savedRow.profile_id) {
-      const sent = await grantAccess(savedRow.id, pForm.email.trim());
+    const before = editingId ? passengers.find((x) => x.id === editingId) : null;
+    if (savedRow?.profile_id && before && (before.portal_access === "gestor") !== pForm.gestor && savedRow.email) {
+      // Só mudou o nível (gestor/solicitante) de quem já entra no portal.
+      await grantAccess(savedRow.id, savedRow.email, pForm.gestor ? "gestor" : "solicitante", true);
+      setMessage(pForm.gestor ? `${savedRow.name} agora é gestor da empresa.` : `${savedRow.name} agora é solicitante.`);
+    } else if (pForm.giveAccess && (pForm.can_request || pForm.gestor) && pForm.email.trim() && savedRow && !savedRow.profile_id) {
+      const sent = await grantAccess(savedRow.id, pForm.email.trim(), pForm.gestor ? "gestor" : "solicitante");
       setMessage(
         sent
           ? `${savedRow.name} cadastrado. Enviamos um convite para ${pForm.email.trim()} criar a senha.`
@@ -232,10 +241,10 @@ export function ClientTeamPortalSection({
     void loadPassengers();
   }
 
-  async function grantAccess(passengerId: string, email: string): Promise<boolean> {
+  async function grantAccess(passengerId: string, email: string, access: "gestor" | "solicitante" = "solicitante", skipEmail = false): Promise<boolean> {
     const res = await fetchWithSupabaseSession(
       `/api/clients/${clientId}/portal-access`,
-      { method: "POST", body: JSON.stringify({ passenger_id: passengerId, email }) },
+      { method: "POST", body: JSON.stringify({ passenger_id: passengerId, email, access, skip_email: skipEmail }) },
       devFallbackRole
     );
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
@@ -408,6 +417,23 @@ export function ClientTeamPortalSection({
                   </span>
                 </span>
               </label>
+              {pForm.giveAccess || editingId ? (
+                <label className="flex items-start gap-2 rounded-lg border border-prime-gold/50 bg-[#FBF7EC] p-3 text-sm sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={pForm.gestor}
+                    onChange={(e) => setPForm((f) => ({ ...f, gestor: e.target.checked, can_request: e.target.checked ? true : f.can_request }))}
+                    disabled={busy}
+                  />
+                  <span>
+                    <span className="font-medium">É o responsável da empresa (gestor)</span>
+                    <span className="block text-xs text-prime-muted">
+                      Vê todas as corridas e faturas da empresa e cadastra os outros funcionários. Os demais só pedem e veem as próprias corridas.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
               <label className="grid gap-1 text-sm">
                 <span>Telefone</span>
                 <input
@@ -566,7 +592,7 @@ export function ClientTeamPortalSection({
                       {canManage ? (
                         p.profile_id ? (
                           <p className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
-                            Acessa o portal · {p.email}
+                            {p.portal_access === "gestor" ? "Gestor da empresa" : "Acessa o portal"} · {p.email}
                           </p>
                         ) : (
                           <p className="mt-1 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-prime-muted">

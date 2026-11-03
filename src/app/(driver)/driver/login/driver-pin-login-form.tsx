@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { PrimeLogoMark } from "@/components/prime-logo-mark";
+import { InstallAppCard } from "@/components/install-app-card";
 import { driverPinLoginAction, type DriverPinLoginState } from "./actions";
 
 const initial: DriverPinLoginState = {};
@@ -30,11 +31,11 @@ export function DriverPinLoginForm({ defaultNext }: { defaultNext?: string }) {
         <p className="mt-3 text-lg font-semibold tracking-tight" style={{ color: "#fff" }}>
           Prime Vitória
         </p>
-        <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-prime-gold">Transporte executivo</p>
+        <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-prime-gold">App do motorista</p>
       </div>
 
       <section className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-        <h1 className="font-prime-display text-2xl text-prime-text">Seja bem-vindo, motorista</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-prime-text">Bem-vindo, motorista</h1>
         <p className="mt-1 text-sm text-prime-muted">Entre com seu CPF e o PIN de 4 dígitos que a central passou para você.</p>
 
         <form action={formAction} className="mt-6 grid gap-4">
@@ -105,9 +106,13 @@ export function DriverPinLoginForm({ defaultNext }: { defaultNext?: string }) {
         </p>
       </section>
 
+      <div className="mt-5 w-full max-w-sm">
+        <InstallAppCard appName="o app do motorista" dismissible={false} />
+      </div>
+
       <p className="mt-6 text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>
         É da central?{" "}
-        <Link href="/login" className="text-prime-gold-ink hover:underline">
+        <Link href="/login" className="text-prime-gold hover:underline">
           Entrar com e-mail
         </Link>
       </p>

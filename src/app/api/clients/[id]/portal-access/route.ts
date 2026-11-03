@@ -7,7 +7,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 
-const grantSchema = z.object({ passenger_id: z.string().uuid(), email: z.string().min(3).max(254) });
+const grantSchema = z.object({ passenger_id: z.string().uuid(), email: z.string().min(3).max(254), access: z.enum(["gestor", "solicitante"]).optional(), skip_email: z.boolean().optional() });
 const revokeSchema = z.object({ passenger_id: z.string().uuid() });
 
 function requestOrigin(request: Request): string {
@@ -48,6 +48,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       clientId: id,
       tenantId: g.tenantId,
       email: body.email,
+      access: body.access,
+      skipEmail: body.skip_email,
       origin: requestOrigin(request)
     });
     return ok(result);

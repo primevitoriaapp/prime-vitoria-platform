@@ -13,6 +13,8 @@ export type CnpjLookupResult = {
   postal_code: string | null;
   registry_status: string | null;
   main_activity: string | null;
+  phone?: string | null;
+  email?: string | null;
 };
 
 export type CnpjLookupError = {
@@ -70,7 +72,16 @@ type BrasilApiCnpjPayload = {
   municipio?: string;
   uf?: string;
   cep?: string | number;
+  ddd_telefone_1?: string;
+  email?: string | null;
 };
+
+function formatPhone(raw?: string): string | null {
+  const d = (raw ?? "").replace(/\D/g, "");
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  return null;
+}
 
 export function mapBrasilApiCnpjPayload(data: BrasilApiCnpjPayload, digits: string): CnpjLookupResult {
   const parts = [data.logradouro, data.numero, data.complemento, data.bairro].filter(Boolean);
@@ -85,7 +96,9 @@ export function mapBrasilApiCnpjPayload(data: BrasilApiCnpjPayload, digits: stri
     state: data.uf?.trim()?.toUpperCase() || null,
     postal_code: cepRaw.replace(/\D/g, "") || null,
     registry_status: data.descricao_situacao_cadastral?.trim() || null,
-    main_activity: data.cnae_fiscal_descricao?.trim() || null
+    main_activity: data.cnae_fiscal_descricao?.trim() || null,
+    phone: formatPhone(data.ddd_telefone_1),
+    email: data.email?.trim().toLowerCase() || null
   };
 }
 

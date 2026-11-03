@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { KIND_LABEL as LABEL, PROFILE_FIELDS } from "@/lib/drivers/change-request-rules";
 
 type Req = {
   id: string;
-  kind: "vehicle" | "cnh" | "pix";
+  kind: "vehicle" | "cnh" | "pix" | "profile" | "photo";
   payload: Record<string, string | number | null>;
   created_at: string;
   file_url: string | null;
@@ -12,7 +13,6 @@ type Req = {
   driver: { full_name: string | null; cnh_number: string | null; cnh_category: string | null; cnh_expires_at: string | null; pix_key: string | null } | null;
 };
 
-const LABEL = { vehicle: "Troca de veículo", cnh: "CNH nova", pix: "Nova chave PIX" } as const;
 const br = (ymd: unknown) => (ymd ? String(ymd).slice(0, 10).split("-").reverse().join("/") : "—");
 
 /** Pedidos que os motoristas mandaram pelo app (veículo, CNH, PIX) para a central aprovar. */
@@ -79,6 +79,27 @@ export function DriverRequestsPanel() {
                       <span className="text-prime-muted">Categoria:</span> {r.category_name ?? "—"}
                     </p>
                   </>
+                ) : r.kind === "photo" ? (
+                  <div className="col-span-2">
+                    {r.file_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={r.file_url} alt="Foto nova" className="h-32 w-32 rounded-full border-2 border-prime-gold object-cover" />
+                    ) : (
+                      <p className="text-prime-muted">Foto enviada.</p>
+                    )}
+                  </div>
+                ) : r.kind === "profile" ? (
+                  <div className="col-span-2 grid gap-1">
+                    {PROFILE_FIELDS.filter((f) => f.key in p).map((f) => {
+                      const before = (r.driver as Record<string, unknown> | null)?.[f.key];
+                      return (
+                        <p key={f.key}>
+                          <span className="text-prime-muted">{f.label}:</span> <b>{String(p[f.key] ?? "—")}</b>
+                          {before ? <span className="text-prime-muted"> (antes: {String(before)})</span> : <span className="text-prime-muted"> (estava vazio)</span>}
+                        </p>
+                      );
+                    })}
+                  </div>
                 ) : r.kind === "cnh" ? (
                   <>
                     <p>

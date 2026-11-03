@@ -4,7 +4,8 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { resolveDefaultVehicleForDriver } from "@/lib/vehicles/driver-default-vehicle";
-import { KIND_LABEL, parseCnh, parsePix, parseVehicle, type ChangeKind } from "@/lib/drivers/change-request-rules";
+import { KIND_LABEL, PROFILE_FIELDS, parseCnh, parsePix, parseProfile, parseVehicle, type ChangeKind } from "@/lib/drivers/change-request-rules";
+import { resolveDriverPhotoDisplayUrl } from "@/lib/storage/driver-photo-upload";
 import { pushToStaff } from "@/lib/push/web-push";
 
 const BUCKET = "driver-docs";
@@ -22,7 +23,7 @@ export async function GET() {
     const s = await driverSession();
     if (!s) return fail("FORBIDDEN", "Apenas motoristas", 403);
     const [{ data: d }, vehicle, { data: reqs }, { data: cats }] = await Promise.all([
-      db.from("drivers").select("cnh_number, cnh_category, cnh_expires_at, cnh_expiry, pix_key, employment_type").eq("id", s.driverId).maybeSingle(),
+      db.from("drivers").select(`cnh_number, cnh_category, cnh_expires_at, cnh_expiry, pix_key, employment_type, photo_url, ${PROFILE_FIELDS.map((f) => f.key).join(", ")}`).eq("id", s.driverId).maybeSingle(),
       resolveDefaultVehicleForDriver(s.driverId),
       db.from("driver_change_requests").select("id, kind, payload, status, review_note, created_at, reviewed_at").eq("driver_id", s.driverId).order("created_at", { ascending: false }).limit(20),
       db.from("vehicle_categories").select("id, name").eq("tenant_id", s.tenantId).eq("active", true).order("sort")
@@ -37,6 +38,8 @@ export async function GET() {
     return ok({
       cnh: { number: d?.cnh_number ?? null, category: d?.cnh_category ?? null, expires_at: (d?.cnh_expires_at as string | null) ?? (d?.cnh_expiry as string | null) ?? null },
       pix_key: d?.pix_key ?? null,
+      profile: Object.fromEntries(PROFILE_FIELDS.map((f) => [f.key, ((d as Record<string, unknown> | null)?.[f.key] as string | null) ?? null])),
+      photo_url: await resolveDriverPhotoDisplayUrl((d as { photo_url?: string | null } | null)?.photo_url ?? null).catch(() => null),
       funcionario: d?.employment_type === "funcionario",
       vehicle: vehicleFull,
       categories: cats ?? [],
@@ -55,7 +58,23 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const kind = String(form.get("kind") ?? "") as ChangeKind;
     const input = Object.fromEntries([...form.entries()].filter(([, v]) => typeof v === "string")) as Record<string, string>;
-    const parsed = kind === "vehicle" ? parseVehicle(input) : kind === "cnh" ? parseCnh(input) : kind === "pix" ? parsePix(input) : { ok: false as const, error: "Tipo inválido" };
+    let current: Record<string, unknown> = {};
+    if (kind === "profile") {
+      const { data: cur } = await db.from("drivers").select(PROFILE_FIELDS.map((f) => f.key).join(", ")).eq("id", s.driverId).maybeSingle();
+      current = (cur as Record<string, unknown> | null) ?? {};
+    }
+    const parsed =
+      kind === "vehicle"
+        ? parseVehicle(input)
+        : kind === "cnh"
+          ? parseCnh(input)
+          : kind === "pix"
+            ? parsePix(input)
+            : kind === "profile"
+              ? parseProfile(input, current)
+              : kind === "photo"
+                ? { ok: true as const, value: {} }
+                : { ok: false as const, error: "Tipo inválido" };
     if (!parsed.ok) return fail("INVALID", parsed.error, 400);
 
     const file = form.get("file");
@@ -69,6 +88,7 @@ export async function POST(request: Request) {
     }
     if (kind === "cnh" && !path) return fail("FILE_REQUIRED", "Tire uma foto da CNH nova.", 400);
     if (kind === "vehicle" && !path) return fail("FILE_REQUIRED", "Tire uma foto do documento do carro (CRLV).", 400);
+    if (kind === "photo" && (!path || !(file instanceof File) || !file.type.startsWith("image/"))) return fail("FILE_REQUIRED", "Escolha uma foto sua (rosto, de frente).", 400);
 
     // Um pedido pendente por tipo: o novo substitui o anterior.
     await db.from("driver_change_requests").update({ status: "recusado", review_note: "Substituído por um pedido mais novo", reviewed_at: new Date().toISOString() }).eq("driver_id", s.driverId).eq("kind", kind).eq("status", "pendente");
