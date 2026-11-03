@@ -1,26 +1,22 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server";
+import { getSessionContext } from "@/lib/server/session";
+import { resolveEmailFrom, sendOperationalEmail } from "@/lib/notifications/send-email";
 
+/** Teste de envio (só administrador): manda um e-mail para as duas caixas da Prime. */
 export async function GET() {
-  const apiKey = process.env.RESEND_API_KEY
-  
-  if (!apiKey) {
-    return NextResponse.json({ error: "RESEND_API_KEY não configurada" }, { status: 503 })
-  }
-
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      from: "onboarding@resend.dev",
-      to: "contatoprimevix@gmail.com",
-      subject: "Teste Prime Vitória",
-      html: "<p>Email de teste funcionando!</p>"
-    })
-  })
-
-  const data = await res.json()
-  return NextResponse.json({ status: res.status, data, apiKeyLength: apiKey.length })
+  const s = await getSessionContext();
+  if (s.role !== "admin") return NextResponse.json({ error: "Só o administrador." }, { status: 403 });
+  const from = resolveEmailFrom();
+  const result = await sendOperationalEmail({
+    to: ["contato@primevitoria.com", "contatoprimevix@gmail.com"],
+    subject: "Teste Prime Vitória — e-mail pelo domínio próprio",
+    text: `Se você recebeu este e-mail, o envio pelo domínio primevitoria.com está funcionando.\nRemetente: ${from}`,
+    html: `<p>Se você recebeu este e-mail, o envio pelo domínio <b>primevitoria.com</b> está funcionando.</p><p style="color:#666">Remetente: ${from.replace(/</g, "&lt;")}</p>`
+  });
+  return NextResponse.json(
+    result.ok
+      ? { ok: true, mensagem: "Enviado. Confira contato@primevitoria.com e contatoprimevix@gmail.com (olhe também o spam).", from }
+      : { ok: false, motivo: result.reason, from },
+    { status: result.ok ? 200 : 502 }
+  );
 }

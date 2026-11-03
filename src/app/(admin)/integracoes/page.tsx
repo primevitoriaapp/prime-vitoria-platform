@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { CalendarFeedCard } from "@/components/calendar-feed-card";
+import { resolveEmailFrom } from "@/lib/notifications/send-email";
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { getSessionContext } from "@/lib/server/session";
 
@@ -26,7 +27,7 @@ const STATUS: Record<Status, { label: string; cls: string }> = {
 };
 
 function list(): { group: string; items: Integration[] }[] {
-  const emailFromOwnDomain = (process.env.OPERATIONAL_EMAIL_FROM ?? "").includes("primevitoria");
+  const emailFromOwnDomain = resolveEmailFrom().includes("primevitoria");
   return [
     {
       group: "Comunicação",

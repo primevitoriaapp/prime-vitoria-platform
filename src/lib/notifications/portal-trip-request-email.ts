@@ -1,7 +1,7 @@
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { shortPlaceLabel } from "@/lib/trips/format-place-label";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
-import { sendOperationalEmail, DEFAULT_OPERATIONAL_EMAIL_FROM } from "@/lib/notifications/send-email";
+import { sendOperationalEmail, resolveEmailFrom } from "@/lib/notifications/send-email";
 import { resolveAppBaseUrl } from "@/lib/server/app-base-url";
 
 /** Destinatário das notificações de solicitação do portal (operador). */
@@ -13,8 +13,7 @@ export const PORTAL_OPS_INBOX_RESEND_SANDBOX = "contatoprimevix@gmail.com";
 export function resolvePortalOpsInbox(): string {
   const override = process.env.PORTAL_OPS_INBOX?.trim();
   if (override) return override;
-  const from = process.env.OPERATIONAL_EMAIL_FROM?.trim();
-  if (from?.includes("@primevitoria.com")) {
+  if (resolveEmailFrom().includes("@primevitoria.com")) {
     return PORTAL_OPS_INBOX_PRODUCTION;
   }
   return PORTAL_OPS_INBOX_RESEND_SANDBOX;
@@ -73,7 +72,7 @@ export async function notifyPortalTripRequestedEmail(
   console.info("[portal.trip_request_email] preparando envio", {
     tripId: input.tripId,
     to: opsInbox,
-    from: DEFAULT_OPERATIONAL_EMAIL_FROM,
+    from: resolveEmailFrom(),
     resendApiKeyDefined: process.env.RESEND_API_KEY !== undefined,
     resendApiKeyLength: process.env.RESEND_API_KEY?.trim().length ?? 0
   });
@@ -83,7 +82,7 @@ export async function notifyPortalTripRequestedEmail(
     subject,
     text,
     html,
-    from: DEFAULT_OPERATIONAL_EMAIL_FROM
+    from: resolveEmailFrom()
   });
 
   console.info("[portal.trip_request_email] resultado", {

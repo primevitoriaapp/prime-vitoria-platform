@@ -1,7 +1,17 @@
 const RESEND_API = "https://api.resend.com/emails";
 
-/** Remetente padrão — domínio de teste Resend (sem verificação de domínio). */
-export const DEFAULT_OPERATIONAL_EMAIL_FROM = "onboarding@resend.dev";
+/** Remetente padrão — domínio primevitoria.com verificado no Resend (03/11/2026). */
+export const DEFAULT_OPERATIONAL_EMAIL_FROM = "Prime Vitória <operacao@primevitoria.com>";
+
+/** Respostas vão para a caixa real da Prime (operacao@ só envia). */
+export const DEFAULT_EMAIL_REPLY_TO = "contato@primevitoria.com";
+
+/** Remetente em uso: OPERATIONAL_EMAIL_FROM do Vercel, a não ser que ainda aponte para o endereço de teste. */
+export function resolveEmailFrom(): string {
+  const env = process.env.OPERATIONAL_EMAIL_FROM?.trim();
+  if (env && !env.includes("resend.dev")) return env;
+  return DEFAULT_OPERATIONAL_EMAIL_FROM;
+}
 
 export type SendEmailInput = {
   to: string | string[];
@@ -40,10 +50,7 @@ export async function sendOperationalEmail(input: SendEmailInput): Promise<SendE
     return { ok: false, reason: "RESEND_API_KEY nao configurado", skipped: true };
   }
 
-  const from =
-    input.from?.trim() ||
-    process.env.OPERATIONAL_EMAIL_FROM?.trim() ||
-    DEFAULT_OPERATIONAL_EMAIL_FROM;
+  const from = input.from?.trim() || resolveEmailFrom();
 
   const to = Array.isArray(input.to) ? input.to : [input.to];
 
@@ -67,7 +74,7 @@ export async function sendOperationalEmail(input: SendEmailInput): Promise<SendE
       subject: input.subject,
       text: input.text,
       html: input.html ?? undefined,
-      reply_to: input.replyTo ?? undefined,
+      reply_to: input.replyTo ?? DEFAULT_EMAIL_REPLY_TO,
       attachments: input.attachments?.length ? input.attachments : undefined
     })
   });
