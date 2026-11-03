@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DriverPwaRegister } from "@/components/driver-pwa-register";
+import { PwaRootRegister } from "@/components/pwa-root-register";
 import { AppSplash } from "@/components/app-splash";
 import { StandaloneAppRouter } from "@/components/standalone-app-router";
 
@@ -22,6 +23,7 @@ export const viewport: Viewport = {
 export default function DriverLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <PwaRootRegister />
       <DriverPwaRegister />
       <AppSplash />
       <StandaloneAppRouter mark="driver" />

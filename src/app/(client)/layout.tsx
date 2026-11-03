@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { StandaloneAppRouter } from "@/components/standalone-app-router";
+import { PwaRootRegister } from "@/components/pwa-root-register";
 
 export const metadata: Metadata = {
   title: "Prime Vitória — Empresas",
@@ -20,6 +21,7 @@ export const viewport: Viewport = {
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <PwaRootRegister />
       <StandaloneAppRouter mark="client" />
       {children}
     </>

@@ -1,6 +1,12 @@
-/* Avisos da central (painel): só Web Push, sem cache. */
+/* Service worker raiz (todos os apps): avisos (Web Push) e o mínimo para o celular aceitar "Instalar app". Sem cache. */
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+
+// Só as aberturas de página passam por aqui, direto pela rede (o Chrome exige um "fetch" para instalar).
+self.addEventListener("fetch", (event) => {
+  if (event.request.mode !== "navigate") return;
+  event.respondWith(fetch(event.request));
+});
 
 self.addEventListener("push", (event) => {
   let p = {};

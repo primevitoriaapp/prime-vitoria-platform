@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { LoginStagingAccounts } from "@/components/login-staging-accounts";
 import { PrimeLogoMark } from "@/components/prime-logo-mark";
 import { InstallAppCard } from "@/components/install-app-card";
+import { PwaRootRegister } from "@/components/pwa-root-register";
 import { isStagingSmokeHintsEnabled } from "@/lib/staging/smoke-hints";
 import { loginAction, type LoginState } from "./actions";
 
@@ -22,6 +23,7 @@ export function LoginForm({ defaultNext, switchAccount }: { defaultNext?: string
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-[#111] px-5 py-10 sm:justify-center">
+      <PwaRootRegister />
       <div className="mb-6 flex flex-col items-center text-center">
         <PrimeLogoMark size={72} />
         <p className="mt-3 text-lg font-semibold tracking-tight text-[#fff]">Prime Vitória</p>

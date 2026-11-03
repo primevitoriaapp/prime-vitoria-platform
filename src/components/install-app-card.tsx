@@ -152,6 +152,10 @@ export function InstallAppCard({ appName = "o app", dismissible = true }: { appN
             Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.
           </Step>
           <Step n={3}>Confirme e abra pelo ícone novo da Prime.</Step>
+          <li className="pl-9 text-xs text-[#6B6F76]">
+            Se aparecer “Não é possível instalar o app”, feche o Chrome, abra o link de novo e espere 10 segundos. Se ainda assim não der, toque em
+            “Criar atalho”: funciona igual, só abre com a barra do navegador.
+          </li>
         </ol>
       )}
     </div>
