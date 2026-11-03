@@ -73,7 +73,8 @@ export async function POST(request: Request) {
       const km = straight == null ? null : Math.round(straight * ROAD_FACTOR * 10) / 10;
       const when = body.scheduled_at ?? new Date().toISOString();
       const { data: cl } = await db.from("clients").select("km_minimum").eq("id", body.client_id).maybeSingle();
-      const minKm = cl?.km_minimum == null ? null : Number(cl.km_minimum);
+      const minCell = cells.find((c) => c.service === "km_minimo" && c.enabled && c.client_price != null && c.client_price > 0);
+      const minKm = minCell?.client_price ?? (cl?.km_minimum == null ? null : Number(cl.km_minimum));
       const price = priceFromCategoryTable({ mode: "km", scheduledAt: when, km, cells, minKmClient: minKm });
       const perKm = cells.find((c) => c.service === bandeiraForIso(when) && c.enabled)?.client_price ?? null;
       return ok({
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
         has_rule: price.client != null,
         charge_type: "per_km",
         price_per_km: perKm,
+        min_km: minKm,
         estimate:
           price.client == null
             ? null

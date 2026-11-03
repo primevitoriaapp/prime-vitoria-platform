@@ -15,7 +15,7 @@ const money = z.union([z.number(), z.string(), z.null()]).transform((v) => {
 
 const rowSchema = z.object({
   category_id: z.string().uuid(),
-  service: z.enum(["transfer", "diaria_5h", "diaria_10h", "diaria_12h", "km_b1", "km_b2", "hora_extra", "hora_parada"]),
+  service: z.enum(["transfer", "diaria_5h", "diaria_10h", "diaria_12h", "km_b1", "km_b2", "km_minimo", "hora_extra", "hora_parada"]),
   enabled: z.boolean(),
   client_price: money,
   partner_price: money
@@ -53,7 +53,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const { data: cats } = await db.from("vehicle_categories").select("id, allows_km").eq("tenant_id", g.tenantId);
     const kmOk = new Set((cats ?? []).filter((c) => c.allows_km).map((c) => c.id as string));
     const rows = parsed.map((r) =>
-      (r.service === "km_b1" || r.service === "km_b2") && !kmOk.has(r.category_id) ? { ...r, enabled: false } : r
+      (r.service === "km_b1" || r.service === "km_b2" || r.service === "km_minimo") && !kmOk.has(r.category_id) ? { ...r, enabled: false } : r
     );
     await saveClientCategoryPrices(g.tenantId, id, rows);
     return ok(await getClientCategoryPrices(id));

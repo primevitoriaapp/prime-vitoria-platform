@@ -87,6 +87,12 @@ export async function GET(request: Request) {
         .limit(20)
     ]);
 
+    const { count: driverReqs } = await db
+      .from("driver_change_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("status", "pendente");
+
     let payablesOverdue = 0;
     if (session.role === "admin" || session.role === "financeiro") {
       const todaySp = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(now);
@@ -116,6 +122,8 @@ export async function GET(request: Request) {
     const alerts: { tone: "red" | "amber" | "blue"; text: string; href: string }[] = [];
     if ((pending.count ?? 0) > 0)
       alerts.push({ tone: "blue", text: `${pending.count} pedido(s) novo(s) esperando confirmação`, href: "/agenda?grupo=agendada&periodo=mes" });
+    if ((driverReqs ?? 0) > 0)
+      alerts.push({ tone: "amber", text: `${driverReqs} pedido(s) de motorista para aprovar (dados, foto, CNH, carro ou PIX)`, href: "/drivers#pedidos" });
     if ((noDriver.count ?? 0) > 0)
       alerts.push({ tone: "red", text: `${noDriver.count} corrida(s) nos próximos 3 dias sem motorista`, href: "/agenda?grupo=agendada&periodo=semana" });
     if ((stale.count ?? 0) > 0)

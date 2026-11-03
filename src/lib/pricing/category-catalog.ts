@@ -9,6 +9,7 @@ export type CategoryService =
   | "diaria_12h"
   | "km_b1"
   | "km_b2"
+  | "km_minimo"
   | "hora_extra"
   | "hora_parada";
 
@@ -22,6 +23,7 @@ export const CATEGORY_SERVICES: { id: CategoryService; label: string; unit: stri
   { id: "diaria_12h", label: "Diária 12h", unit: "R$ por diária", hint: "Veículo à disposição por 12 horas" },
   { id: "km_b1", label: "KM bandeira 1 (06h–18h59)", unit: "R$ por km", hint: "Corporativo por km rodado, de dia" },
   { id: "km_b2", label: "KM bandeira 2 (19h–05h59)", unit: "R$ por km", hint: "Corporativo por km rodado, à noite" },
+  { id: "km_minimo", label: "KM mínimo", unit: "km (cobra pelo menos isso)", hint: "Corrida curta cobra este mínimo de km" },
   { id: "hora_extra", label: "Hora extra", unit: "R$ por hora", hint: "Passou do pacote da diária" },
   { id: "hora_parada", label: "Hora parada", unit: "R$ por hora", hint: "Espera além da tolerância" }
 ];
@@ -102,11 +104,15 @@ export function priceFromCategoryTable(input: CategoryPricingInput): CategoryPri
     const b = bandeiraForIso(input.scheduledAt);
     const c = cell(b);
     if (!c || c.client_price == null || input.km == null) return { client: null, partner: null, detail: "sem preço por km" };
-    const min = input.minKmClient && input.minKmClient > 0 ? input.minKmClient : 0;
+    // KM mínimo: o da tabela do veículo vale primeiro; senão o geral da empresa.
+    const minCell = cell("km_minimo");
+    const tableMin = minCell?.client_price != null && minCell.client_price > 0 ? minCell.client_price : null;
+    const min = tableMin ?? (input.minKmClient && input.minKmClient > 0 ? input.minKmClient : 0);
     const billedKm = Math.max(input.km, min);
+    const partnerKm = Math.max(input.km, minCell?.partner_price != null && minCell.partner_price > 0 ? minCell.partner_price : 0);
     return {
       client: money(billedKm * c.client_price),
-      partner: c.partner_price == null ? null : money(input.km * c.partner_price),
+      partner: c.partner_price == null ? null : money(partnerKm * c.partner_price),
       detail:
         `${billedKm} km × ${b === "km_b1" ? "bandeira 1" : "bandeira 2"}` +
         (billedKm > input.km ? ` (mínimo de ${min} km; rodou ${input.km} km)` : "")

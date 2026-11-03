@@ -118,6 +118,12 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     return withFlag.sort((a, b) => Number(b.released) - Number(a.released));
   }, [categories, enabledFor]);
 
+  // KM mínimo da tabela do veículo escolhido (corridas por km).
+  const kmMin = useMemo(() => {
+    const c = prices.find((p) => p.category_id === categoryId && p.service === "km_minimo" && p.enabled);
+    return c?.client_price != null && c.client_price > 0 ? c.client_price : null;
+  }, [prices, categoryId]);
+
   // Preço da tabela da empresa para o veículo + serviço escolhidos (transfer/diária).
   const tablePrice = useMemo(() => {
     if (!categoryId || mode === "km") return null;
@@ -130,7 +136,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tablePrice]);
 
-  const [kmEstimate, setKmEstimate] = useState<{ km: number | null; client: number; driver: number | null; bandeira?: string } | null>(null);
+  const [kmEstimate, setKmEstimate] = useState<{ km: number | null; client: number; driver: number | null; bandeira?: string; minKm?: number | null } | null>(null);
   useEffect(() => {
     setKmEstimate(null);
     if (mode !== "km" || !clientId || !categoryId || origin.lat == null || dest.lat == null) return;
@@ -156,10 +162,10 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
         );
         const json = (await res.json().catch(() => ({}))) as {
           success?: boolean;
-          data?: { estimate?: { planned_km: number | null; client_amount: number; driver_amount?: number | null } | null; bandeira?: string };
+          data?: { estimate?: { planned_km: number | null; client_amount: number; driver_amount?: number | null } | null; bandeira?: string; min_km?: number | null };
         };
         const e = json.data?.estimate;
-        if (res.ok && json.success && e) setKmEstimate({ km: e.planned_km, client: e.client_amount, driver: e.driver_amount ?? null, bandeira: json.data?.bandeira });
+        if (res.ok && json.success && e) setKmEstimate({ km: e.planned_km, client: e.client_amount, driver: e.driver_amount ?? null, bandeira: json.data?.bandeira, minKm: json.data?.min_km ?? null });
       })();
     }, 400);
     return () => clearTimeout(t);
@@ -580,7 +586,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                   <p className="text-base font-semibold">Valores desta corrida</p>
                   <p className="text-xs text-prime-muted">
                     {mode === "km"
-                      ? "Por km: deixe em branco para calcular pelo km rodado, ou digite um valor fechado."
+                      ? `Por km: deixe em branco para calcular pelo km rodado, ou digite um valor fechado.${kmMin ? ` KM mínimo deste cliente: ${kmMin} km (corrida menor cobra ${kmMin} km).` : " Este cliente não tem KM mínimo cadastrado."}`
                       : tablePrice
                         ? "Já preenchido com a tabela do cliente. Pode mudar."
                         : "Sem tabela para este serviço: digite os valores combinados."}

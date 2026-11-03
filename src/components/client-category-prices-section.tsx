@@ -134,7 +134,7 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
                       </tr>
                     </thead>
                     <tbody>
-                      {CATEGORY_SERVICES.filter((s) => c.allows_km || (s.id !== "km_b1" && s.id !== "km_b2")).map((s) => {
+                      {CATEGORY_SERVICES.filter((s) => c.allows_km || (s.id !== "km_b1" && s.id !== "km_b2" && s.id !== "km_minimo")).map((s) => {
                         const v = cell(c.id, s.id);
                         return (
                           <tr key={s.id} className="border-t border-prime-border">
@@ -152,29 +152,29 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
                             </td>
                             <td className="py-2 pr-2">
                               <div className="relative">
-                                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-prime-muted">R$</span>
+                                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-prime-muted">{s.id === "km_minimo" ? "km" : "R$"}</span>
                                 <input
                                   inputMode="decimal"
                                   className={`${input} pl-8 text-right`}
-                                  placeholder="a combinar"
+                                  placeholder={s.id === "km_minimo" ? "sem mínimo" : "a combinar"}
                                   value={v.client_price}
                                   disabled={disabled || busy}
                                   onChange={(e) => setCell(c.id, s.id, { client_price: e.target.value.replace(/[^0-9.,]/g, "") })}
-                                  onBlur={(e) => setCell(c.id, s.id, { client_price: moneyText(e.target.value) })}
+                                  onBlur={(e) => s.id !== "km_minimo" && setCell(c.id, s.id, { client_price: moneyText(e.target.value) })}
                                 />
                               </div>
                             </td>
                             <td className="py-2">
                               <div className="relative">
-                                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-prime-muted">R$</span>
+                                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-prime-muted">{s.id === "km_minimo" ? "km" : "R$"}</span>
                                 <input
                                   inputMode="decimal"
                                   className={`${input} pl-8 text-right`}
-                                  placeholder="a combinar"
+                                  placeholder={s.id === "km_minimo" ? "sem mínimo" : "a combinar"}
                                   value={v.partner_price}
                                   disabled={disabled || busy}
                                   onChange={(e) => setCell(c.id, s.id, { partner_price: e.target.value.replace(/[^0-9.,]/g, "") })}
-                                  onBlur={(e) => setCell(c.id, s.id, { partner_price: moneyText(e.target.value) })}
+                                  onBlur={(e) => s.id !== "km_minimo" && setCell(c.id, s.id, { partner_price: moneyText(e.target.value) })}
                                 />
                               </div>
                             </td>
