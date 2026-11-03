@@ -21,7 +21,9 @@ export async function GET(request: Request) {
     if (!outcome.ok) {
       return fail(outcome.error.code, outcome.error.message, 404, outcome.error.hint);
     }
-    return ok(outcome.data);
+    const d = outcome.data;
+    // Também nos nomes do ViaCEP (logradouro, bairro, localidade, uf), que várias telas usam.
+    return ok({ ...d, logradouro: d.address_line, bairro: d.district, localidade: d.city, uf: d.state });
   } catch (error) {
     return mapApiError(error);
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { DriverRequestsAlert } from "@/components/driver-requests-alert";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
@@ -202,6 +203,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
                 {isAdmin || isFinanceiro ? <ReceivablesAlertPill /> : null}
                 {isAdmin || isFinanceiro ? <PayablesAlertPill /> : null}
                 {showFullNav ? <PendingRequestsPill tenantId={session?.tenantId ?? null} /> : null}
+                {showFullNav ? <DriverRequestsAlert /> : null}
                 {showFullNav ? <NewTripRequestAlert tenantId={session?.tenantId ?? null} /> : null}
               </div>
               <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">

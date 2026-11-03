@@ -105,6 +105,16 @@ export async function POST(request: Request) {
       url: "/drivers#pedidos",
       tag: `dcr-${data.id}`
     }).catch(() => 0);
+    // Também no sininho do painel (para quem não ativou os avisos no aparelho).
+    await import("@/lib/notifications/enqueue-for-profiles")
+      .then(({ enqueueInAppForTenantRoles }) =>
+        enqueueInAppForTenantRoles(s.tenantId, ["admin", "operador"], {
+          eventType: "drivers.change_request",
+          title: `🪪 ${KIND_LABEL[kind]} para aprovar`,
+          body: `${(d?.full_name as string | null) ?? "Motorista"} enviou pelo app. Abra Motoristas para aprovar.`
+        })
+      )
+      .catch(() => 0);
     return ok(data, 201);
   } catch (error) {
     return mapApiError(error);
