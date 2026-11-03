@@ -60,7 +60,6 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   const [drivers, setDrivers] = useState(initialDrivers);
   const [me, setMe] = useState<Me | null>(null);
   const [tab, setTab] = useState<Tab>("inicio");
-  const [statusBusy, setStatusBusy] = useState(false);
   const [withTrips, setWithTrips] = useState<Record<string, number>>({});
   const [nextTrip, setNextTrip] = useState<Trip | null>(null);
   useEffect(() => {
@@ -72,7 +71,12 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   const loadMe = useCallback(async () => {
     if (mode !== "motorista") return;
     const r = await fetch("/api/drivers/me", { credentials: "include" }).then((x) => x.json()).catch(() => null);
-    if (r?.success) setMe(r.data as Me);
+    if (r?.success) {
+      setMe(r.data as Me);
+      // O motorista fica sempre disponível: se estava offline, liga sozinho ao abrir o app.
+      if ((r.data as Me).operational_status === "offline")
+        void fetch("/api/drivers/operational-status", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "online" }) }).catch(() => undefined);
+    }
   }, [mode]);
   useEffect(() => {
     void loadMe();
@@ -104,21 +108,6 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
 
   const devRole = mode === "admin" ? "admin" : "motorista";
   const name = mode === "admin" ? (drivers.find((d) => d.id === selectedDriverId)?.profile_name ?? "Motorista") : (me?.profile_name || me?.full_name || "Motorista");
-  const online = me?.operational_status && me.operational_status !== "offline";
-
-  async function toggleStatus() {
-    if (mode !== "motorista" || !me) return;
-    setStatusBusy(true);
-    await fetch("/api/drivers/operational-status", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: online ? "offline" : "online" })
-    }).catch(() => undefined);
-    setStatusBusy(false);
-    void loadMe();
-  }
-
   function go(t: Tab) {
     setTab(t);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -130,38 +119,50 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
       <DriverTripDeepLink />
 
       {tab === "inicio" ? (
-        <div className="relative isolate z-0">
-          <MapSafe height="46dvh">
-          <DriverHomeMap
-            height="46dvh"
-            pickup={nextTrip?.origin_lat != null && nextTrip?.origin_lng != null ? { lat: Number(nextTrip.origin_lat), lng: Number(nextTrip.origin_lng) } : null}
-            dropoff={nextTrip?.destination_lat != null && nextTrip?.destination_lng != null ? { lat: Number(nextTrip.destination_lat), lng: Number(nextTrip.destination_lng) } : null}
-          />
-          </MapSafe>
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] px-4 pt-[max(0.9rem,env(safe-area-inset-top))]">
-            <div className="pointer-events-auto mx-auto flex max-w-lg items-center justify-between gap-3 rounded-full bg-white/95 py-2 pl-4 pr-2 shadow-[0_8px_24px_rgba(0,0,0,0.15)] backdrop-blur">
-              <div className="min-w-0">
-                <p className="text-[13px] font-bold tracking-[0.08em] text-[#111]">
-                  PRIME <span className="text-prime-gold">VITÓRIA</span>
-                </p>
-                {mode === "motorista" ? (
-                  <button type="button" disabled={statusBusy} onClick={() => void toggleStatus()} className="flex items-center gap-1.5 text-xs text-[#555]">
-                    <span className={`h-2.5 w-2.5 rounded-full ${online ? "bg-emerald-500" : "bg-gray-400"}`} />
-                    {online ? "Disponível" : "Offline · toque para ficar disponível"}
-                  </button>
-                ) : (
-                  <p className="text-xs text-[#555]">Prévia do app</p>
-                )}
-              </div>
-              {me?.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={me.photo_url} alt="" className="h-11 w-11 shrink-0 rounded-full border-2 border-prime-gold object-cover" />
-              ) : (
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-prime-gold bg-[#111] text-lg font-semibold text-prime-gold">{name.charAt(0).toUpperCase()}</span>
-              )}
-            </div>
+        <>
+          <div className="fixed inset-x-0 top-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-0">
+            <MapSafe>
+              <DriverHomeMap pickup={nextTrip?.origin_lat != null && nextTrip?.origin_lng != null ? { lat: Number(nextTrip.origin_lat), lng: Number(nextTrip.origin_lng) } : null} />
+            </MapSafe>
           </div>
-        </div>
+          <div className="pointer-events-none fixed inset-x-0 top-0 z-30 px-4 pt-[max(0.9rem,env(safe-area-inset-top))]">
+            <div className="pointer-events-auto mx-auto flex max-w-lg items-center justify-between gap-3 rounded-full bg-white/95 py-2 pl-2 pr-4 shadow-[0_8px_24px_rgba(0,0,0,0.15)] backdrop-blur">
+              <div className="flex min-w-0 items-center gap-3">
+                {me?.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={me.photo_url} alt="" className="h-11 w-11 shrink-0 rounded-full border-2 border-prime-gold object-cover" />
+                ) : (
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-prime-gold bg-[#111] text-lg font-semibold text-prime-gold">{name.charAt(0).toUpperCase()}</span>
+                )}
+                <div className="min-w-0 leading-tight">
+                  <p className="text-xs text-[#8A8A8A]">{greeting()},</p>
+                  <p className="truncate text-[15px] font-semibold text-[#111]">{name}</p>
+                </div>
+              </div>
+              <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-[#1F7A4C]">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                </span>
+                {mode === "admin" ? "Prévia" : "Disponível"}
+              </span>
+            </div>
+            {mode === "admin" ? (
+              <select
+                className="pointer-events-auto mx-auto mt-2 block w-full max-w-lg rounded-xl border border-[#DDD5C2] bg-white px-3 py-2 text-sm shadow"
+                value={selectedDriverId ?? ""}
+                onChange={(e) => router.replace(`/driver?driver_id=${e.target.value}`, { scroll: false })}
+              >
+                {orderedDrivers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.profile_name?.trim() || `CPF ${d.cpf}`}
+                    {withTrips[d.id] ? ` · ${withTrips[d.id]} corrida(s)` : ""}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+        </>
       ) : (
       <header className="rounded-b-[2rem] bg-[#111] px-5 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] text-[#fff]">
           <div className="mx-auto max-w-lg">
@@ -185,10 +186,10 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
               {name}
             </p>
             {mode === "motorista" ? (
-              <button type="button" disabled={statusBusy} onClick={() => void toggleStatus()} className="mt-2 flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
-                <span className={`h-3 w-3 rounded-full ${online ? "bg-emerald-400" : "bg-gray-500"}`} />
-                {online ? "Disponível para os serviços agendados" : "Offline · toque para ficar disponível"}
-              </button>
+              <p className="mt-2 flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
+                <span className="h-3 w-3 rounded-full bg-emerald-400" />
+                Disponível para os serviços
+              </p>
             ) : (
               <label className="mt-3 block text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
                 Vendo o app como:
@@ -210,28 +211,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         </header>
       )}
 
-      <main className={`relative mx-auto max-w-lg space-y-5 px-4 ${tab === "inicio" ? "-mt-7 rounded-t-[2rem] bg-[#F1F0EC] pt-5" : "pt-5"}`}>
-        {tab === "inicio" ? (
-          <div className="px-1">
-            <p className="text-sm text-[#8A8A8A]">{greeting()},</p>
-            <p className="text-2xl font-bold leading-tight text-[#111]">{name}</p>
-            {mode === "admin" ? (
-              <select
-                className="mt-2 w-full rounded-xl border border-[#DDD5C2] bg-white px-3 py-2 text-sm"
-                value={selectedDriverId ?? ""}
-                onChange={(e) => router.replace(`/driver?driver_id=${e.target.value}`, { scroll: false })}
-              >
-                {orderedDrivers.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.profile_name?.trim() || `CPF ${d.cpf}`}
-                    {withTrips[d.id] ? ` · ${withTrips[d.id]} corrida(s)` : ""}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-          </div>
-        ) : null}
-
+      <main className={`relative mx-auto max-w-lg space-y-5 px-4 pt-5 ${tab === "inicio" ? "h-0 overflow-visible !pt-0" : ""}`}>
         <DriverTripsPanel
           key={`trips-${selectedDriverId ?? "none"}`}
           tenantId={tenantId}
@@ -243,35 +223,6 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           onPrimaryTrip={setNextTrip}
           hidden={tab === "perfil" || tab === "carteira"}
         />
-
-        {tab === "inicio" ? (
-          <>
-            {mode === "motorista" ? <InstallAppCard /> : null}
-            {mode === "motorista" ? <PushSetup audience="motorista" /> : null}
-            {mode === "motorista" ? (
-              <section className="space-y-2">
-                <div className="flex items-end justify-between px-1">
-                  <h2 className="text-lg font-semibold">Meu veículo</h2>
-                  <span className="text-sm text-[#8A8A8A]">Veículo em uso</span>
-                </div>
-                <div className="flex items-center gap-4 rounded-3xl border border-[#ECE7DB] bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.05)]">
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#F6EEDC] text-2xl" aria-hidden>
-                    🚘
-                  </span>
-                  {me?.vehicle ? (
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold">{[me.vehicle.brand, me.vehicle.model].filter(Boolean).join(" ")}</p>
-                      <p className="text-sm text-[#8A8A8A]">{[me.vehicle.category, me.vehicle.color, me.vehicle.plate].filter(Boolean).join(" · ")}</p>
-                    </div>
-                  ) : (
-                    <p className="flex-1 text-sm text-[#8A8A8A]">Nenhum carro vinculado. Cadastre em Perfil › Meu veículo.</p>
-                  )}
-                  {me?.vehicle ? <span className="rounded-full bg-[#EAF6EF] px-3 py-1 text-xs font-semibold text-[#1F7A4C]">Ativo</span> : null}
-                </div>
-              </section>
-            ) : null}
-          </>
-        ) : null}
 
         {tab === "carteira" ? (
           mode === "motorista" ? (
@@ -289,6 +240,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
             {mode === "motorista" ? (
               <>
                 <DriverProfilePanel devFallbackRole={devRole} />
+                <InstallAppCard />
                 <DriverAccountEditor />
                 <ChangePinCard />
                 <PushSetup audience="motorista" />

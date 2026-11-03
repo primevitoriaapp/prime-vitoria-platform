@@ -77,7 +77,7 @@ export function DriverTripsPanel({
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [busyTrip, setBusyTrip] = useState<string | null>(null);
-  const [highlightTripId, setHighlightTripId] = useState<string | null>(null);
+  const [, setHighlightTripId] = useState<string | null>(null);
   const [newTripBanner, setNewTripBanner] = useState<{ origin: string; destination: string } | null>(null);
   const [waitBusy, setWaitBusy] = useState(false);
   const [waitTick, setWaitTick] = useState(0);
@@ -86,6 +86,7 @@ export function DriverTripsPanel({
   const [geoBlock, setGeoBlock] = useState<{ tripId: string; to_status: TripOperationalStatus; extra?: StatusExtra; message: string } | null>(null);
   const [geoReason, setGeoReason] = useState("");
   const [floatDismissed, setFloatDismissed] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [payByTrip, setPayByTrip] = useState<Record<string, { stage: string; amount: number; paid_at: string | null }>>({});
   useEffect(() => {
     if (view !== "historico" || devFallbackRole !== "motorista") return;
@@ -399,7 +400,7 @@ export function DriverTripsPanel({
 
   return (
     <>
-    {floatTrip && !floatDismissed && !sheet && !geoBlock ? (
+    {floatTrip && !floatDismissed && !sheet && !geoBlock && view !== "inicio" ? (
       <div className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-40 px-4 pv-float-in">
         <div className="mx-auto flex max-w-lg items-center gap-3 rounded-[28px] border border-[#ECE7DB] bg-white/95 p-3 pl-4 shadow-[0_18px_40px_rgba(0,0,0,0.16)] backdrop-blur">
           <button type="button" onClick={openFloatTrip} className="flex min-w-0 flex-1 items-center gap-3 text-left">
@@ -495,7 +496,7 @@ export function DriverTripsPanel({
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {loading ? "Carregando corridas…" : message ?? (active.length ? `${active.length} corridas ativas` : "Sem corridas ativas")}
       </p>
-      {message && !sheet ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{message}</p> : null}
+      {message && !sheet && view !== "inicio" ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{message}</p> : null}
 
       {primaryTrip && ["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) && !hidden ? (
         <DriverTripFocus
@@ -513,74 +514,102 @@ export function DriverTripsPanel({
         />
       ) : null}
 
-      {view === "inicio" ? (
-        <section className="space-y-3">
-          <div className="flex items-end justify-between px-1">
-            <h2 className="text-lg font-semibold text-[#111]">Próxima corrida</h2>
-            {primaryTrip ? (
-              <span className="text-sm text-[#8A8A8A]">
-                {groupByDay([primaryTrip])[0]?.label} · {hm(primaryTrip.scheduled_at)}
-              </span>
-            ) : null}
-          </div>
-          {loading ? (
-            <DriverTripSkeleton />
-          ) : !primaryTrip ? (
-            <div className={`${card} text-center`}>
-              <p className="text-3xl">🚘</p>
-              <p className="mt-2 font-semibold text-[#111]">Nenhuma corrida agendada</p>
-              <p className="mt-1 text-sm text-[#8A8A8A]">Quando a central te passar uma corrida, ela aparece aqui e o celular avisa.</p>
-            </div>
-          ) : (
-            <>
-              <DriverActiveTripHero
-                trip={primaryTrip}
-                isBusy={busyTrip === primaryTrip.id}
-                highlighted={highlightTripId === primaryTrip.id}
-                waitElapsedLabel={primaryTrip.wait_started_at ? waitElapsedLabel : null}
-                waitBusy={waitBusy}
-                completeKm={completeKmByTrip[primaryTrip.id] ?? ""}
-                gpsTracking={getTripGpsState(primaryTrip.id)}
-                onCompleteKmChange={(id, value) => setCompleteKmByTrip((prev) => ({ ...prev, [id]: value }))}
-                onStatus={setStatus}
-                onCompletePickupStop={(id, idx) => void completePickupStop(id, idx)}
-                onGps={sendGps}
-                onWaitStart={(id) => void setWait(id, "start")}
-                onWaitStop={(id) => void setWait(id, "stop")}
-              />
-              <DriverPassengerLink tripId={primaryTrip.id} status={primaryTrip.operational_status} devFallbackRole={devFallbackRole} />
-              {["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) ? (
-                <DriverTripExpenses tripId={primaryTrip.id} devFallbackRole={devFallbackRole} />
-              ) : null}
-            </>
-          )}
-
-          {otherActive.length > 0 ? (
-            <div className={card}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-[#111]">Mais agendamentos</h3>
-                {onSeeAll ? (
-                  <button type="button" onClick={onSeeAll} className="text-sm text-[#8A8A8A]">
-                    Ver todos
+      {view === "inicio" && !hidden ? (
+        <>
+          {/* Pop-up da corrida em cima do mapa */}
+          <div className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-40 px-3">
+            <div className="mx-auto max-w-lg">
+              {message && !sheet ? <p className="mb-2 rounded-2xl bg-white/95 px-4 py-3 text-sm text-[#8A5A00] shadow">{message}</p> : null}
+              {loading ? (
+                <div className="h-24 animate-pulse rounded-[28px] bg-white/90 shadow" />
+              ) : !primaryTrip ? (
+                <div className="flex items-center gap-3 rounded-[28px] bg-white/95 p-4 shadow-[0_18px_40px_rgba(0,0,0,0.15)] backdrop-blur">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F4F1EA] text-xl" aria-hidden>
+                    🚘
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[#111]">Nenhuma corrida agora</p>
+                    <p className="text-xs text-[#8A8A8A]">Quando a central te passar uma corrida, ela aparece aqui e o celular avisa.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className={`rounded-[28px] bg-white p-4 ${["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? "pv-glow" : "shadow-[0_18px_40px_rgba(0,0,0,0.18)]"}`}>
+                  <button type="button" onClick={() => setDetailOpen(true)} className="block w-full text-left">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="rounded-full bg-[#FBF3E0] px-3 py-1 text-xs font-semibold text-[#8A5A00]">
+                        {groupByDay([primaryTrip])[0]?.label} · {hm(primaryTrip.scheduled_at)}
+                      </span>
+                      <span className="text-xs font-medium text-[#8A8A8A]">Ver detalhes ›</span>
+                    </div>
+                    <p className="mt-2 text-base font-semibold text-[#111]">{primaryTrip.passenger_name?.trim() || "Passageiro"}</p>
+                    <div className="mt-2 grid grid-cols-[14px_1fr] gap-x-2 gap-y-1 text-sm">
+                      <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-[#111]" aria-hidden />
+                      <span className="truncate text-[#333]">{short(primaryTrip.origin_text)}</span>
+                      <span className="mt-1.5 h-2.5 w-2.5 rounded-sm bg-prime-gold" aria-hidden />
+                      <span className="truncate text-[#8A8A8A]">{short(primaryTrip.destination_text)}</span>
+                    </div>
                   </button>
-                ) : null}
+                  {["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? (
+                    <button
+                      type="button"
+                      disabled={busyTrip === primaryTrip.id}
+                      onClick={() => void setStatus(primaryTrip.id, "on_the_way")}
+                      className="mt-3 w-full rounded-2xl bg-[#111] py-4 text-base font-bold text-prime-gold disabled:opacity-60"
+                    >
+                      {busyTrip === primaryTrip.id ? "Abrindo…" : "Pegar corrida"}
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setDetailOpen(true)} className="mt-3 w-full rounded-2xl bg-[#111] py-4 text-base font-bold text-prime-gold">
+                      Continuar corrida
+                    </button>
+                  )}
+                  {otherActive.length > 0 && onSeeAll ? (
+                    <button type="button" onClick={onSeeAll} className="mt-2 w-full text-center text-xs text-[#8A8A8A]">
+                      + {otherActive.length} corrida{otherActive.length === 1 ? "" : "s"} agendada{otherActive.length === 1 ? "" : "s"} · ver agenda
+                    </button>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Detalhes completos da corrida */}
+          {detailOpen && primaryTrip ? (
+            <div className="fixed inset-0 z-[70] flex flex-col bg-black/30" role="dialog" aria-modal="true">
+              <button type="button" aria-label="Fechar" className="min-h-[10dvh] flex-1" onClick={() => setDetailOpen(false)} />
+              <div className="max-h-[90dvh] overflow-y-auto rounded-t-[28px] bg-[#F1F0EC] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3">
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#D9D3C5]" />
+                <div className="mx-auto max-w-lg space-y-4">
+                  <DriverActiveTripHero
+                    trip={primaryTrip}
+                    isBusy={busyTrip === primaryTrip.id}
+                    highlighted={false}
+                    waitElapsedLabel={primaryTrip.wait_started_at ? waitElapsedLabel : null}
+                    waitBusy={waitBusy}
+                    completeKm={completeKmByTrip[primaryTrip.id] ?? ""}
+                    gpsTracking={getTripGpsState(primaryTrip.id)}
+                    onCompleteKmChange={(id, value) => setCompleteKmByTrip((prev) => ({ ...prev, [id]: value }))}
+                    onStatus={(id, st) => {
+                      setDetailOpen(false);
+                      void setStatus(id, st);
+                    }}
+                    onCompletePickupStop={(id, idx) => void completePickupStop(id, idx)}
+                    onGps={sendGps}
+                    onWaitStart={(id) => void setWait(id, "start")}
+                    onWaitStop={(id) => void setWait(id, "stop")}
+                  />
+                  <DriverPassengerLink tripId={primaryTrip.id} status={primaryTrip.operational_status} devFallbackRole={devFallbackRole} />
+                  {["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) ? (
+                    <DriverTripExpenses tripId={primaryTrip.id} devFallbackRole={devFallbackRole} />
+                  ) : null}
+                  <button type="button" onClick={() => setDetailOpen(false)} className="w-full rounded-2xl py-3 text-sm text-[#8A8A8A]">
+                    Fechar
+                  </button>
+                </div>
               </div>
-              <ul className="mt-3 divide-y divide-[#F0ECE3]">
-                {otherActive.slice(0, 4).map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                    <span className="shrink-0 font-semibold text-[#111]">
-                      {groupByDay([t])[0]?.label === "Hoje" ? "" : `${groupByDay([t])[0]?.label} · `}
-                      {hm(t.scheduled_at)}
-                    </span>
-                    <span className="min-w-0 truncate text-right text-[#8A8A8A]">
-                      {short(t.origin_text)} → {short(t.destination_text)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
             </div>
           ) : null}
-        </section>
+        </>
       ) : null}
 
       {view === "agenda" ? (
