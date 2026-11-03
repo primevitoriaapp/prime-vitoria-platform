@@ -9,7 +9,7 @@ import { OperationalRealtimeBridge } from "@/components/operational-realtime-bri
 import { DriverProfilePanel } from "@/components/driver-profile-panel";
 import { PushSetup } from "@/components/push-setup";
 import { InstallAppCard } from "@/components/install-app-card";
-import { DriverHomeMap } from "@/components/driver-home-map";
+import { DriverHomeMap, MapSafe } from "@/components/driver-home-map";
 import { DriverAccountEditor } from "@/components/driver-account-editor";
 import type { Trip } from "@/lib/domain/types";
 
@@ -131,11 +131,13 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
 
       {tab === "inicio" ? (
         <div className="relative isolate z-0">
+          <MapSafe height="46dvh">
           <DriverHomeMap
             height="46dvh"
             pickup={nextTrip?.origin_lat != null && nextTrip?.origin_lng != null ? { lat: Number(nextTrip.origin_lat), lng: Number(nextTrip.origin_lng) } : null}
             dropoff={nextTrip?.destination_lat != null && nextTrip?.destination_lng != null ? { lat: Number(nextTrip.destination_lat), lng: Number(nextTrip.destination_lng) } : null}
           />
+          </MapSafe>
           <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] px-4 pt-[max(0.9rem,env(safe-area-inset-top))]">
             <div className="pointer-events-auto mx-auto flex max-w-lg items-center justify-between gap-3 rounded-full bg-white/95 py-2 pl-4 pr-2 shadow-[0_8px_24px_rgba(0,0,0,0.15)] backdrop-blur">
               <div className="min-w-0">

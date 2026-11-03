@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Map as LeafletMap, Marker, Polyline } from "leaflet";
 
 type Point = { lat: number; lng: number };
@@ -9,6 +9,17 @@ const dot = (bg: string, inner: string, size: number, ring = "#fff") =>
   `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:3px solid ${ring};box-shadow:0 3px 10px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font:700 12px system-ui">${inner}</div>`;
 
 /** Mapa do início do app (estilo Uber): onde o motorista está e o embarque da próxima corrida. */
+/** Se o mapa falhar, mostra só um fundo neutro (o app continua funcionando). */
+export class MapSafe extends Component<{ height: string; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? <div className="w-full bg-[#E9E6DF]" style={{ height: this.props.height }} /> : this.props.children;
+  }
+}
+
 export function DriverHomeMap({ pickup, dropoff, height }: { pickup: Point | null; dropoff: Point | null; height: string }) {
   const el = useRef<HTMLDivElement | null>(null);
   const map = useRef<LeafletMap | null>(null);
@@ -29,6 +40,7 @@ export function DriverHomeMap({ pickup, dropoff, height }: { pickup: Point | nul
   useEffect(() => {
     let off = false;
     void (async () => {
+      try {
       const L = await import("leaflet");
       if (off || !el.current) return;
       if (!map.current) {
@@ -65,6 +77,9 @@ export function DriverHomeMap({ pickup, dropoff, height }: { pickup: Point | nul
         fitted.current = key;
         if (pts.length >= 2) m.fitBounds(pts.map((p) => [p.lat, p.lng] as [number, number]), { paddingTopLeft: [40, 90], paddingBottomRight: [40, 60], maxZoom: 15 });
         else if (pts.length === 1) m.setView([pts[0].lat, pts[0].lng], 15);
+      }
+      } catch {
+        /* mapa é enfeite: nunca derruba o app */
       }
     })();
     return () => {
