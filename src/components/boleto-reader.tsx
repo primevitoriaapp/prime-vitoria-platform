@@ -43,10 +43,12 @@ export function BoletoReader({ onFill }: { onFill: (f: BoletoFill) => void }) {
       return;
     }
     const supplier = t.beneficiary ?? (info?.bank ? `Boleto ${info.bank}` : "");
-    let hist: { category?: string; issuer?: string | null } | null = null;
+    type Hist = { category?: string; issuer?: string | null };
+    let hist: Hist | null = null;
     if (supplier) {
       const r = await fetchWithSupabaseSession(`/api/finance/company-payables/suggest?supplier=${encodeURIComponent(supplier)}`, {}, "admin").catch(() => null);
-      hist = ((await r?.json().catch(() => null)) as { data?: typeof hist } | null)?.data ?? null;
+      const j = (await r?.json().catch(() => null)) as { data?: Hist | null } | null;
+      hist = j?.data ?? null;
     }
     const amount = info?.amount ?? t.amount;
     const due = info?.dueDate ?? t.dueDate;
