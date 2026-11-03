@@ -3,11 +3,7 @@ import { z } from "zod";
 import { getSessionContext } from "@/lib/server/session";
 import { db } from "@/lib/server/db";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
-import { billingIssuerById } from "@/lib/clients/billing-terms-calc";
-import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
-import { formatQuoteNumber, isDiaria, itemHours, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
-import { shortAddress } from "@/lib/client/short-address";
-import { VoucherPrintButton } from "@/app/voucher/[id]/print-button";
+import { loadQuoteDoc } from "@/lib/quotes/quote-document";
 import { QuoteClientResponse } from "@/components/quote-client-response";
 
 export const dynamic = "force-dynamic";
@@ -59,38 +55,15 @@ export default async function OrcamentoPage({
     q = data;
   }
   if (!q) return <Message title="Orçamento não encontrado" />;
-  const [{ data: items }, client, company] = await Promise.all([
-    db.from("quote_items").select("*").eq("quote_id", id).order("position"),
-    q.client_id ? db.from("clients").select("name, trade_name, document, email, phone").eq("id", q.client_id).maybeSingle() : Promise.resolve({ data: null }),
-    getTenantCompanyProfile(tenantId)
-  ]);
-  const catIds = [...new Set((items ?? []).map((i) => i.vehicle_category_id as string).filter(Boolean))];
-  const { data: cats } = catIds.length ? await db.from("vehicle_categories").select("id, name, passengers").in("id", catIds) : { data: [] };
-  const catName = new Map((cats ?? []).map((c) => [c.id as string, `${c.name as string}`]));
-  // Programação agrupada por dia (orçamentos de vários dias e veículos).
-  const dayKey = (i: Record<string, unknown>) =>
-    i.scheduled_at
-      ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(i.scheduled_at as string))
-      : ((i.service_date as string | null) ?? "");
-  const timeOf = (i: Record<string, unknown>) =>
-    i.scheduled_at ? new Date(i.scheduled_at as string).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }) : "A combinar";
-  const groups: { day: string; rows: Record<string, unknown>[] }[] = [];
-  for (const i of [...(items ?? [])].sort((a, b) => `${dayKey(a)}${timeOf(a)}`.localeCompare(`${dayKey(b)}${timeOf(b)}`))) {
-    const k = dayKey(i);
-    const g = groups.find((x) => x.day === k);
-    if (g) g.rows.push(i);
-    else groups.push({ day: k, rows: [i] });
-  }
-  const dayTitle = (ymd: string) =>
-    ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "UTC" }) : "Data a combinar";
-  const issuer = billingIssuerById(q.issuer as string | null);
-  const totals = quoteTotals((items ?? []).map((i) => ({ quantity: Number(i.quantity), unit_price: Number(i.unit_price) })), Number(q.discount) || 0);
-  const c = client.data as Record<string, string | null> | null;
-  const clientName = c?.trade_name || c?.name || (q.contact_name as string) || "Cliente";
-  const doc = c?.document || (q.contact_document as string | null);
+  const d = await loadQuoteDoc(q);
+  const clientName = d.client.name;
+  const pdfHref = `/api/quotes/${id}/pdf${viaLink && t ? `?t=${t}&` : "?"}`;
 
   const th: React.CSSProperties = { textAlign: "left", padding: "8px 6px", fontSize: 10, letterSpacing: ".06em", textTransform: "uppercase", color: "#7A6A3A", borderBottom: `2px solid ${GOLD}` };
   const td: React.CSSProperties = { padding: "9px 6px", fontSize: 12, borderBottom: "1px solid #EEE9DC", verticalAlign: "top" };
+  const box: React.CSSProperties = { background: "#F8F5EE", border: "1px solid #EAE4D6", borderRadius: 10, padding: "12px 14px", fontSize: 12, color: "#555", lineHeight: 1.5 };
+  const label: React.CSSProperties = { fontSize: 10, letterSpacing: ".1em", color: "#8C702C", textTransform: "uppercase", fontWeight: 700, marginBottom: 2 };
+  const btn: React.CSSProperties = { borderRadius: 8, padding: "9px 14px", fontWeight: 600, fontSize: 14, textDecoration: "none", display: "inline-block" };
 
   return (
     <main style={{ background: "#F4F1EA", minHeight: "100vh", padding: "24px 12px" }} className="quote-root">
@@ -103,44 +76,55 @@ export default async function OrcamentoPage({
         }
       `}</style>
       <div className="quote-actions" style={{ maxWidth: 820, margin: "0 auto 12px" }}>
-        <VoucherPrintButton />
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <a href={`${pdfHref}download=1`} style={{ ...btn, background: "#111", color: GOLD, border: `1px solid ${GOLD}` }}>
+            Baixar PDF
+          </a>
+          <a href={pdfHref.replace(/[?&]$/, "")} target="_blank" rel="noopener noreferrer" style={{ ...btn, background: "#fff", color: "#111", border: "1px solid #CFC7B0" }}>
+            Abrir PDF
+          </a>
+        </div>
       </div>
       <article className="quote-sheet" style={{ maxWidth: 820, margin: "0 auto", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,.08)", fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", color: "#111" }}>
-        <header style={{ background: "#111", color: "#fff", padding: "22px 26px", display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "0.04em" }}>
-              PRIME <span style={{ color: GOLD }}>VITÓRIA</span>
-            </div>
-            <div style={{ fontSize: 11, letterSpacing: "0.16em", color: GOLD, marginTop: 2 }}>TRANSPORTE EXECUTIVO</div>
-            <div style={{ fontSize: 11, color: "#BBB", marginTop: 8 }}>
-              {issuer?.legal_name ?? company.legal_name} · CNPJ {issuer?.cnpj ?? company.cnpj}
+        <header style={{ background: "#111", color: "#fff", padding: "20px 26px", display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/api/public/brand-logo" alt="Prime Vitória" width={64} height={64} style={{ width: 64, height: 64, borderRadius: 12, background: "#fff", objectFit: "cover" }} />
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "0.04em" }}>
+                PRIME <span style={{ color: GOLD }}>VITÓRIA</span>
+              </div>
+              <div style={{ fontSize: 10, letterSpacing: "0.16em", color: GOLD, marginTop: 2 }}>TRANSPORTE EXECUTIVO</div>
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 11, letterSpacing: "0.12em", color: "#BBB" }}>ORÇAMENTO</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: GOLD }}>{formatQuoteNumber(q.number as number)}</div>
-            <div style={{ fontSize: 12, color: "#DDD" }}>Emitido em {new Date(q.created_at as string).toLocaleDateString("pt-BR")}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: GOLD }}>{d.number}</div>
+            <div style={{ fontSize: 12, color: "#DDD" }}>Emitido em {new Date(d.createdAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}</div>
+            {d.validUntil ? <div style={{ fontSize: 12, color: "#DDD" }}>Válido até {brDate(d.validUntil)}</div> : null}
           </div>
         </header>
         <div style={{ height: 4, background: GOLD }} />
 
-        <section style={{ padding: "18px 26px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: ".08em", color: "#7A6A3A", textTransform: "uppercase" }}>Para</div>
-            <div style={{ fontWeight: 600 }}>{clientName}</div>
-            {doc ? <div style={{ fontSize: 12, color: "#555" }}>{String(doc).replace(/\D/g, "").length > 11 ? "CNPJ" : "CPF"} {doc}</div> : null}
-            {c?.email || q.contact_email ? <div style={{ fontSize: 12, color: "#555" }}>{c?.email || (q.contact_email as string)}</div> : null}
+        <section style={{ padding: "18px 26px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+          <div style={box}>
+            <div style={label}>Empresa</div>
+            <div style={{ fontWeight: 700, color: "#111", fontSize: 14 }}>{d.issuer.tradeName}</div>
+            <div>{d.issuer.legalName}</div>
+            <div>CNPJ {d.issuer.cnpj}</div>
+            {d.issuer.address ? <div>{d.issuer.address}</div> : null}
+            {d.issuer.phone ? <div>Tel. {d.issuer.phone}</div> : null}
+            {d.issuer.email ? <div>{d.issuer.email}</div> : null}
           </div>
-          {q.valid_until ? (
-            <div>
-              <div style={{ fontSize: 10, letterSpacing: ".08em", color: "#7A6A3A", textTransform: "uppercase" }}>Válido até</div>
-              <div style={{ fontWeight: 600 }}>{brDate(q.valid_until as string)}</div>
-            </div>
-          ) : null}
-          <div style={{ background: "#111", color: "#fff", borderRadius: 10, padding: "10px 14px" }}>
-            <div style={{ fontSize: 10, letterSpacing: ".08em", color: "#BBB", textTransform: "uppercase" }}>Total</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: GOLD }}>{brl(totals.total)}</div>
-            <div style={{ fontSize: 11, color: "#BBB" }}>{totals.trips} veículo(s)</div>
+          <div style={box}>
+            <div style={label}>Cliente</div>
+            <div style={{ fontWeight: 700, color: "#111", fontSize: 14 }}>{d.client.name}</div>
+            {d.client.legalName ? <div>{d.client.legalName}</div> : null}
+            {d.client.doc ? <div>{d.client.docLabel} {d.client.doc}</div> : null}
+            {d.client.address ? <div>{d.client.address}</div> : null}
+            {d.client.contact ? <div>A/C {d.client.contact}</div> : null}
+            {d.client.phone ? <div>Tel. {d.client.phone}</div> : null}
+            {d.client.email ? <div>{d.client.email}</div> : null}
           </div>
         </section>
 
@@ -156,48 +140,34 @@ export default async function OrcamentoPage({
                 <th style={{ ...th, textAlign: "right" }}>Valor</th>
               </tr>
             </thead>
-            {groups.map((g) => (
+            {d.groups.map((g) => (
               <tbody key={g.day || "sem-data"}>
                 <tr>
-                  <td colSpan={5} style={{ padding: "12px 6px 6px", fontSize: 12, fontWeight: 700, color: "#111", textTransform: "capitalize", borderBottom: "1px solid #EEE9DC" }}>
+                  <td colSpan={5} style={{ padding: "12px 6px 6px", fontSize: 12, fontWeight: 700, color: "#111", borderBottom: "1px solid #EEE9DC" }}>
                     <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: GOLD, marginRight: 8 }} />
-                    {dayTitle(g.day)}
+                    {g.title}
                   </td>
                 </tr>
-                {g.rows.map((i) => {
-                  const diaria = isDiaria(i.service_mode as string);
-                  const svc = serviceLabelForClient(i.service_mode as string, itemHours(i.service_mode as string, i.hours == null ? null : Number(i.hours)));
-                  return (
-                    <tr key={i.id as string}>
-                      <td style={{ ...td, fontWeight: 600 }}>{timeOf(i)}</td>
-                      <td style={td}>
-                        <b>{catName.get(i.vehicle_category_id as string) ?? "Veículo"}</b>
-                        <div style={{ color: "#555" }}>
-                          {[svc, i.passenger_count ? `${i.passenger_count} pessoa(s)` : null].filter(Boolean).join(" · ")}
-                        </div>
-                        {i.description ? <div style={{ color: "#555", marginTop: 2 }}>{i.description as string}</div> : null}
-                      </td>
-                      <td style={td}>
-                        {diaria ? (
-                          <>
-                            À disposição{i.origin_text ? ` a partir de ${shortAddress(i.origin_text as string)}` : ""}
-                            {i.destination_text ? <div style={{ color: "#555" }}>{i.destination_text as string}</div> : null}
-                          </>
-                        ) : (
-                          <>
-                            {i.origin_text ? shortAddress(i.origin_text as string) : "A definir"}
-                            <div style={{ color: "#555" }}>→ {i.destination_text ? shortAddress(i.destination_text as string) : "A definir"}</div>
-                          </>
-                        )}
-                      </td>
-                      <td style={{ ...td, textAlign: "center" }}>{i.quantity as number}</td>
-                      <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
-                        {brl(Number(i.unit_price) * Number(i.quantity))}
-                        {Number(i.quantity) > 1 ? <div style={{ color: "#777", fontSize: 11 }}>{brl(Number(i.unit_price))} cada</div> : null}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {g.rows.map((r, k) => (
+                  <tr key={k}>
+                    <td style={{ ...td, fontWeight: 600 }}>{r.time}</td>
+                    <td style={td}>
+                      <b>{r.vehicle}</b>
+                      <div style={{ color: "#555" }}>{[r.service, r.passengers].filter(Boolean).join(" · ")}</div>
+                      {r.note ? <div style={{ color: "#555", marginTop: 2 }}>Passageiros: {r.note}</div> : null}
+                      {r.detail ? <div style={{ color: "#8C702C", marginTop: 2 }}>Obs.: {r.detail}</div> : null}
+                    </td>
+                    <td style={td}>
+                      {r.from}
+                      {r.to ? <div style={{ color: "#555" }}>{r.diaria ? r.to : `→ ${r.to}`}</div> : null}
+                    </td>
+                    <td style={{ ...td, textAlign: "center" }}>{r.qty}</td>
+                    <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
+                      {brl(r.total)}
+                      {r.qty > 1 ? <div style={{ color: "#777", fontSize: 11 }}>{brl(r.unit)} cada</div> : null}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             ))}
           </table>
@@ -207,35 +177,35 @@ export default async function OrcamentoPage({
               <tbody>
                 <tr>
                   <td style={{ padding: "3px 12px", color: "#555" }}>Subtotal</td>
-                  <td style={{ padding: "3px 0", textAlign: "right" }}>{brl(totals.subtotal)}</td>
+                  <td style={{ padding: "3px 0", textAlign: "right" }}>{brl(d.totals.subtotal)}</td>
                 </tr>
-                {totals.discount > 0 ? (
+                {d.totals.discount > 0 ? (
                   <tr>
                     <td style={{ padding: "3px 12px", color: "#555" }}>Desconto</td>
-                    <td style={{ padding: "3px 0", textAlign: "right" }}>− {brl(totals.discount)}</td>
+                    <td style={{ padding: "3px 0", textAlign: "right" }}>− {brl(d.totals.discount)}</td>
                   </tr>
                 ) : null}
                 <tr>
                   <td style={{ padding: "6px 12px", fontWeight: 700 }}>Total</td>
-                  <td style={{ padding: "6px 0", textAlign: "right", fontWeight: 700, fontSize: 16 }}>{brl(totals.total)}</td>
+                  <td style={{ padding: "6px 0", textAlign: "right", fontWeight: 700, fontSize: 16 }}>{brl(d.totals.total)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
 
-        {q.notes || q.conditions ? (
+        {d.notes || d.conditions ? (
           <section style={{ padding: "8px 26px 18px", fontSize: 12, color: "#333", display: "grid", gap: 10 }}>
-            {q.notes ? (
+            {d.notes ? (
               <div>
                 <div style={{ fontSize: 10, letterSpacing: ".08em", color: "#7A6A3A", textTransform: "uppercase" }}>Observações</div>
-                <div style={{ whiteSpace: "pre-line" }}>{q.notes as string}</div>
+                <div style={{ whiteSpace: "pre-line" }}>{d.notes}</div>
               </div>
             ) : null}
-            {q.conditions ? (
+            {d.conditions ? (
               <div>
                 <div style={{ fontSize: 10, letterSpacing: ".08em", color: "#7A6A3A", textTransform: "uppercase" }}>Condições</div>
-                <div style={{ whiteSpace: "pre-line" }}>{q.conditions as string}</div>
+                <div style={{ whiteSpace: "pre-line" }}>{d.conditions}</div>
               </div>
             ) : null}
           </section>
@@ -244,8 +214,8 @@ export default async function OrcamentoPage({
         {viaLink && t ? <QuoteClientResponse quoteId={id} token={t} status={q.status as string} defaultName={clientName === "Cliente" ? "" : clientName} /> : null}
 
         <footer style={{ borderTop: `2px solid ${GOLD}`, padding: "14px 26px 20px", fontSize: 12, color: "#555" }}>
-          {viaLink ? "Dúvidas? Fale com a central." : "Para aprovar, responda este orçamento por WhatsApp ou e-mail."} {company.phone ? `Central: ${company.phone}. ` : ""}
-          {company.email ? `${company.email}` : ""}
+          {viaLink ? "Dúvidas? Fale com a central." : "Para aprovar, responda este orçamento por WhatsApp ou e-mail."} {d.issuer.phone ? `Central: ${d.issuer.phone}. ` : ""}
+          {d.issuer.email ? `${d.issuer.email}` : ""}
         </footer>
       </article>
     </main>

@@ -651,7 +651,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
               )}
 
               <label className="grid gap-1 text-sm sm:col-span-2">
-                <span>Passageiro / responsável</span>
+                <span>Passageiros (aparece no orçamento)</span>
                 <input className={input} disabled={locked} value={it.passenger_name} onChange={(e) => setItem(idx, { passenger_name: e.target.value })} />
               </label>
               <label className="grid gap-1 text-sm">
@@ -672,8 +672,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                 <span className="text-[11px] text-prime-muted">Interno: não aparece para o cliente</span>
               </label>
               <label className="grid gap-1 text-sm sm:col-span-6">
-                <span>Detalhe que aparece no orçamento (opcional)</span>
-                <input className={input} disabled={locked} placeholder="Ex.: recepção com placa no desembarque · voo G3 1234" value={it.description} onChange={(e) => setItem(idx, { description: e.target.value })} />
+                <span>Observação do serviço (aparece no orçamento)</span>
+                <input className={input} disabled={locked} placeholder="Ex.: levar e depois retornar · recepção com placa · voo G3 1234" value={it.description} onChange={(e) => setItem(idx, { description: e.target.value })} />
               </label>
               <p className="text-xs text-prime-muted sm:col-span-6">
                 {it.date ? (it.time ? formatBrDateTime(saoPauloDateAndTimeToUtcIso(it.date, it.time) ?? "") : `${it.date.split("-").reverse().join("/")} · falta a hora`) : "Falta a data"} · subtotal{" "}
@@ -742,7 +742,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
               </button>
               {id ? (
                 <>
-                  <a href={`/orcamento/${id}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white px-4 py-2 text-sm font-semibold ring-1 ring-prime-border hover:ring-prime-gold">
+                  <a href={`/api/quotes/${id}/pdf`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white px-4 py-2 text-sm font-semibold ring-1 ring-prime-border hover:ring-prime-gold">
                     PDF
                   </a>
                   <button type="button" disabled={busy} className="rounded-lg bg-white px-4 py-2 text-sm font-semibold ring-1 ring-prime-border hover:ring-prime-gold" onClick={() => setMailOpen(true)}>
@@ -773,7 +773,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
               )}
             </>
           ) : (
-            <a href={`/orcamento/${id}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white px-4 py-2 text-sm font-semibold ring-1 ring-prime-border">
+            <a href={`/api/quotes/${id}/pdf`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white px-4 py-2 text-sm font-semibold ring-1 ring-prime-border">
               Abrir PDF
             </a>
           )}
