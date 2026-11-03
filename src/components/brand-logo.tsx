@@ -7,7 +7,7 @@ type Props = {
 };
 
 export function BrandLogo({
-  subtitle = "EXECUTIVE TRANSPORT",
+  subtitle = "TRANSPORTE EXECUTIVO",
   compact,
   className = "",
   variant = "light"
@@ -16,14 +16,13 @@ export function BrandLogo({
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <span
-        className={`flex shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-prime-gold to-prime-gold-hover text-prime-text shadow-sm ${
-          compact ? "h-9 w-9 text-base" : "h-10 w-10 text-lg"
-        }`}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/api/public/brand-logo"
+        alt=""
         aria-hidden
-      >
-        ♛
-      </span>
+        className={`shrink-0 rounded-lg bg-white object-contain p-0.5 shadow-sm ring-1 ring-prime-border ${compact ? "h-9 w-9" : "h-10 w-10"}`}
+      />
       <div className="min-w-0 leading-tight">
         <p
           className={`truncate font-semibold tracking-tight ${

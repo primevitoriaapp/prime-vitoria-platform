@@ -6,6 +6,7 @@ import { TripOperationalClaimBar } from "@/components/trip-operational-claim-bar
 import { TripOperatorNotesPanel } from "@/components/trip-operator-notes-panel";
 import { TripFinanceErpPanel } from "@/components/trip-finance-erp-panel";
 import { TripKmPanel } from "@/components/trip-km-panel";
+import { TripProgressTimeline } from "@/components/trip-progress-timeline";
 
 type Props = {
   tripId: string;
@@ -28,6 +29,7 @@ export function TripAgendaOperationalStack({
 
   return (
     <div className="space-y-6">
+      <TripProgressTimeline tripId={tripId} devFallbackRole={financeDevRole} title="Andamento (o que o cliente vê)" />
       {showClaimBar ? <TripOperationalClaimBar tripId={tripId} /> : null}
       {showFinancePanel ? (
         <TripFinanceErpPanel tripId={tripId} devFallbackRole={financeDevRole} writeMode={financeWriteMode} />

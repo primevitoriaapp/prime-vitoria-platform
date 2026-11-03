@@ -8,6 +8,7 @@ import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { formatBrTime } from "@/lib/dates/br-date";
 import { shortAddress } from "@/lib/client/short-address";
 import { DASH_PERIODS, type DashPeriod } from "@/lib/operations/dashboard-metrics";
+import { useCompany, companyLabel } from "@/lib/company/company-context";
 import { BOOKING_GROUPS, bookingGroupOf, bookingPeriodRange } from "@/lib/operations/booking-periods";
 
 type Summary = {
@@ -81,9 +82,10 @@ export function DashboardOverview({ tenantId, showMoney }: { tenantId: string | 
   const [data, setData] = useState<Data | null>(null);
   const [next, setNext] = useState<NextTrip[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { company } = useCompany();
 
   const load = useCallback(async () => {
-    const res = await fetchWithSupabaseSession(`/api/reports/dashboard?period=${period}`, {}, "admin");
+    const res = await fetchWithSupabaseSession(`/api/reports/dashboard?period=${period}&empresa=${company}`, {}, "admin");
     const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: Data; error?: { message?: string } };
     if (res.ok && json.success && json.data) {
       setData(json.data);
@@ -101,7 +103,7 @@ export function DashboardOverview({ tenantId, showMoney }: { tenantId: string | 
           .slice(0, 6)
       );
     }
-  }, [period]);
+  }, [period, company]);
 
   useEffect(() => {
     void load();
@@ -113,6 +115,7 @@ export function DashboardOverview({ tenantId, showMoney }: { tenantId: string | 
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-3">
       <div className="inline-flex flex-wrap rounded-xl border border-prime-border bg-white p-1 text-sm">
         {DASH_PERIODS.map((p) => (
           <button
@@ -125,15 +128,23 @@ export function DashboardOverview({ tenantId, showMoney }: { tenantId: string | 
           </button>
         ))}
       </div>
+        {company !== "todas" ? (
+          <span className="rounded-full bg-[#111] px-3 py-1.5 text-xs font-semibold text-prime-gold">
+            Números de: {companyLabel(company)}
+          </span>
+        ) : (
+          <span className="text-xs text-prime-muted">Somando as 3 empresas</span>
+        )}
+      </div>
 
       {error ? <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
 
       {data && data.alerts.length > 0 ? (
-        <div className="grid gap-2">
+        <div className="grid gap-2 md:grid-cols-2">
           {data.alerts.map((a) => (
-            <Link key={a.text} href={a.href as Route} className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium ${ALERT_TONE[a.tone]}`}>
-              <span>⚠ {a.text}</span>
-              <span>Ver →</span>
+            <Link key={a.text} href={a.href as Route} className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium ${ALERT_TONE[a.tone]}`}>
+              <span>{a.text}</span>
+              <span className="shrink-0">Ver →</span>
             </Link>
           ))}
         </div>

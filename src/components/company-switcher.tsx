@@ -6,7 +6,7 @@ import { COMPANY_SCOPES, useCompany, type CompanyScope } from "@/lib/company/com
 export function CompanySwitcher() {
   const { company, setCompany } = useCompany();
   return (
-    <label className="hidden items-center gap-2 text-xs sm:flex" title="Filtra o financeiro pela empresa">
+    <label className="flex items-center gap-2 text-xs" title="Filtra o financeiro pela empresa">
       <span className="font-semibold uppercase tracking-wide text-prime-muted">Empresa</span>
       <select
         value={company}

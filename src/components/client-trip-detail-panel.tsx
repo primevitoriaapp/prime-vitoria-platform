@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
-import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
+import type { Trip } from "@/lib/domain/types";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { CLIENT_STATUS, CLIENT_STATUS_TONE_CLASS, tripShortNumber } from "@/lib/client/client-status";
 import { PrimeLogoMark } from "@/components/prime-logo-mark";
+import { TripProgressTimeline } from "@/components/trip-progress-timeline";
 
 type CostCenter = { id: string; code: string | null; name: string };
 
@@ -24,19 +25,6 @@ type Props = {
   devFallbackRole?: "cliente" | "admin";
   tenantId?: string;
 };
-
-const STEPS: { label: string; statuses: TripOperationalStatus[] }[] = [
-  { label: "Pedido recebido", statuses: ["requested"] },
-  { label: "Confirmada", statuses: ["approved"] },
-  { label: "Motorista definido", statuses: ["dispatched", "accepted", "reassigned"] },
-  { label: "A caminho / no local", statuses: ["on_the_way", "arrived"] },
-  { label: "Em viagem", statuses: ["in_progress"] },
-  { label: "Concluída", statuses: ["completed"] }
-];
-
-function stepIndex(status: TripOperationalStatus) {
-  return STEPS.findIndex((s) => s.statuses.includes(status));
-}
 
 export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRole = "cliente", tenantId }: Props) {
   const [trip, setTrip] = useState<TripDetail | null>(null);
@@ -64,7 +52,6 @@ export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRol
 
   const cc = trip?.cost_center_id ? costCenters.find((c) => c.id === trip.cost_center_id) : null;
   const st = trip ? (CLIENT_STATUS[trip.operational_status] ?? { label: trip.operational_status, tone: "done" as const }) : null;
-  const idx = trip ? stepIndex(trip.operational_status) : -1;
   const vehicleText = trip?.vehicle ? [trip.vehicle.model, trip.vehicle.plate ? `placa ${trip.vehicle.plate}` : null].filter(Boolean).join(" · ") : null;
 
   return (
@@ -99,18 +86,6 @@ export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRol
                 </span>
               </div>
 
-              {idx >= 0 ? (
-                <ol className="mt-5 grid grid-cols-6 gap-1" aria-label="Andamento da corrida">
-                  {STEPS.map((s, i) => (
-                    <li key={s.label} className="grid gap-1.5">
-                      <span className={`h-1.5 rounded-full ${i <= idx ? "bg-prime-gold" : "bg-gray-200"}`} />
-                      <span className={`hidden text-[11px] leading-tight sm:block ${i === idx ? "font-semibold" : "text-prime-muted"}`}>
-                        {s.label}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              ) : null}
 
               {["on_the_way", "arrived", "in_progress"].includes(trip.operational_status) ? (
                 <LiveTrackButton tripId={trip.id} devFallbackRole={devFallbackRole} />
@@ -133,6 +108,8 @@ export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRol
                 </div>
               </div>
             </section>
+
+            <TripProgressTimeline tripId={trip.id} tenantId={tenantId} devFallbackRole={devFallbackRole} />
 
             <section className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-prime-border bg-white p-4 text-sm">

@@ -3,6 +3,7 @@ import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability, can } from "@/lib/security/rbac";
+import { clientIdsOfCompany, companyFromRequest } from "@/lib/company/company-scope-server";
 import { dashRanges, pctChange, summarize, topBy, type DashPeriod, type MetricTrip } from "@/lib/operations/dashboard-metrics";
 
 const PERIODS: DashPeriod[] = ["hoje", "7d", "mes", "ano"];
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
     const period: DashPeriod = p && PERIODS.includes(p) ? p : "hoje";
     if (!PERIODS.includes(period)) return fail("INVALID_PERIOD", "Período inválido.", 400);
     const r = dashRanges(period);
+    const empresa = companyFromRequest(request);
+    const only = await clientIdsOfCompany(tenantId, empresa);
+    const inScope = <T extends { client_id?: string | null }>(xs: T[]) => (only ? xs.filter((t) => t.client_id && only.has(t.client_id)) : xs);
 
     const now = new Date();
     const in24h = new Date(now.getTime() + 72 * 3600000).toISOString(); // regra da Prime: motorista definido até 3 dias antes
@@ -35,8 +39,8 @@ export async function GET(request: Request) {
 
     const staleIso = new Date(now.getTime() - 12 * 3600000).toISOString();
     const [curr, prev, noDriver, pending, drivers, clients, cnh, stale, expenses, vdocs, lowRatings] = await Promise.all([
-      tripsBetween(tenantId, r.from, r.to),
-      tripsBetween(tenantId, r.prevFrom, r.prevTo),
+      tripsBetween(tenantId, r.from, r.to).then(inScope),
+      tripsBetween(tenantId, r.prevFrom, r.prevTo).then(inScope),
       db
         .from("trips")
         .select("id", { count: "exact", head: true })
@@ -84,12 +88,14 @@ export async function GET(request: Request) {
     let payablesOverdue = 0;
     if (session.role === "admin" || session.role === "financeiro") {
       const todaySp = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(now);
-      const { count } = await db
+      let pq = db
         .from("company_payables")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
         .eq("status", "aberta")
         .lt("due_date", todaySp);
+      if (empresa !== "todas") pq = pq.eq("issuer", empresa);
+      const { count } = await pq;
       payablesOverdue = count ?? 0;
     }
 
@@ -131,6 +137,7 @@ export async function GET(request: Request) {
 
     return ok({
       period,
+      empresa,
       range: r,
       summary: showMoney ? s : { ...s, revenue: null, payout: null, profit: null, avgTicket: null },
       change: {

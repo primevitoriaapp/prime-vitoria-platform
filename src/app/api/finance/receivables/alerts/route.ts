@@ -3,10 +3,11 @@ import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { assertCapability } from "@/lib/security/rbac";
+import { clientIdsOfCompany, companyFromRequest } from "@/lib/company/company-scope-server";
 import { classifyReceivables, todayInSaoPaulo, type ReceivableAlertRow } from "@/lib/finance/receivable-alerts";
 
 /** Contas a receber vencidas e que vencem em até 3 dias (alerta do painel). */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getSessionContext();
     assertCapability(session, "finance.read");
@@ -28,7 +29,8 @@ export async function GET() {
       for (const c of clients ?? []) names.set(c.id as string, ((c.trade_name as string) || (c.name as string)) ?? "");
     }
 
-    const rows: ReceivableAlertRow[] = (data ?? []).map((r) => ({
+    const only = await clientIdsOfCompany(tenantId, companyFromRequest(request));
+    const rows: ReceivableAlertRow[] = (data ?? []).filter((r) => !only || only.has(r.client_id as string)).map((r) => ({
       id: r.id as string,
       client_name: names.get(r.client_id as string) ?? null,
       amount: Number(r.amount),

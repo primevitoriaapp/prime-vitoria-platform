@@ -2,20 +2,24 @@ import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
+import { companyFromRequest } from "@/lib/company/company-scope-server";
 import { payableSituation } from "@/lib/finance/company-payables-calc";
 
 /** Contas da empresa vencidas ou vencendo em até 5 dias (alerta do topo). */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getSessionContext();
     if (session.role !== "admin" && session.role !== "financeiro") return fail("FORBIDDEN", "Sem acesso", 403);
     const tenantId = assertTenantScope(session);
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-    const { data, error } = await db
+    const empresa = companyFromRequest(request);
+    let q = db
       .from("company_payables")
-      .select("id, description, supplier, amount, due_date, status")
+      .select("id, description, supplier, amount, due_date, status, issuer")
       .eq("tenant_id", tenantId)
-      .eq("status", "aberta")
+      .eq("status", "aberta");
+    if (empresa !== "todas") q = q.eq("issuer", empresa);
+    const { data, error } = await q
       .order("due_date", { ascending: true })
       .limit(300);
     if (error) return fail("ALERTS_FAILED", error.message, 500);

@@ -2,6 +2,7 @@
 
 import { TopAlertPopover } from "@/components/top-alert-popover";
 import { useEffect, useState } from "react";
+import { useCompany } from "@/lib/company/company-context";
 
 type Item = { id: string; client_name: string | null; amount: number; due_date: string };
 type Bucket = { count: number; total: number; items: Item[] };
@@ -14,11 +15,12 @@ function fmt(n: number) {
 /** Topo do painel: contas a receber vencidas (vermelho piscando) e que vencem em até 3 dias (amarelo). */
 export function ReceivablesAlertPill() {
   const [alerts, setAlerts] = useState<Alerts | null>(null);
+  const { company } = useCompany();
 
   useEffect(() => {
     let cancelled = false;
     const load = () =>
-      fetch("/api/finance/receivables/alerts", { credentials: "include" })
+      fetch(`/api/finance/receivables/alerts?empresa=${company}`, { credentials: "include" })
         .then((r) => r.json())
         .then((json: { success?: boolean; data?: Alerts }) => {
           if (!cancelled && json?.success && json.data) setAlerts(json.data);
@@ -30,7 +32,7 @@ export function ReceivablesAlertPill() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [company]);
 
   if (!alerts || (alerts.overdue.count === 0 && alerts.due_soon.count === 0)) return null;
 

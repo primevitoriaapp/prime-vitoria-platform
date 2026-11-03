@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TopAlertPopover } from "@/components/top-alert-popover";
+import { useCompany } from "@/lib/company/company-context";
 
 type Item = { id: string; description: string; supplier: string | null; amount: number; due_date: string };
 type Bucket = { count: number; total: number; items: Item[] };
@@ -11,10 +12,11 @@ const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", curren
 /** Topo do painel: contas da empresa vencidas ou vencendo em até 5 dias. */
 export function PayablesAlertPill() {
   const [data, setData] = useState<{ overdue: Bucket; due_soon: Bucket } | null>(null);
+  const { company } = useCompany();
   useEffect(() => {
     let off = false;
     const load = () =>
-      fetch("/api/finance/company-payables/alerts", { credentials: "include" })
+      fetch(`/api/finance/company-payables/alerts?empresa=${company}`, { credentials: "include" })
         .then((r) => r.json())
         .then((j: { success?: boolean; data?: { overdue: Bucket; due_soon: Bucket } }) => {
           if (!off && j?.success && j.data) setData(j.data);
@@ -26,7 +28,7 @@ export function PayablesAlertPill() {
       off = true;
       window.clearInterval(t);
     };
-  }, []);
+  }, [company]);
   if (!data) return null;
   const n = data.overdue.count + data.due_soon.count;
   if (n === 0) return null;

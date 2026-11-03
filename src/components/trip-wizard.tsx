@@ -7,6 +7,7 @@ import type { Route } from "next";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
+import { TypedDateTime } from "@/components/typed-date-time";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { formatBrDateTime, formatBrTime, saoPauloDateAndTimeToUtcIso, saoPauloTodayYmd } from "@/lib/dates/br-date";
 import { normalizeFlightNumber } from "@/lib/trips/flight";
@@ -24,10 +25,6 @@ const input = PRIME_INPUT_CLASS;
 const brl = (n: number | null | undefined) =>
   n == null ? "" : n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-function addDaysYmd(ymd: string, n: number) {
-  return new Date(Date.parse(`${ymd}T12:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
-}
-
 /** Nova corrida em 5 etapas, com cadastro rápido de cliente e escolha do veículo por cartões. */
 export function TripWizard({ onDone }: { onDone?: () => void }) {
   const router = useRouter();
@@ -44,14 +41,15 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [clientType, setClientType] = useState<"todos" | "PJ" | "PF">("todos");
   const [clientId, setClientId] = useState("");
   const [showNewClient, setShowNewClient] = useState(false);
-  const [nc, setNc] = useState({ type: "PJ" as "PJ" | "PF", name: "", document: "", whatsapp: "", email: "" });
+  const [nc, setNc] = useState({ type: "PJ" as "PJ" | "PF", name: "", document: "", whatsapp: "", email: "", address: "", cep: "" });
+  const [cepBusy, setCepBusy] = useState(false);
 
   // 2. Data
   const today = saoPauloTodayYmd();
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [roundTrip, setRoundTrip] = useState(false);
-  const [returnDate, setReturnDate] = useState(today);
+  const [returnDate, setReturnDate] = useState("");
   const [returnTime, setReturnTime] = useState("");
 
   // 3. Veículo
@@ -203,6 +201,23 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const currentMissing = missing(step);
   const canNext = currentMissing.length === 0;
 
+  async function lookupCep() {
+    const cep = nc.cep.replace(/\D/g, "");
+    if (cep.length !== 8) return;
+    setCepBusy(true);
+    try {
+      const res = await fetchWithSupabaseSession(`/api/integrations/viacep-lookup?cep=${cep}`, {}, "admin");
+      const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { logradouro?: string; bairro?: string; localidade?: string; uf?: string } };
+      const d = json.data;
+      if (res.ok && json.success && d) {
+        const line = [d.logradouro, d.bairro, d.localidade && d.uf ? `${d.localidade}/${d.uf}` : d.localidade].filter(Boolean).join(", ");
+        setNc((f) => ({ ...f, address: line ? `${line}, ` : f.address }));
+      }
+    } finally {
+      setCepBusy(false);
+    }
+  }
+
   async function createClient() {
     if (nc.name.trim().length < 2) {
       setError("Informe o nome do cliente.");
@@ -221,7 +236,9 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
           whatsapp: nc.whatsapp.trim() || null,
           phone: nc.whatsapp.trim() || null,
           email: nc.email.trim() || null,
-          registry_status: "incompleto"
+          address_line: nc.address.trim() || null,
+          postal_code: nc.cep.trim() || null,
+          registry_status: nc.document.trim() && nc.address.trim() && nc.email.trim() ? "completo" : "incompleto"
         })
       },
       "admin"
@@ -235,7 +252,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     await loadClients();
     setClientId(json.data.id);
     setShowNewClient(false);
-    setNc({ type: "PJ", name: "", document: "", whatsapp: "", email: "" });
+    setNc({ type: "PJ", name: "", document: "", whatsapp: "", email: "", address: "", cep: "" });
     setStep(1);
   }
 
@@ -387,6 +404,22 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                   <span>E-mail</span>
                   <input className={input} type="email" value={nc.email} onChange={(e) => setNc({ ...nc, email: e.target.value })} />
                 </label>
+                <label className="grid gap-1 text-sm">
+                  <span>CEP</span>
+                  <input
+                    className={input}
+                    inputMode="numeric"
+                    placeholder="29000-000"
+                    value={nc.cep}
+                    onChange={(e) => setNc({ ...nc, cep: e.target.value })}
+                    onBlur={() => void lookupCep()}
+                  />
+                  {cepBusy ? <span className="text-xs text-prime-muted">Buscando endereço…</span> : null}
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span>Endereço (rua, número, bairro, cidade)</span>
+                  <input className={input} value={nc.address} onChange={(e) => setNc({ ...nc, address: e.target.value })} />
+                </label>
                 <div className="sm:col-span-2">
                   <button type="button" disabled={busy} className="btn-primary disabled:opacity-50" onClick={() => void createClient()}>
                     {busy ? "Salvando…" : "Cadastrar e continuar"}
@@ -435,36 +468,10 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
 
         {/* 2. DATA E HORA */}
         {step === 1 ? (
-          <div className="grid gap-5 md:grid-cols-2">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold">Ida</p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  ["Hoje", today],
-                  ["Amanhã", addDaysYmd(today, 1)],
-                  ["Depois de amanhã", addDaysYmd(today, 2)]
-                ].map(([label, ymd]) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setDate(ymd)}
-                    className={`rounded-full px-3 py-1.5 text-sm ring-1 ${date === ymd ? "bg-[#111] text-[#fff] ring-[#111]" : "ring-prime-border"}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="grid gap-1 text-sm">
-                  <span>Data</span>
-                  <input type="date" className={input} value={date} onChange={(e) => setDate(e.target.value)} />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span>Horário</span>
-                  <input type="time" step={300} className={input} value={time} onChange={(e) => setTime(e.target.value)} autoFocus />
-                </label>
-              </div>
-              {scheduledIso ? <p className="text-sm text-prime-muted">Embarque: {formatBrDateTime(scheduledIso)}</p> : null}
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <TypedDateTime label="Ida" date={date} time={time} today={today} onDate={setDate} onTime={setTime} autoFocus />
+              {scheduledIso ? <p className="text-sm font-medium text-emerald-800">Embarque: {formatBrDateTime(scheduledIso)}</p> : null}
             </div>
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold">
@@ -472,17 +479,10 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 Tem volta (ida e volta)
               </label>
               {roundTrip ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="grid gap-1 text-sm">
-                    <span>Data da volta</span>
-                    <input type="date" className={input} value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
-                  </label>
-                  <label className="grid gap-1 text-sm">
-                    <span>Horário da volta</span>
-                    <input type="time" step={300} className={input} value={returnTime} onChange={(e) => setReturnTime(e.target.value)} />
-                  </label>
-                  <p className="col-span-2 text-xs text-prime-muted">A volta vira uma segunda corrida, com o trajeto invertido.</p>
-                </div>
+                <>
+                  <TypedDateTime label="Volta" date={returnDate} time={returnTime} today={today} onDate={setReturnDate} onTime={setReturnTime} />
+                  <p className="text-xs text-prime-muted">A volta vira uma segunda corrida, com o trajeto invertido.</p>
+                </>
               ) : null}
             </div>
           </div>
@@ -575,6 +575,47 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                   </button>
                   <span className="text-xs text-prime-muted">máx. {category.passengers}</span>
                 </label>
+
+                <div className="mt-3 rounded-2xl border-2 border-prime-gold bg-[#FBF7EC] p-4">
+                  <p className="text-base font-semibold">Valores desta corrida</p>
+                  <p className="text-xs text-prime-muted">
+                    {mode === "km"
+                      ? "Por km: deixe em branco para calcular pelo km rodado, ou digite um valor fechado."
+                      : tablePrice
+                        ? "Já preenchido com a tabela do cliente. Pode mudar."
+                        : "Sem tabela para este serviço: digite os valores combinados."}
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="grid gap-1 text-sm">
+                      <span className="font-medium">Cliente paga (R$)</span>
+                      <input
+                        className={`${input} text-xl font-semibold`}
+                        inputMode="decimal"
+                        placeholder={mode === "km" ? "Por km" : "0,00"}
+                        value={clientAmount}
+                        onChange={(e) => setClientAmount(e.target.value)}
+                      />
+                      {tablePrice?.client_price != null ? <span className="text-xs text-emerald-700">Tabela: {brl(tablePrice.client_price)}</span> : null}
+                    </label>
+                    <label className="grid gap-1 text-sm">
+                      <span className="font-medium">Motorista recebe (R$)</span>
+                      <input
+                        className={`${input} text-xl font-semibold`}
+                        inputMode="decimal"
+                        placeholder={mode === "km" ? "Por km" : "0,00"}
+                        value={driverAmount}
+                        onChange={(e) => setDriverAmount(e.target.value)}
+                      />
+                      {tablePrice?.partner_price != null ? <span className="text-xs text-emerald-700">Tabela do parceiro: {brl(tablePrice.partner_price)}</span> : null}
+                    </label>
+                  </div>
+                  {Number(clientAmount.replace(",", ".")) > 0 && Number(driverAmount.replace(",", ".")) > 0 ? (
+                    <p className="mt-2 text-sm">
+                      Margem da Prime:{" "}
+                      <b>{brl(Number(clientAmount.replace(",", ".")) - Number(driverAmount.replace(",", ".")))}</b>
+                    </p>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </div>
@@ -642,31 +683,20 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               <span>O.S. ou referência do cliente</span>
               <input className={input} value={osRef} onChange={(e) => setOsRef(e.target.value)} />
             </label>
-            <label className="grid gap-1 text-sm">
-              <span>Valor para o cliente (R$)</span>
-              <input className={input} inputMode="decimal" placeholder="Em branco = tabela ou a combinar" value={clientAmount} onChange={(e) => setClientAmount(e.target.value)} />
-              {tablePrice?.client_price != null ? (
-                <span className="text-xs text-emerald-700">Tabela do cliente: {brl(tablePrice.client_price)}</span>
-              ) : mode === "km" ? (
-                kmEstimate ? (
-                  <span className="rounded-lg bg-emerald-50 px-2 py-1.5 text-xs text-emerald-900">
-                    <b>Estimativa: {brl(kmEstimate.client)}</b> · cerca de {kmEstimate.km?.toLocaleString("pt-BR")} km · {kmEstimate.bandeira}
-                    {kmEstimate.driver != null ? ` · motorista ${brl(kmEstimate.driver)}` : ""}. O valor final sai do km rodado. Deixe em branco para cobrar por km.
-                  </span>
+            {mode === "km" ? (
+              <div className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900 md:col-span-2">
+                {kmEstimate ? (
+                  <>
+                    <b>Estimativa por km: {brl(kmEstimate.client)}</b> · cerca de {kmEstimate.km?.toLocaleString("pt-BR")} km · {kmEstimate.bandeira}
+                    {kmEstimate.driver != null ? ` · motorista ${brl(kmEstimate.driver)}` : ""}. O valor final sai do km rodado.
+                  </>
                 ) : origin.lat == null || dest.lat == null ? (
-                  <span className="text-xs text-prime-muted">Escolha embarque e destino na lista de sugestões para calcular a estimativa.</span>
+                  "Escolha embarque e destino na lista de sugestões para calcular a estimativa por km."
                 ) : (
-                  <span className="text-xs text-amber-700">Sem preço por km na tabela deste cliente para esta categoria.</span>
-                )
-              ) : null}
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span>Valor para o motorista (R$)</span>
-              <input className={input} inputMode="decimal" placeholder="Em branco = tabela" value={driverAmount} onChange={(e) => setDriverAmount(e.target.value)} />
-              {tablePrice?.partner_price != null ? (
-                <span className="text-xs text-emerald-700">Tabela do parceiro: {brl(tablePrice.partner_price)}</span>
-              ) : null}
-            </label>
+                  "Sem preço por km na tabela deste cliente para esta categoria."
+                )}
+              </div>
+            ) : null}
             <div className="grid gap-2 text-sm md:col-span-2">
               <span>Motorista chega antes do horário</span>
               <div className="flex flex-wrap gap-2">
@@ -777,26 +807,60 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 </div>
               </div>
             </dl>
-            <label className="grid gap-1 rounded-2xl border-2 border-prime-gold/50 bg-[#FBF7EC] p-4 text-sm md:col-span-2">
-              <span className="font-semibold">Motorista (opcional)</span>
-              <select className={input} value={driverId} onChange={(e) => setDriverId(e.target.value)}>
-                <option value="">Escolher depois</option>
-                {[...assignDrivers]
-                  .sort((a, b) => Number(Boolean(b.categoryIds?.includes(category.id))) - Number(Boolean(a.categoryIds?.includes(category.id))))
-                  .map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                      {d.vehicle ? ` · ${d.vehicle.model} ${d.vehicle.plate}` : ""}
-                      {d.categoryIds?.length && !d.categoryIds.includes(category.id) ? " (outra categoria)" : ""}
-                    </option>
-                  ))}
-              </select>
-              <span className="text-xs text-prime-muted">
+            <div className="rounded-2xl border-2 border-prime-gold bg-[#FBF7EC] p-4 md:col-span-2">
+              <p className="text-base font-semibold">Motorista</p>
+              <p className="text-xs text-prime-muted">
                 {driverId
                   ? "Ao criar, a corrida já vai para ele e o celular dele avisa. Se ele tiver outra corrida no mesmo horário, o sistema avisa e não atribui."
-                  : "Se deixar em branco, a corrida abre na tela dela para você escolher o motorista."}
-              </span>
-            </label>
+                  : "Toque no motorista ou deixe “Escolher depois”."}
+              </p>
+              <div className="mt-3 grid max-h-[26rem] gap-2 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => setDriverId("")}
+                  className={`flex items-center gap-3 rounded-xl border bg-white p-3 text-left ${driverId === "" ? "border-prime-gold ring-2 ring-prime-gold" : "border-prime-border"}`}
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-prime-bg text-lg">⏳</span>
+                  <span>
+                    <span className="block font-semibold">Escolher depois</span>
+                    <span className="block text-xs text-prime-muted">A corrida fica aguardando motorista</span>
+                  </span>
+                </button>
+                {[...assignDrivers]
+                  .sort((a, b) => Number(Boolean(b.categoryIds?.includes(category.id))) - Number(Boolean(a.categoryIds?.includes(category.id))))
+                  .map((d) => {
+                    const sel = driverId === d.id;
+                    const other = Boolean(d.categoryIds?.length && !d.categoryIds.includes(category.id));
+                    const online = d.status === "online";
+                    return (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => setDriverId(d.id)}
+                        className={`flex items-center gap-3 rounded-xl border bg-white p-3 text-left ${sel ? "border-prime-gold ring-2 ring-prime-gold" : "border-prime-border hover:border-prime-gold"}`}
+                      >
+                        <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#111] text-sm font-bold text-prime-gold">
+                          {d.name
+                            .split(" ")
+                            .map((p) => p[0])
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase()}
+                          {online ? <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" /> : null}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold">
+                            {sel ? "✓ " : ""}
+                            {d.name}
+                          </span>
+                          <span className="block truncate text-xs text-prime-muted">{d.vehicle ? `${d.vehicle.model} · ${d.vehicle.plate}` : "Sem carro cadastrado"}</span>
+                          {other ? <span className="block text-xs text-amber-700">Carro de outra categoria</span> : null}
+                        </span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
           </div>
         ) : null}
 
