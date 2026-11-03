@@ -23,10 +23,10 @@ export async function enrichTripListItems<
   const creatorIds = [...new Set(items.map((t) => t.created_by).filter((id): id is string => Boolean(id)))];
 
   const [{ data: clients }, { data: drivers }, { data: requesters }] = await Promise.all([
-    db.from("clients").select("id, name").in("id", clientIds),
+    db.from("clients").select("id, name, trade_name").in("id", clientIds),
     driverIds.length
-      ? db.from("drivers").select("id, full_name, profile_name").in("id", driverIds)
-      : Promise.resolve({ data: [] as { id: string; full_name: string | null; profile_name: string | null }[] }),
+      ? db.from("drivers").select("id, full_name").in("id", driverIds)
+      : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
     creatorIds.length
       ? db.from("client_passengers").select("profile_id, client_id, name, matricula, sector").in("profile_id", creatorIds)
       : Promise.resolve({ data: [] as { profile_id: string; client_id: string; name: string; matricula: string | null; sector: string | null }[] })
@@ -38,13 +38,12 @@ export async function enrichTripListItems<
     ])
   );
 
-  const clientById = new Map((clients ?? []).map((c) => [c.id, c.name as string]));
+  // Nome fantasia primeiro (ex.: "Comexport — CD" e "Comexport — GDL" não ficam iguais na agenda).
+  const clientById = new Map((clients ?? []).map((c) => [c.id, ((c.trade_name as string | null)?.trim() || (c.name as string)) as string]));
   const driverById = new Map(
     (drivers ?? []).map((d) => [
       d.id,
-      (d.full_name as string | null)?.trim() ||
-        (d.profile_name as string | null)?.trim() ||
-        null
+      (d.full_name as string | null)?.trim() || null
     ])
   );
 
