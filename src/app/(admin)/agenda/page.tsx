@@ -27,6 +27,7 @@ import { fetchInternalApi } from "@/lib/server/internal-fetch";
 import { getSessionContext } from "@/lib/server/session";
 import { BookingsBoard } from "@/components/bookings-board";
 import { TripWizard } from "@/components/trip-wizard";
+import { VoucherImportPanel } from "@/components/voucher-import-panel";
 import { TripEditPanel } from "@/components/trip-edit-panel";
 import { TripAssignCard } from "@/components/trip-assign-card";
 import { TripProofCard } from "@/components/trip-proof-card";
@@ -122,6 +123,7 @@ export default async function AgendaPage({
             </span>
           </summary>
           <div className="space-y-3 border-t border-prime-border p-2 sm:p-4">
+            <VoucherImportPanel />
             <TripWizard />
             <details className="rounded-xl border border-dashed border-prime-border">
               <summary className="cursor-pointer px-4 py-2 text-sm text-prime-muted">
