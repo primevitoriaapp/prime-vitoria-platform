@@ -1,5 +1,6 @@
 "use client";
 
+import { useDriverPresenceBeacon } from "@/hooks/use-driver-presence-beacon";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DriverWallet } from "@/components/driver-wallet";
@@ -59,6 +60,8 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   const searchParams = useSearchParams();
   const [drivers, setDrivers] = useState(initialDrivers);
   const [me, setMe] = useState<Me | null>(null);
+  // Aparece no mapa "Ao vivo" da central enquanto o app estiver aberto.
+  useDriverPresenceBeacon(mode === "motorista");
   const [tab, setTab] = useState<Tab>("inicio");
   const [withTrips, setWithTrips] = useState<Record<string, number>>({});
   const [nextTrip, setNextTrip] = useState<Trip | null>(null);
