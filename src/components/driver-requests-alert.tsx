@@ -59,9 +59,10 @@ export function DriverRequestsAlert() {
     const check = async () => {
       try {
         const r = await fetch("/api/driver-requests", { credentials: "include" });
-        const j = (await r.json()) as { success?: boolean; data?: { id: string }[] };
+        const j = (await r.json()) as { success?: boolean; data?: { items?: { id: string }[] } | { id: string }[] };
         if (stop || !j?.success) return;
-        const ids = (j.data ?? []).map((x) => x.id);
+        const list = Array.isArray(j.data) ? j.data : (j.data?.items ?? []);
+        const ids = list.map((x) => x.id);
         setCount(ids.length);
         if (seen.current) {
           const fresh = ids.filter((id) => !seen.current!.has(id));
