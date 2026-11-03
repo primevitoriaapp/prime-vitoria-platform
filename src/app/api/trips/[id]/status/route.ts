@@ -18,6 +18,7 @@ import { isOperationalTripStatusEvent } from "@/lib/notifications/operational-st
 import { finalizeWaitFields } from "@/lib/trips/finalize-trip-wait";
 import { odometerDistance, parseOdometer } from "@/lib/trips/odometer";
 import { chooseBillableKm, gpsTrailGaps } from "@/lib/trips/km-distance";
+import { closeAllDropoffs, parseDropoffStops } from "@/lib/trips/trip-dropoff-stops";
 import { ensureTripTrackToken } from "@/lib/public/ensure-track-token";
 import { formatDistance, geofenceCheck } from "@/lib/geo/geofence";
 import {
@@ -170,6 +171,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (!forced) return fail("ODOMETER_START_REQUIRED", "Informe o KM do painel antes de iniciar a viagem", 400);
       forcedNotes.push("iniciada sem KM do painel");
     }
+    // Empresa que exige lista de passageiros: o motorista informa quem embarcou antes de iniciar.
+    if (body.to_status === "in_progress" && session.role === "motorista") {
+      const { data: cl } = await db.from("clients").select("requires_passenger_list").eq("id", trip.client_id).maybeSingle();
+      if (cl?.requires_passenger_list === true && parseDropoffStops(trip.trip_dropoff_stops).length === 0) {
+        if (!forced) return fail("PASSENGER_LIST_REQUIRED", "Marque quem embarcou antes de iniciar a viagem", 400);
+        forcedNotes.push("iniciada sem lista de passageiros");
+      }
+    }
     let odometerKm: number | null = null;
     if (body.to_status === "completed" && trip.odometer_start != null && (session.role === "motorista" || odoEnd != null)) {
       const dist = odometerDistance(Number(trip.odometer_start), odoEnd);
@@ -214,6 +223,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       statusUpdate.wait_started_at = waitFinalize.wait_started_at;
     }
     if (body.to_status === "in_progress" && odoStart != null) statusUpdate.odometer_start = odoStart;
+    if (body.to_status === "completed") {
+      const drops = parseDropoffStops(trip.trip_dropoff_stops);
+      if (drops.some((d) => !d.dropped_at)) statusUpdate.trip_dropoff_stops = closeAllDropoffs(drops);
+    }
     if (odometerKm != null) statusUpdate.odometer_end = odoEnd;
     if (body.to_status === "completed" && body.actual_km != null && Number.isFinite(body.actual_km)) {
       // GPS com buracos (app fechado/tela apagada) mede menos: aí vale o painel do carro.

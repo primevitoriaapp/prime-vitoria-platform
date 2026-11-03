@@ -53,3 +53,21 @@ test("CEP: boleto vence dia 30 + 2 dias úteis de conciliação", () => {
 test("cliente que paga antes: no dia da corrida", () => {
   assert.equal(driverPayoutDate("2026-11-07", { invoiced: false }), "2026-11-09");
 });
+
+import { closeAllDropoffs, markDropoff, nextPendingDropoffIndex, passengerSummary } from "../src/lib/trips/trip-dropoff-stops-core.ts";
+
+test("lista de passageiros: paradas de desembarque", () => {
+  const stops = ([
+    { passenger_name: "Marlene Souza", address_text: "Nova Rosa da Penha, Cariacica" },
+    { passenger_name: "Vivian Lima", address_text: "Praia da Costa, Vila Velha" },
+    { passenger_name: "Suzana Reis", address_text: "Eldorado, Serra" }
+  ]);
+  assert.equal(stops.length, 3);
+  assert.equal(passengerSummary(stops), "Marlene, Vivian e Suzana");
+  const a = markDropoff(stops, 0, "2026-11-04T22:00:00Z");
+  assert.equal(nextPendingDropoffIndex(a), 1);
+  assert.equal(markDropoff(a, 0), a); // já marcada
+  const all = closeAllDropoffs(a, "2026-11-04T23:00:00Z");
+  assert.equal(nextPendingDropoffIndex(all), null);
+  assert.equal(all[0].dropped_at, "2026-11-04T22:00:00Z");
+});

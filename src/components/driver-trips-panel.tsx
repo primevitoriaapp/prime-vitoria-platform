@@ -534,6 +534,7 @@ export function DriverTripsPanel({
           onWaitStart={(id) => void setWait(id, "start")}
           onWaitStop={(id) => void setWait(id, "stop")}
           onCompletePickupStop={(id, idx) => void completePickupStop(id, idx)}
+          onTripChanged={() => void load({ silent: true })}
           message={sheet ? null : message}
         />
       ) : null}

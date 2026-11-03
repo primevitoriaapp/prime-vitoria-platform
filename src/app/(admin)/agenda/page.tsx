@@ -30,6 +30,7 @@ import { TripWizard } from "@/components/trip-wizard";
 import { VoucherImportPanel } from "@/components/voucher-import-panel";
 import { TripEditPanel } from "@/components/trip-edit-panel";
 import { TripFlightCard } from "@/components/trip-flight-card";
+import { TripPassengerListCard } from "@/components/trip-passenger-list-card";
 import { TripAssignCard } from "@/components/trip-assign-card";
 import { TripProofCard } from "@/components/trip-proof-card";
 import { StaleTripsPanel } from "@/components/stale-trips-panel";
@@ -87,6 +88,7 @@ export default async function AgendaPage({
           />
           {showClaimBar ? <TripReviewBanner tripId={focusTripId} /> : null}
           {showClaimBar ? <TripFlightCard tripId={focusTripId} /> : null}
+          {showClaimBar ? <TripPassengerListCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripEditPanel tripId={focusTripId} defaultOpen={sp.editar === "1"} /> : null}
           {showClaimBar ? <TripAssignCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripProofCard tripId={focusTripId} /> : null}

@@ -10,6 +10,7 @@ import { SERVICE_EXTRAS, presentationAtIso } from "@/lib/trips/service-extras";
 import { flightTrackerUrl } from "@/lib/trips/flight";
 import { allPickupStopsCompleted, nextIncompletePickupStopIndex, parseTripPickupStops, pickupStopNavPoint } from "@/lib/trips/trip-pickup-stops";
 import { DriverPickupStopsPanel } from "@/components/driver-pickup-stops-panel";
+import { DriverDropoffStopsPanel } from "@/components/driver-dropoff-stops-panel";
 import { DriverPassengerLink } from "@/components/driver-passenger-link";
 import { DriverTripExpenses } from "@/components/trip-expenses";
 
@@ -36,6 +37,7 @@ type Props = {
   onWaitStart: (tripId: string) => void;
   onWaitStop: (tripId: string) => void;
   onCompletePickupStop: (tripId: string, idx: number) => void;
+  onTripChanged?: () => void;
   message?: string | null;
 };
 
@@ -43,7 +45,7 @@ type Props = {
  * Modo corrida: depois de "A caminho", a tela mostra só o que importa agora
  * (para onde ir, navegar, passageiro e o próximo botão).
  */
-export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps, devFallbackRole, onStatus, onWaitStart, onWaitStop, onCompletePickupStop, message }: Props) {
+export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps, devFallbackRole, onStatus, onWaitStart, onWaitStop, onCompletePickupStop, onTripChanged, message }: Props) {
   const s = trip.operational_status;
   const next = driverNextStatuses(s)[0];
   const others = driverNextStatuses(s).slice(1);
@@ -128,6 +130,14 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
           </section>
 
           {multi ? <DriverPickupStopsPanel stops={stops} isBusy={isBusy} onCompleteStop={(i) => onCompletePickupStop(trip.id, i)} /> : null}
+
+          <DriverDropoffStopsPanel
+            tripId={trip.id}
+            raw={trip.trip_dropoff_stops}
+            active={s === "in_progress"}
+            devFallbackRole={devFallbackRole}
+            onChanged={() => onTripChanged?.()}
+          />
 
           {s === "arrived" ? (
             <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">

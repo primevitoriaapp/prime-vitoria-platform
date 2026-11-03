@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { Trip } from "@/lib/domain/types";
 import { odometerDistance, parseOdometer } from "@/lib/trips/odometer";
 import { DriverSignaturePad } from "@/components/driver-signature-pad";
+import { DriverPassengerListStep } from "@/components/driver-passenger-list-step";
 
 type Extra = { odometer_start?: string; odometer_end?: string };
 type SigState = { required: boolean; done: boolean };
@@ -40,6 +41,9 @@ export function DriverFinishSheet({
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  /** Lista de passageiros no embarque: null = verificando/preenchendo; número = pronta (0 = empresa não exige). */
+  const [paxDone, setPaxDone] = useState<number | null>(mode === "start" ? null : 0);
+  const onPaxDone = useCallback((n: number) => setPaxDone(n), []);
 
   useEffect(() => {
     if (mode !== "finish") return;
@@ -86,6 +90,19 @@ export function DriverFinishSheet({
         <h2 className="text-lg font-semibold">{mode === "start" ? "Iniciar corrida" : "Finalizar corrida"}</h2>
         <p className="mt-1 text-sm text-[#AAAAAA]">{trip.passenger_name ?? "Passageiro"}</p>
 
+        {mode === "start" && paxDone === null ? (
+          <DriverPassengerListStep tripId={trip.id} devFallbackRole={devFallbackRole} onDone={onPaxDone} />
+        ) : null}
+        {mode === "start" && paxDone ? (
+          <p className="mt-3 flex items-center justify-between rounded-xl bg-emerald-900/40 px-3 py-2 text-sm text-emerald-200">
+            ✓ {paxDone} passageiro(s) confirmados
+            <button type="button" className="text-xs font-semibold text-[#C9A84C]" onClick={() => setPaxDone(null)}>
+              Editar
+            </button>
+          </p>
+        ) : null}
+
+        {paxDone !== null ? (
         <label className="mt-4 block text-sm font-semibold">
           {mode === "start" ? "KM do painel agora (inicial)" : "KM do painel agora (final)"}
           <input
@@ -97,6 +114,7 @@ export function DriverFinishSheet({
             className="mt-1 w-full rounded-xl border border-[#3A3A3E] bg-[#111] px-4 py-3 text-2xl font-bold tracking-wide text-[#fff] outline-none focus:border-[#C9A84C]"
           />
         </label>
+        ) : null}
         {mode === "finish" && trip.odometer_start != null ? (
           <p className={`mt-2 text-sm ${dist?.ok ? "text-emerald-300" : "text-[#AAAAAA]"}`}>
             KM inicial: {Number(trip.odometer_start).toLocaleString("pt-BR")}
@@ -171,7 +189,7 @@ export function DriverFinishSheet({
           </button>
           <button
             type="button"
-            disabled={!kmOk || !sigOk || busy}
+            disabled={!kmOk || !sigOk || busy || paxDone === null}
             onClick={() => onConfirm(mode === "start" ? { odometer_start: km } : { odometer_end: km })}
             className="btn-primary flex-[2] rounded-xl px-4 py-3 text-base font-semibold disabled:opacity-40"
           >

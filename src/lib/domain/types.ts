@@ -73,5 +73,7 @@ export interface Trip {
   wait_minutes?: number | null;
   wait_started_at?: string | null;
   trip_pickup_stops?: TripPickupStop[] | null;
+  /** Lista de passageiros do embarque (uma parada de desembarque por passageiro). */
+  trip_dropoff_stops?: unknown;
   vehicle?: { id: string; model: string; plate: string } | null;
 }
