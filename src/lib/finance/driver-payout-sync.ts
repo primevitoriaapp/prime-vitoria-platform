@@ -25,7 +25,7 @@ export async function driverPayoutDatesForTrips(trips: TripRow[]): Promise<Map<s
   const termsBy = new Map(((clients ?? []) as (ClientPaymentTerms & { id: string })[]).map((c) => [c.id, c]));
   const invBy = new Map(((invoices ?? []) as InvoiceRow[]).map((i) => [i.id, i]));
   for (const t of trips) {
-    const terms = termsBy.get(t.client_id) ?? {};
+    const terms: ClientPaymentTerms = termsBy.get(t.client_id) ?? {};
     const inv = t.client_invoice_id ? invBy.get(t.client_invoice_id) : undefined;
     let clientDue: string;
     if (inv && inv.status === "paga" && inv.paid_at) clientDue = spDay(inv.paid_at);
