@@ -12,24 +12,31 @@ import {
   type FlightSnapshot
 } from "@/lib/integrations/flight-status";
 
-const HOST = "aerodatabox.p.rapidapi.com";
+const RAPID_HOST = "aerodatabox.p.rapidapi.com";
+const APIMARKET_BASE = "https://prod.api.market/api/v1/aedbx/aerodatabox";
 const FINAL = ["completed", "cancelled", "rejected", "no_show"];
 
+/** Chave do AeroDataBox: pelo RapidAPI ou pelo API.Market (o mesmo serviço, vendido em dois lugares). */
+function flightProvider(): { url: (path: string) => string; headers: Record<string, string> } | null {
+  const rapid = process.env.AERODATABOX_RAPIDAPI_KEY?.trim();
+  if (rapid) return { url: (p) => `https://${RAPID_HOST}${p}`, headers: { "X-RapidAPI-Key": rapid, "X-RapidAPI-Host": RAPID_HOST } };
+  const market = process.env.AERODATABOX_APIMARKET_KEY?.trim();
+  if (market) return { url: (p) => `${APIMARKET_BASE}${p}`, headers: { "x-api-market-key": market, "x-magicapi-key": market } };
+  return null;
+}
+
 export function flightApiConfigured(): boolean {
-  return Boolean(process.env.AERODATABOX_RAPIDAPI_KEY?.trim());
+  return flightProvider() != null;
 }
 
 async function fetchFlights(number: string, date: string): Promise<AdbFlight[]> {
-  const key = process.env.AERODATABOX_RAPIDAPI_KEY?.trim();
-  if (!key) throw new Error("Chave do AeroDataBox não configurada");
-  const url = `https://${HOST}/flights/number/${encodeURIComponent(number)}/${date}?withAircraftImage=false&withLocation=false&dateLocalRole=Both`;
-  const res = await fetch(url, {
-    headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": HOST },
-    cache: "no-store",
-    signal: AbortSignal.timeout(10_000)
-  });
+  const provider = flightProvider();
+  if (!provider) throw new Error("Chave do AeroDataBox não configurada");
+  const url = provider.url(`/flights/number/${encodeURIComponent(number)}/${date}?withAircraftImage=false&withLocation=false&dateLocalRole=Both`);
+  const res = await fetch(url, { headers: provider.headers, cache: "no-store", signal: AbortSignal.timeout(10_000) });
   if (res.status === 204 || res.status === 404) return [];
   if (res.status === 429) throw new Error("Cota mensal do serviço de voos esgotada");
+  if (res.status === 401 || res.status === 403) throw new Error("Chave do serviço de voos recusada (confira a chave no Vercel)");
   if (!res.ok) throw new Error(`Serviço de voos respondeu ${res.status}`);
   const json = (await res.json().catch(() => [])) as AdbFlight[] | AdbFlight;
   return Array.isArray(json) ? json : [json];

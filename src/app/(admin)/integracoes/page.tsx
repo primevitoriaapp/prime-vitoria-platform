@@ -64,8 +64,8 @@ function list(): { group: string; items: Integration[] }[] {
         {
           name: "Google Agenda da central",
           what: "Todas as corridas no seu Google Agenda ou iPhone, por um link para assinar.",
-          status: "ligado",
-          note: "Crie e copie o link no quadro dourado no topo desta página."
+          status: "parcial",
+          note: "Pronto no sistema: crie o link no quadro dourado no topo desta página e assine no Google Agenda."
         }
       ]
     },
@@ -90,10 +90,10 @@ function list(): { group: string; items: Integration[] }[] {
         {
           name: "Acompanhamento de voo (AeroDataBox)",
           what: "Confere o voo do passageiro antes da corrida, mostra o horário atualizado na agenda e avisa a central e o motorista quando atrasa ou cancela.",
-          status: has("AERODATABOX_RAPIDAPI_KEY") ? "ligado" : "desligado",
-          note: has("AERODATABOX_RAPIDAPI_KEY")
+          status: has("AERODATABOX_RAPIDAPI_KEY") || has("AERODATABOX_APIMARKET_KEY") ? "ligado" : "desligado",
+          note: has("AERODATABOX_RAPIDAPI_KEY") || has("AERODATABOX_APIMARKET_KEY")
             ? "Ativo. Confere a partir de 6h antes da corrida, enquanto o painel estiver aberto."
-            : "Pronto no sistema. Falta criar a conta no RapidAPI, assinar o AeroDataBox (plano grátis) e colocar a chave no Vercel como AERODATABOX_RAPIDAPI_KEY.",
+            : "Pronto no sistema. Falta a chave do AeroDataBox no Vercel: AERODATABOX_APIMARKET_KEY (API.Market) ou AERODATABOX_RAPIDAPI_KEY (RapidAPI).",
           cost: "Grátis até 600 consultas/mês (≈ US$ 5/mês acima disso)"
         }
       ]
