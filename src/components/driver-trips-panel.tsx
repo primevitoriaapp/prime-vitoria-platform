@@ -448,8 +448,8 @@ export function DriverTripsPanel({
     ) : null}
 
     {geoBlock ? (
-      <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-3 sm:items-center" role="dialog" aria-modal="true">
-        <div className="w-full max-w-md rounded-[28px] bg-white p-5 pb-[calc(20px+env(safe-area-inset-bottom))] shadow-2xl">
+      <div className="fixed inset-0 z-[95] flex items-end justify-center bg-black/50 p-3 sm:items-center" role="dialog" aria-modal="true">
+        <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-[28px] bg-white p-5 pb-[calc(20px+env(safe-area-inset-bottom))] shadow-2xl">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FBF3E0] text-2xl" aria-hidden>
             📍
           </div>
@@ -669,7 +669,7 @@ export function DriverTripsPanel({
         </section>
       ) : null}
 
-      {sheet && trips.find((t) => t.id === sheet.tripId) ? (
+      {sheet && !geoBlock && trips.find((t) => t.id === sheet.tripId) ? (
         <DriverFinishSheet
           trip={trips.find((t) => t.id === sheet.tripId) as Trip}
           mode={sheet.mode}
