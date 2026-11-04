@@ -21,7 +21,7 @@ function flightProvider(): { url: (path: string) => string; headers: Record<stri
   const rapid = process.env.AERODATABOX_RAPIDAPI_KEY?.trim();
   if (rapid) return { url: (p) => `https://${RAPID_HOST}${p}`, headers: { "X-RapidAPI-Key": rapid, "X-RapidAPI-Host": RAPID_HOST } };
   const market = process.env.AERODATABOX_APIMARKET_KEY?.trim();
-  if (market) return { url: (p) => `${APIMARKET_BASE}${p}`, headers: { "x-api-market-key": market, "x-magicapi-key": market } };
+  if (market) return { url: (p) => `${APIMARKET_BASE}${p}`, headers: { "x-api-market-key": market, "x-magicapi-key": market, "x-api-key": market } };
   return null;
 }
 
