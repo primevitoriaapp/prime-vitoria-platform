@@ -1,5 +1,6 @@
 /** Leitura do voucher "SOLICITAÇÃO DE SERVIÇO FORNECEDOR" da CEP Transportes. Funções puras. */
 import type { ParsedVoucher, PdfWord, VoucherItem } from "./voucher-types.ts";
+import { extractFlightNumber } from "../trips/flight-extract.ts";
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -128,7 +129,8 @@ export function parseCepVoucher(words: PdfWord[]): ParsedVoucher | null {
     const hours = Number(service.match(/(\d{1,2})\s*HORAS?/i)?.[1] ?? "") || null;
     const km = Number(service.match(/(\d{1,4})\s*KM/i)?.[1] ?? "") || null;
     const notesAll = `${o.note} ${d.note} ${serviceNotes}`;
-    const fl = notesAll.match(/\bvoo\s+([A-Z0-9]{2})\s*(\d{2,4})/i);
+    // Número do voo em qualquer parte do item (observações, origem, destino, serviço).
+    const flight = extractFlightNumber(notesAll) ?? extractFlightNumber(join(ws));
     // "seguir para>> Origem - Cozinha ... Brasil" → local do evento.
     const stop = o.note.match(/seguir para\s*>*\s*(?:origem\s*-\s*)?(.+?\bBrasil)(?![a-zà-ú])/i)?.[1]?.trim() ?? null;
 
@@ -150,7 +152,7 @@ export function parseCepVoucher(words: PdfWord[]): ParsedVoucher | null {
       requesters,
       vehicleType,
       amount,
-      flight: fl ? `${fl[1].toUpperCase()}${fl[2]}` : null,
+      flight,
       stopPlace: stop
     });
   });
