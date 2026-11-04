@@ -1,3 +1,4 @@
+import { dropoffStopsSchema } from "@/lib/trips/trip-dropoff-stops";
 import { categoryAllowed, permissionForProfile } from "@/lib/clients/passenger-permissions";
 import { normalizeFlightNumber } from "@/lib/trips/flight";
 import { z } from "zod";
@@ -68,6 +69,7 @@ const createTripSchema = z.object({
   margin: z.coerce.number().optional(),
   trip_legs: tripLegsSchema.optional(),
   trip_pickup_stops: tripPickupStopsSchema.optional(),
+  trip_dropoff_stops: dropoffStopsSchema.optional(),
   round_trip: z.boolean().optional(),
   return_scheduled_at: z.string().optional()
 });
@@ -279,6 +281,7 @@ export async function POST(request: Request) {
         destination_lng: destLng,
         trip_legs: legs?.length ? legs : null,
         trip_pickup_stops: pickupStops?.length ? pickupStopsForStorage(pickupStops) : null,
+        ...(body.trip_dropoff_stops?.length ? { trip_dropoff_stops: body.trip_dropoff_stops.map((s) => ({ ...s, dropped_at: null })) } : {}),
         dispatch_mode: body.dispatch_mode,
         passenger_name: pickupStops?.length
           ? pickupStops[0].passenger_name

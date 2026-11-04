@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
+import { TeamPassengerPicker } from "@/components/team-passenger-picker";
+import { teamMissingAddress, teamTripShape, type TeamDirection, type TeamMember } from "@/lib/trips/team-trip";
 import { formatBrDateTime, saoPauloDateAndTimeToUtcIso, saoPauloTodayYmd } from "@/lib/dates/br-date";
 import type { EnabledServiceDto } from "@/app/api/clients/[id]/enabled-services/route";
 import type { PrimeServiceIcon } from "@/lib/pricing/prime-service-catalog";
@@ -166,6 +168,27 @@ export function ClientRequestConsole({
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<Created | null>(null);
   const [presets, setPresets] = useState<ClientTripPreset[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [teamDir, setTeamDir] = useState<TeamDirection>("buscar");
+  const teamShape = useMemo(() => teamTripShape(team, teamDir), [team, teamDir]);
+
+  // Funcionário escolhido: endereço, nome, telefone e quantidade entram sozinhos.
+  useEffect(() => {
+    if (!teamShape) return;
+    if (teamShape.originText) {
+      setOrigin(teamShape.originText);
+      setOriginLat(null);
+      setOriginLng(null);
+    }
+    if (teamShape.destinationText) {
+      setDestination(teamShape.destinationText);
+      setDestinationLat(null);
+      setDestinationLng(null);
+    }
+    setPassengerName(teamShape.passengerName);
+    setPassengerPhone(teamShape.passengerPhone ?? "");
+    setPassengerCount((n) => Math.max(n, teamShape.passengerCount));
+  }, [teamShape]);
 
   useEffect(() => {
     setPresets(loadTripPresets(clientId));
@@ -342,6 +365,11 @@ export function ClientRequestConsole({
       setError("O horário precisa ser no futuro. Para uma corrida imediata, ligue para a central Prime.");
       return;
     }
+    const semEndereco = teamMissingAddress(team);
+    if (semEndereco.length) {
+      setError(`Falta o endereço de: ${semEndereco.join(", ")}.`);
+      return;
+    }
     if (!origin.trim() || !destination.trim()) {
       setError("Informe o local de embarque e o destino.");
       return;
@@ -367,6 +395,8 @@ export function ClientRequestConsole({
           passenger_name: passengerName || undefined,
           passenger_phone: passengerPhone || undefined,
           passenger_count: passengerCount,
+          ...(teamShape?.pickupStops ? { trip_pickup_stops: teamShape.pickupStops } : {}),
+          ...(teamShape?.dropoffStops ? { trip_dropoff_stops: teamShape.dropoffStops } : {}),
           notes:
             [
               isDisposicao ? `Diária de ${pacoteLabel}.` : null,
@@ -662,6 +692,14 @@ export function ClientRequestConsole({
       {/* 3. Trajeto */}
       <section className="grid gap-3">
         <StepTitle n={3}>Trajeto</StepTitle>
+        <TeamPassengerPicker
+          clientId={clientId}
+          team={team}
+          onTeamChange={setTeam}
+          direction={teamDir}
+          onDirectionChange={setTeamDir}
+          devFallbackRole={devFallbackRole}
+        />
         {presets.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             <span className="self-center text-xs text-prime-muted">Rotas recentes:</span>

@@ -7,6 +7,8 @@ import type { Route } from "next";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
+import { TeamPassengerPicker } from "@/components/team-passenger-picker";
+import { teamMissingAddress, teamTripShape, type TeamDirection, type TeamMember } from "@/lib/trips/team-trip";
 import { TypedDateTime } from "@/components/typed-date-time";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { formatBrDateTime, formatBrTime, saoPauloDateAndTimeToUtcIso, saoPauloTodayYmd } from "@/lib/dates/br-date";
@@ -71,6 +73,21 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [notes, setNotes] = useState("");
   const [presentation, setPresentation] = useState(15);
   const [extras, setExtras] = useState<string[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [teamDir, setTeamDir] = useState<TeamDirection>("buscar");
+  const teamShape = useMemo(() => teamTripShape(team, teamDir), [team, teamDir]);
+
+  useEffect(() => setTeam([]), [clientId]);
+
+  // Funcionário escolhido: endereço, nome, telefone e quantidade entram sozinhos.
+  useEffect(() => {
+    if (!teamShape) return;
+    if (teamShape.originText) setOrigin({ text: teamShape.originText, lat: null, lng: null });
+    if (teamShape.destinationText) setDest({ text: teamShape.destinationText, lat: null, lng: null });
+    setPaxName(teamShape.passengerName);
+    setPaxPhone(teamShape.passengerPhone ?? "");
+    setPassengers((n) => Math.max(n, teamShape.passengerCount));
+  }, [teamShape]);
 
   const loadClients = useCallback(async () => {
     const res = await fetchWithSupabaseSession("/api/clients", {}, "admin");
@@ -264,6 +281,11 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
 
   async function submit() {
     if (!client || !category || !scheduledIso) return;
+    const semEndereco = teamMissingAddress(team);
+    if (semEndereco.length) {
+      setError(`Falta o endereço de: ${semEndereco.join(", ")}.`);
+      return;
+    }
     setBusy(true);
     setError(null);
     const notesFull = [osRef.trim() ? `O.S./Ref.: ${osRef.trim()}` : "", notes.trim()].filter(Boolean).join("\n");
@@ -282,6 +304,8 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       passenger_name: paxName.trim() || undefined,
       passenger_phone: paxPhone.trim() || undefined,
       passenger_count: passengers,
+      ...(teamShape?.pickupStops ? { trip_pickup_stops: teamShape.pickupStops } : {}),
+      ...(teamShape?.dropoffStops ? { trip_dropoff_stops: teamShape.dropoffStops } : {}),
       flight_number: normalizeFlightNumber(flight) ?? undefined,
       notes: notesFull || undefined,
       client_amount: Number(clientAmount.replace(",", ".")) || undefined,
@@ -635,6 +659,9 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
         {step === 3 && client ? (
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-3 md:col-span-2">
+              {client.type === "PJ" ? (
+                <TeamPassengerPicker clientId={client.id} team={team} onTeamChange={setTeam} direction={teamDir} onDirectionChange={setTeamDir} devFallbackRole="admin" />
+              ) : null}
               <AddressAutocompleteInput
                 label="Local de embarque"
                 required
