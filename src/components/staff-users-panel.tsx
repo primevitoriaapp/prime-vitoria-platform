@@ -141,7 +141,7 @@ export function StaffUsersPanel() {
         <div className="rounded-2xl border-2 border-prime-gold bg-[#111] p-4 text-[#fff]">
           <p className="text-sm font-semibold text-prime-gold">Acesso de {credential.name}</p>
           <p className="mt-2 text-sm">
-            Endereço: <b>prime-vitoria-web.vercel.app/login</b>
+            Endereço: <b>central.primevitoria.com</b>
             <br />
             E-mail: <b>{credential.email}</b>
             <br />

@@ -2,12 +2,13 @@ import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { db } from "@/lib/server/db";
+import { OFFICIAL_URLS } from "@/lib/server/official-urls";
 import { getClientInvoice, updateClientInvoiceStatus } from "@/lib/finance/client-invoices";
 import { formatInvoiceNumber } from "@/lib/finance/client-invoice-calc";
 import { sendOperationalEmail } from "@/lib/notifications/send-email";
 
 function publicBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_BASE_URL?.trim() || "https://prime-vitoria-web.vercel.app").replace(/\/$/, "");
+  return OFFICIAL_URLS.empresa;
 }
 
 const brDate = (ymd: string) => ymd.split("-").reverse().join("/");

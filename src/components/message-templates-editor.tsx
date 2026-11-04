@@ -33,7 +33,7 @@ const SAMPLE = {
   voo: "Voo LA3456",
   apresentacao: "Chegar no local às 13:45",
   servicos: "Placa com o nome, Água a bordo",
-  link_corrida: "https://prime-vitoria-web.vercel.app/driver?trip=…"
+  link_corrida: "https://motorista.primevitoria.com/driver?trip=…"
 };
 
 function key(e: string, a: string) {

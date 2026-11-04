@@ -1,4 +1,5 @@
 import { db } from "@/lib/server/db";
+import { OFFICIAL_URLS } from "@/lib/server/official-urls";
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { flightTrackerUrl } from "@/lib/trips/flight";
@@ -8,8 +9,7 @@ import { buildTripIcs, googleCalendarLink, tripDurationMinutes } from "@/lib/not
 const ORGANIZER = "contato@primevitoria.com";
 
 function publicBaseUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_BASE_URL?.trim();
-  return (configured || "https://prime-vitoria-web.vercel.app").replace(/\/$/, "");
+  return OFFICIAL_URLS.motorista;
 }
 
 function escapeHtml(s: string): string {
