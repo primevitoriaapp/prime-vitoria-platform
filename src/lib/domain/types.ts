@@ -70,10 +70,13 @@ export interface Trip {
   notes?: string | null;
   odometer_end?: number | null;
   client_amount?: number | null;
+  driver_amount?: number | string | null;
   wait_minutes?: number | null;
   wait_started_at?: string | null;
   trip_pickup_stops?: TripPickupStop[] | null;
   /** Lista de passageiros do embarque (uma parada de desembarque por passageiro). */
   trip_dropoff_stops?: unknown;
+  /** Só para motorista parceiro: data prevista do repasse desta corrida (AAAA-MM-DD). */
+  driver_payout_date?: string | null;
   vehicle?: { id: string; model: string; plate: string } | null;
 }

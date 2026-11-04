@@ -251,7 +251,8 @@ export async function listTripsForSession(
     }
   }
 
-  const items = redactTripMoneyForRole(await enrichTripListItems(merged), session.role);
+  let items = redactTripMoneyForRole(await enrichTripListItems(merged), session.role);
+  if (session.role === "motorista") items = await shapeDriverPay(items, session);
 
   if (query.agenda) {
     console.log("[trips GET agenda]", {
@@ -274,4 +275,35 @@ export async function listTripsForSession(
     pageSize: query.pageSize,
     total: count ?? 0
   };
+}
+
+
+/**
+ * Motorista funcionário não vê valor nenhum; parceiro vê quanto recebe e a data prevista
+ * (fechamento do cliente + prazo + conciliação) antes de aceitar.
+ */
+async function shapeDriverPay<T extends Record<string, unknown>>(rows: T[], session: SessionContext): Promise<T[]> {
+  const driverId = (session as { driverId?: string | null }).driverId;
+  if (!driverId || !rows.length) return rows;
+  const { data: me } = await db.from("drivers").select("employment_type").eq("id", driverId).maybeSingle();
+  if (me?.employment_type === "funcionario") {
+    return rows.map((r) => {
+      const c: Record<string, unknown> = { ...r };
+      delete c.driver_amount;
+      return c as T;
+    });
+  }
+  const withPay = rows.filter((r) => r.driver_amount != null && r.client_id && r.scheduled_at) as unknown as {
+    id: string;
+    client_id: string;
+    scheduled_at: string;
+    client_invoice_id: string | null;
+  }[];
+  if (!withPay.length) return rows;
+  const { driverPayoutDatesForTrips } = await import("@/lib/finance/driver-payout-sync");
+  const dates = await driverPayoutDatesForTrips(withPay.map((t) => ({ ...t, client_invoice_id: t.client_invoice_id ?? null }))).catch(() => new Map());
+  return rows.map((r) => {
+    const d = dates.get(r.id as string) as { payout: string } | undefined;
+    return d ? ({ ...r, driver_payout_date: d.payout } as T) : r;
+  });
 }

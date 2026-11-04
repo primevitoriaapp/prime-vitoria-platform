@@ -573,6 +573,7 @@ export function DriverTripsPanel({
                       <span className="mt-1.5 h-2.5 w-2.5 rounded-sm bg-prime-gold" aria-hidden />
                       <span className="truncate text-[#6B6F76]">{short(primaryTrip.destination_text)}</span>
                     </div>
+                    <DriverPayLine trip={primaryTrip} />
                   </button>
                   {["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? (
                     <button
@@ -752,4 +753,19 @@ function groupByDay(list: Trip[]): { key: string; label: string; trips: Trip[] }
     g.trips.push(t);
   }
   return out;
+}
+
+/** Parceiro: quanto recebe por esta corrida e quando (previsão). Funcionário não recebe o valor da API. */
+function DriverPayLine({ trip }: { trip: Trip }) {
+  const amount = trip.driver_amount == null ? null : Number(trip.driver_amount);
+  if (amount == null || !Number.isFinite(amount) || amount <= 0) return null;
+  const date = trip.driver_payout_date
+    ? new Date(`${trip.driver_payout_date}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit" })
+    : null;
+  return (
+    <p className="mt-2 flex items-center justify-between rounded-xl bg-[#F4FAF6] px-3 py-2 text-sm">
+      <span className="text-[#1F7A4C]">Você recebe{date ? ` · previsto ${date}` : ""}</span>
+      <span className="font-bold text-[#111]">{amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+    </p>
+  );
 }
