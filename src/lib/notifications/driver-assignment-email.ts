@@ -10,10 +10,12 @@ import { presentationAtIso } from "@/lib/trips/service-extras";
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { flightTrackerUrl } from "@/lib/trips/flight";
+import { loadLogoBytes } from "@/lib/quotes/quote-document";
 import { sendOperationalEmail } from "@/lib/notifications/send-email";
 import { buildTripIcs, googleCalendarLink, tripDurationMinutes } from "@/lib/notifications/trip-calendar";
 
 const ORGANIZER = "contato@primevitoria.com";
+const CENTRAL_PHONES = "(27) 2142-8307 | (27) 99806-3956";
 
 function publicBaseUrl(): string {
   return OFFICIAL_URLS.motorista;
@@ -89,7 +91,6 @@ export async function emailDriverAssignment(
   // O motorista nunca vê quem é o cliente (proteção comercial): só o tipo de atendimento.
   const kindLabel = String(client?.type ?? "").toUpperCase() === "PF" ? "Corrida particular" : "Corrida empresarial";
   const vehicleText = vehicle ? `${vehicle.model ?? ""}${vehicle.plate ? ` · placa ${vehicle.plate}` : ""}`.trim() : null;
-  const firstName = String(driver.full_name ?? "").trim().split(/\s+/)[0] || "motorista";
   const appUrl = `${publicBaseUrl()}/driver`;
 
   const descriptionLines = [
@@ -116,66 +117,97 @@ export async function emailDriverAssignment(
   const ics = buildTripIcs(calendarInput);
   const gcal = googleCalendarLink(calendarInput);
 
-  const rows: [string, string | null][] = [
+  const presentationIso = presentationAtIso(trip.scheduled_at as string, trip.presentation_minutes as number | null);
+  const presentationText =
+    presentationIso && trip.presentation_minutes ? `${formatBrDateTime(presentationIso)} (${trip.presentation_minutes} min antes)` : null;
+  const driverFullName = String(driver.full_name ?? "").trim() || "motorista";
+  const dateOnly = new Date(trip.scheduled_at as string).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const updated = version === "atualizada";
+
+  // Ordem pedida pelo Rubens; extras (voo, veículo, observações, valor) só aparecem quando existem.
+  const mainRows: [string, string | null][] = [
     ["Data e horário", when],
-    ["Serviço", service],
-    ["Atendimento", kindLabel],
-    ["Passageiro", phone ? `${passenger} · ${phone}` : passenger],
-    ["Embarque", origin],
+    ["Apresentação no local", presentationText],
+    ["Origem", origin],
     ["Destino", destination],
+    ["Passageiro", phone ? `${passenger} · ${phone}` : passenger],
+    ["Serviço", `${service} · ${kindLabel}`],
     ["Voo", flight],
     ["Veículo", vehicleText],
     ["Observações", notes],
-    ["Você recebe", pay ? `${pay.amount}${pay.forecast ? ` · pagamento previsto ${pay.forecast}` : ""} (estimativa)` : null]
+    ["Valor do serviço", pay ? `${pay.amount}${pay.forecast ? ` · pagamento previsto ${pay.forecast}` : ""} (estimativa)` : null]
   ];
-  const rowsHtml = rows
+  const mainRowsHtml = mainRows
     .filter(([, v]) => v)
     .map(
       ([k, v]) =>
-        `<tr><td style="padding:6px 12px 6px 0;color:#7A6A3A;font-size:12px;text-transform:uppercase;letter-spacing:.06em;vertical-align:top">${k}</td><td style="padding:6px 0;color:#111;font-size:14px">${escapeHtml(v as string)}${
-          k === "Voo" && flight
-            ? ` · <a href="${flightTrackerUrl(flight)}" style="color:#B8943E">ver horário e atraso</a>`
-            : ""
+        `<tr><td style="padding:7px 14px 7px 0;color:#7A6A3A;font-size:12px;font-weight:bold;white-space:nowrap;vertical-align:top;border-bottom:1px solid #EFEAE0">${k}:</td><td style="padding:7px 0;color:#111;font-size:14px;border-bottom:1px solid #EFEAE0">${escapeHtml(v as string)}${
+          k === "Voo" && flight ? ` · <a href="${flightTrackerUrl(flight)}" style="color:#B8943E">acompanhar voo</a>` : ""
         }</td></tr>`
     )
     .join("");
+  const P = 'style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#222"';
 
   const html = `<!doctype html><html><body style="margin:0;background:#F4F1EA;font-family:Arial,Helvetica,sans-serif">
-<div style="max-width:560px;margin:0 auto;padding:24px 16px">
-  <div style="background:#111;color:#fff;padding:18px 20px;border-radius:12px 12px 0 0">
-    <table style="border-collapse:collapse"><tr>
-      <td style="padding-right:12px"><img src="${OFFICIAL_URLS.central}/app-icon/192" width="44" height="44" alt="Prime Vitória" style="display:block;border-radius:10px"></td>
-      <td><div style="font-size:18px;font-weight:bold">PRIME <span style="color:#C9A84C">VITÓRIA</span></div>
-      <div style="font-size:11px;letter-spacing:.16em;color:#C9A84C">${version === "atualizada" ? "CORRIDA ALTERADA · O.S. ATUALIZADA" : "NOVA CORRIDA PARA VOCÊ"} · Nº ${osNumber}</div></td>
+<div style="max-width:580px;margin:0 auto;padding:24px 16px">
+  <div style="background:#0B0B0B;color:#fff;padding:18px 20px;border-radius:12px 12px 0 0;border-bottom:3px solid #C9A84C">
+    <table style="border-collapse:collapse;width:100%"><tr>
+      <td style="width:64px;padding-right:14px"><img src="${OFFICIAL_URLS.central}/api/public/brand-logo" width="60" height="60" alt="Prime Vitória" style="display:block;border-radius:10px;background:#fff"></td>
+      <td><div style="font-size:19px;font-weight:bold;letter-spacing:.04em">PRIME <span style="color:#C9A84C">VITÓRIA</span></div>
+      <div style="font-size:10.5px;letter-spacing:.14em;color:#C9A84C;margin-top:3px">TRANSPORTE EXECUTIVO · MOBILIDADE CORPORATIVA</div></td>
+      <td style="text-align:right;font-size:11px;color:#bbb;white-space:nowrap">${updated ? "O.S. ATUALIZADA" : "SERVIÇO ATRIBUÍDO"}<br><b style="color:#C9A84C;font-size:15px">Nº ${osNumber}</b></td>
     </tr></table>
   </div>
-  <div style="background:#fff;padding:20px;border-radius:0 0 12px 12px">
-    <p style="margin:0 0 6px;font-size:16px;color:#111"><b>Olá, ${escapeHtml(firstName)}!</b></p>
-    ${
-      version === "atualizada"
-        ? `<p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#222">A corrida que você vai realizar para a Prime Vitória teve uma <b>alteração</b>. Revise com atenção os dados abaixo: a Ordem de Serviço atualizada segue em anexo e substitui a anterior.</p>`
-        : `<p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#222">Você foi <b>escolhido para realizar a corrida abaixo</b> pela Prime Vitória. Confiamos no seu trabalho e contamos com a sua pontualidade, cuidado e discrição para que o passageiro tenha a melhor experiência do início ao fim.</p>
-    <p style="margin:0 0 14px;font-size:14px;line-height:1.55;color:#222">A Ordem de Serviço completa segue em anexo (PDF). Por favor, <b>confirme a corrida no app</b> assim que possível.</p>`
-    }
-    <table style="border-collapse:collapse;width:100%">${rowsHtml}</table>
-    <p style="margin:20px 0 8px">
-      <a href="${gcal}" style="display:inline-block;background:#111;color:#C9A84C;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:bold">Adicionar ao Google Agenda</a>
-      &nbsp;<a href="${appUrl}" style="display:inline-block;border:1px solid #C9A84C;color:#111;text-decoration:none;padding:10px 16px;border-radius:8px">Abrir app do motorista</a>
+  <div style="background:#fff;padding:22px 22px 18px;border-radius:0 0 12px 12px">
+    <p ${P}>Olá, ${escapeHtml(driverFullName)}.</p>
+    <p ${P}>${
+      updated
+        ? "O serviço abaixo, atribuído a você pela Prime Vitória, foi <b>atualizado</b>. Confira os novos dados e a Ordem de Serviço anexada, que substitui a anterior, antes do atendimento."
+        : "A Prime Vitória atribuiu a você o serviço abaixo. Confira os dados e a Ordem de Serviço anexada antes do atendimento."
+    }</p>
+    <table style="border-collapse:collapse;width:100%;margin:4px 0 16px">${mainRowsHtml}</table>
+    <p ${P}>Por favor, <b>confirme o recebimento no aplicativo</b> assim que possível. Registre o início, o KM inicial, a conclusão e o KM final pelo app. Se identificar alguma divergência ou ocorrer um imprevisto, avise imediatamente a Central 24h da Prime Vitória.</p>
+    <p ${P}>O convite de agenda segue anexo para inclusão dos lembretes.</p>
+    <p style="margin:6px 0 18px">
+      <a href="${appUrl}" style="display:inline-block;background:#111;color:#C9A84C;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:bold">Abrir app do motorista</a>
+      &nbsp;<a href="${gcal}" style="display:inline-block;border:1px solid #C9A84C;color:#111;text-decoration:none;padding:10px 16px;border-radius:8px">Adicionar ao Google Agenda</a>
     </p>
-    <p style="margin:18px 0 0;font-size:14px;line-height:1.55;color:#222">Qualquer dúvida ou imprevisto, fale com a Central — estamos com você em todo o atendimento.</p>
-    <p style="margin:10px 0 0;font-size:14px;color:#222">Boa corrida!<br><b>Equipe Prime Vitória</b><br><span style="color:#8A6D1F">Central de Operações 24h</span></p>
-    <p style="margin:16px 0 0;font-size:12px;color:#666">${escapeHtml(companyName)} · CNPJ ${escapeHtml(companyCnpj)}${company.email ? ` · ${escapeHtml(company.email)}` : ""}
+    <p ${P}>Obrigado por atender pela Prime Vitória.</p>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:#222;border-top:1px solid #EFEAE0;padding-top:12px">
+      <b>Prime Vitória</b> | Transporte Executivo<br>
+      Central 24h: ${CENTRAL_PHONES}<br>
+      <a href="mailto:contato@primevitoria.com" style="color:#8A6D1F">contato@primevitoria.com</a>
     </p>
-    <p style="margin:12px 0 0;font-size:12px;color:#666">O convite em anexo (corrida.ics) também abre no iPhone e no Outlook, com lembretes 1 dia antes e 3 horas antes.</p>
+    <p style="margin:12px 0 0;font-size:11px;color:#888">${escapeHtml(companyName)} · CNPJ ${escapeHtml(companyCnpj)}</p>
   </div>
 </div></body></html>`;
 
-  const text = [`Olá, ${firstName}!`, version === "atualizada" ? "A corrida que você vai realizar para a Prime Vitória foi alterada. A O.S. atualizada segue em anexo e substitui a anterior." : "Você foi escolhido para realizar a corrida abaixo pela Prime Vitória. Contamos com a sua pontualidade, cuidado e discrição. A O.S. completa segue em anexo; confirme a corrida no app.", `Data e horário: ${when}`, `Serviço: ${service}`, ...descriptionLines, `Adicionar ao Google Agenda: ${gcal}`].join("\n");
+  const text = [
+    `Olá, ${driverFullName}.`,
+    "",
+    updated
+      ? "O serviço abaixo, atribuído a você pela Prime Vitória, foi atualizado. Confira os novos dados e a Ordem de Serviço anexada, que substitui a anterior, antes do atendimento."
+      : "A Prime Vitória atribuiu a você o serviço abaixo. Confira os dados e a Ordem de Serviço anexada antes do atendimento.",
+    "",
+    ...mainRows.filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`),
+    "",
+    "Por favor, confirme o recebimento no aplicativo assim que possível. Registre o início, o KM inicial, a conclusão e o KM final pelo app. Se identificar alguma divergência ou ocorrer um imprevisto, avise imediatamente a Central 24h da Prime Vitória.",
+    "",
+    "O convite de agenda segue anexo para inclusão dos lembretes.",
+    `App do motorista: ${appUrl}`,
+    "",
+    "Obrigado por atender pela Prime Vitória.",
+    "Prime Vitória | Transporte Executivo",
+    `Central 24h: ${CENTRAL_PHONES}`,
+    "contato@primevitoria.com"
+  ].join("\n");
 
+  const logo = await loadLogoBytes(company.logo_storage_path ?? null).catch(() => null);
   const dropoffs = parseDropoffStops(trip.trip_dropoff_stops);
   const pickups = parseTripPickupStops(trip.trip_pickup_stops);
-  const presentationIso = presentationAtIso(trip.scheduled_at as string, trip.presentation_minutes as number | null);
   const pdf = buildDriverOsPdf({
+    logo,
+    centralPhones: CENTRAL_PHONES,
     number: osNumber,
     version,
     issuedAt: formatBrDateTime(new Date().toISOString()),
@@ -195,7 +227,7 @@ export async function emailDriverAssignment(
         ? pickups.map((x) => ({ name: x.passenger_name, address: x.pickup_text }))
         : [],
     flight,
-    presentation: presentationIso && trip.presentation_minutes ? `${formatBrDateTime(presentationIso)} (${trip.presentation_minutes} min antes)` : null,
+    presentation: presentationText,
     vehicle: vehicleText,
     driverName: String(driver.full_name ?? "").trim() || "Motorista",
     notes,
@@ -205,7 +237,7 @@ export async function emailDriverAssignment(
 
   const result = await sendOperationalEmail({
     to: email,
-    subject: version === "atualizada" ? `${firstName}, sua corrida de ${when} foi atualizada (O.S. Nº ${osNumber})` : `${firstName}, você tem uma nova corrida · ${when} (O.S. Nº ${osNumber})`,
+    subject: `${updated ? "Serviço atualizado" : "Serviço atribuído"} | OS nº ${osNumber} | ${dateOnly}`,
     text,
     html,
     attachments: [

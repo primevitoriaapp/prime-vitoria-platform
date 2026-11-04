@@ -1,4 +1,4 @@
-import { SimplePdf, wrap as wrapF, type RGB } from "../pdf/simple-pdf.ts";
+import { SimplePdf, jpegInfo, wrap as wrapF, type RGB } from "../pdf/simple-pdf.ts";
 
 /**
  * Solicitação de serviço ao motorista (O.S. em PDF anexada ao e-mail), no formato de voucher de fornecedor.
@@ -29,6 +29,9 @@ export type DriverOsData = {
   /** Só parceiro: valor estimado e data prevista. Funcionário: não aparece. */
   pay?: { amount: string; forecast?: string | null } | null;
   appUrl: string;
+  /** Logo da Prime em JPEG (Configurações). Sem logo, fica só o nome. */
+  logo?: Uint8Array | null;
+  centralPhones?: string | null;
 };
 
 function rgb(h: string): RGB {
@@ -58,15 +61,31 @@ export function buildDriverOsPdf(d: DriverOsData): Uint8Array {
   const wrap = (s: string, size: number, w: number, bold = false) => wrapF(s, bold ? "B" : "R", size, w);
   let y = 0;
 
-  // Cabeçalho da Prime.
-  pdf.rect(0, 0, 595.28, 78, rgb("#0B0B0B"));
-  T("PRIME", L, 36, 22, { bold: true, color: "#FFFFFF" });
-  T("VITÓRIA", L + 80, 36, 22, { bold: true, color: GOLD });
-  T("TRANSPORTE EXECUTIVO", L, 52, 7.5, { color: GOLD });
-  T("Central 24h", R, 30, 9, { bold: true, color: GOLD, align: "right" });
-  T(d.company.phone || "(27) 2142-8307", R, 45, 9, { color: "#FFFFFF", align: "right" });
-  T(d.company.email || "contato@primevitoria.com", R, 59, 8, { color: "#CCCCCC", align: "right" });
-  y = 96;
+  // Cabeçalho da Prime: logo + nome + linha de serviço.
+  pdf.rect(0, 0, 595.28, 82, rgb("#0B0B0B"));
+  pdf.rect(0, 82, 595.28, 2.5, rgb(GOLD));
+  let tx = L;
+  if (d.logo) {
+    try {
+      pdf.roundRect(L, 11, 60, 60, 8, rgb("#FFFFFF"));
+      // Mantém a proporção da logo dentro do quadro branco.
+      const info = jpegInfo(d.logo);
+      const k = info ? Math.min(56 / info.w, 56 / info.h) : 1;
+      const w = info ? info.w * k : 56;
+      const h = info ? info.h * k : 56;
+      pdf.image(d.logo, L + 2 + (56 - w) / 2, 13 + (56 - h) / 2, w, h);
+      tx = L + 72;
+    } catch {
+      tx = L;
+    }
+  }
+  T("PRIME VITÓRIA", tx, 38, 19, { bold: true, color: "#FFFFFF" });
+  T("TRANSPORTE EXECUTIVO · MOBILIDADE CORPORATIVA", tx, 53, 7.5, { bold: true, color: GOLD });
+  T("Central 24h", R, 28, 9, { bold: true, color: GOLD, align: "right" });
+  const phones = (d.centralPhones || d.company.phone || "(27) 2142-8307").split("|").map((x) => x.trim());
+  phones.forEach((ph, i) => T(ph, R, 42 + i * 12, 9, { color: "#FFFFFF", align: "right" }));
+  T(d.company.email || "contato@primevitoria.com", R, 42 + phones.length * 12 + 2, 8, { color: "#CCCCCC", align: "right" });
+  y = 100;
   T(`CNPJ ${d.company.cnpj} | ${d.company.name}${d.company.address ? ` | ${d.company.address}` : ""}`, L, y, 7, { color: MUTED });
 
   y += 20;
@@ -85,7 +104,7 @@ export function buildDriverOsPdf(d: DriverOsData): Uint8Array {
 
   y += 18;
   for (const ln of wrap(
-    "Prezado motorista, escolhemos você para realizar o serviço abaixo porque confiamos no seu trabalho. Pedimos total atenção, pontualidade, cuidado e discrição na execução. O passageiro é a razão do nosso trabalho.",
+    "Este serviço foi atribuído a você pela Prime Vitória. Consulte as informações abaixo e siga as orientações da Ordem de Serviço.",
     8.5,
     W
   )) {
