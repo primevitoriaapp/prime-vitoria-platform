@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -40,7 +41,7 @@ const AREA_BY_SUBDOMAIN: Record<string, string> = {
 export default async function HomePage() {
   const host = ((await headers()).get("x-forwarded-host") ?? (await headers()).get("host") ?? "").toLowerCase().split(":")[0];
   const sub = host.endsWith("primevitoria.com") ? host.replace(/\.?primevitoria\.com$/, "") : "";
-  if (AREA_BY_SUBDOMAIN[sub]) redirect(AREA_BY_SUBDOMAIN[sub]);
+  if (AREA_BY_SUBDOMAIN[sub]) redirect(AREA_BY_SUBDOMAIN[sub] as Route);
   return (
     <div className="flex min-h-screen flex-col bg-[#111] px-5 py-10 text-[#fff]">
       <StandaloneAppRouter />
