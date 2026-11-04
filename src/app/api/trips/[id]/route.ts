@@ -125,6 +125,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         await dispatchTripMessages(tenantId, id, "os_motorista", ["motorista"], { replace: true });
       });
       const driverId = trip.driver_id as string;
+      await runBestEffort("trip.edit.driver_email", async () => {
+        const { emailDriverAssignment } = await import("@/lib/notifications/driver-assignment-email");
+        await emailDriverAssignment(tenantId, id, driverId, { version: "atualizada" });
+      });
       await runBestEffort("trip.edit.driver_push", async () => {
         const { pushTripToDriver } = await import("@/lib/notifications/send-driver-push-now");
         await pushTripToDriver(tenantId, driverId, id, "alterada");

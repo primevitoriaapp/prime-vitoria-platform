@@ -1,3 +1,4 @@
+import { AppSplash } from "@/components/app-splash";
 import type { Metadata } from "next";
 import { LoginForm } from "./login-form";
 
@@ -18,5 +19,11 @@ export async function generateMetadata({ searchParams }: { searchParams: Sp }): 
 
 export default async function LoginPage({ searchParams }: { searchParams: Sp }) {
   const params = await searchParams;
-  return <LoginForm defaultNext={params.next} switchAccount={params.troca === "1"} />;
+  const area = (params.next ?? "").startsWith("/client") ? "Empresas" : "Central";
+  return (
+    <>
+      <AppSplash area={area} />
+      <LoginForm defaultNext={params.next} switchAccount={params.troca === "1"} />
+    </>
+  );
 }

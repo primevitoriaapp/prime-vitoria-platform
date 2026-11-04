@@ -2,6 +2,7 @@
 
 import { DriverRequestsAlert } from "@/components/driver-requests-alert";
 import { FlightSweeper } from "@/components/flight-sweeper";
+import { AppSplash } from "@/components/app-splash";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
@@ -206,6 +207,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
                 {showFullNav ? <PendingRequestsPill tenantId={session?.tenantId ?? null} /> : null}
                 {showFullNav ? <DriverRequestsAlert /> : null}
                 {showFullNav ? <FlightSweeper /> : null}
+                {showFullNav ? <AppSplash area="Central" /> : null}
                 {showFullNav ? <NewTripRequestAlert tenantId={session?.tenantId ?? null} /> : null}
               </div>
               <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">

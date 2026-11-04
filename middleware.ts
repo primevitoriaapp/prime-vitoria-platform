@@ -37,7 +37,7 @@ const protectedPrefixes: Array<{ prefix: string; allowedRoles: string[] }> = [
  * empresa.primevitoria.com → portal do cliente · central.primevitoria.com → painel da equipe
  */
 function routeByHost(request: NextRequest): NextResponse | null {
-  const host = (request.headers.get("host") ?? "").toLowerCase().split(":")[0];
+  const host = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "").toLowerCase().split(":")[0];
   if (!host.endsWith("primevitoria.com")) return null;
   const sub = host.replace(/\.?primevitoria\.com$/, "");
   const { pathname } = request.nextUrl;

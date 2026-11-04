@@ -96,7 +96,7 @@ export function DriverTripExpenses({ tripId, devFallbackRole = "motorista" }: { 
           />
           <label className="block rounded-xl border border-dashed border-[#C9A84C] px-3 py-3 text-center text-xs">
             {file ? `📷 ${file.name}` : "📷 Tirar foto do comprovante"}
-            <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </label>
           {err ? <p className="text-xs text-red-700">{err}</p> : null}
           <div className="flex gap-2">

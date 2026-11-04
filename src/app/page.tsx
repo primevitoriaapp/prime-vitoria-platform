@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { PrimeLogoMark } from "@/components/prime-logo-mark";
 import { StandaloneAppRouter } from "@/components/standalone-app-router";
 
@@ -23,8 +25,22 @@ const ENTRADAS = [
   }
 ] as const;
 
+export const dynamic = "force-dynamic";
+
+/** Cada endereço oficial abre direto na sua área (garantia extra além do middleware). */
+const AREA_BY_SUBDOMAIN: Record<string, string> = {
+  motorista: "/driver",
+  empresa: "/client",
+  cliente: "/client",
+  central: "/dashboard",
+  painel: "/dashboard"
+};
+
 /** Página inicial: escolhe por onde entrar (empresa, motorista ou central). */
-export default function HomePage() {
+export default async function HomePage() {
+  const host = ((await headers()).get("x-forwarded-host") ?? (await headers()).get("host") ?? "").toLowerCase().split(":")[0];
+  const sub = host.endsWith("primevitoria.com") ? host.replace(/\.?primevitoria\.com$/, "") : "";
+  if (AREA_BY_SUBDOMAIN[sub]) redirect(AREA_BY_SUBDOMAIN[sub]);
   return (
     <div className="flex min-h-screen flex-col bg-[#111] px-5 py-10 text-[#fff]">
       <StandaloneAppRouter />

@@ -25,7 +25,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
     <>
       <PwaRootRegister />
       <DriverPwaRegister />
-      <AppSplash />
+      <AppSplash area="Motorista" />
       <StandaloneAppRouter mark="driver" />
       {children}
     </>

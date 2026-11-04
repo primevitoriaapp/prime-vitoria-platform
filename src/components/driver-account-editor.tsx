@@ -103,12 +103,12 @@ export function DriverAccountEditor() {
           ) : (
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#F6EEDC] text-2xl">🙂</span>
           )}
-          <p className="text-sm text-[#555]">É a foto que o passageiro vê no link de acompanhamento. Use uma foto de rosto, de frente e com boa luz.</p>
+          <p className="text-sm text-[#555]">É a foto que o passageiro vê no link de acompanhamento. Use uma foto de rosto, de frente e com boa luz (pode tirar na hora ou escolher da galeria, como uma de terno).</p>
         </div>
         <Status k="photo" />
         {open === "photo" ? (
           <form className="mt-4 grid gap-3" onSubmit={(e) => void submit("photo", e)}>
-            <input name="file" type="file" accept="image/*" capture="user" required className="block w-full text-sm" />
+            <input name="file" type="file" accept="image/*" required className="block w-full text-sm" />
             <Buttons />
           </form>
         ) : null}
@@ -184,7 +184,7 @@ export function DriverAccountEditor() {
             </div>
             <label className="text-sm text-[#555]">
               Foto do documento do carro (CRLV)
-              <input name="file" type="file" accept="image/*,application/pdf" capture="environment" required className="mt-1 block w-full text-sm" />
+              <input name="file" type="file" accept="image/*,application/pdf" required className="mt-1 block w-full text-sm" />
             </label>
             <Buttons />
           </form>
@@ -221,7 +221,7 @@ export function DriverAccountEditor() {
             </div>
             <label className="text-sm text-[#555]">
               Foto da CNH nova (frente)
-              <input name="file" type="file" accept="image/*,application/pdf" capture="environment" required className="mt-1 block w-full text-sm" />
+              <input name="file" type="file" accept="image/*,application/pdf" required className="mt-1 block w-full text-sm" />
             </label>
             <Buttons />
           </form>

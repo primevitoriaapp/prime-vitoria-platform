@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PrimeLogoMark } from "@/components/prime-logo-mark";
 
 /** Abertura do app (uma vez por sessão): fundo preto, logo girando e o nome da Prime. */
-export function AppSplash() {
+export function AppSplash({ area = "Transporte executivo" }: { area?: string }) {
   const [show, setShow] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -46,7 +46,7 @@ export function AppSplash() {
       </p>
       <span className="mt-2 block h-px bg-[#C9A84C]" style={{ animation: "pvLine .6s 1s both" }} />
       <p className="mt-2 text-[12px] uppercase tracking-[0.32em]" style={{ color: "#C9A84C", animation: "pvUp .6s 1.1s both" }}>
-        Transporte executivo
+        {area}
       </p>
     </div>
   );

@@ -71,3 +71,20 @@ test("lista de passageiros: paradas de desembarque", () => {
   assert.equal(nextPendingDropoffIndex(all), null);
   assert.equal(all[0].dropped_at, "2026-11-04T22:00:00Z");
 });
+
+import { buildDriverOsPdf } from "../src/lib/vouchers/driver-os-pdf.ts";
+
+test("O.S. em PDF: arquivo válido, com e sem valor", () => {
+  const base = {
+    number: "ABC12345", version: "nova" as const, issuedAt: "03/11/2026 23:55",
+    company: { name: "R J Prime Transporte LTDA", cnpj: "49.126.277/0001-54" },
+    when: "05/11/2026 14:05", service: "Transfer", clientName: "Comexport — CD", passenger: "Ana",
+    origin: "Aeroporto de Vitória", destination: "Praia do Canto", driverName: "Bruno", appUrl: "https://motorista.primevitoria.com"
+  };
+  const a = Buffer.from(buildDriverOsPdf({ ...base, pay: { amount: "R$ 62,50", forecast: "10/12/2026" } })).toString("latin1");
+  assert.ok(a.startsWith("%PDF-1.4"));
+  assert.ok(a.trimEnd().endsWith("%%EOF"));
+  assert.match(a, /R\$ 62,50/);
+  const b = Buffer.from(buildDriverOsPdf({ ...base, pay: null })).toString("latin1");
+  assert.doesNotMatch(b, /VOC\\312 RECEBE/);
+});
