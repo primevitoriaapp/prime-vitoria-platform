@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { notifyDriverNewAssignment } from "@/lib/client/driver-alert-notify";
+import { installSoundUnlock } from "@/lib/client/sounds";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
@@ -55,6 +56,8 @@ export function DriverOffersPanel({
   }, [devFallbackRole, driverId]);
 
   const docVisible = useDocumentVisible();
+
+  useEffect(() => installSoundUnlock(), []);
 
   useEffect(() => {
     void load();

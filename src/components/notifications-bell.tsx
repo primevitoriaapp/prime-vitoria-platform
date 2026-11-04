@@ -5,6 +5,16 @@ import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { PushSetup } from "@/components/push-setup";
+import { installSoundUnlock, playNotify } from "@/lib/client/sounds";
+
+const BELL_SOUND_KEY = "prime.bell.sound";
+function readBellSound(): boolean {
+  try {
+    return localStorage.getItem(BELL_SOUND_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
 
 /** Sininho no topo de todas as telas do painel, com a lista de avisos ao clicar. */
 export function NotificationsBell({
@@ -17,16 +27,24 @@ export function NotificationsBell({
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const boxRef = useRef<HTMLDivElement | null>(null);
+  const lastUnread = useRef<number | null>(null);
+
+  useEffect(() => installSoundUnlock(), []);
 
   const load = useCallback(async () => {
     const res = await fetchWithSupabaseSession("/api/notifications/in-app?page=1&pageSize=1", {}, role);
     const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { unreadCount?: number } };
-    if (res.ok && json.success) setUnread(json.data?.unreadCount ?? 0);
+    if (!res.ok || !json.success) return;
+    const n = json.data?.unreadCount ?? 0;
+    // Campainha quando chega aviso novo (não toca na primeira carga da tela).
+    if (lastUnread.current != null && n > lastUnread.current && readBellSound()) playNotify();
+    lastUnread.current = n;
+    setUnread(n);
   }, [role]);
 
   useEffect(() => {
     void load();
-    const t = window.setInterval(() => void load(), 60_000);
+    const t = window.setInterval(() => void load(), 30_000);
     return () => window.clearInterval(t);
   }, [load]);
 
@@ -61,9 +79,41 @@ export function NotificationsBell({
           <div className="mb-2">
             <PushSetup audience="central" compact />
           </div>
+          <BellSoundToggle />
           <InAppNotificationsPanel tenantId={tenantId} devFallbackRole={role} compact />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function BellSoundToggle() {
+  const [on, setOn] = useState(true);
+  useEffect(() => setOn(readBellSound()), []);
+  return (
+    <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-prime-bg px-3 py-2 text-sm">
+      <span>{on ? "🔊 Campainha dos avisos ligada" : "🔇 Campainha dos avisos desligada"}</span>
+      <span className="flex gap-1">
+        <button type="button" className="rounded-lg bg-white px-2 py-1 text-xs ring-1 ring-prime-border hover:ring-prime-gold" onClick={() => playNotify()}>
+          Testar
+        </button>
+        <button
+          type="button"
+          className="rounded-lg bg-white px-2 py-1 text-xs ring-1 ring-prime-border hover:ring-prime-gold"
+          onClick={() => {
+            const next = !on;
+            setOn(next);
+            try {
+              localStorage.setItem(BELL_SOUND_KEY, next ? "on" : "off");
+            } catch {
+              /* sem armazenamento */
+            }
+            if (next) playNotify();
+          }}
+        >
+          {on ? "Desligar" : "Ligar"}
+        </button>
+      </span>
     </div>
   );
 }

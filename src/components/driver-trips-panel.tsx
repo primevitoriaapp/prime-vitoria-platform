@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { clearDriverTabAlertBadge, notifyDriverNewAssignment } from "@/lib/client/driver-alert-notify";
+import { installSoundUnlock, playError, playSuccess } from "@/lib/client/sounds";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { STATUS_CORRIDA_PT } from "@/lib/i18n/pt-br";
@@ -88,6 +89,8 @@ export function DriverTripsPanel({
   const [floatDismissed, setFloatDismissed] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [payByTrip, setPayByTrip] = useState<Record<string, { stage: string; amount: number; paid_at: string | null }>>({});
+  useEffect(() => installSoundUnlock(), []);
+
   useEffect(() => {
     if (view !== "historico" || devFallbackRole !== "motorista") return;
     void fetch("/api/drivers/me/wallet", { credentials: "include" })
@@ -296,6 +299,7 @@ export function DriverTripsPanel({
     );
     } catch {
       setBusyTrip(null);
+      playError();
       setMessage("Sem internet agora. Confira o sinal e toque de novo — nada foi perdido.");
       return;
     }
@@ -304,13 +308,16 @@ export function DriverTripsPanel({
     if (!res.ok || !json.success) {
       const fixable = ["GEOFENCE", "ACTUAL_KM_REQUIRED", "SIGNATURE_REQUIRED", "ODOMETER_INVALID", "ODOMETER_START_REQUIRED"];
       if (fixable.includes(json.error?.code ?? "") || (to_status === "completed" && res.status >= 500)) {
+        playError();
         setGeoReason("");
         setGeoBlock({ tripId, to_status, extra, message: json.error?.message ?? "Não foi possível concluir esta etapa." });
         return;
       }
+      playError();
       setMessage(json.error?.message ?? "Falha ao atualizar estado.");
       return;
     }
+    playSuccess();
     setGeoBlock(null);
     setSheet(null);
     if (to_status === "completed") {
@@ -345,6 +352,7 @@ export function DriverTripsPanel({
       setMessage(json.error?.message ?? "Falha ao concluir parada.");
       return;
     }
+    playSuccess();
     setMessage(`Parada ${stopIndex + 1} concluída.`);
     await load({ silent: true });
   }
