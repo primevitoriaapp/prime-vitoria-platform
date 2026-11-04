@@ -57,7 +57,8 @@ export function payoutStatementText(g: PayoutGroup, onlyIds?: Set<string>): stri
   const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const when = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
-  const lines = rows.map((r) => `• ${when(r.trip_at)} · ${r.client_name} · ${r.route}${g.drivers.length > 1 ? ` · ${r.driver_name}` : ""} — ${brl(r.amount)}`);
+  // Extrato vai para o motorista/parceiro: nunca o nome do cliente, só o nº da O.S.
+  const lines = rows.map((r) => `• ${when(r.trip_at)} · OS ${r.trip_id.slice(0, 8).toUpperCase()} · ${r.route}${g.drivers.length > 1 ? ` · ${r.driver_name}` : ""} — ${brl(r.amount)}`);
   const total = r2(rows.reduce((s, r) => s + r.amount, 0));
   return [`*Prime Vitória · Extrato de repasse*`, g.name, "", ...lines, "", `*Total: ${brl(total)}* (${rows.length} serviço(s))`, g.pix_key ? `PIX: ${g.pix_key}` : ""]
     .filter((l, i, a) => !(l === "" && a[i - 1] === ""))

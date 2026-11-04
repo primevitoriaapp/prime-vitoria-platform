@@ -146,6 +146,8 @@ function PayoutGroupCard({
   const [paying, setPaying] = useState(false);
   const [paidOn, setPaidOn] = useState(todaySp());
   const [method, setMethod] = useState("pix");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const selTotal = Math.round(openRows.filter((r) => sel.has(r.id)).reduce((s, r) => s + r.amount, 0) * 100) / 100;
@@ -153,16 +155,26 @@ function PayoutGroupCard({
 
   async function pay() {
     setBusy(true);
-    const res = await fetchWithSupabaseSession(
-      "/api/finance/partner-payouts/pay",
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ payable_ids: [...sel], paid_on: paidOn, payment_method: method, owner_name: g.name }) },
-      "admin"
-    );
-    const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { paid: number; total: number }; error?: { message?: string } };
+    const form = new FormData();
+    form.append("payload", JSON.stringify({ payable_ids: [...sel], paid_on: paidOn, payment_method: method, owner_name: g.name, notify }));
+    if (proofFile) form.append("file", proofFile);
+    const res = await fetchWithSupabaseSession("/api/finance/partner-payouts/pay", { method: "POST", body: form }, "admin");
+    const j = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      data?: { paid: number; total: number; proofSaved?: boolean; emailed?: number; notEmailed?: string[] };
+      error?: { message?: string };
+    };
     setBusy(false);
     if (!res.ok || !j.success) return onError(j.error?.message ?? "Não foi possível registrar o pagamento.");
     setPaying(false);
-    onPaid(`${g.name}: ${j.data?.paid ?? 0} repasse(s) pagos, total ${brl(j.data?.total ?? 0)}.`);
+    const d = j.data;
+    const parts = [`${g.name}: ${d?.paid ?? 0} corrida(s) paga(s), total ${brl(d?.total ?? 0)}.`];
+    if (proofFile) parts.push(d?.proofSaved ? "Comprovante anexado." : "O comprovante não foi salvo — anexe de novo pelo financeiro.");
+    if (notify) {
+      if (d?.emailed) parts.push(`E-mail enviado a ${d.emailed} motorista(s).`);
+      if (d?.notEmailed?.length) parts.push(`Sem e-mail (avise por WhatsApp): ${d.notEmailed.join(", ")}.`);
+    }
+    onPaid(parts.join(" "));
   }
 
   return (
@@ -277,6 +289,28 @@ function PayoutGroupCard({
 
           {paying ? (
             <div className="mt-3 grid gap-3 rounded-xl bg-prime-bg p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <div className="rounded-lg bg-white p-3 text-sm sm:col-span-3">
+                <p className="font-semibold">
+                  Você vai pagar {sel.size} corrida(s) · {brl(selTotal)}
+                </p>
+                <p className="mt-0.5 text-xs text-prime-muted">{g.pix_key ? `PIX: ${g.pix_key}` : "Sem PIX cadastrado para este parceiro."}</p>
+              </div>
+              <label className="grid gap-1 text-sm sm:col-span-3">
+                <span>Comprovante do pagamento (PDF ou foto, até 5 MB)</span>
+                <input
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  className="text-sm"
+                  onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              <label className="flex items-start gap-2 text-sm sm:col-span-3">
+                <input type="checkbox" className="mt-1" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+                <span>
+                  Enviar e-mail ao motorista com as corridas pagas{proofFile ? " e o comprovante" : ""}
+                  <span className="block text-xs text-prime-muted">Sai com nº da O.S., data, trajeto e valor de cada corrida — sem o nome do cliente.</span>
+                </span>
+              </label>
               <label className="grid gap-1 text-sm">
                 <span>Data do pagamento</span>
                 <input type="date" className={PRIME_INPUT_CLASS} value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />

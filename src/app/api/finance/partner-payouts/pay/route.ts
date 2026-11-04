@@ -11,8 +11,23 @@ const bodySchema = z.object({
   payment_method: z.string().trim().min(1).max(80).default("pix"),
   paid_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   reference: z.string().trim().max(120).optional(),
-  owner_name: z.string().trim().max(200).optional()
+  owner_name: z.string().trim().max(200).optional(),
+  notify: z.boolean().default(true)
 });
+
+export const runtime = "nodejs";
+
+/** Aceita JSON ou multipart (campo `payload` com o JSON + `file` com o comprovante). */
+async function readBody(request: Request): Promise<{ body: z.infer<typeof bodySchema>; file: File | null }> {
+  const type = request.headers.get("content-type") ?? "";
+  if (type.includes("multipart/form-data")) {
+    const form = await request.formData();
+    const body = bodySchema.parse(JSON.parse(String(form.get("payload") ?? "{}")));
+    const f = form.get("file");
+    return { body, file: f instanceof File && f.size > 0 ? f : null };
+  }
+  return { body: bodySchema.parse(await request.json()), file: null };
+}
 
 /** Paga de uma vez todos os repasses selecionados de um parceiro (um PIX, um lote). */
 export async function POST(request: Request) {
@@ -20,7 +35,8 @@ export async function POST(request: Request) {
     const session = await getSessionContext();
     assertCapability(session, "finance.write");
     const tenantId = assertTenantScope(session);
-    const body = bodySchema.parse(await request.json());
+    const { body, file } = await readBody(request);
+    if (file && file.size > 5 * 1024 * 1024) return fail("FILE_TOO_BIG", "Comprovante acima de 5 MB.", 400);
     const paidAt = new Date(`${body.paid_on}T12:00:00-03:00`).toISOString();
     const batch = body.reference || `LOTE-${body.paid_on.replace(/-/g, "")}-${Date.now().toString(36).slice(-4).toUpperCase()}`;
     const { data, error } = await db
@@ -41,7 +57,49 @@ export async function POST(request: Request) {
       metadata: { batch, count: data?.length ?? 0, total, owner: body.owner_name ?? null, method: body.payment_method },
       request
     });
-    return ok({ paid: data?.length ?? 0, total, batch });
+
+    const paidIds = (data ?? []).map((r) => r.id as string);
+    // Comprovante: um arquivo para o lote todo, ligado a cada repasse pago.
+    let proof: { filename: string; base64: string; contentType: string } | null = null;
+    let proofSaved = false;
+    if (file && paidIds.length) {
+      try {
+        const { uploadPaymentProofFile } = await import("@/lib/storage/payment-proof-upload");
+        const up = await uploadPaymentProofFile({ tenantId, payableId: paidIds[0], file });
+        const { data: rows } = await db.from("driver_payables").select("id, trip_id, amount").in("id", paidIds);
+        await db.from("driver_payment_proofs").insert(
+          (rows ?? []).map((r) => ({
+            tenant_id: tenantId,
+            driver_payable_id: r.id,
+            trip_id: r.trip_id,
+            storage_url: up.public_url,
+            amount: r.amount,
+            notes: `Lote ${batch}`,
+            uploaded_by: session.userId
+          }))
+        );
+        const buf = Buffer.from(await file.arrayBuffer());
+        const ext = (file.name.split(".").pop() || "pdf").toLowerCase().slice(0, 5);
+        proof = { filename: `Comprovante-${batch}.${ext}`, base64: buf.toString("base64"), contentType: file.type || "application/pdf" };
+        proofSaved = true;
+      } catch (e) {
+        console.warn("[partner-payouts.pay] comprovante", e instanceof Error ? e.message : e);
+      }
+    }
+
+    let emailed = 0;
+    let notEmailed: string[] = [];
+    if (body.notify && paidIds.length) {
+      try {
+        const { emailDriverPayment } = await import("@/lib/notifications/driver-payment-email");
+        const r = await emailDriverPayment({ tenantId, payableIds: paidIds, paidOn: body.paid_on, method: body.payment_method, batch, proof });
+        emailed = r.sent;
+        notEmailed = r.skipped;
+      } catch (e) {
+        console.warn("[partner-payouts.pay] e-mail", e instanceof Error ? e.message : e);
+      }
+    }
+    return ok({ paid: paidIds.length, total, batch, proofSaved, emailed, notEmailed });
   } catch (error) {
     return mapApiError(error);
   }
