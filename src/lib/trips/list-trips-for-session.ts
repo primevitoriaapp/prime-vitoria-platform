@@ -103,6 +103,17 @@ async function fetchAgendaTripsOutsideRange(
 const CLIENT_SIDE_MONEY_KEYS = ["client_amount", "margin", "calculation_metadata", "pricing_rule_id"] as const;
 const DRIVER_SIDE_MONEY_KEYS = ["driver_amount", "margin", "calculation_metadata", "pricing_rule_id"] as const;
 
+/** Motorista nunca vê quem é o cliente nem quem pediu (proteção comercial da Prime). */
+export function redactClientIdentityForDriver<T extends Record<string, unknown>>(rows: T[], role: string): T[] {
+  if (role !== "motorista") return rows;
+  return rows.map((row) => {
+    const copy: Record<string, unknown> = { ...row };
+    delete copy.client_name;
+    delete copy.requester;
+    return copy as T;
+  });
+}
+
 export function redactTripMoneyForRole<T extends Record<string, unknown>>(rows: T[], role: string): T[] {
   const keys =
     role === "motorista" ? CLIENT_SIDE_MONEY_KEYS : role === "cliente" ? DRIVER_SIDE_MONEY_KEYS : null;
@@ -252,7 +263,7 @@ export async function listTripsForSession(
   }
 
   let items = redactTripMoneyForRole(await enrichTripListItems(merged), session.role);
-  if (session.role === "motorista") items = await shapeDriverPay(items, session);
+  if (session.role === "motorista") items = redactClientIdentityForDriver(await shapeDriverPay(items, session), session.role);
 
   if (query.agenda) {
     console.log("[trips GET agenda]", {

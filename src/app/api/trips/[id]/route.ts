@@ -9,7 +9,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
 import { denyUnlessTripReadable, tripGetAccess } from "@/lib/trips/trip-detail-access";
-import { redactTripMoneyForRole } from "@/lib/trips/list-trips-for-session";
+import { redactClientIdentityForDriver, redactTripMoneyForRole } from "@/lib/trips/list-trips-for-session";
 import { enrichTripListItems } from "@/lib/trips/enrich-trip-list";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -37,7 +37,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const [visible] = redactTripMoneyForRole([trip as Record<string, unknown>], session.role);
     // Nome do motorista e veículo (para o detalhe no portal e no app).
     const [enriched] = await enrichTripListItems([visible as typeof visible & { client_id: string }]).catch(() => [visible]);
-    return ok(enriched ?? visible);
+    const [safe] = redactClientIdentityForDriver([(enriched ?? visible) as Record<string, unknown>], session.role);
+    return ok(safe);
   } catch (error) {
     return mapApiError(error);
   }

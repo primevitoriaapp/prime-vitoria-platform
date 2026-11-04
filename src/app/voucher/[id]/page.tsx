@@ -70,7 +70,7 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
   }
 
   const [clientRes, driverRes, vehicleRes, company] = await Promise.all([
-    db.from("clients").select("name, trade_name, document, billing_issuer").eq("id", trip.client_id).maybeSingle(),
+    db.from("clients").select("name, trade_name, document, billing_issuer, type").eq("id", trip.client_id).maybeSingle(),
     trip.driver_id
       ? db.from("drivers").select("full_name, phone, whatsapp").eq("id", trip.driver_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -146,7 +146,11 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
           </div>
 
           <dl style={{ margin: 0 }}>
-            <Row label="Cliente" value={client?.trade_name || client?.name} />
+            {session.role === "motorista" ? (
+              <Row label="Atendimento" value={String(client?.type ?? "").toUpperCase() === "PF" ? "Corrida particular" : "Corrida empresarial"} />
+            ) : (
+              <Row label="Cliente" value={client?.trade_name || client?.name} />
+            )}
             <Row label="Passageiro(s)" value={passengers} />
             <Row label="Telefone" value={stops.length ? null : (trip.passenger_phone as string | null)} />
             <Row

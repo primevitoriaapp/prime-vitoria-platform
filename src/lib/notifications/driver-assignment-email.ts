@@ -3,7 +3,7 @@ import { OFFICIAL_URLS } from "@/lib/server/official-urls";
 import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
 import { billingIssuerById } from "@/lib/clients/billing-terms-calc";
 import { driverPayoutDateForTrip } from "@/lib/finance/driver-payout-sync";
-import { buildDriverOsPdf } from "@/lib/vouchers/driver-os-pdf";
+import { buildDriverOsPdf, cityFromAddress } from "@/lib/vouchers/driver-os-pdf";
 import { parseDropoffStops } from "@/lib/trips/trip-dropoff-stops";
 import { parseTripPickupStops } from "@/lib/trips/trip-pickup-stops";
 import { presentationAtIso } from "@/lib/trips/service-extras";
@@ -50,7 +50,7 @@ export async function emailDriverAssignment(
   if (isPlaceholderDriverEmail(email)) return { ok: false, reason: "motorista sem e-mail" };
 
   const [{ data: client }, { data: vehicle }] = await Promise.all([
-    db.from("clients").select("name, trade_name, billing_issuer").eq("id", trip.client_id).maybeSingle(),
+    db.from("clients").select("type, billing_issuer").eq("id", trip.client_id).maybeSingle(),
     trip.vehicle_id
       ? db.from("vehicles").select("model, plate").eq("id", trip.vehicle_id).maybeSingle()
       : Promise.resolve({ data: null })
@@ -86,13 +86,14 @@ export async function emailDriverAssignment(
   const destination = String(trip.destination_text ?? "—");
   const flight = (trip.flight_number as string | null) ?? null;
   const notes = (trip.notes as string | null)?.trim() || null;
-  const clientName = (client?.trade_name as string | null) || (client?.name as string | null) || "Cliente";
+  // O motorista nunca vê quem é o cliente (proteção comercial): só o tipo de atendimento.
+  const kindLabel = String(client?.type ?? "").toUpperCase() === "PF" ? "Corrida particular" : "Corrida empresarial";
   const vehicleText = vehicle ? `${vehicle.model ?? ""}${vehicle.plate ? ` · placa ${vehicle.plate}` : ""}`.trim() : null;
   const firstName = String(driver.full_name ?? "").trim().split(/\s+/)[0] || "motorista";
   const appUrl = `${publicBaseUrl()}/driver`;
 
   const descriptionLines = [
-    `Cliente: ${clientName}`,
+    `Atendimento: ${kindLabel}`,
     `Passageiro: ${passenger}${phone ? ` (${phone})` : ""}`,
     `Embarque: ${origin}`,
     `Destino: ${destination}`,
@@ -118,7 +119,7 @@ export async function emailDriverAssignment(
   const rows: [string, string | null][] = [
     ["Data e horário", when],
     ["Serviço", service],
-    ["Cliente", clientName],
+    ["Atendimento", kindLabel],
     ["Passageiro", phone ? `${passenger} · ${phone}` : passenger],
     ["Embarque", origin],
     ["Destino", destination],
@@ -149,19 +150,27 @@ export async function emailDriverAssignment(
     </tr></table>
   </div>
   <div style="background:#fff;padding:20px;border-radius:0 0 12px 12px">
-    <p style="margin:0 0 12px;font-size:15px;color:#111">Olá, ${escapeHtml(firstName)}! ${version === "atualizada" ? "A corrida abaixo foi <b>alterada</b>. Vale a O.S. atualizada (em anexo); descarte a anterior." : "Você foi indicado para o atendimento abaixo. A Ordem de Serviço vai em anexo (PDF)."}</p>
+    <p style="margin:0 0 6px;font-size:16px;color:#111"><b>Olá, ${escapeHtml(firstName)}!</b></p>
+    ${
+      version === "atualizada"
+        ? `<p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#222">A corrida que você vai realizar para a Prime Vitória teve uma <b>alteração</b>. Revise com atenção os dados abaixo: a Ordem de Serviço atualizada segue em anexo e substitui a anterior.</p>`
+        : `<p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#222">Você foi <b>escolhido para realizar a corrida abaixo</b> pela Prime Vitória. Confiamos no seu trabalho e contamos com a sua pontualidade, cuidado e discrição para que o passageiro tenha a melhor experiência do início ao fim.</p>
+    <p style="margin:0 0 14px;font-size:14px;line-height:1.55;color:#222">A Ordem de Serviço completa segue em anexo (PDF). Por favor, <b>confirme a corrida no app</b> assim que possível.</p>`
+    }
     <table style="border-collapse:collapse;width:100%">${rowsHtml}</table>
     <p style="margin:20px 0 8px">
       <a href="${gcal}" style="display:inline-block;background:#111;color:#C9A84C;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:bold">Adicionar ao Google Agenda</a>
       &nbsp;<a href="${appUrl}" style="display:inline-block;border:1px solid #C9A84C;color:#111;text-decoration:none;padding:10px 16px;border-radius:8px">Abrir app do motorista</a>
     </p>
-    <p style="margin:12px 0 0;font-size:12px;color:#666">${escapeHtml(companyName)} · CNPJ ${escapeHtml(companyCnpj)}${company.email ? ` · ${escapeHtml(company.email)}` : ""}
+    <p style="margin:18px 0 0;font-size:14px;line-height:1.55;color:#222">Qualquer dúvida ou imprevisto, fale com a Central — estamos com você em todo o atendimento.</p>
+    <p style="margin:10px 0 0;font-size:14px;color:#222">Boa corrida!<br><b>Equipe Prime Vitória</b><br><span style="color:#8A6D1F">Central de Operações 24h</span></p>
+    <p style="margin:16px 0 0;font-size:12px;color:#666">${escapeHtml(companyName)} · CNPJ ${escapeHtml(companyCnpj)}${company.email ? ` · ${escapeHtml(company.email)}` : ""}
     </p>
     <p style="margin:12px 0 0;font-size:12px;color:#666">O convite em anexo (corrida.ics) também abre no iPhone e no Outlook, com lembretes 1 dia antes e 3 horas antes.</p>
   </div>
 </div></body></html>`;
 
-  const text = [`Olá, ${firstName}! Você foi indicado para um atendimento Prime Vitória.`, `Data e horário: ${when}`, `Serviço: ${service}`, ...descriptionLines, `Adicionar ao Google Agenda: ${gcal}`].join("\n");
+  const text = [`Olá, ${firstName}!`, version === "atualizada" ? "A corrida que você vai realizar para a Prime Vitória foi alterada. A O.S. atualizada segue em anexo e substitui a anterior." : "Você foi escolhido para realizar a corrida abaixo pela Prime Vitória. Contamos com a sua pontualidade, cuidado e discrição. A O.S. completa segue em anexo; confirme a corrida no app.", `Data e horário: ${when}`, `Serviço: ${service}`, ...descriptionLines, `Adicionar ao Google Agenda: ${gcal}`].join("\n");
 
   const dropoffs = parseDropoffStops(trip.trip_dropoff_stops);
   const pickups = parseTripPickupStops(trip.trip_pickup_stops);
@@ -173,7 +182,9 @@ export async function emailDriverAssignment(
     company: { name: companyName, cnpj: companyCnpj, address: company.address_line, phone: company.phone, email: company.email },
     when,
     service,
-    clientName,
+    kindLabel,
+    city: cityFromAddress(origin),
+    driverPhone: null,
     passenger,
     passengerPhone: phone,
     origin,
@@ -194,7 +205,7 @@ export async function emailDriverAssignment(
 
   const result = await sendOperationalEmail({
     to: email,
-    subject: `${version === "atualizada" ? "O.S. ATUALIZADA" : "Nova corrida"} ${when} — ${passenger} (Nº ${osNumber})`,
+    subject: version === "atualizada" ? `${firstName}, sua corrida de ${when} foi atualizada (O.S. Nº ${osNumber})` : `${firstName}, você tem uma nova corrida · ${when} (O.S. Nº ${osNumber})`,
     text,
     html,
     attachments: [
