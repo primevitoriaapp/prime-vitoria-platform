@@ -108,7 +108,7 @@ export function AddressAutocompleteInput({
       setHint(null);
       try {
         const res = await fetchWithSupabaseSession(
-          `/api/integrations/address-search?q=${encodeURIComponent(q)}&session=${encodeURIComponent(sessionToken.current)}`,
+          `/api/integrations/address-search?q=${encodeURIComponent(q)}&session=${encodeURIComponent(sessionToken.current)}${s.mainText ? `&name=${encodeURIComponent(s.mainText)}` : ""}`,
           {},
           devFallbackRole
         );

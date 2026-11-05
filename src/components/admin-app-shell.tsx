@@ -36,6 +36,7 @@ const NAV = [
   { href: "/contas-a-pagar", label: "Contas a pagar", icon: "◆", group: "Financeiro" },
   { href: "/repasses", label: "Repasses a parceiros", icon: "⇉", group: "Financeiro" },
   { href: "/conciliacao", label: "Conciliação bancária", icon: "⇄", group: "Financeiro" },
+  { href: "/arquivo", label: "Arquivo e backups", icon: "▣", group: "Financeiro" },
   { href: "/clients/relatorio", label: "Relatório por cliente", icon: "▧", group: "Financeiro" }
 ] as const;
 const GROUPS = ["Operação", "Cadastros", "Financeiro"] as const;
@@ -59,6 +60,7 @@ const ICONS: Record<string, string> = {
   "/contas-a-pagar": "M3 7h18v12H3zM3 11h18M7 15h3",
   "/repasses": "M4 8h13l-3-3M20 16H7l3 3",
   "/conciliacao": "M4 7h16M4 12h10M4 17h7M17 15l2 2 3-4",
+  "/arquivo": "M3 7h18v13H3zM3 7l2-3h14l2 3M9 12h6",
   "/clients/relatorio": "M6 3h9l4 4v14H6zM9 17v-3M12 17v-6M15 17v-4"
 };
 
@@ -122,7 +124,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
   const visibleNav = showFullNav
     ? NAV
     : isFinanceiro
-      ? NAV.filter((n) => ["/painel-financeiro", "/finance", "/dashboard", "/clients/relatorio", "/contas-a-pagar", "/repasses", "/conciliacao"].includes(n.href))
+      ? NAV.filter((n) => ["/painel-financeiro", "/finance", "/dashboard", "/clients/relatorio", "/contas-a-pagar", "/repasses", "/conciliacao", "/arquivo"].includes(n.href))
       : NAV;
 
   const sidebarBody = (

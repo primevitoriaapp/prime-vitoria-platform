@@ -8,7 +8,8 @@ export const runtime = "nodejs";
 
 const querySchema = z.object({
   place_id: z.string().min(3).max(300),
-  session: z.string().max(64).optional()
+  session: z.string().max(64).optional(),
+  name: z.string().max(200).optional()
 });
 
 /** GET /api/integrations/address-details?place_id=...&session=... — coordenadas do local escolhido (Google). */
@@ -26,9 +27,10 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const q = querySchema.parse({
       place_id: url.searchParams.get("place_id") ?? "",
-      session: url.searchParams.get("session") ?? undefined
+      session: url.searchParams.get("session") ?? undefined,
+      name: url.searchParams.get("name") ?? undefined
     });
-    const place = await googlePlaceDetails(q.place_id, q.session ?? "", key);
+    const place = await googlePlaceDetails(q.place_id, q.session ?? "", key, q.name);
     if (!place) return fail("PLACE_NOT_FOUND", "Local não encontrado", 404);
     return ok(place);
   } catch (error) {

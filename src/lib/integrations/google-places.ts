@@ -101,14 +101,20 @@ export async function googleAutocomplete(input: string, sessionToken: string, ke
   return mapAutocompleteResponse((await res.json()) as AutocompleteResponse);
 }
 
-export async function googlePlaceDetails(placeId: string, sessionToken: string, key: string): Promise<GooglePlace | null> {
+/**
+ * Coordenadas do local escolhido. Pede só campos "Essentials" (10 mil grátis por mês, US$ 5/mil depois);
+ * o nome do lugar vem da sugestão (`name`), assim não cai no SKU "Pro" (5 mil grátis, US$ 17/mil).
+ */
+export async function googlePlaceDetails(placeId: string, sessionToken: string, key: string, name?: string | null): Promise<GooglePlace | null> {
   const url = new URL(DETAILS_URL + encodeURIComponent(placeId));
   url.searchParams.set("languageCode", "pt-BR");
   url.searchParams.set("regionCode", "br");
   if (sessionToken) url.searchParams.set("sessionToken", sessionToken);
   const res = await timedFetch(url.toString(), {
-    headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": "id,displayName,formattedAddress,location" }
+    headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": "id,formattedAddress,location" }
   });
   if (!res.ok) throw new Error(`Google Place Details HTTP ${res.status}`);
-  return mapDetailsResponse((await res.json()) as DetailsResponse);
+  const json = (await res.json()) as DetailsResponse;
+  if (!json.displayName && name?.trim()) json.displayName = { text: name.trim() };
+  return mapDetailsResponse(json);
 }
