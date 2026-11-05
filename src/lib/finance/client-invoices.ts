@@ -28,6 +28,12 @@ export type ClientInvoiceRow = {
   sent_at: string | null;
   paid_at: string | null;
   created_at: string;
+  client_ref?: string | null;
+  voucher_path?: string | null;
+  boleto_path?: string | null;
+  nf_path?: string | null;
+  payment_method?: string | null;
+  viewed_at?: string | null;
 };
 
 export type GenerateResult = {
@@ -211,9 +217,13 @@ export async function updateClientInvoiceStatus(
     nf_url?: string | null;
     notes?: string | null;
     due_date?: string;
+    /** Dia em que o dinheiro entrou (YYYY-MM-DD). Sem ele, hoje. */
+    paid_on?: string;
+    payment_method?: string | null;
   }
 ) {
   const update: Record<string, unknown> = {};
+  if (patch.payment_method !== undefined) update.payment_method = patch.payment_method;
   if (patch.due_date) update.due_date = patch.due_date;
   if (patch.boleto_url !== undefined) update.boleto_url = patch.boleto_url;
   if (patch.boleto_line !== undefined) update.boleto_line = patch.boleto_line;
@@ -223,7 +233,7 @@ export async function updateClientInvoiceStatus(
   if (patch.status) {
     update.status = patch.status;
     if (patch.status === "enviada") update.sent_at = new Date().toISOString();
-    if (patch.status === "paga") update.paid_at = new Date().toISOString();
+    if (patch.status === "paga") update.paid_at = patch.paid_on ? new Date(`${patch.paid_on}T12:00:00-03:00`).toISOString() : new Date().toISOString();
   }
   const { data, error } = await db
     .from("client_invoices")
@@ -240,7 +250,7 @@ export async function updateClientInvoiceStatus(
     if (ids.length) {
       await db
         .from("accounts_receivable")
-        .update({ status: "paid", paid_at: new Date().toISOString(), payment_method: "fatura" })
+        .update({ status: "paid", paid_at: (update.paid_at as string) ?? new Date().toISOString(), payment_method: patch.payment_method ?? "fatura" })
         .in("trip_id", ids)
         .eq("tenant_id", tenantId)
         .neq("status", "paid");

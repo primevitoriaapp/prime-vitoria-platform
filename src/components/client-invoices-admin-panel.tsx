@@ -321,7 +321,11 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                             {r.client_ref ? ` · ${r.client_ref}` : ""} · {brDate(r.period_start)}
                             {r.period_end !== r.period_start ? ` a ${brDate(r.period_end)}` : ""}
                           </p>
-                          <h3 className="text-base font-semibold">{r.client_name ?? "—"}</h3>
+                          <h3 className="text-base font-semibold">
+                            <a href={`/finance/faturas/${r.id}`} className="hover:underline">
+                              {r.client_name ?? "—"}
+                            </a>
+                          </h3>
                           <p className="text-xs text-prime-muted">
                             {r.trip_count} corrida{r.trip_count > 1 ? "s" : ""}
                             {r.sent_at ? ` · enviada em ${new Date(r.sent_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}
@@ -406,8 +410,11 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2">
+                        <a href={`/finance/faturas/${r.id}`} className="rounded-lg bg-[#111] px-3 py-1.5 text-sm font-semibold text-[#fff]">
+                          Ver detalhes
+                        </a>
                         <a href={`/fatura/${r.id}`} target="_blank" rel="noopener noreferrer" className={action}>
-                          Abrir fatura
+                          Documento
                         </a>
                         {r.voucher_path ? (
                           <a href={`/api/client-invoices/${r.id}/files?kind=voucher`} target="_blank" rel="noopener noreferrer" className={action}>

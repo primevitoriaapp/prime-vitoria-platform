@@ -11,6 +11,8 @@ import { billingIssuerById } from "@/lib/clients/billing-terms-calc";
 import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
 import { shortAddress } from "@/lib/client/short-address";
 import { VoucherPrintButton } from "@/app/voucher/[id]/print-button";
+import { loadInvoiceDetail } from "@/lib/finance/invoice-detail";
+import { InvoiceOverview } from "@/components/invoice-overview";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,11 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
     return <Message title="Fatura não encontrada" text="Esta fatura não existe ou não está disponível para a sua conta." />;
   }
 
+  // Primeira vez que o gestor do cliente abre: fica no histórico da fatura.
+  if (session.role === "cliente" && !(invoice as { viewed_at?: string | null }).viewed_at) {
+    await db.from("client_invoices").update({ viewed_at: new Date().toISOString() }).eq("id", invoice.id).is("viewed_at", null);
+  }
+  const overview = await loadInvoiceDetail(tenantId, id, { internal: false });
   const [rows, { data: client }, company] = await Promise.all([
     buildInvoiceReport(id),
     db.from("clients").select("name, trade_name, document, address_line, city, state").eq("id", invoice.client_id).maybeSingle(),
@@ -67,6 +74,31 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
           @page { size: A4 landscape; margin: 10mm; }
         }
       `}</style>
+      {overview ? (
+        <div className="invoice-actions" style={{ maxWidth: 1000, margin: "0 auto 20px" }}>
+          <InvoiceOverview detail={overview} />
+          {overview.invoice.boleto_path || overview.invoice.boleto_line ? (
+            <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {overview.invoice.boleto_path ? (
+                <a
+                  href={`/api/client-invoices/${invoice.id}/files?kind=boleto`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ borderRadius: 10, padding: "10px 16px", fontWeight: 700, background: "#111", color: "#C9A84C", textDecoration: "none", fontFamily: "system-ui, sans-serif", fontSize: 14 }}
+                >
+                  ⬇ Baixar boleto
+                </a>
+              ) : null}
+              {overview.invoice.boleto_line ? (
+                <span style={{ fontFamily: "monospace", fontSize: 13, background: "#fff", border: "1px solid #E8E4DC", borderRadius: 10, padding: "10px 12px" }}>
+                  {overview.invoice.boleto_line}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          <p style={{ marginTop: 16, fontSize: 12, color: "#6B6F76", fontFamily: "system-ui, sans-serif" }}>Relatório detalhado para conferência e impressão abaixo.</p>
+        </div>
+      ) : null}
       <div className="invoice-actions" style={{ maxWidth: 1000, margin: "0 auto 12px", display: "flex", gap: 8, justifyContent: "space-between", flexWrap: "wrap" }}>
         <VoucherPrintButton />
         <a

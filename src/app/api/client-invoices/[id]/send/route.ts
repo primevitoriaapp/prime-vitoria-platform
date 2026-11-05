@@ -19,7 +19,7 @@ function staff(role: string) {
   return role === "admin" || role === "financeiro";
 }
 
-async function defaults(tenantId: string, id: string) {
+async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete" = "fatura") {
   const invoice = await getClientInvoice(tenantId, id);
   if (!invoice || invoice.status === "cancelada") return null;
   const inv = invoice as typeof invoice & { client_ref?: string | null; voucher_path?: string | null; boleto_path?: string | null; nf_path?: string | null };
@@ -42,7 +42,22 @@ async function defaults(tenantId: string, id: string) {
   const ref = inv.client_ref ? ` · ${inv.client_ref}` : "";
   const periodo =
     invoice.period_start === invoice.period_end ? brDate(invoice.period_start) : `${brDate(invoice.period_start)} a ${brDate(invoice.period_end)}`;
-  const message = [
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const vencida = invoice.due_date < today;
+  const reminder = [
+    `Olá, equipe ${name}.`,
+    "",
+    vencida
+      ? `Identificamos que a fatura ${num}${inv.client_ref ? ` (voucher ${inv.client_ref})` : ""}, no valor de ${brl(invoice.total_amount)}, venceu em ${brDate(invoice.due_date)} e ainda consta em aberto em nosso sistema.`
+      : `Lembramos que a fatura ${num}${inv.client_ref ? ` (voucher ${inv.client_ref})` : ""}, no valor de ${brl(invoice.total_amount)}, vence em ${brDate(invoice.due_date)}.`,
+    "",
+    invoice.boleto_line ? `Linha digitável: ${invoice.boleto_line}` : "O boleto segue novamente em anexo.",
+    "",
+    vencida ? "Se o pagamento já foi feito, por favor desconsidere esta mensagem e, se possível, nos envie o comprovante." : "Se o pagamento já foi programado, por favor desconsidere esta mensagem.",
+    "",
+    "Atenciosamente,"
+  ].join("\n");
+  const message = tipo === "lembrete" ? reminder : [
     `Olá, equipe ${name}.`,
     "",
     inv.client_ref
@@ -65,7 +80,10 @@ async function defaults(tenantId: string, id: string) {
     invoice: inv,
     to: [...to],
     cc: [] as string[],
-    subject: `Fatura ${num}${ref} — ${name} — Prime Vitória`,
+    subject:
+      tipo === "lembrete"
+        ? `${vencida ? "Fatura vencida" : "Lembrete de vencimento"}: ${num}${ref} — ${brDate(invoice.due_date)} — Prime Vitória`
+        : `Fatura ${num}${ref} — ${name} — Prime Vitória`,
     message,
     files: { boleto: Boolean(inv.boleto_path), nf: Boolean(inv.nf_path), voucher: Boolean(inv.voucher_path) },
     link: `${OFFICIAL_URLS.empresa}/fatura/${invoice.id}`,
@@ -74,13 +92,13 @@ async function defaults(tenantId: string, id: string) {
 }
 
 /** Rascunho do e-mail da fatura (para revisar antes de enviar). */
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSessionContext();
     if (!staff(session.role)) return fail("FORBIDDEN", "Só admin ou financeiro enviam faturas", 403);
     const tenantId = assertTenantScope(session);
     const { id } = await params;
-    const d = await defaults(tenantId, id);
+    const d = await defaults(tenantId, id, new URL(request.url).searchParams.get("tipo") === "lembrete" ? "lembrete" : "fatura");
     if (!d) return fail("INVOICE_NOT_FOUND", "Fatura não encontrada", 404);
     return ok({ to: d.to, cc: d.cc, subject: d.subject, message: d.message, files: d.files, link: d.link, copy_to: d.copy_to });
   } catch (error) {
@@ -100,7 +118,8 @@ const bodySchema = z
     message: z.string().trim().max(5000).optional(),
     attach: z.object({ boleto: z.boolean().default(true), nf: z.boolean().default(true), voucher: z.boolean().default(true) }).partial().optional(),
     copy_me: z.boolean().default(true),
-    save_client_email: z.boolean().default(false)
+    save_client_email: z.boolean().default(false),
+    tipo: z.enum(["fatura", "lembrete"]).default("fatura")
   })
   .partial();
 
@@ -122,7 +141,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const raw = await request.text();
     const body = bodySchema.parse(raw ? JSON.parse(raw) : {});
-    const d = await defaults(tenantId, id);
+    const d = await defaults(tenantId, id, body.tipo ?? "fatura");
     if (!d) return fail("INVOICE_NOT_FOUND", "Fatura não encontrada", 404);
 
     const to = body.to?.length ? body.to : d.to;
@@ -177,7 +196,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await insertAuditEvent({
       tenantId,
       actorUserId: session.userId,
-      action: "invoice.send",
+      action: body.tipo === "lembrete" ? "invoice.reminder" : "invoice.send",
       entityType: "client_invoice",
       entityId: id,
       metadata: { to, cc: body.cc ?? [], subject, anexos: attachments.map((a) => a.filename) },

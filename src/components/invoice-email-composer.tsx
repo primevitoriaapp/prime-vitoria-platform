@@ -24,8 +24,10 @@ export function InvoiceEmailComposer({
   invoiceId,
   title,
   onClose,
-  onSent
+  onSent,
+  tipo = "fatura"
 }: {
+  tipo?: "fatura" | "lembrete";
   invoiceId: string;
   title: string;
   onClose: () => void;
@@ -43,7 +45,7 @@ export function InvoiceEmailComposer({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetchWithSupabaseSession(`/api/client-invoices/${invoiceId}/send`, {}, "admin")
+    void fetchWithSupabaseSession(`/api/client-invoices/${invoiceId}/send${tipo === "lembrete" ? "?tipo=lembrete" : ""}`, {}, "admin")
       .then((r) => r.json())
       .then((j: { success?: boolean; data?: Draft; error?: { message?: string } }) => {
         if (!j.success || !j.data) return setError(j.error?.message ?? "Não foi possível abrir o e-mail.");
@@ -53,7 +55,7 @@ export function InvoiceEmailComposer({
         setMessage(j.data.message);
       })
       .catch(() => setError("Sem conexão."));
-  }, [invoiceId]);
+  }, [invoiceId, tipo]);
 
   async function send() {
     const toList = split(to);
@@ -64,7 +66,7 @@ export function InvoiceEmailComposer({
       `/api/client-invoices/${invoiceId}/send`,
       {
         method: "POST",
-        body: JSON.stringify({ to: toList, cc: split(cc), subject, message, attach, copy_me: copyMe, save_client_email: saveEmail })
+        body: JSON.stringify({ to: toList, cc: split(cc), subject, message, attach, copy_me: copyMe, save_client_email: saveEmail, tipo })
       },
       "admin"
     );
@@ -82,7 +84,7 @@ export function InvoiceEmailComposer({
       <div className="max-h-[94dvh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <header className="flex items-center justify-between border-b border-prime-border px-5 py-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">Enviar fatura por e-mail</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">{tipo === "lembrete" ? "Enviar lembrete de pagamento" : "Enviar fatura por e-mail"}</p>
             <h3 className="font-semibold">{title}</h3>
           </div>
           <button type="button" onClick={onClose} className="h-8 w-8 rounded-full ring-1 ring-prime-border" aria-label="Fechar">
@@ -151,7 +153,7 @@ export function InvoiceEmailComposer({
               </button>
             </div>
             <p className="text-xs text-prime-muted">
-              Sai de operacao@primevitoria.com; a resposta do cliente chega em contato@primevitoria.com. A fatura passa para “Enviada”.
+              Sai de operacao@primevitoria.com; a resposta do cliente chega em contato@primevitoria.com. {tipo === "lembrete" ? "Fica registrado no histórico da fatura." : "A fatura passa para “Enviada”."}
             </p>
           </div>
         )}
