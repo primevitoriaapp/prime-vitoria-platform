@@ -70,7 +70,7 @@ function CategoryCard({ c, onChanged }: { c: Category; onChanged: () => void }) 
         <span className="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-prime-text opacity-0 shadow transition group-hover:opacity-100">
           Trocar foto
         </span>
-        {!c.active ? <span className="absolute left-3 top-3 rounded-full bg-[#111] px-2.5 py-1 text-xs font-semibold text-white">Desativada</span> : null}
+        {!c.active ? <span className="absolute left-3 top-3 rounded-full bg-[#111] px-2.5 py-1 text-xs font-semibold text-[#fff]">Desativada</span> : null}
       </button>
       <input
         ref={fileRef}

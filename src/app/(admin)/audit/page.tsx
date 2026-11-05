@@ -95,7 +95,7 @@ export default async function AuditPage({
             <option value="80">80</option>
           </select>
         </label>
-        <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+        <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-[#fff] hover:bg-slate-800">
           Filtrar
         </button>
       </form>

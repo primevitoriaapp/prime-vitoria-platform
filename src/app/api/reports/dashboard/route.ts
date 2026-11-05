@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 
     const staleIso = new Date(now.getTime() - 12 * 3600000).toISOString();
     const [curr, prev, noDriver, pending, drivers, clients, cnh, stale, expenses, vdocs, lowRatings] = await Promise.all([
-      tripsBetween(tenantId, r.from, r.to).then(inScope),
+      tripsBetween(tenantId, r.from, r.to),
       tripsBetween(tenantId, r.prevFrom, r.prevTo).then(inScope),
       db
         .from("trips")
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
         .eq("tenant_id", tenantId)
         .eq("operational_status", "requested"),
       db.from("drivers").select("id, full_name, active").eq("tenant_id", tenantId),
-      db.from("clients").select("id, name, trade_name").eq("tenant_id", tenantId),
+      db.from("clients").select("id, name, trade_name, billing_issuer").eq("tenant_id", tenantId),
       db
         .from("drivers")
         .select("id", { count: "exact", head: true })
@@ -87,6 +87,13 @@ export async function GET(request: Request) {
         .limit(20)
     ]);
 
+    // Corridas de clientes sem empresa faturadora: somem quando uma empresa está escolhida no topo.
+    const issuerOf = new Map((clients.data ?? []).map((c) => [c.id as string, (c.billing_issuer as string | null) ?? null]));
+    const currAll = curr;
+    const orphanTrips = currAll.filter((t) => t.client_id && !issuerOf.get(t.client_id));
+    const orphanClients = new Set(orphanTrips.map((t) => t.client_id as string));
+    const currScoped = inScope(currAll);
+
     const { count: driverReqs } = await db
       .from("driver_change_requests")
       .select("id", { count: "exact", head: true })
@@ -108,10 +115,10 @@ export async function GET(request: Request) {
     }
 
     const sr = seriesRange(period, now);
-    const seriesTrips = sr.from === r.from && sr.to === r.to ? curr : await tripsBetween(tenantId, sr.from, sr.to).then(inScope);
+    const seriesTrips = sr.from === r.from && sr.to === r.to ? currScoped : await tripsBetween(tenantId, sr.from, sr.to).then(inScope);
     const series = buildSeries(seriesTrips, period, now);
 
-    const s = summarize(curr);
+    const s = summarize(currScoped);
     const ps = summarize(prev);
     const showMoney = can(session, "finance.read") || session.role === "admin";
     const driverName = new Map((drivers.data ?? []).map((d) => [d.id as string, (d.full_name as string) ?? "Motorista"]));
@@ -149,6 +156,17 @@ export async function GET(request: Request) {
     if ((cnh.count ?? 0) > 0)
       alerts.push({ tone: "amber", text: `${cnh.count} motorista(s) com CNH vencida ou vencendo em 30 dias`, href: "/drivers" });
 
+    if (orphanTrips.length) {
+      alerts.unshift({
+        tone: "red",
+        text:
+          empresa !== "todas"
+            ? `${orphanTrips.length} corrida(s) do período NÃO estão somadas aqui: ${orphanClients.size} cliente(s) sem empresa que fatura. Defina no cadastro do cliente ou escolha "Todas as empresas".`
+            : `${orphanClients.size} cliente(s) com corridas no período ainda sem empresa que fatura (R J Prime, Prime Locadora ou Ilha Prime). Defina no cadastro para a fatura e os relatórios saírem certos.`,
+        href: "/clients"
+      });
+    }
+
     return ok({
       period,
       empresa,
@@ -161,8 +179,8 @@ export async function GET(request: Request) {
       },
       previous: { total: ps.total, revenue: showMoney ? ps.revenue : null },
       activeDrivers: (drivers.data ?? []).filter((d) => d.active !== false).length,
-      topClients: topBy(curr, "client_id").map((x) => ({ ...x, name: clientName.get(x.id) ?? "Cliente", revenue: showMoney ? x.revenue : null })),
-      topDrivers: topBy(curr, "driver_id").map((x) => ({ ...x, name: driverName.get(x.id) ?? "Motorista", revenue: null })),
+      topClients: topBy(currScoped, "client_id").map((x) => ({ ...x, name: clientName.get(x.id) ?? "Cliente", revenue: showMoney ? x.revenue : null })),
+      topDrivers: topBy(currScoped, "driver_id").map((x) => ({ ...x, name: driverName.get(x.id) ?? "Motorista", revenue: null })),
       alerts,
       series: showMoneyFor(session) ? series : series.map((p) => ({ ...p, revenue: 0, profit: 0 }))
     });

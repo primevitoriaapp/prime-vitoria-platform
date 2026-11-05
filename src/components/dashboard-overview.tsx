@@ -290,7 +290,7 @@ export function DashboardOverview({ tenantId, showMoney }: { tenantId: string | 
 
       {showMoney ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[1.35fr_1fr_1fr_1fr]">
-          <section className="rounded-2xl bg-[linear-gradient(135deg,#121315_0%,#1d1b17_70%,#2a2418_100%)] p-6 text-white shadow-prime-card sm:col-span-2 xl:col-span-1">
+          <section className="rounded-2xl bg-[linear-gradient(135deg,#121315_0%,#1d1b17_70%,#2a2418_100%)] p-6 text-[#fff] shadow-prime-card sm:col-span-2 xl:col-span-1">
             <p className="text-sm font-medium text-[#C8C3B8]">Faturamento</p>
             <p className="mt-2 text-[38px] font-semibold leading-none tracking-tight">{money(s?.revenue)}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-[#B5B0A6]">
