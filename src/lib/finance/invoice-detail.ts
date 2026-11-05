@@ -53,7 +53,7 @@ export async function loadInvoiceDetail(tenantId: string, id: string, opts: { in
     db.from("clients").select("name, trade_name").eq("id", invoice.client_id).maybeSingle(),
     db
       .from("trips")
-      .select("id, scheduled_at, origin_text, destination_text, passenger_name, passenger_count, client_amount, operational_status, notes, km_billable, actual_km")
+      .select("id, scheduled_at, origin_text, destination_text, passenger_name, passenger_count, client_amount, operational_status, notes, km_billable, actual_km, trip_dropoff_stops")
       .eq("client_invoice_id", id)
       .order("scheduled_at"),
     db
@@ -70,7 +70,13 @@ export async function loadInvoiceDetail(tenantId: string, id: string, opts: { in
     id: t.id as string,
     ref: clientRefFromNotes(t.notes as string | null),
     when: new Date(t.scheduled_at as string).toLocaleString("pt-BR", { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
-    route: `${shortPlace(t.origin_text as string | null)} → ${shortPlace(t.destination_text as string | null)}`,
+    route: [
+      shortPlace(t.origin_text as string | null),
+      ...(Array.isArray(t.trip_dropoff_stops) ? (t.trip_dropoff_stops as { address_text?: string | null }[]) : [])
+        .filter((x) => String(x.address_text ?? "").trim())
+        .map((x) => shortPlace(x.address_text ?? null)),
+      shortPlace(t.destination_text as string | null)
+    ].join(" → "),
     passenger:
       ((t.passenger_name as string | null)?.trim() || "—") + (t.passenger_count && Number(t.passenger_count) > 1 && !String(t.passenger_name ?? "").includes(",") ? ` (+${Number(t.passenger_count) - 1})` : ""),
     amount: t.client_amount == null ? null : Number(t.client_amount),

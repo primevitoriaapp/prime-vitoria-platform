@@ -19,6 +19,14 @@ export const dynamic = "force-dynamic";
 const GOLD = "#C9A84C";
 const brl = (n: number | null) => (n == null ? "—" : Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
 const brDate = (ymd: string) => ymd.split("-").reverse().join("/");
+/** 12345678000190 → 12.345.678/0001-90 (CPF também). */
+function fmtDoc(raw: string | null | undefined): string {
+  const d = String(raw ?? "").replace(/\D/g, "");
+  if (d.length === 14) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+  if (d.length === 11) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+  return String(raw ?? "");
+}
+const label: React.CSSProperties = { fontSize: 10, letterSpacing: ".08em", color: "#7A6A3A", textTransform: "uppercase" };
 
 function Message({ title, text }: { title: string; text: string }) {
   return (
@@ -51,7 +59,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
   const overview = await loadInvoiceDetail(tenantId, id, { internal: false });
   const [rows, { data: client }, company] = await Promise.all([
     buildInvoiceReport(id),
-    db.from("clients").select("name, trade_name, document, address_line, city, state").eq("id", invoice.client_id).maybeSingle(),
+    db.from("clients").select("name, trade_name, document, email, phone, address_line, city, state, postal_code").eq("id", invoice.client_id).maybeSingle(),
     getTenantCompanyProfile(tenantId)
   ]);
   const issuer = billingIssuerById(invoice.billing_issuer);
@@ -69,6 +77,8 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
       <style>{`
         @media print {
           .invoice-root { background: #fff !important; padding: 0 !important; }
+          .invoice-sheet, .invoice-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .invoice-sheet tr { break-inside: avoid; }
           .invoice-actions { display: none !important; }
           .invoice-sheet { box-shadow: none !important; margin: 0 !important; max-width: none !important; }
           @page { size: A4 landscape; margin: 10mm; }
@@ -110,29 +120,41 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
       </div>
 
       <article className="invoice-sheet" style={{ maxWidth: 1000, margin: "0 auto", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,.08)", fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", color: "#111" }}>
-        <header style={{ background: "#111", color: "#fff", padding: "20px 24px", display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "0.04em" }}>
-              PRIME <span style={{ color: GOLD }}>VITÓRIA</span>
-            </div>
-            <div style={{ fontSize: 11, letterSpacing: "0.16em", color: GOLD, marginTop: 2 }}>TRANSPORTE EXECUTIVO</div>
-            <div style={{ fontSize: 11, color: "#BBB", marginTop: 8 }}>
-              {issuerName} · CNPJ {issuerCnpj}
+        <header style={{ background: "#111", color: "#fff", padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/api/public/brand-logo" alt="Prime Vitória" style={{ height: 64, width: "auto", objectFit: "contain", borderRadius: 6 }} />
+            <div>
+              <div style={{ fontSize: 11, letterSpacing: "0.16em", color: GOLD }}>TRANSPORTE EXECUTIVO · MOBILIDADE CORPORATIVA</div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 6 }}>{issuerName}</div>
+              <div style={{ fontSize: 11, color: "#BBB" }}>CNPJ {fmtDoc(issuerCnpj)}</div>
+              <div style={{ fontSize: 11, color: "#BBB" }}>
+                {company.email ?? "contato@primevitoria.com"}
+                {company.phone ? ` · ${company.phone}` : ""}
+              </div>
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 11, letterSpacing: "0.12em", color: "#BBB" }}>FATURA</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: GOLD }}>{num}</div>
+            {invoice.client_ref ? <div style={{ fontSize: 12, color: "#DDD" }}>Voucher {invoice.client_ref}</div> : null}
             <div style={{ fontSize: 12, color: "#DDD" }}>{INVOICE_STATUS_LABEL[invoice.status]}{overdue ? " · vencida" : ""}</div>
           </div>
         </header>
         <div style={{ height: 4, background: GOLD }} />
 
         <section style={{ padding: "18px 24px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: ".08em", color: "#7A6A3A", textTransform: "uppercase" }}>Cliente</div>
-            <div style={{ fontWeight: 600 }}>{(client?.trade_name as string | null) || (client?.name as string | null)}</div>
-            {client?.document ? <div style={{ fontSize: 12, color: "#555" }}>CNPJ {client.document as string}</div> : null}
+          <div style={{ gridColumn: "span 2", minWidth: 0 }}>
+            <div style={label}>Cliente (tomador)</div>
+            <div style={{ fontWeight: 700 }}>{(client?.name as string | null) || (client?.trade_name as string | null)}</div>
+            {client?.trade_name && client.trade_name !== client.name ? <div style={{ fontSize: 12, color: "#555" }}>{client.trade_name as string}</div> : null}
+            {client?.document ? <div style={{ fontSize: 12, color: "#555" }}>{String(client.document).replace(/\D/g, "").length === 11 ? "CPF" : "CNPJ"} {fmtDoc(client.document as string)}</div> : null}
+            {client?.address_line || client?.city ? (
+              <div style={{ fontSize: 12, color: "#555" }}>
+                {[client?.address_line, [client?.city, client?.state].filter(Boolean).join("/"), client?.postal_code ? `CEP ${client.postal_code}` : null].filter(Boolean).join(" · ")}
+              </div>
+            ) : null}
+            {client?.email ? <div style={{ fontSize: 12, color: "#555" }}>{client.email as string}</div> : null}
           </div>
           <div>
             <div style={{ fontSize: 10, letterSpacing: ".08em", color: "#7A6A3A", textTransform: "uppercase" }}>Período</div>
@@ -190,7 +212,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                 <th style={th}>Data</th>
                 <th style={th}>Passageiro</th>
                 <th style={th}>Pedido por</th>
-                <th style={th}>De → Para</th>
+                <th style={th}>Trajeto (embarque → paradas → destino)</th>
                 <th style={th}>Serviço</th>
                 <th style={{ ...th, textAlign: "right" }}>KM</th>
                 <th style={{ ...th, textAlign: "right" }}>Valor</th>
@@ -201,7 +223,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                 <tr key={r.id}>
                   <td style={{ ...td, whiteSpace: "nowrap" }}>
                     {r.when}
-                    <div style={{ fontSize: 10, color: "#888" }}>Nº {r.number}</div>
+                    <div style={{ fontSize: 10, color: "#888" }}>{r.ref ?? `Nº ${r.number}`}</div>
                   </td>
                   <td style={td}>
                     {r.passenger}
@@ -209,7 +231,18 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                   </td>
                   <td style={td}>{r.requester ?? "—"}</td>
                   <td style={td}>
-                    {shortAddress(r.origin)} → {shortAddress(r.destination)}
+                    <div>
+                      <b style={{ color: "#7A6A3A" }}>●</b> {shortAddress(r.origin)}
+                    </div>
+                    {r.stops.map((st, i) => (
+                      <div key={i}>
+                        <span style={{ color: "#7A6A3A" }}>→</span> {shortAddress(st.address)}
+                        {st.passenger ? <span style={{ color: "#888" }}> · {st.passenger}</span> : null}
+                      </div>
+                    ))}
+                    <div>
+                      <span style={{ color: "#7A6A3A" }}>→</span> {shortAddress(r.destination)}
+                    </div>
                     {r.flight ? <div style={{ fontSize: 10, color: "#888" }}>Voo {r.flight}</div> : null}
                     {r.wait_minutes > 0 ? <div style={{ fontSize: 10, color: "#888" }}>Espera {r.wait_minutes} min</div> : null}
                   </td>

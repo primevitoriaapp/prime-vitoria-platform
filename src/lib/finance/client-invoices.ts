@@ -198,7 +198,7 @@ export async function listInvoiceTrips(invoiceId: string) {
   const { data, error } = await db
     .from("trips")
     .select(
-      "id, scheduled_at, service_type, passenger_name, passenger_count, origin_text, destination_text, flight_number, cost_center_id, client_amount, km_billable, actual_km, planned_km, wait_minutes, created_by"
+      "id, scheduled_at, service_type, passenger_name, passenger_count, origin_text, destination_text, flight_number, cost_center_id, client_amount, km_billable, actual_km, planned_km, wait_minutes, created_by, notes, trip_dropoff_stops"
     )
     .eq("client_invoice_id", invoiceId)
     .order("scheduled_at", { ascending: true })

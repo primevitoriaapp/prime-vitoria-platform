@@ -3,6 +3,17 @@ import { formatBrDateTime } from "@/lib/dates/br-date";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { listInvoiceTrips } from "@/lib/finance/client-invoices";
 import { tripKm } from "@/lib/finance/client-invoice-calc";
+import { clientRefFromNotes } from "@/lib/trips/client-ref";
+
+export type InvoiceReportStop = { address: string; passenger: string | null };
+
+function readStops(raw: unknown): InvoiceReportStop[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((s) => s as { address_text?: string | null; passenger_name?: string | null })
+    .filter((s) => String(s.address_text ?? "").trim().length > 0)
+    .map((s) => ({ address: String(s.address_text).trim(), passenger: String(s.passenger_name ?? "").trim() || null }));
+}
 
 export type InvoiceReportRow = {
   id: string;
@@ -14,6 +25,10 @@ export type InvoiceReportRow = {
   cost_center: string | null;
   origin: string;
   destination: string;
+  /** Paradas no caminho, na ordem (entre o embarque e o destino). */
+  stops: InvoiceReportStop[];
+  /** NR / referência do cliente, quando houver. */
+  ref: string | null;
   flight: string | null;
   km: number;
   wait_minutes: number;
@@ -49,6 +64,8 @@ export async function buildInvoiceReport(invoiceId: string): Promise<InvoiceRepo
     cost_center: t.cost_center_id ? (ccById.get(t.cost_center_id as string) ?? null) : null,
     origin: String(t.origin_text ?? "—"),
     destination: String(t.destination_text ?? "—"),
+    stops: readStops((t as { trip_dropoff_stops?: unknown }).trip_dropoff_stops),
+    ref: clientRefFromNotes((t as { notes?: string | null }).notes ?? null),
     flight: (t.flight_number as string | null) ?? null,
     km: tripKm(t as never),
     wait_minutes: Number(t.wait_minutes ?? 0) || 0,
@@ -63,16 +80,17 @@ function csvCell(v: unknown): string {
 
 /** CSV com ponto e vírgula (abre direto no Excel em português). */
 export function invoiceReportCsv(rows: InvoiceReportRow[]): string {
-  const header = ["Data e hora", "Nº corrida", "Serviço", "Passageiro", "Pedido por", "Centro de custo", "Embarque", "Destino", "Voo", "KM", "Espera (min)", "Valor (R$)"];
+  const header = ["Data e hora", "Nº corrida", "Serviço", "Passageiro", "Pedido por", "Centro de custo", "Embarque", "Paradas", "Destino", "Voo", "KM", "Espera (min)", "Valor (R$)"];
   const lines = rows.map((r) =>
     [
       r.when,
-      r.number,
+      r.ref ?? r.number,
       r.service,
       r.passenger,
       r.requester ?? "",
       r.cost_center ?? "",
       r.origin,
+      r.stops.map((x, i) => `${i + 1}) ${x.address}${x.passenger ? ` (${x.passenger})` : ""}`).join(" | "),
       r.destination,
       r.flight ?? "",
       r.km.toLocaleString("pt-BR"),
