@@ -52,7 +52,12 @@ export function TripKmReviewCard({ tripId }: { tripId: string }) {
 
   useEffect(() => {
     void load();
-  }, [load]);
+    const onEditor = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === tripId) void load();
+    };
+    window.addEventListener("trip-amounts-changed-by-editor", onEditor);
+    return () => window.removeEventListener("trip-amounts-changed-by-editor", onEditor);
+  }, [load, tripId]);
 
   if (!d) return null;
   const relevant = d.status === "completed" || d.odometer_start != null;
@@ -87,6 +92,7 @@ export function TripKmReviewCard({ tripId }: { tripId: string }) {
       text: `KM confirmado: ${km(j.data.km)}. Cliente ${brl(Number(j.data.client_amount))} · motorista ${brl(Number(j.data.driver_amount))}. Conta a receber e repasse atualizados.`
     });
     await load();
+    window.dispatchEvent(new CustomEvent("trip-amounts-changed", { detail: tripId }));
     router.refresh();
   }
 

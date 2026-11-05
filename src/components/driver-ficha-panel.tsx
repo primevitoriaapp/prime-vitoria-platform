@@ -161,6 +161,17 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
   const [pinBusy, setPinBusy] = useState(false);
   const [vehicleCategories, setVehicleCategories] = useState<{ id: string; name: string; passengers: number }[]>([]);
   const [pv, setPv] = useState({ plate: "", brand: "", model: "", color: "", model_year: "", vehicle_category_id: "" });
+  const [pvServes, setPvServes] = useState<string[]>([]);
+  /** Carro de categoria maior atende as mais simples do mesmo porte (Premium → Executivo e Essencial; van 20 → van 15). */
+  function servesFor(catId: string): string[] {
+    const idx = vehicleCategories.findIndex((c) => c.id === catId);
+    if (idx < 0) return [];
+    const cat = vehicleCategories[idx];
+    return vehicleCategories
+      .slice(0, idx + 1)
+      .filter((c) => (cat.passengers <= 7 ? c.passengers <= 7 : c.passengers >= 8 && c.passengers <= cat.passengers))
+      .map((c) => c.id);
+  }
 
   useEffect(() => {
     void (async () => {
@@ -530,7 +541,8 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
             category: cat?.name ?? null,
             capacity: cat?.passengers ?? null,
             notes: `Carro do motorista parceiro ${detail.profile_name ?? ""}`.trim(),
-            set_default: true
+            set_default: true,
+            serve_category_ids: pvServes
           })
         },
         "admin"
@@ -538,6 +550,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       const json = await parseApiResponse(res);
       if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha ao cadastrar o carro");
       setPv({ plate: "", brand: "", model: "", color: "", model_year: "", vehicle_category_id: "" });
+      setPvServes([]);
       await loadDetail();
       onSaved();
       setFeedback({ kind: "success", message: "Carro do parceiro cadastrado e vinculado como padrão." });
@@ -1008,7 +1021,14 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
             </label>
             <label className="grid gap-1 text-sm">
               <span>Categoria</span>
-              <select className={inputClass} value={pv.vehicle_category_id} onChange={(e) => setPv({ ...pv, vehicle_category_id: e.target.value })}>
+              <select
+                className={inputClass}
+                value={pv.vehicle_category_id}
+                onChange={(e) => {
+                  setPv({ ...pv, vehicle_category_id: e.target.value });
+                  setPvServes(servesFor(e.target.value));
+                }}
+              >
                 <option value="">Escolha</option>
                 {vehicleCategories.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -1017,6 +1037,28 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
                 ))}
               </select>
             </label>
+            {pv.vehicle_category_id ? (
+              <div className="md:col-span-3">
+                <p className="mb-1 text-sm font-medium">Este carro atende as categorias</p>
+                <div className="flex flex-wrap gap-2">
+                  {vehicleCategories.map((c) => {
+                    const on = pvServes.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setPvServes((l) => (on ? l.filter((x) => x !== c.id) : [...l, c.id]))}
+                        className={`rounded-full px-3 py-1.5 text-sm ring-1 ${on ? "bg-prime-gold font-semibold text-[#111] ring-prime-gold" : "bg-white ring-prime-border"}`}
+                      >
+                        {on ? "✓ " : ""}
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1 text-xs text-prime-muted">Já marquei a categoria do carro e as mais simples do mesmo porte. Ajuste se precisar.</p>
+              </div>
+            ) : null}
             <div className="md:col-span-3">
               <button
                 type="button"

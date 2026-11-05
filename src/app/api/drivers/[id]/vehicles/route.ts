@@ -20,7 +20,9 @@ const linkSchema = z.object({
 });
 
 const createAndLinkSchema = vehicleCadastroSchema.extend({
-  set_default: z.boolean().optional()
+  set_default: z.boolean().optional(),
+  /** Categorias que este carro também atende (ex.: Corolla Premium atende Executivo e Essencial). */
+  serve_category_ids: z.array(z.string().uuid()).max(20).optional()
 });
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -81,6 +83,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       vehicleId: vehicle.id,
       setDefault: body.set_default ?? true
     });
+
+    if (body.serve_category_ids?.length) {
+      const { data: drv } = await db.from("drivers").select("vehicle_category_ids").eq("id", driverId).eq("tenant_id", tenantId).maybeSingle();
+      const merged = [...new Set([...(((drv?.vehicle_category_ids as string[] | null) ?? [])), ...body.serve_category_ids])];
+      await db.from("drivers").update({ vehicle_category_ids: merged }).eq("id", driverId).eq("tenant_id", tenantId);
+    }
 
     await insertAuditEvent({
       tenantId,

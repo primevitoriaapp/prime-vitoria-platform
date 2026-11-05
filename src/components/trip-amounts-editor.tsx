@@ -15,12 +15,19 @@ export function TripAmountsEditor({ tripId }: Props) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
-    void (async () => {
+    const load = async () => {
       const res = await fetch(`/api/trips/${tripId}`, { credentials: "include" });
       const json = (await res.json().catch(() => ({}))) as { data?: { client_amount?: number | null; driver_amount?: number | null } };
       setClient(toText(json.data?.client_amount));
       setDriver(toText(json.data?.driver_amount));
-    })();
+    };
+    void load();
+    // A conferência do KM recalcula os valores: recarrega para não salvar por cima com o valor antigo.
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === tripId) void load();
+    };
+    window.addEventListener("trip-amounts-changed", onChanged);
+    return () => window.removeEventListener("trip-amounts-changed", onChanged);
   }, [tripId]);
 
   const c = Number(client.replace(/\./g, "").replace(",", "."));
@@ -38,6 +45,7 @@ export function TripAmountsEditor({ tripId }: Props) {
     });
     setBusy(false);
     setMsg(res.ok ? { ok: true, text: "Valores salvos. O motorista já vê o valor dele no app." } : { ok: false, text: "Não foi possível salvar." });
+    if (res.ok) window.dispatchEvent(new CustomEvent("trip-amounts-changed-by-editor", { detail: tripId }));
   }
 
   const field = "w-full rounded-lg border border-prime-input-border px-3 py-2 text-base";
