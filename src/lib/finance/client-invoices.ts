@@ -97,8 +97,18 @@ export async function generateClientInvoices(input: {
       });
       continue;
     }
-    // Cliente que fecha por voucher (ex.: CEP) fica fora do fechamento do mês: fecha em "Vouchers a fechar".
-    if (c?.invoice_per_service && !input.clientId) continue;
+    // Cliente que fecha por voucher (ex.: CEP) nunca entra no fechamento do mês: fecha um NR por vez em "Vouchers a fechar".
+    if (c?.invoice_per_service) {
+      results.push({
+        client_id: clientId,
+        client_name: name,
+        trip_count: summary.trip_count,
+        total_amount: summary.total_amount,
+        trips_without_amount: summary.trips_without_amount,
+        skipped: "fecha por voucher — use o quadro Vouchers a fechar (um NR por vez)"
+      });
+      continue;
+    }
     const due = input.dueDate || invoiceDueDate(input.periodEnd, (c?.payment_term_days as number | null) ?? null);
 
     const { data: inv, error: invErr } = await db

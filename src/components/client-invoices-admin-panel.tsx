@@ -203,7 +203,10 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-xl border border-prime-gold/40 bg-[#FBF8F1] p-3 md:grid-cols-[auto_1fr_1fr_auto] md:items-end">
+      <VouchersToCloseCard onClosed={() => void load()} />
+
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">Fechamento do mês (clientes mensais)</p>
+      <div className="grid gap-3 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card md:grid-cols-[auto_1fr_1fr_auto] md:items-end">
         <div className="grid gap-1 text-xs">
           Fechamento
           <div className="flex gap-1">
@@ -248,8 +251,6 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
           {busy ? "Processando…" : "Fechar e gerar fatura"}
         </button>
       </div>
-
-      <VouchersToCloseCard onClosed={() => void load()} />
 
       {msg ? <p className={`text-sm ${msg.kind === "ok" ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p> : null}
 
