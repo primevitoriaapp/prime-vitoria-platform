@@ -108,7 +108,7 @@ export function AddressAutocompleteInput({
       setHint(null);
       try {
         const res = await fetchWithSupabaseSession(
-          `/api/integrations/address-search?q=${encodeURIComponent(q)}&session=${encodeURIComponent(sessionToken.current)}${s.mainText ? `&name=${encodeURIComponent(s.mainText)}` : ""}`,
+          `/api/integrations/address-search?q=${encodeURIComponent(q)}&session=${encodeURIComponent(sessionToken.current)}`,
           {},
           devFallbackRole
         );
@@ -181,7 +181,7 @@ export function AddressAutocompleteInput({
       setBusy(true);
       try {
         const res = await fetchWithSupabaseSession(
-          `/api/integrations/address-details?place_id=${encodeURIComponent(String(s.place_id))}&session=${encodeURIComponent(sessionToken.current)}`,
+          `/api/integrations/address-details?place_id=${encodeURIComponent(String(s.place_id))}&session=${encodeURIComponent(sessionToken.current)}${s.mainText ? `&name=${encodeURIComponent(s.mainText)}` : ""}`,
           {},
           devFallbackRole
         );
