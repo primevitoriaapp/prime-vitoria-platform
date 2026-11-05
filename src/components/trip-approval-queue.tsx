@@ -174,7 +174,11 @@ export function TripApprovalQueue() {
                 <button
                   type="button"
                   disabled={busy === it.id || it.client_amount == null}
-                  onClick={() => void approve(it.id).then((okk) => okk && load())}
+                  onClick={() => {
+                    void approve(it.id).then(async (okk) => {
+                      if (okk) await load();
+                    });
+                  }}
                   className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-[#fff] disabled:opacity-50"
                 >
                   ✓ Aprovar como está
