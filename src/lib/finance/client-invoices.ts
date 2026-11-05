@@ -64,6 +64,8 @@ export async function generateClientInvoices(input: {
     .from("trips")
     .select("id, client_id, scheduled_at, client_amount, km_billable, actual_km, planned_km")
     .eq("tenant_id", input.tenantId)
+    // Só entra na fatura corrida aprovada pelo gestor (KM e valores conferidos).
+    .not("reviewed_at", "is", null)
     .eq("operational_status", "completed")
     .is("client_invoice_id", null)
     .gte("scheduled_at", fromIso)
@@ -346,6 +348,16 @@ export async function generateInvoiceForTrip(input: {
         `O voucher ${base} ainda tem ${open.length} serviço(s) sem concluir (${open
           .map((t) => clientRefFromNotes(t.notes as string | null))
           .join(", ")}). Feche quando todos terminarem.`
+      );
+  }
+  {
+    const ids = [...new Set([...list.map((t) => t.id), trip.id])];
+    const { data: notOk } = await db.from("trips").select("id, notes").in("id", ids).is("reviewed_at", null);
+    if (notOk?.length)
+      throw new Error(
+        `Falta aprovar ${notOk.length} corrida(s) deste voucher em "Aprovar corridas" (${notOk
+          .map((t) => clientRefFromNotes(t.notes as string | null) ?? String(t.id).slice(0, 8))
+          .join(", ")}).`
       );
   }
   if (!list.some((t) => t.id === trip.id)) {

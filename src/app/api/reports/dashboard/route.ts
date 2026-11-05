@@ -127,6 +127,16 @@ export async function GET(request: Request) {
     );
 
     const alerts: { tone: "red" | "amber" | "blue"; text: string; href: string }[] = [];
+    // Corridas finalizadas esperando a aprovação do gestor.
+    const { count: toApprove } = await db
+      .from("trips")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("operational_status", "completed")
+      .is("reviewed_at", null)
+      .gte("scheduled_at", new Date(Date.now() - 90 * 86400000).toISOString());
+    if ((toApprove ?? 0) > 0)
+      alerts.push({ tone: "amber", text: `${toApprove} corrida(s) finalizada(s) esperando sua aprovação (KM e valores)`, href: "/conferencia" });
     if ((pending.count ?? 0) > 0)
       alerts.push({ tone: "blue", text: `${pending.count} pedido(s) novo(s) esperando confirmação`, href: "/agenda?grupo=agendada&periodo=mes" });
     if ((driverReqs ?? 0) > 0)

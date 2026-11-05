@@ -135,6 +135,8 @@ export function VouchersToCloseCard({ onClosed }: { onClosed?: () => void }) {
                   <span className="flex items-center justify-end gap-2">
                     {g.ready ? (
                       <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">Pronto</span>
+                    ) : g.pending === 0 && g.to_approve > 0 ? (
+                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900">Aprovar {g.to_approve}</span>
                     ) : (
                       <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900">Faltam {g.pending}</span>
                     )}
@@ -208,7 +210,19 @@ export function VouchersToCloseCard({ onClosed }: { onClosed?: () => void }) {
                           </button>
                         </div>
                       ) : (
-                        <p className="text-sm text-amber-900">Fecha quando todos os serviços estiverem concluídos.</p>
+                        <p className="text-sm text-amber-900">
+                          {g.pending === 0 && g.to_approve > 0 ? (
+                            <>
+                              Falta aprovar {g.to_approve} serviço(s) em{" "}
+                              <a href="/conferencia" className="font-semibold underline">
+                                Aprovar corridas
+                              </a>
+                              .
+                            </>
+                          ) : (
+                            "Fecha quando todos os serviços estiverem concluídos."
+                          )}
+                        </p>
                       )}
                     </div>
                   </div>

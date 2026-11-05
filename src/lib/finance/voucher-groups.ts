@@ -8,6 +8,8 @@ export type VoucherTrip = {
   operational_status: string;
   client_amount: number | null;
   has_voucher: boolean;
+  /** Aprovada pelo gestor (KM e valores conferidos). */
+  approved?: boolean;
 };
 
 export type VoucherGroup = {
@@ -20,6 +22,8 @@ export type VoucherGroup = {
   done: number;
   pending: number;
   ready: boolean;
+  /** Concluídas mas ainda sem a aprovação do gestor. */
+  to_approve: number;
   first_trip_id: string;
   has_voucher_file: boolean;
   last_at: string;
@@ -39,12 +43,15 @@ export function groupVouchers(trips: VoucherTrip[]): VoucherGroup[] {
     const key = `${t.client_id}|${ref}`;
     let g = map.get(key);
     if (!g) {
-      g = { key, client_id: t.client_id, client_name: t.client_name, ref, trips: [], total: 0, done: 0, pending: 0, ready: false, first_trip_id: "", has_voucher_file: false, last_at: t.scheduled_at };
+      g = { key, client_id: t.client_id, client_name: t.client_name, ref, trips: [], total: 0, done: 0, pending: 0, ready: false, to_approve: 0, first_trip_id: "", has_voucher_file: false, last_at: t.scheduled_at };
       map.set(key, g);
     }
     g.trips.push(t);
     g.total = Math.round((g.total + (Number(t.client_amount) || 0)) * 100) / 100;
-    if (t.operational_status === "completed") g.done++;
+    if (t.operational_status === "completed") {
+      g.done++;
+      if (t.approved === false) g.to_approve++;
+    }
     else g.pending++;
     if (t.has_voucher) g.has_voucher_file = true;
     if (t.scheduled_at > g.last_at) g.last_at = t.scheduled_at;
@@ -52,7 +59,7 @@ export function groupVouchers(trips: VoucherTrip[]): VoucherGroup[] {
   const out = [...map.values()];
   for (const g of out) {
     g.trips.sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
-    g.ready = g.pending === 0 && g.done > 0;
+    g.ready = g.pending === 0 && g.done > 0 && g.to_approve === 0;
     g.first_trip_id = g.trips.find((t) => t.operational_status === "completed")?.id ?? g.trips[0].id;
   }
   // Prontos primeiro, depois pelo último serviço.

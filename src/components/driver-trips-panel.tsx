@@ -772,7 +772,14 @@ function DriverPayLine({ trip }: { trip: Trip }) {
     : null;
   return (
     <p className="mt-2 flex items-center justify-between rounded-xl bg-[#F4FAF6] px-3 py-2 text-sm">
-      <span className="text-[#1F7A4C]">Você recebe{date ? ` · previsto ${date}` : ""}</span>
+      <span className="text-[#1F7A4C]">
+        {trip.operational_status === "completed"
+          ? (trip as Trip & { reviewed_at?: string | null }).reviewed_at
+            ? "✓ Confirmada pela central"
+            : "Em conferência pela central"
+          : "Você recebe"}
+        {date ? ` · previsto ${date}` : ""}
+      </span>
       <span className="font-bold text-[#111]">{amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
     </p>
   );
