@@ -1,6 +1,7 @@
 import { db } from "@/lib/server/db";
 import { getClientInvoice, type ClientInvoiceRow } from "@/lib/finance/client-invoices";
 import { clientRefFromNotes } from "@/lib/trips/client-ref";
+import { prepaidByTrip } from "@/lib/finance/booking-payments";
 
 export type InvoiceService = {
   id: string;
@@ -20,6 +21,8 @@ export type InvoiceDetail = {
   client_name: string;
   services: InvoiceService[];
   history: InvoiceEvent[];
+  /** Já pago antecipado (sinal na reserva) pelas corridas desta fatura. */
+  prepaid: number;
   /** Só para a equipe Prime. */
   internal?: { payouts: InvoicePayout[]; payout_total: number; margin: number; margin_pct: number | null };
 };
@@ -112,7 +115,11 @@ export async function loadInvoiceDetail(tenantId: string, id: string, opts: { in
     history.push({ at: `${invoice.due_date}T12:00:00-03:00`, label: "Aguardando vencimento", detail: `Vence em ${brDate(invoice.due_date)}`, done: false });
   }
 
+  const pre = await prepaidByTrip(tenantId, services.map((x) => x.id)).catch(() => new Map<string, number>());
+  const prepaid = Math.round(services.reduce((acc, x) => acc + (pre.get(x.id) ?? 0), 0) * 100) / 100;
+
   const out: InvoiceDetail = {
+    prepaid,
     invoice,
     client_name: ((client?.trade_name as string | null) || (client?.name as string | null) || "Cliente").trim(),
     services,

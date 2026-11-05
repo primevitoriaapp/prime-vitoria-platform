@@ -2,6 +2,7 @@ import { db } from "@/lib/server/db";
 import { accountsReceivableAmountFromFinancial } from "@/lib/finance/accounts-receivable-amount";
 import { getClientBillingTerms, receivableDueDate } from "@/lib/clients/client-billing-terms";
 import { driverPayoutDateForTrip } from "@/lib/finance/driver-payout-sync";
+import { prepaidByTrip } from "@/lib/finance/booking-payments";
 
 /** Cria conta a receber a partir de `trip_financials.amount_client` se a viagem está concluída e ainda não existe título. */
 export async function ensureAccountsReceivableFromTripFinancials(
@@ -54,6 +55,36 @@ export async function ensureAccountsReceivableFromTripFinancials(
     .single();
 
   if (error || !inserted) return { created: false };
+  await syncPrepaidReceivables(tenantId, [tripId]).catch(() => undefined);
 
   return { created: true, receivable_id: inserted.id as string };
+}
+
+/**
+ * Pagamento antecipado (sinal / na reserva): a conta a receber da corrida já quitada pelo sinal
+ * fica como paga; a parcialmente coberta continua aberta, com a anotação do valor já recebido.
+ */
+export async function syncPrepaidReceivables(tenantId: string, tripIds: string[]): Promise<void> {
+  if (!tripIds.length) return;
+  const alloc = await prepaidByTrip(tenantId, tripIds);
+  const { data: rows } = await db
+    .from("accounts_receivable")
+    .select("id, trip_id, amount, status")
+    .eq("tenant_id", tenantId)
+    .in("trip_id", tripIds)
+    .eq("status", "open");
+  for (const r of rows ?? []) {
+    const pre = alloc.get(r.trip_id as string) ?? 0;
+    if (pre <= 0) continue;
+    const amount = Number(r.amount);
+    if (pre >= amount - 0.01) {
+      await db
+        .from("accounts_receivable")
+        .update({ status: "paid", paid_at: new Date().toISOString(), payment_method: "antecipado", reference: "Pago antecipado na reserva" })
+        .eq("id", r.id as string);
+    } else {
+      const brl = pre.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      await db.from("accounts_receivable").update({ reference: `Sinal ${brl} já recebido na reserva` }).eq("id", r.id as string);
+    }
+  }
 }

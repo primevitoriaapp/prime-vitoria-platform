@@ -8,6 +8,7 @@ import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { TeamPassengerPicker } from "@/components/team-passenger-picker";
+import { BookingPaymentFields, bookingPaymentBody, emptyBookingPayment } from "@/components/booking-payment-form";
 import { DropoffStopsEditor, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
 import { teamMissingAddress, teamTripShape, type TeamDirection, type TeamMember } from "@/lib/trips/team-trip";
 import { TypedDateTime } from "@/components/typed-date-time";
@@ -59,6 +60,9 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [lastDate, setLastDate] = useState("");
   const [endTime, setEndTime] = useState("");
   const [skipDays, setSkipDays] = useState<string[]>([]);
+  // Pagamento na reserva (sinal / antecipado).
+  const [prepaid, setPrepaid] = useState(false);
+  const [prepay, setPrepay] = useState(() => emptyBookingPayment(saoPauloTodayYmd()));
 
   // 3. Veículo
   const [categories, setCategories] = useState<Category[]>([]);
@@ -368,6 +372,13 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       }
       created.push({ id: json.data.id, status: json.data.operational_status, returnId: json.data.trip_id_return });
     }
+    let payNote = "";
+    const payBody = prepaid ? bookingPaymentBody(prepay, created.flatMap((c) => [c.id, c.returnId].filter(Boolean) as string[])) : null;
+    if (payBody) {
+      const pr = await fetchWithSupabaseSession(`/api/trips/${created[0].id}/payments`, { method: "POST", body: JSON.stringify(payBody) }, "admin");
+      const pj = (await pr.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
+      if (!pr.ok || !pj.success) payNote = `O pagamento antecipado não foi salvo (${pj.error?.message ?? "erro"}). Registre na corrida, em “Pagamento do cliente”.`;
+    }
     if (driverId) {
       for (const c of created) {
         for (const id of [c.id, c.returnId].filter(Boolean) as string[]) {
@@ -380,6 +391,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     }
     setBusy(false);
     onDone?.();
+    if (payNote) window.alert(payNote);
     if (assignNote) window.alert(`Corrida(s) criada(s), mas o motorista não foi atribuído em todas: ${assignNote}`);
     else if (created.length > 1) window.alert(`${created.length} diárias criadas (${runDays.map(brDay).join(", ")}).`);
     router.push(`/agenda?trip=${created[0].id}#trip-detail` as Route);
@@ -1007,6 +1019,32 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 </div>
               </div>
             </dl>
+            <div className="rounded-2xl border border-prime-border bg-white p-4 md:col-span-2">
+              <label className="flex items-center gap-2 text-base font-semibold">
+                <input type="checkbox" checked={prepaid} onChange={(e) => setPrepaid(e.target.checked)} />
+                Cliente já pagou algo na reserva? (sinal / antecipado)
+              </label>
+              {prepaid ? (
+                <div className="mt-3">
+                  <BookingPaymentFields
+                    value={prepay}
+                    onChange={setPrepay}
+                    total={(Number(clientAmount.replace(",", ".")) || 0) * (multiDay ? Math.max(1, days.length) : roundTrip ? 2 : 1) || null}
+                  />
+                  {Number(clientAmount.replace(",", ".")) > 0 && bookingPaymentBody(prepay) ? (
+                    <p className="mt-2 text-sm font-medium text-emerald-800">
+                      Falta receber depois:{" "}
+                      {brl(
+                        Math.max(
+                          0,
+                          (Number(clientAmount.replace(",", ".")) || 0) * (multiDay ? Math.max(1, days.length) : roundTrip ? 2 : 1) - (bookingPaymentBody(prepay)?.amount ?? 0)
+                        )
+                      )}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
             <div className="rounded-2xl border-2 border-prime-gold bg-[#FBF7EC] p-4 md:col-span-2">
               <p className="text-base font-semibold">Motorista</p>
               <p className="text-xs text-prime-muted">

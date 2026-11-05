@@ -61,6 +61,12 @@ export function InvoiceOverview({ detail }: { detail: InvoiceDetail }) {
         <div className="border-l-4 border-prime-gold pl-4">
           <p className="text-sm text-prime-muted">Valor total</p>
           <p className="text-4xl font-bold tracking-tight">{brl(inv.total_amount)}</p>
+          {detail.prepaid > 0 ? (
+            <p className="mt-1 text-sm">
+              Já pago na reserva: <b className="text-emerald-700">{brl(detail.prepaid)}</b> · Saldo a pagar:{" "}
+              <b>{brl(Math.max(0, Number(inv.total_amount) - detail.prepaid))}</b>
+            </p>
+          ) : null}
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-3 border-b border-prime-border pb-4 sm:grid-cols-3 lg:grid-cols-6">
           {facts.map(([k, v]) => (
