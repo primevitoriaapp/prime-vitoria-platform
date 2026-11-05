@@ -1,5 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { db } from "@/lib/server/db";
+import { sendOperationalEmail, DEFAULT_EMAIL_REPLY_TO } from "@/lib/notifications/send-email";
+import { buildPortalWelcomeEmail } from "@/lib/notifications/portal-welcome-email";
+import { OFFICIAL_URLS } from "@/lib/server/official-urls";
 
 export class PortalAccessError extends Error {
   constructor(
@@ -42,6 +45,26 @@ async function sendPasswordLink(email: string, origin: string) {
   await anon.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/redefinir-senha` });
 }
 
+/**
+ * Boas-vindas da Prime (com logo e o que dá para fazer no portal) com o link seguro para criar a senha.
+ * Sem senha padrão por e-mail: cada pessoa cria a sua. Devolve false se não conseguiu enviar.
+ */
+async function sendWelcome(opts: { email: string; name: string; clientId: string; access: "gestor" | "solicitante"; link: string }): Promise<boolean> {
+  const { data: c } = await db.from("clients").select("name, trade_name").eq("id", opts.clientId).maybeSingle();
+  const company = ((c?.trade_name as string | null) || (c?.name as string | null) || "sua empresa").trim();
+  const mail = buildPortalWelcomeEmail({
+    name: opts.name,
+    company,
+    access: opts.access,
+    link: opts.link,
+    portalUrl: OFFICIAL_URLS.empresa,
+    logoUrl: `${OFFICIAL_URLS.central}/api/public/brand-logo`,
+    phones: "(27) 2142-8307 | (27) 99806-3956"
+  });
+  const r = await sendOperationalEmail({ to: opts.email, subject: mail.subject, text: mail.text, html: mail.html, replyTo: DEFAULT_EMAIL_REPLY_TO, bcc: ["contato@primevitoria.com"] });
+  return r.ok;
+}
+
 type PassengerRow = { id: string; name: string; client_id: string; tenant_id: string; profile_id: string | null };
 
 async function loadPassenger(passengerId: string, clientId: string, tenantId: string): Promise<PassengerRow> {
@@ -70,7 +93,7 @@ export async function grantPortalAccess(input: {
   access?: "gestor" | "solicitante";
   /** Só mudar o nível de quem já tem login, sem mandar e-mail de senha. */
   skipEmail?: boolean;
-}): Promise<{ email: string; invited: boolean }> {
+}): Promise<{ email: string; invited: boolean; welcomed: boolean }> {
   const access = input.access === "gestor" ? "gestor" : "solicitante";
   const email = normalizePortalEmail(input.email);
   const passenger = await loadPassenger(input.passengerId, input.clientId, input.tenantId);
@@ -79,6 +102,7 @@ export async function grantPortalAccess(input: {
 
   let userId = await findAuthUserIdByEmail(email);
   let invited = false;
+  let inviteLink: string | null = null;
 
   if (userId) {
     const { data: existing } = await db
@@ -100,9 +124,11 @@ export async function grantPortalAccess(input: {
       }
     }
   } else {
-    const { data, error } = await admin.inviteUserByEmail(email, {
-      redirectTo: `${input.origin}/redefinir-senha`,
-      data: metadata
+    // Cria o login e gera o link de "criar senha"; o e-mail sai com a cara da Prime (não o padrão do sistema).
+    const { data, error } = await admin.generateLink({
+      type: "invite",
+      email,
+      options: { redirectTo: `${input.origin}/redefinir-senha`, data: metadata }
     });
     if (error || !data.user) {
       throw new PortalAccessError(
@@ -115,6 +141,7 @@ export async function grantPortalAccess(input: {
     }
     userId = data.user.id;
     invited = true;
+    inviteLink = data.properties?.action_link ?? null;
   }
 
   await admin.updateUserById(userId, { app_metadata: { role: "cliente" } });
@@ -139,9 +166,22 @@ export async function grantPortalAccess(input: {
     .eq("id", passenger.id);
   if (linkErr) throw new PortalAccessError("LINK_FAILED", linkErr.message, 500);
 
-  if (!invited && !input.skipEmail) await sendPasswordLink(email, input.origin);
+  let welcomed = false;
+  if (!input.skipEmail) {
+    let link = inviteLink;
+    if (!link) {
+      const { data: rec } = await admin.generateLink({ type: "recovery", email, options: { redirectTo: `${input.origin}/redefinir-senha` } });
+      link = rec?.properties?.action_link ?? null;
+    }
+    if (link) welcomed = await sendWelcome({ email, name: passenger.name, clientId: input.clientId, access, link }).catch(() => false);
+    // Plano B: e-mail padrão de senha do sistema.
+    if (!welcomed) {
+      if (invited) await admin.inviteUserByEmail(email, { redirectTo: `${input.origin}/redefinir-senha`, data: metadata }).catch(() => undefined);
+      else await sendPasswordLink(email, input.origin);
+    }
+  }
 
-  return { email, invited };
+  return { email, invited, welcomed };
 }
 
 /** Tira o acesso ao portal (o cadastro do funcionário continua). */

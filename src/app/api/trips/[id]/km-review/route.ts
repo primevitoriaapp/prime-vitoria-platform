@@ -9,7 +9,7 @@ import { odometerDistance, parseOdometer } from "@/lib/trips/odometer";
 import { applyTripPricingOnCompletion } from "@/lib/pricing/apply-trip-pricing";
 
 const COLS =
-  "id, client_id, driver_id, operational_status, service_mode, scheduled_at, odometer_start, odometer_end, actual_km, planned_km, km_billable, km_source, client_amount, driver_amount, review_required, review_reason, reviewed_at, client_invoice_id";
+  "id, client_id, driver_id, operational_status, service_mode, scheduled_at, odometer_start, odometer_end, actual_km, planned_km, km_billable, km_source, client_amount, driver_amount, review_required, review_reason, reviewed_at, client_invoice_id, wait_minutes";
 
 async function staffOnly() {
   const session = await getSessionContext();
@@ -70,7 +70,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 }
 
 const bodySchema = z.object({
-  choice: z.enum(["odometer", "gps", "manual"]),
+  /** "keep" = mantém o KM atual (ex.: só corrigir a espera). */
+  choice: z.enum(["odometer", "gps", "manual", "keep"]),
+  /** Minutos de espera/atraso do passageiro (cobra o que passar da tolerância do cliente). */
+  wait_minutes: z.coerce.number().int().min(0).max(24 * 60).optional(),
   odometer_start: z.union([z.string(), z.number()]).optional().nullable(),
   odometer_end: z.union([z.string(), z.number()]).optional().nullable(),
   km: z.coerce.number().positive().max(3000).optional()
@@ -105,13 +108,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (!g.km) return fail("NO_GPS", "Esta corrida não tem rastro de GPS suficiente.", 400);
       km = g.km;
       update.km_source = "gps_trail";
+    } else if (body.choice === "keep") {
+      km = t.km_billable != null ? Number(t.km_billable) : t.actual_km != null ? Number(t.actual_km) : null;
     } else {
       if (!body.km) return fail("KM_REQUIRED", "Informe o KM.", 400);
       km = Math.round(body.km * 10) / 10;
       update.km_source = "manual";
     }
     const now = new Date().toISOString();
-    Object.assign(update, { actual_km: km, km_updated_at: now, reviewed_at: now, review_required: false });
+    if (body.choice !== "keep") Object.assign(update, { actual_km: km, km_updated_at: now });
+    Object.assign(update, { reviewed_at: now, review_required: false });
+    if (body.wait_minutes !== undefined) Object.assign(update, { wait_minutes: body.wait_minutes, wait_started_at: null });
     const { error } = await db.from("trips").update(update).eq("id", id).eq("tenant_id", tenantId);
     if (error) return fail("KM_UPDATE_FAILED", error.message, 500);
 
@@ -145,6 +152,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       entityId: id,
       metadata: {
         escolha: body.choice,
+        ...(body.wait_minutes !== undefined ? { espera_antes: t.wait_minutes ?? 0, espera_depois: body.wait_minutes } : {}),
         km_antes: t.km_billable ?? t.actual_km,
         km_depois: km,
         cliente_antes: t.client_amount,

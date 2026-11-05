@@ -20,6 +20,9 @@ type Item = {
   planned_km: number | null;
   km_source: string | null;
   wait_minutes: number;
+  arrived_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
   client_amount: number | null;
   driver_amount: number | null;
   alert: string | null;
@@ -31,12 +34,24 @@ const when = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const place = (t: string | null) => String(t ?? "—").split(" - ")[0].split(",")[0].slice(0, 40);
 const num = (s: string) => Number(s.replace(/\./g, "").replace(",", "."));
+const hm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }) : "—");
+/** Atraso do passageiro: do horário marcado (ou da chegada do motorista, se chegou depois) até o início da corrida. */
+function lateMinutes(it: { scheduled_at: string; arrived_at: string | null; started_at: string | null }): number {
+  if (!it.started_at) return 0;
+  const from = Math.max(new Date(it.scheduled_at).getTime(), it.arrived_at ? new Date(it.arrived_at).getTime() : 0);
+  return Math.max(0, Math.round((new Date(it.started_at).getTime() - from) / 60000));
+}
+const dur = (a: string | null, b: string | null) => {
+  if (!a || !b) return null;
+  const m = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000);
+  return m > 0 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}` : null;
+};
 
 /** Fila de aprovação: toda corrida finalizada passa pelo gestor antes de ir para fatura e carteira. */
 export function TripApprovalQueue() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [edit, setEdit] = useState<string | null>(null);
-  const [form, setForm] = useState({ km: "", client: "", driver: "" });
+  const [form, setForm] = useState({ km: "", client: "", driver: "", wait: "" });
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -63,10 +78,17 @@ export function TripApprovalQueue() {
     setMsg(null);
     try {
       const newKm = form.km.trim() ? num(form.km) : null;
-      if (it.by_km && newKm != null && newKm !== it.billed_km) {
-        const r = await fetchWithSupabaseSession(`/api/trips/${it.id}/km-review`, { method: "POST", body: JSON.stringify({ choice: "manual", km: newKm }) }, "admin");
+      const kmChanged = it.by_km && newKm != null && newKm !== it.billed_km;
+      const newWait = form.wait.trim() ? Math.max(0, Math.round(num(form.wait))) : null;
+      const waitChanged = newWait != null && newWait !== it.wait_minutes;
+      if (kmChanged || waitChanged) {
+        const r = await fetchWithSupabaseSession(
+          `/api/trips/${it.id}/km-review`,
+          { method: "POST", body: JSON.stringify({ choice: kmChanged ? "manual" : "keep", ...(kmChanged ? { km: newKm } : {}), ...(waitChanged ? { wait_minutes: newWait } : {}) }) },
+          "admin"
+        );
         const j = (await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
-        if (!r.ok || !j.success) throw new Error(j.error?.message ?? "Falha ao recalcular o KM");
+        if (!r.ok || !j.success) throw new Error(j.error?.message ?? "Falha ao recalcular");
       }
       const c = form.client.trim() ? num(form.client) : null;
       const d = form.driver.trim() ? num(form.driver) : null;
@@ -145,6 +167,33 @@ export function TripApprovalQueue() {
             </header>
 
             {it.alert ? <p className="bg-amber-50 px-5 py-2 text-sm text-amber-900">⚠ {it.alert}</p> : null}
+            {(() => {
+              const late = lateMinutes(it);
+              const missing = late > it.wait_minutes + 5;
+              return (
+                <div className={`flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-prime-border px-5 py-2 text-sm ${missing ? "bg-amber-50" : "bg-prime-bg/40"}`}>
+                  <span>
+                    🕐 Marcado <b>{hm(it.scheduled_at)}</b>
+                  </span>
+                  <span>
+                    Chegou <b>{hm(it.arrived_at)}</b>
+                  </span>
+                  <span>
+                    Saiu <b>{hm(it.started_at)}</b>
+                  </span>
+                  <span>
+                    Finalizou <b>{hm(it.completed_at)}</b>
+                    {dur(it.started_at, it.completed_at) ? <span className="text-prime-muted"> ({dur(it.started_at, it.completed_at)} de viagem)</span> : null}
+                  </span>
+                  {late > 0 ? (
+                    <span className={missing ? "font-semibold text-amber-900" : "text-prime-muted"}>
+                      Passageiro saiu {late} min depois do marcado
+                      {missing ? ` · espera lançada: ${it.wait_minutes} min, confira e corrija` : ""}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })()}
 
             <div className="grid gap-0 sm:grid-cols-3 sm:divide-x sm:divide-prime-border">
               <section className="px-5 py-4">
@@ -188,6 +237,7 @@ export function TripApprovalQueue() {
                   onClick={() => {
                     setEdit(editing ? null : it.id);
                     setForm({
+                      wait: String(Math.max(it.wait_minutes, lateMinutes(it))),
                       km: it.billed_km != null ? String(it.billed_km).replace(".", ",") : "",
                       client: it.client_amount != null ? it.client_amount.toFixed(2).replace(".", ",") : "",
                       driver: it.driver_amount != null ? it.driver_amount.toFixed(2).replace(".", ",") : ""
@@ -201,7 +251,7 @@ export function TripApprovalQueue() {
             </div>
 
             {editing ? (
-              <div className="grid gap-3 border-t border-prime-border bg-prime-bg/50 px-5 py-4 sm:grid-cols-4 sm:items-end">
+              <div className="grid gap-3 border-t border-prime-border bg-prime-bg/50 px-5 py-4 sm:grid-cols-5 sm:items-end">
                 {it.by_km ? (
                   <label className="grid gap-1 text-sm">
                     KM a cobrar
@@ -209,6 +259,11 @@ export function TripApprovalQueue() {
                     <span className="text-[11px] text-prime-muted">Recalcula pela tabela do cliente</span>
                   </label>
                 ) : null}
+                <label className="grid gap-1 text-sm">
+                  Espera / atraso (min)
+                  <input className="rounded-lg border border-prime-border bg-white px-3 py-2" inputMode="numeric" value={form.wait} onChange={(e) => setForm({ ...form, wait: e.target.value })} />
+                  <span className="text-[11px] text-prime-muted">Cobra hora parada do que passar da tolerância do cliente</span>
+                </label>
                 <label className="grid gap-1 text-sm">
                   Cliente paga (R$)
                   <input className="rounded-lg border border-prime-border bg-white px-3 py-2" inputMode="decimal" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
@@ -225,8 +280,8 @@ export function TripApprovalQueue() {
                 >
                   {busy === it.id ? "Salvando…" : "Salvar e aprovar"}
                 </button>
-                <p className="text-xs text-prime-muted sm:col-span-4">
-                  Mudou só o KM? Deixe os valores como estão: o sistema recalcula. Quer um valor fechado? Digite os valores. Motorista e cliente não veem que houve ajuste.
+                <p className="text-xs text-prime-muted sm:col-span-5">
+                  Mudou o KM ou a espera? Deixe os valores como estão: o sistema recalcula pela tabela. Quer um valor fechado? Digite os valores. Motorista e cliente não veem que houve ajuste.
                 </p>
               </div>
             ) : null}
