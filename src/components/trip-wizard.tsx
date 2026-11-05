@@ -536,7 +536,8 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                       setClientAmount("");
                       setDriverAmount("");
                       const modes = enabledFor(c.id);
-                      setMode(modes[0] ?? "transfer");
+                      // Prime Essencial: só por km.
+                      setMode(c.allows_km ? "km" : modes.find((m) => m !== "km") ?? "transfer");
                     }}
                     className={`overflow-hidden rounded-2xl border text-left transition ${
                       sel ? "border-prime-gold ring-2 ring-prime-gold" : "border-prime-border hover:border-prime-gold"
@@ -570,7 +571,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               <div className="space-y-2">
                 <p className="text-sm font-semibold">Tipo de serviço</p>
                 <div className="flex flex-wrap gap-2">
-                  {ALL_MODES.filter((m) => m !== "km" || category.allows_km).map((m) => {
+                  {ALL_MODES.filter((m) => (category.allows_km ? m === "km" : m !== "km")).map((m) => {
                     const released = enabledFor(category.id).includes(m);
                     return (
                       <button

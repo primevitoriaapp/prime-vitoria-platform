@@ -162,7 +162,10 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
                                   placeholder={s.id === "km_minimo" ? "sem mínimo" : "a combinar"}
                                   value={v.client_price}
                                   disabled={disabled || busy}
-                                  onChange={(e) => setCell(c.id, s.id, { client_price: e.target.value.replace(/[^0-9.,]/g, "") })}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9.,]/g, "");
+                                    setCell(c.id, s.id, { client_price: val, ...(val && !v.enabled ? { enabled: true } : {}) });
+                                  }}
                                   onBlur={(e) => s.id !== "km_minimo" && setCell(c.id, s.id, { client_price: moneyText(e.target.value) })}
                                 />
                               </div>
@@ -176,7 +179,10 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
                                   placeholder={s.id === "km_minimo" ? "sem mínimo" : "a combinar"}
                                   value={v.partner_price}
                                   disabled={disabled || busy}
-                                  onChange={(e) => setCell(c.id, s.id, { partner_price: e.target.value.replace(/[^0-9.,]/g, "") })}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9.,]/g, "");
+                                    setCell(c.id, s.id, { partner_price: val, ...(val && !v.enabled ? { enabled: true } : {}) });
+                                  }}
                                   onBlur={(e) => s.id !== "km_minimo" && setCell(c.id, s.id, { partner_price: moneyText(e.target.value) })}
                                 />
                               </div>
