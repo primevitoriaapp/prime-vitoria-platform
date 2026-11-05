@@ -34,7 +34,12 @@ export function TripProgressTimeline({
 
   useEffect(() => {
     void load();
-  }, [load]);
+    const onEdit = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === tripId) void load();
+    };
+    window.addEventListener("trip-timeline-changed", onEdit);
+    return () => window.removeEventListener("trip-timeline-changed", onEdit);
+  }, [load, tripId]);
   useTenantTableRefresh(tenantId ?? null, ["trips"], load);
 
   if (!data) return null;
@@ -67,6 +72,8 @@ export function TripProgressTimeline({
                   {s.at ? <p className="text-xs text-prime-muted">{when(s.at)}</p> : null}
                 </div>
                 {s.state === "current" ? <p className="text-xs text-prime-muted">{s.hint}</p> : null}
+                {s.detail ? <p className="text-sm font-medium text-prime-text">{s.detail}</p> : null}
+                {s.edited ? <p className="text-[11px] text-amber-700">horário ajustado pela central (o cliente não vê este aviso)</p> : null}
               </div>
             </li>
           );

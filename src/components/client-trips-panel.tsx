@@ -9,6 +9,7 @@ import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { clientMayCancelTrip } from "@/lib/domain/status";
 import { shortAddress } from "@/lib/client/short-address";
+import { TripProgressTimeline } from "@/components/trip-progress-timeline";
 import {
   CLIENT_STATUS,
   CLIENT_STATUS_TONE_CLASS,
@@ -59,6 +60,7 @@ export function ClientTripsPanel({
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sector, setSector] = useState("todos");
+  const [timelineOpen, setTimelineOpen] = useState<string | null>(null);
 
   const load = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -241,6 +243,13 @@ export function ClientTripsPanel({
                   </p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     {amount ? <span className="font-semibold text-prime-text">{amount}</span> : null}
+                    <button
+                      type="button"
+                      onClick={() => setTimelineOpen((x) => (x === trip.id ? null : trip.id))}
+                      className="font-medium text-prime-gold-ink hover:underline"
+                    >
+                      {timelineOpen === trip.id ? "Fechar linha do tempo" : "Linha do tempo"}
+                    </button>
                     <Link href={`/client/viagens/${trip.id}`} className="font-medium text-prime-gold-ink hover:underline">
                       Detalhes
                     </Link>
@@ -259,6 +268,11 @@ export function ClientTripsPanel({
                     ) : null}
                   </div>
                 </div>
+                {timelineOpen === trip.id ? (
+                  <div className="mt-3">
+                    <TripProgressTimeline tripId={trip.id} devFallbackRole={devFallbackRole} title={`Linha do tempo · Nº ${tripShortNumber(trip.id)}`} />
+                  </div>
+                ) : null}
               </li>
             );
           })}
