@@ -16,6 +16,7 @@ const bodySchema = z.object({
   billing_issuer: z.enum(["rj_prime", "prime_servicos", "ilha_prime"]).nullable().optional(),
   invoice_closing_day: z.coerce.number().int().min(0).max(28).default(0),
   invoice_auto_close: z.boolean().default(true),
+  invoice_per_service: z.boolean().optional(),
   invoiced: z.boolean().default(true),
   km_minimum: z.coerce.number().min(0).max(1000).nullable().optional(),
   reconciliation_business_days: z.coerce.number().int().min(0).max(15).optional(),

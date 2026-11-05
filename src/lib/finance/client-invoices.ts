@@ -263,3 +263,95 @@ export async function updateClientInvoiceStatus(
   }
   return data as ClientInvoiceRow;
 }
+
+/** "NR263982-C1" → "NR263982" (os trechos C1, C2… do mesmo voucher vão na mesma fatura). */
+export function baseClientRef(ref: string | null | undefined): string | null {
+  const r = String(ref ?? "").trim().toUpperCase();
+  if (!r) return null;
+  return r.replace(/-C\d+$/i, "");
+}
+
+/**
+ * Fatura de UM serviço (voucher/NR): a corrida escolhida e os outros trechos concluídos do mesmo voucher.
+ * Para clientes que fecham por serviço (ex.: CEP).
+ */
+export async function generateInvoiceForTrip(input: {
+  tenantId: string;
+  tripId: string;
+  dueDate: string;
+  createdBy?: string | null;
+}): Promise<{ invoice_id: string; number: number; trip_ids: string[]; total_amount: number }> {
+  const { clientRefFromNotes } = await import("@/lib/trips/client-ref");
+  const { data: trip } = await db
+    .from("trips")
+    .select("id, client_id, scheduled_at, notes, operational_status, client_invoice_id, client_voucher_path")
+    .eq("id", input.tripId)
+    .eq("tenant_id", input.tenantId)
+    .maybeSingle();
+  if (!trip) throw new Error("Corrida não encontrada");
+  if (trip.operational_status !== "completed") throw new Error("A corrida ainda não foi concluída");
+  if (trip.client_invoice_id) throw new Error("Esta corrida já está numa fatura");
+
+  const ref = clientRefFromNotes(trip.notes as string | null);
+  const base = baseClientRef(ref);
+  let list: { id: string; scheduled_at: string; client_amount: number | null; km_billable: number | null; actual_km: number | null; planned_km: number | null; client_voucher_path: string | null }[] = [];
+  if (base) {
+    const { data } = await db
+      .from("trips")
+      .select("id, scheduled_at, notes, client_amount, km_billable, actual_km, planned_km, client_voucher_path")
+      .eq("tenant_id", input.tenantId)
+      .eq("client_id", trip.client_id)
+      .eq("operational_status", "completed")
+      .is("client_invoice_id", null)
+      .ilike("notes", `%${base.replace(/[%_]/g, "")}%`)
+      .limit(50);
+    list = ((data ?? []) as (typeof list[number] & { notes: string | null })[]).filter((t) => baseClientRef(clientRefFromNotes(t.notes)) === base);
+  }
+  if (!list.some((t) => t.id === trip.id)) {
+    const { data: self } = await db
+      .from("trips")
+      .select("id, scheduled_at, client_amount, km_billable, actual_km, planned_km, client_voucher_path")
+      .eq("id", trip.id)
+      .single();
+    list.push(self as typeof list[number]);
+  }
+
+  const days = list.map((t) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(t.scheduled_at))).sort();
+  const summary = summarizeInvoice(list as unknown as InvoiceTripInput[]);
+  const { data: c } = await db.from("clients").select("billing_issuer").eq("id", trip.client_id).maybeSingle();
+  const { data: inv, error } = await db
+    .from("client_invoices")
+    .insert({
+      tenant_id: input.tenantId,
+      client_id: trip.client_id,
+      period_start: days[0],
+      period_end: days[days.length - 1],
+      due_date: input.dueDate,
+      billing_issuer: (c?.billing_issuer as string | null) ?? null,
+      trip_count: summary.trip_count,
+      total_km: summary.total_km,
+      total_amount: summary.total_amount,
+      created_by: input.createdBy ?? null,
+      client_ref: base ?? ref ?? null,
+      voucher_path: list.find((t) => t.client_voucher_path)?.client_voucher_path ?? null
+    })
+    .select("id, number")
+    .single();
+  if (error || !inv) {
+    if (/uq_client_invoices_period/.test(error?.message ?? ""))
+      throw new Error("Já existe outra fatura deste cliente para o mesmo dia. Peça para liberar faturas por voucher no mesmo dia (script do banco).");
+    throw new Error(error?.message ?? "Falha ao criar a fatura");
+  }
+  const ids = list.map((t) => t.id);
+  await db.from("trips").update({ client_invoice_id: inv.id }).in("id", ids).eq("tenant_id", input.tenantId);
+  await db
+    .from("accounts_receivable")
+    .update({ due_date: input.dueDate, reference: `Fatura ${String(inv.number).padStart(5, "0")}${base ? ` · ${base}` : ""}` })
+    .in("trip_id", ids)
+    .eq("tenant_id", input.tenantId)
+    .neq("status", "paid");
+  await import("@/lib/finance/driver-payout-sync")
+    .then(({ resyncOpenDriverPayoutDates }) => resyncOpenDriverPayoutDates(input.tenantId, { tripIds: ids }))
+    .catch(() => undefined);
+  return { invoice_id: inv.id as string, number: inv.number as number, trip_ids: ids, total_amount: summary.total_amount };
+}

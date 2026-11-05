@@ -40,6 +40,7 @@ export function VoucherImportPanel() {
   const [clients, setClients] = useState<Client[]>([]);
   const [cats, setCats] = useState<Cat[]>([]);
   const [created, setCreated] = useState<{ ref: string; id: string }[]>([]);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!open || clients.length) return;
@@ -55,6 +56,7 @@ export function VoucherImportPanel() {
 
   async function onFile(file: File | undefined) {
     if (!file) return;
+    setPdfFile(file);
     setError(null);
     setParsed(null);
     setCreated([]);
@@ -171,6 +173,14 @@ export function VoucherImportPanel() {
       const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { id: string }; error?: { message?: string } };
       if (res.ok && json.success && json.data?.id) done.push({ ref: l.ref, id: json.data.id });
       else fails.push(`${l.ref}: ${json.error?.message ?? "erro"}`);
+    }
+    // Guarda o PDF do voucher em cada corrida criada (vai junto na fatura).
+    if (pdfFile && done.length) {
+      for (const d of done) {
+        const form = new FormData();
+        form.append("file", pdfFile);
+        await fetchWithSupabaseSession(`/api/trips/${d.id}/client-voucher`, { method: "POST", body: form }, "admin").catch(() => null);
+      }
     }
     setBusy(null);
     setCreated(done);

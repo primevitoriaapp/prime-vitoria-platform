@@ -89,3 +89,13 @@ test("O.S. em PDF: arquivo válido, com e sem valor", () => {
   assert.doesNotMatch(b, /R\$ 62,50/);
   assert.doesNotMatch(a + b, /Comexport/);
 });
+
+test("CEP: fecha por serviço, boleto no dia seguinte + 30, motorista 1 dia útil depois", async () => {
+  const { clientDueDate, driverPayoutDate, driverPayoutDateFromClientDue } = await import("../src/lib/finance/payout-schedule.ts");
+  const cep = { invoiced: true, invoice_per_service: true, payment_term_days: 30, reconciliation_business_days: 1 };
+  assert.equal(clientDueDate("2026-11-04", cep), "2026-12-05");
+  // 05/12/2026 é sábado → segunda 07/12.
+  assert.equal(driverPayoutDate("2026-11-04", cep), "2026-12-07");
+  // Vencimento numa quarta → quinta.
+  assert.equal(driverPayoutDateFromClientDue("2026-12-09", 1), "2026-12-10");
+});

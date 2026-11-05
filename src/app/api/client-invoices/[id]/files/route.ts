@@ -8,12 +8,12 @@ import { insertAuditEvent } from "@/lib/server/audit-log";
 
 const BUCKET = "invoice-files";
 const MAX_BYTES = 10 * 1024 * 1024;
-const KINDS = { boleto: "boleto_path", nf: "nf_path" } as const;
+const KINDS = { boleto: "boleto_path", nf: "nf_path", voucher: "voucher_path" } as const;
 type Kind = keyof typeof KINDS;
 const MIME: Record<string, string> = { "application/pdf": "pdf", "image/png": "png", "image/jpeg": "jpg" };
 
 function kindOf(v: string | null): Kind | null {
-  return v === "boleto" || v === "nf" ? v : null;
+  return v === "boleto" || v === "nf" || v === "voucher" ? v : null;
 }
 
 /** Equipe anexa o PDF do boleto (gerado no banco) ou da nota fiscal na fatura. */
@@ -49,7 +49,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await insertAuditEvent({
       tenantId,
       actorUserId: session.userId,
-      action: kind === "boleto" ? "invoice.boleto_upload" : "invoice.nf_upload",
+      action: kind === "boleto" ? "invoice.boleto_upload" : kind === "nf" ? "invoice.nf_upload" : "invoice.voucher_upload",
       entityType: "client_invoice",
       entityId: id,
       metadata: { file: file.name },

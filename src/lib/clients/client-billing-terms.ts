@@ -8,7 +8,7 @@ import {
 export * from "@/lib/clients/billing-terms-calc";
 
 const COLUMNS =
-  "wait_tolerance_minutes, wait_client_price_per_hour, wait_driver_price_per_hour, payment_term_days, billing_issuer, invoice_closing_day, invoice_auto_close, invoiced, km_minimum, reconciliation_business_days, requires_passenger_list";
+  "wait_tolerance_minutes, wait_client_price_per_hour, wait_driver_price_per_hour, payment_term_days, billing_issuer, invoice_closing_day, invoice_auto_close, invoiced, km_minimum, reconciliation_business_days, requires_passenger_list, invoice_per_service";
 
 function num(v: unknown): number | null {
   if (v == null || v === "") return null;
@@ -36,7 +36,8 @@ export async function getClientBillingTerms(clientId: string, tenantId: string):
     invoiced: row.invoiced !== false,
     km_minimum: num(row.km_minimum),
     reconciliation_business_days: num(row.reconciliation_business_days) ?? 0,
-    requires_passenger_list: row.requires_passenger_list === true
+    requires_passenger_list: row.requires_passenger_list === true,
+    invoice_per_service: row.invoice_per_service === true
   };
 }
 
@@ -58,7 +59,8 @@ export async function updateClientBillingTerms(
       invoiced: terms.invoiced,
       ...(terms.km_minimum === undefined ? {} : { km_minimum: terms.km_minimum }),
       ...(terms.reconciliation_business_days === undefined ? {} : { reconciliation_business_days: terms.reconciliation_business_days }),
-      ...(terms.requires_passenger_list === undefined ? {} : { requires_passenger_list: terms.requires_passenger_list })
+      ...(terms.requires_passenger_list === undefined ? {} : { requires_passenger_list: terms.requires_passenger_list }),
+      ...(terms.invoice_per_service === undefined ? {} : { invoice_per_service: terms.invoice_per_service })
     })
     .eq("id", clientId)
     .eq("tenant_id", tenantId);

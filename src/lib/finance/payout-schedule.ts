@@ -94,6 +94,8 @@ export type ClientPaymentTerms = {
   /** false = cliente paga antes do serviço (não entra em fatura). */
   invoiced?: boolean | null;
   invoice_closing_day?: number | null;
+  /** Fecha cada serviço (voucher/NR) separado: o boleto sai no dia seguinte ao serviço (ex.: CEP). */
+  invoice_per_service?: boolean | null;
   /** Dias para pagar depois do fechamento (sem cadastro: 30). */
   payment_term_days?: number | null;
   /** Dias úteis até o dinheiro aparecer conciliado no banco (PIX: 0; boleto: ~2). */
@@ -104,6 +106,7 @@ export type ClientPaymentTerms = {
 export function clientDueDate(tripDay: string, terms: ClientPaymentTerms): string {
   if (terms.invoiced === false) return tripDay;
   const term = terms.payment_term_days == null || !Number.isFinite(Number(terms.payment_term_days)) ? 30 : Math.max(0, Math.round(Number(terms.payment_term_days)));
+  if (terms.invoice_per_service) return addDays(addDays(tripDay, 1), term);
   return addDays(invoiceClosingDate(tripDay, terms.invoice_closing_day), term);
 }
 

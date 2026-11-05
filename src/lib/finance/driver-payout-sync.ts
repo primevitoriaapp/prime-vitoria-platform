@@ -4,7 +4,7 @@ import { clientDueDate, driverPayoutDateFromClientDue, spDay, type ClientPayment
 type TripRow = { id: string; client_id: string; scheduled_at: string; client_invoice_id: string | null };
 type InvoiceRow = { id: string; due_date: string; status: string; paid_at: string | null };
 
-const TERMS_COLS = "id, invoiced, invoice_closing_day, payment_term_days, reconciliation_business_days";
+const TERMS_COLS = "id, invoiced, invoice_closing_day, invoice_per_service, payment_term_days, reconciliation_business_days";
 
 /**
  * Data prevista de pagamento ao motorista para cada corrida:

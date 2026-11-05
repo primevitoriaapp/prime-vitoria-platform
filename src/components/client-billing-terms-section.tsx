@@ -42,7 +42,7 @@ function toForm(d: Record<string, unknown> | undefined): FormState {
     wait_driver_price_per_hour: s(d?.wait_driver_price_per_hour),
     payment_term_days: s(d?.payment_term_days, "30"),
     billing_issuer: s(d?.billing_issuer),
-    invoice_closing_day: s(d?.invoice_closing_day, "0"),
+    invoice_closing_day: d?.invoice_per_service ? "servico" : s(d?.invoice_closing_day, "0"),
     invoice_auto_close: d?.invoice_auto_close !== false,
     invoiced: d?.invoiced !== false,
     km_minimum: s(d?.km_minimum),
@@ -90,8 +90,9 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
       wait_client_price_per_hour: numOrNull(form.wait_client_price_per_hour),
       wait_driver_price_per_hour: numOrNull(form.wait_driver_price_per_hour),
       payment_term_days: numOrNull(form.payment_term_days) == null ? null : Math.round(numOrNull(form.payment_term_days)!),
-      invoice_closing_day: Number(form.invoice_closing_day) || 0,
-      invoice_auto_close: form.invoice_auto_close,
+      invoice_closing_day: form.invoice_closing_day === "servico" ? 0 : Number(form.invoice_closing_day) || 0,
+      invoice_per_service: form.invoice_closing_day === "servico",
+      invoice_auto_close: form.invoice_closing_day === "servico" ? false : form.invoice_auto_close,
       invoiced: form.invoiced,
       km_minimum: numOrNull(form.km_minimum),
       reconciliation_business_days: Math.max(0, Math.min(15, Math.round(numOrNull(form.reconciliation_business_days) ?? 0))),
@@ -229,6 +230,7 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
             onChange={(e) => setForm((f) => ({ ...f, invoice_closing_day: e.target.value }))}
             disabled={off}
           >
+            <option value="servico">Por serviço — cada voucher/NR tem seu boleto (ex.: CEP)</option>
             <option value="0">Mês cheio (dia 1 ao último dia)</option>
             {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
               <option key={d} value={String(d)}>
@@ -273,7 +275,10 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
         <div className="self-end rounded-lg bg-prime-bg p-3 text-sm">
           <p className="font-medium">Pagamento previsto ao motorista</p>
           <p className="text-xs text-prime-muted">
-            Fechamento {form.invoice_closing_day === "0" ? "no fim do mês" : `no dia ${form.invoice_closing_day}`} + {form.payment_term_days || "30"} dias para o cliente pagar
+            {form.invoice_closing_day === "servico"
+              ? "Boleto no dia seguinte ao serviço"
+              : `Fechamento ${form.invoice_closing_day === "0" ? "no fim do mês" : `no dia ${form.invoice_closing_day}`}`}{" "}
+            + {form.payment_term_days || "30"} dias para o cliente pagar
             {form.reconciliation_business_days !== "0" ? ` + ${form.reconciliation_business_days} dia(s) útil(eis) de conciliação` : ""}; cai sempre em dia útil.
           </p>
         </div>

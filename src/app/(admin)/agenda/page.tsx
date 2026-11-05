@@ -24,6 +24,7 @@ import { TripWhatsappMessages } from "@/components/trip-whatsapp-messages";
 import { ClientScheduleMessageCard } from "@/components/client-schedule-message-card";
 import { TripDeleteButton } from "@/components/trip-delete-button";
 import { TripKmReviewCard } from "@/components/trip-km-review-card";
+import { TripInvoiceCard } from "@/components/trip-invoice-card";
 import { defaultAgendaRangeIso } from "@/lib/operations/agenda-default-range";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
@@ -91,6 +92,7 @@ export default async function AgendaPage({
           />
           {showClaimBar ? <TripReviewBanner tripId={focusTripId} /> : null}
           {showClaimBar ? <TripKmReviewCard tripId={focusTripId} /> : null}
+          {showClaimBar ? <TripInvoiceCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripFlightCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripPassengerListCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripEditPanel tripId={focusTripId} defaultOpen={sp.editar === "1"} /> : null}
