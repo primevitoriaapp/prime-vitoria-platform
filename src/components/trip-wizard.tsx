@@ -8,6 +8,7 @@ import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { TeamPassengerPicker } from "@/components/team-passenger-picker";
+import { DropoffStopsEditor, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
 import { teamMissingAddress, teamTripShape, type TeamDirection, type TeamMember } from "@/lib/trips/team-trip";
 import { TypedDateTime } from "@/components/typed-date-time";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
@@ -75,6 +76,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [extras, setExtras] = useState<string[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [otherPax, setOtherPax] = useState<string[]>([]);
+  const [manualStops, setManualStops] = useState<EditableStop[]>([]);
   const [teamDir, setTeamDir] = useState<TeamDirection>("buscar");
   const teamShape = useMemo(() => teamTripShape(team, teamDir), [team, teamDir]);
 
@@ -308,7 +310,11 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       passenger_phone: paxPhone.trim() || undefined,
       passenger_count: passengers,
       ...(teamShape?.pickupStops ? { trip_pickup_stops: teamShape.pickupStops } : {}),
-      ...(teamShape?.dropoffStops ? { trip_dropoff_stops: teamShape.dropoffStops } : {}),
+      ...(teamShape?.dropoffStops
+        ? { trip_dropoff_stops: teamShape.dropoffStops }
+        : stopsForApi(manualStops).length
+          ? { trip_dropoff_stops: stopsForApi(manualStops) }
+          : {}),
       flight_number: normalizeFlightNumber(flight) ?? undefined,
       notes: notesFull || undefined,
       client_amount: Number(clientAmount.replace(",", ".")) || undefined,
@@ -701,6 +707,17 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 devFallbackRole="admin"
               />
             </div>
+            {!team.length ? (
+              <details className="rounded-xl border border-prime-border bg-white p-3 md:col-span-2" open={manualStops.length > 0}>
+                <summary className="cursor-pointer text-sm font-semibold">
+                  + Paradas no caminho {manualStops.length ? `(${manualStops.length})` : "(ex.: deixar cada passageiro em casa)"}
+                </summary>
+                <div className="mt-3">
+                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} />
+                  <p className="mt-2 text-xs text-prime-muted">O destino acima é a última parada. O motorista vê cada parada com o nome e o telefone para ligar.</p>
+                </div>
+              </details>
+            ) : null}
             <PassengerAutocompleteInput
               clientId={client.id}
               label="Passageiro principal"

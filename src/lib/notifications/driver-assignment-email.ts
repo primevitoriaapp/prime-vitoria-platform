@@ -222,7 +222,7 @@ export async function emailDriverAssignment(
     origin,
     destination,
     stops: dropoffs.length
-      ? dropoffs.map((x) => ({ name: x.passenger_name, address: x.address_text }))
+      ? dropoffs.map((x) => ({ name: [x.passenger_name, x.passenger_phone].filter(Boolean).join(" · ") || "Parada", address: x.address_text }))
       : pickups.length > 1
         ? pickups.map((x) => ({ name: x.passenger_name, address: x.pickup_text }))
         : [],

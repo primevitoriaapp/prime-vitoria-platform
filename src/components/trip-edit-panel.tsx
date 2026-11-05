@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
+import { DropoffStopsEditor, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { saoPauloDateAndTimeToUtcIso } from "@/lib/dates/br-date";
 import { PRESENTATION_OPTIONS, SERVICE_EXTRAS } from "@/lib/trips/service-extras";
@@ -26,6 +27,7 @@ type Trip = {
   presentation_minutes?: number | null;
   service_extras?: string[] | null;
   driver_id?: string | null;
+  trip_dropoff_stops?: { passenger_name?: string | null; passenger_phone?: string | null; address_text: string; lat?: number | null; lng?: number | null; dropped_at?: string | null }[] | null;
 };
 
 const LOCKED = new Set(["completed", "cancelled", "rejected", "no_show"]);
@@ -65,6 +67,7 @@ export function TripEditPanel({ tripId, defaultOpen = false }: { tripId: string;
   const [presentation, setPresentation] = useState(0);
   const [extras, setExtras] = useState<string[]>([]);
   const [reason, setReason] = useState("");
+  const [stops, setStops] = useState<EditableStop[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -89,6 +92,16 @@ export function TripEditPanel({ tripId, defaultOpen = false }: { tripId: string;
       setNotes(t.notes ?? "");
       setPresentation(t.presentation_minutes ?? 0);
       setExtras(t.service_extras ?? []);
+      setStops(
+        (t.trip_dropoff_stops ?? []).map((x) => ({
+          address_text: x.address_text,
+          lat: x.lat ?? null,
+          lng: x.lng ?? null,
+          passenger_name: x.passenger_name ?? "",
+          passenger_phone: x.passenger_phone ?? "",
+          dropped_at: x.dropped_at ?? null
+        }))
+      );
       setReason("");
     })();
   }, [open, tripId]);
@@ -121,6 +134,7 @@ export function TripEditPanel({ tripId, defaultOpen = false }: { tripId: string;
           notes,
           presentation_minutes: presentation,
           service_extras: extras,
+          trip_dropoff_stops: stopsForApi(stops),
           reason
         };
     const res = await fetchWithSupabaseSession(`/api/trips/${trip.id}`, { method: "PATCH", body: JSON.stringify(payload) }, "admin");
@@ -195,6 +209,13 @@ export function TripEditPanel({ tripId, defaultOpen = false }: { tripId: string;
                       onCoordsClear={() => setDest((o) => ({ ...o, lat: null, lng: null }))}
                       devFallbackRole="admin"
                     />
+                  </div>
+                  <div className="grid gap-2 md:col-span-2">
+                    <p className="text-sm font-semibold">Paradas no caminho {stops.length ? `(${stops.length})` : ""}</p>
+                    <p className="text-xs text-prime-muted">
+                      Ex.: deixar cada passageiro em casa. O motorista vê as paradas na ordem, com o nome e o telefone para ligar. O “Destino” acima é a última parada.
+                    </p>
+                    <DropoffStopsEditor stops={stops} onChange={setStops} />
                   </div>
                   <label className="grid gap-1 text-sm">
                     <span>Passageiro</span>

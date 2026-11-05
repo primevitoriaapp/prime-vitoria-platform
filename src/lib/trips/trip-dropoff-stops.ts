@@ -6,7 +6,8 @@ export * from "./trip-dropoff-stops-core.ts";
 /** Passageiro que embarcou e onde desce (lista exigida por algumas empresas, ex.: Comexport). */
 export const dropoffStopSchema = z.object({
   passenger_id: z.string().uuid().nullable().optional(),
-  passenger_name: z.string().trim().min(2).max(120),
+  passenger_name: z.string().trim().max(120).default(""),
+  passenger_phone: z.string().trim().max(40).nullable().optional(),
   address_text: z.string().trim().min(3).max(300),
   lat: z.coerce.number().nullable().optional(),
   lng: z.coerce.number().nullable().optional(),

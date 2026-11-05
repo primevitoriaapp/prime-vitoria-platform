@@ -2,6 +2,8 @@
 export type DropoffStop = {
   passenger_id?: string | null;
   passenger_name: string;
+  /** Telefone de quem desce aqui (a central e o motorista ligam se não achar a pessoa). */
+  passenger_phone?: string | null;
   address_text: string;
   lat?: number | null;
   lng?: number | null;
@@ -25,7 +27,7 @@ export function closeAllDropoffs(stops: DropoffStop[], at = new Date().toISOStri
 
 /** "Marlene, Vivian e Suzana" para o campo de passageiro da corrida. */
 export function passengerSummary(stops: DropoffStop[]): string {
-  const names = stops.map((s) => s.passenger_name.trim().split(/\s+/)[0]);
+  const names = stops.map((s) => s.passenger_name.trim().split(/\s+/)[0]).filter(Boolean);
   if (names.length <= 1) return stops[0]?.passenger_name ?? "";
   return `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
 }

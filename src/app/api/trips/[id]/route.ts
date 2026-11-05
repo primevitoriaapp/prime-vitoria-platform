@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { dropoffStopSchema } from "@/lib/trips/trip-dropoff-stops";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { runBestEffort } from "@/lib/server/best-effort";
 import { normalizeFlightNumber } from "@/lib/trips/flight";
@@ -61,6 +62,8 @@ const patchSchema = z.object({
   notes: z.string().max(4000).nullable().optional(),
   presentation_minutes: z.coerce.number().int().min(0).max(240).nullable().optional(),
   service_extras: z.array(z.string()).max(20).optional(),
+  /** Paradas antes do destino (endereço + passageiro + telefone). Lista vazia = sem paradas. */
+  trip_dropoff_stops: z.array(dropoffStopSchema).max(30).nullable().optional(),
   reason: z.string().max(300).optional()
 });
 
@@ -82,6 +85,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (v === undefined) continue;
       if (k === "flight_number") update[k] = normalizeFlightNumber(v as string | null);
       else if (k === "service_extras") update[k] = cleanServiceExtras(v);
+      else if (k === "trip_dropoff_stops") update[k] = Array.isArray(v) && v.length ? v : null;
       else if (typeof v === "string") update[k] = v.trim() === "" && k !== "origin_text" && k !== "destination_text" ? null : v.trim();
       else update[k] = v;
     }
@@ -119,7 +123,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
 
     // Motorista já definido e mudou algo que ele precisa saber: manda a O.S. atualizada (se o WhatsApp estiver ligado).
-    const relevant = ["scheduled_at", "origin_text", "destination_text", "passenger_name", "passenger_phone", "flight_number", "presentation_minutes", "service_extras", "notes"];
+    const relevant = ["scheduled_at", "origin_text", "destination_text", "passenger_name", "passenger_phone", "flight_number", "presentation_minutes", "service_extras", "notes", "trip_dropoff_stops"];
     if (trip.driver_id && Object.keys(changed).some((k) => relevant.includes(k))) {
       await runBestEffort("trip.edit.driver_os", async () => {
         const { dispatchTripMessages } = await import("@/lib/messages/dispatch-trip-messages");
