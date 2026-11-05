@@ -50,6 +50,8 @@ export async function generateClientInvoices(input: {
   periodEnd: string;
   clientId?: string;
   createdBy?: string | null;
+  /** Vencimento do boleto escolhido no fechamento (senão, o prazo do cadastro). */
+  dueDate?: string | null;
 }): Promise<GenerateResult[]> {
   const { fromIso, toIso } = periodUtcBounds(input.periodStart, input.periodEnd);
   let q = db
@@ -95,7 +97,7 @@ export async function generateClientInvoices(input: {
       });
       continue;
     }
-    const due = invoiceDueDate(input.periodEnd, (c?.payment_term_days as number | null) ?? null);
+    const due = input.dueDate || invoiceDueDate(input.periodEnd, (c?.payment_term_days as number | null) ?? null);
 
     const { data: inv, error: invErr } = await db
       .from("client_invoices")
@@ -196,9 +198,11 @@ export async function updateClientInvoiceStatus(
     nf_number?: string | null;
     nf_url?: string | null;
     notes?: string | null;
+    due_date?: string;
   }
 ) {
   const update: Record<string, unknown> = {};
+  if (patch.due_date) update.due_date = patch.due_date;
   if (patch.boleto_url !== undefined) update.boleto_url = patch.boleto_url;
   if (patch.boleto_line !== undefined) update.boleto_line = patch.boleto_line;
   if (patch.notes !== undefined) update.notes = patch.notes;
@@ -232,6 +236,17 @@ export async function updateClientInvoiceStatus(
   }
   if (patch.status === "cancelada") {
     await db.from("trips").update({ client_invoice_id: null }).eq("client_invoice_id", id).eq("tenant_id", tenantId);
+  }
+  if (patch.due_date && patch.status !== "cancelada") {
+    // Vencimento mudou: contas a receber e data prevista do repasse ao motorista acompanham.
+    const { data: invTrips } = await db.from("trips").select("id").eq("tenant_id", tenantId).eq("client_invoice_id", id).limit(5000);
+    const ids = (invTrips ?? []).map((t) => t.id as string);
+    if (ids.length) {
+      await db.from("accounts_receivable").update({ due_date: patch.due_date }).in("trip_id", ids).eq("tenant_id", tenantId).neq("status", "paid");
+      await import("@/lib/finance/driver-payout-sync")
+        .then(({ resyncOpenDriverPayoutDates }) => resyncOpenDriverPayoutDates(tenantId, { tripIds: ids }))
+        .catch(() => undefined);
+    }
   }
   if (patch.status === "paga" || patch.status === "cancelada") {
     // Cliente pagou (ou a fatura caiu): a data prevista do repasse ao motorista muda junto.

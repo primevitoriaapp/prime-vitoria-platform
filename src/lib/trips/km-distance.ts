@@ -75,9 +75,9 @@ export function gpsTrailGaps(points: GpsPoint[], gapSeconds = 60): { totalKm: nu
 export type BillableKmChoice = { km: number | null; source: "gps_trail" | "odometer" | "manual"; note: string | null };
 
 /**
- * Regra de cobrança (definida por Rubens em 03/11/2026):
- * GPS quando ele mediu o trajeto inteiro; KM do painel quando o GPS teve buracos e o painel deu mais.
- * Painel absurdamente acima do GPS (mais que o dobro + 5 km) não é aceito sozinho: fica o GPS e a central confere.
+ * Regra de cobrança (Rubens, 05/11/2026): enquanto o GPS do app não é confiável, vale o KM do PAINEL
+ * informado pelo motorista (KM final − KM inicial). Sem painel, vale o GPS.
+ * Painel e GPS muito diferentes (mais de 20% e mais de 3 km) → cobra o painel, mas a central confere.
  */
 export function chooseBillableKm(input: {
   gpsKm: number | null;
@@ -86,25 +86,18 @@ export function chooseBillableKm(input: {
   odometerKm: number | null;
   fromGps: boolean;
 }): BillableKmChoice {
-  const { gpsKm, gpsGapKm, gpsGaps, odometerKm, fromGps } = input;
-  if (gpsKm == null || gpsKm <= 0) {
-    return odometerKm != null ? { km: odometerKm, source: "odometer", note: null } : { km: null, source: "manual", note: null };
-  }
-  if (!fromGps) return { km: gpsKm, source: "manual", note: null };
-  if (odometerKm == null) return { km: gpsKm, source: "gps_trail", note: null };
-  const unreliable = gpsGaps > 0 && gpsGapKm >= Math.max(1, gpsKm * 0.15);
-  if (!unreliable || odometerKm <= gpsKm) return { km: gpsKm, source: "gps_trail", note: null };
+  const { gpsKm, odometerKm, fromGps } = input;
   const fmt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
-  if (odometerKm > gpsKm * 2 + 5) {
+  if (odometerKm != null && odometerKm > 0) {
+    const hasGps = gpsKm != null && gpsKm > 0 && fromGps;
+    const diff = hasGps ? Math.abs(odometerKm - (gpsKm as number)) : 0;
+    const far = hasGps && diff > 3 && diff > (gpsKm as number) * 0.2;
     return {
-      km: gpsKm,
-      source: "gps_trail",
-      note: `GPS perdeu sinal (${gpsGaps} trechos) e o painel deu ${fmt(odometerKm)} km contra ${fmt(gpsKm)} km do GPS — diferença grande demais, conferir antes de faturar`
+      km: odometerKm,
+      source: "odometer",
+      note: far ? `painel do motorista deu ${fmt(odometerKm)} km e o GPS ${fmt(gpsKm as number)} km — cobrado pelo painel, conferir` : null
     };
   }
-  return {
-    km: odometerKm,
-    source: "odometer",
-    note: `GPS perdeu sinal em ${gpsGaps} trechos (${fmt(gpsGapKm)} km em linha reta); cobrado pelo painel do carro: ${fmt(odometerKm)} km (GPS mediu ${fmt(gpsKm)} km)`
-  };
+  if (gpsKm == null || gpsKm <= 0) return { km: null, source: "manual", note: null };
+  return { km: gpsKm, source: fromGps ? "gps_trail" : "manual", note: null };
 }

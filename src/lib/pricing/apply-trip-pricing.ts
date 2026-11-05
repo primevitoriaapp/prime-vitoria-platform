@@ -52,11 +52,14 @@ export { loadActivePricingRule } from "@/lib/pricing/load-active-pricing";
 async function applyCategoryPricing(input: ApplyTripPricingInput): Promise<ApplyTripPricingResult | null> {
   const { data: trip } = await db
     .from("trips")
-    .select("vehicle_category_id, service_mode, driver_id, scheduled_at, wait_minutes, client_amount, driver_amount")
+    .select("vehicle_category_id, service_mode, driver_id, scheduled_at, wait_minutes, client_amount, driver_amount, calculation_metadata")
     .eq("id", input.tripId)
     .eq("tenant_id", input.tenantId)
     .maybeSingle();
   if (!trip?.vehicle_category_id || !trip.service_mode) return null;
+  // Valor que a própria tabela calculou antes (ex.: KM corrigido depois): recalcula, não trata como valor combinado.
+  const prevMeta = (trip.calculation_metadata ?? null) as { source?: string; quoted?: boolean } | null;
+  const prevWasTable = prevMeta?.source === "categoria" && prevMeta.quoted === false;
 
   const { data: rows } = await db
     .from("client_category_prices")
@@ -83,8 +86,8 @@ async function applyCategoryPricing(input: ApplyTripPricingInput): Promise<Apply
   });
 
   // Valor digitado pela central na corrida tem prioridade (orçamento combinado).
-  const quotedClient = Number(trip.client_amount) || 0;
-  const quotedDriver = Number(trip.driver_amount) || 0;
+  const quotedClient = prevWasTable ? 0 : Number(trip.client_amount) || 0;
+  const quotedDriver = prevWasTable ? 0 : Number(trip.driver_amount) || 0;
   let client = quotedClient > 0 ? quotedClient : table.client;
   let partner = quotedClient > 0 ? (quotedDriver > 0 ? quotedDriver : table.partner) : table.partner;
   if (client == null) return null;

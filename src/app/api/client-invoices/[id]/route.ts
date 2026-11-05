@@ -10,7 +10,8 @@ const patchSchema = z.object({
   boleto_line: z.string().max(120).nullable().optional(),
   nf_number: z.string().max(40).nullable().optional(),
   nf_url: z.string().url().max(2000).nullable().optional(),
-  notes: z.string().max(1000).nullable().optional()
+  notes: z.string().max(1000).nullable().optional(),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
 });
 
 /** Equipe Prime: marcar enviada/paga/cancelada e anexar boleto (link e linha digitável). */

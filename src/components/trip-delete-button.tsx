@@ -11,14 +11,21 @@ export function TripDeleteButton({ tripId }: { tripId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [needWord, setNeedWord] = useState(false);
+  const [word, setWord] = useState("");
 
   async function remove() {
     setBusy(true);
     setError(null);
-    const res = await fetchWithSupabaseSession(`/api/trips/${tripId}`, { method: "DELETE" }, "admin");
-    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
+    const res = await fetchWithSupabaseSession(`/api/trips/${tripId}${needWord ? "?forcar=1" : ""}`, { method: "DELETE" }, "admin");
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { code?: string; message?: string } };
     setBusy(false);
     if (!res.ok || !json.success) {
+      if (json.error?.code === "TRIP_STARTED_CONFIRM") {
+        setNeedWord(true);
+        setError(json.error.message ?? null);
+        return;
+      }
       setError(json.error?.message ?? "Não foi possível excluir.");
       setConfirming(false);
       return;
@@ -40,10 +47,33 @@ export function TripDeleteButton({ tripId }: { tripId: string }) {
         <div className="grid gap-2">
           <p className="text-sm font-semibold text-red-800">Excluir esta corrida de vez? Some da agenda, do financeiro e do app do motorista.</p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={busy} onClick={() => void remove()} className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-[#fff] disabled:opacity-50">
+            {needWord ? (
+              <input
+                className="rounded-lg px-3 py-2 text-sm ring-1 ring-red-300"
+                placeholder="Digite EXCLUIR"
+                value={word}
+                onChange={(e) => setWord(e.target.value.toUpperCase())}
+              />
+            ) : null}
+            <button
+              type="button"
+              disabled={busy || (needWord && word.trim() !== "EXCLUIR")}
+              onClick={() => void remove()}
+              className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-[#fff] disabled:opacity-50"
+            >
               {busy ? "Excluindo…" : "Sim, excluir"}
             </button>
-            <button type="button" disabled={busy} onClick={() => setConfirming(false)} className="rounded-lg px-4 py-2 text-sm ring-1 ring-prime-border">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setConfirming(false);
+                setNeedWord(false);
+                setWord("");
+                setError(null);
+              }}
+              className="rounded-lg px-4 py-2 text-sm ring-1 ring-prime-border"
+            >
               Não, voltar
             </button>
           </div>

@@ -42,6 +42,20 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
   const { company } = useCompany();
   const [month, setMonth] = useState(prevMonth);
+  const [mode, setMode] = useState<"mes" | "periodo">("mes");
+  const [pStart, setPStart] = useState("");
+  const [pEnd, setPEnd] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [due, setDue] = useState("");
+  const [clients, setClients] = useState<{ id: string; name: string; trade_name?: string | null }[]>([]);
+  const [editDue, setEditDue] = useState<{ id: string; value: string } | null>(null);
+
+  useEffect(() => {
+    void fetchWithSupabaseSession("/api/clients", {}, devFallbackRole)
+      .then((r) => r.json())
+      .then((j: { data?: { id: string; name: string; trade_name?: string | null; active?: boolean }[] }) => setClients((j.data ?? []).filter((c) => c.active !== false)))
+      .catch(() => setClients([]));
+  }, [devFallbackRole]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
@@ -58,11 +72,22 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
   async function generate() {
     const [y, m] = month.split("-").map(Number);
     const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const period =
+      mode === "mes"
+        ? { period_start: `${month}-01`, period_end: `${month}-${String(last).padStart(2, "0")}` }
+        : { period_start: pStart, period_end: pEnd };
+    if (!period.period_start || !period.period_end) {
+      setMsg({ kind: "err", text: "Escolha o período (de / até)." });
+      return;
+    }
     setBusy(true);
     setMsg(null);
     const res = await fetchWithSupabaseSession(
       "/api/client-invoices/generate",
-      { method: "POST", body: JSON.stringify({ period_start: `${month}-01`, period_end: `${month}-${String(last).padStart(2, "0")}` }) },
+      {
+        method: "POST",
+        body: JSON.stringify({ ...period, ...(clientId ? { client_id: clientId } : {}), ...(due ? { due_date: due } : {}) })
+      },
       devFallbackRole
     );
     const json = (await res.json().catch(() => ({}))) as {
@@ -171,18 +196,55 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
         <div>
           <h2 className="text-lg font-semibold">Faturas dos clientes</h2>
           <p className="text-sm text-prime-muted">
-            As empresas com fechamento automático (cadastro do cliente) têm a fatura criada sozinha no dia seguinte ao fechamento. Use o botão para fechar um mês manualmente. O vencimento segue o prazo do cadastro.
+            As empresas com fechamento automático (cadastro do cliente) têm a fatura criada sozinha no dia seguinte ao fechamento. Para fechar na mão: escolha o mês ou o período, o cliente e o vencimento do boleto. O vencimento define a data em que o motorista recebe (aparece na carteira dele). Clique no vencimento de uma fatura para alterar.
           </p>
         </div>
-        <div className="flex items-end gap-2">
-          <label className="grid gap-1 text-xs">
-            Mês
+      </div>
+
+      <div className="grid gap-3 rounded-xl border border-prime-gold/40 bg-[#FBF8F1] p-3 md:grid-cols-[auto_1fr_1fr_auto] md:items-end">
+        <div className="grid gap-1 text-xs">
+          Fechamento
+          <div className="flex gap-1">
+            {(
+              [
+                ["mes", "Mês inteiro"],
+                ["periodo", "Período"]
+              ] as const
+            ).map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setMode(id)} className={`rounded-md px-2 py-1.5 text-sm ring-1 ${mode === id ? "bg-[#111] text-[#fff] ring-[#111]" : "ring-prime-border"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {mode === "mes" ? (
             <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="rounded-md border px-2 py-1.5 text-sm" />
-          </label>
-          <button type="button" disabled={busy} onClick={() => void generate()} className="btn-primary disabled:opacity-50">
-            {busy ? "Processando…" : "Fechar mês e gerar faturas"}
-          </button>
+          ) : (
+            <div className="flex items-center gap-1">
+              <input type="date" value={pStart} onChange={(e) => setPStart(e.target.value)} className="rounded-md border px-2 py-1.5 text-sm" />
+              <span>até</span>
+              <input type="date" value={pEnd} onChange={(e) => setPEnd(e.target.value)} className="rounded-md border px-2 py-1.5 text-sm" />
+            </div>
+          )}
         </div>
+        <label className="grid gap-1 text-xs">
+          Cliente
+          <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="rounded-md border px-2 py-1.5 text-sm">
+            <option value="">Todos os clientes faturados</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.trade_name || c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs">
+          Vencimento do boleto
+          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="rounded-md border px-2 py-1.5 text-sm" />
+          <span className="text-[11px] text-prime-muted">Vazio = prazo do cadastro do cliente. Define também quando o motorista recebe.</span>
+        </label>
+        <button type="button" disabled={busy} onClick={() => void generate()} className="btn-primary disabled:opacity-50">
+          {busy ? "Processando…" : "Fechar e gerar fatura"}
+        </button>
       </div>
 
       {msg ? <p className={`text-sm ${msg.kind === "ok" ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p> : null}
@@ -212,7 +274,34 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                   <td>
                     {brDate(r.period_start)} – {brDate(r.period_end)}
                   </td>
-                  <td>{brDate(r.due_date)}</td>
+                  <td>
+                    {editDue?.id === r.id ? (
+                      <span className="flex items-center gap-1">
+                        <input type="date" value={editDue.value} onChange={(e) => setEditDue({ id: r.id, value: e.target.value })} className="rounded-md border px-1 py-1 text-xs" />
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-emerald-700"
+                          onClick={() => {
+                            const v = editDue.value;
+                            setEditDue(null);
+                            if (v && v !== r.due_date) void patch(r.id, { due_date: v }, "Vencimento alterado. Contas a receber e carteira dos motoristas atualizadas.");
+                          }}
+                        >
+                          OK
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        title="Alterar vencimento"
+                        disabled={r.status === "paga" || r.status === "cancelada"}
+                        onClick={() => setEditDue({ id: r.id, value: r.due_date })}
+                        className="underline decoration-dotted disabled:no-underline"
+                      >
+                        {brDate(r.due_date)}
+                      </button>
+                    )}
+                  </td>
                   <td className="text-right">{r.trip_count}</td>
                   <td className="text-right font-semibold">{brl(r.total_amount)}</td>
                   <td>

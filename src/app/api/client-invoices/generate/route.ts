@@ -8,7 +8,8 @@ import { previousMonthPeriod } from "@/lib/finance/client-invoice-calc";
 const bodySchema = z.object({
   period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   period_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  client_id: z.string().uuid().optional()
+  client_id: z.string().uuid().optional(),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
 });
 
 /** Fecha o período (padrão: mês anterior) e gera as faturas dos clientes. */
@@ -29,7 +30,8 @@ export async function POST(request: Request) {
       periodStart,
       periodEnd,
       clientId: body.client_id,
-      createdBy: session.userId
+      createdBy: session.userId,
+      dueDate: body.due_date ?? null
     });
     return ok({ period_start: periodStart, period_end: periodEnd, results });
   } catch (error) {

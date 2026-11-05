@@ -156,8 +156,13 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params;
     const { data: trip } = await db.from("trips").select("*").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
     if (!trip) return fail("TRIP_NOT_FOUND", "Corrida não encontrada", 404);
-    if (STARTED.has(trip.operational_status as string))
-      return fail("TRIP_STARTED", "Esta corrida já começou ou terminou: não dá para excluir. Use cancelar ou ajuste os valores.", 409);
+    // Corrida já feita (ex.: teste): só o administrador, e só confirmando de novo.
+    const forced = new URL(request.url).searchParams.get("forcar") === "1";
+    if (STARTED.has(trip.operational_status as string)) {
+      if (session.role !== "admin") return fail("TRIP_STARTED", "Esta corrida já começou ou terminou: só o administrador pode excluir.", 409);
+      if (!forced)
+        return fail("TRIP_STARTED_CONFIRM", "Esta corrida já foi feita. Ela vai sumir também do financeiro e da carteira do motorista. Confirme digitando EXCLUIR.", 409);
+    }
     if (trip.client_invoice_id) return fail("TRIP_INVOICED", "Esta corrida já está numa fatura: tire da fatura antes de excluir.", 409);
     const [{ data: ar }, { data: dp }] = await Promise.all([
       db.from("accounts_receivable").select("id, status").eq("trip_id", id),
