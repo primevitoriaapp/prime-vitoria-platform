@@ -326,6 +326,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     setBusy(true);
     setError(null);
     const runDays = multiDay ? days : [date];
+    const groupId = multiDay && days.length > 1 ? crypto.randomUUID() : undefined;
     const buildBody = (day: string, i: number) => {
     const at = saoPauloDateAndTimeToUtcIso(day, time) ?? scheduledIso;
     const ref = osRef.trim() ? (multiDay ? `${osRef.trim()}-D${i + 1}` : osRef.trim()) : "";
@@ -358,6 +359,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
           : {}),
       flight_number: normalizeFlightNumber(flight) ?? undefined,
       notes: notesFull || undefined,
+      ...(groupId ? { booking_group_id: groupId } : {}),
       client_amount: dayAmount(clientAmount, i) || undefined,
       driver_amount: dayAmount(driverAmount, i) || undefined,
       dispatch_mode: "directed" as const,

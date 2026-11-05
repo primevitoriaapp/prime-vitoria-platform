@@ -25,6 +25,15 @@ export async function paymentsForTrips(tenantId: string, tripIds: string[]): Pro
   return (data ?? []).map((r) => toPayment(r as Record<string, unknown>));
 }
 
+/** Corridas do mesmo pacote (booking_group_id), incluindo as informadas. */
+export async function groupTripIds(tenantId: string, tripIds: string[]): Promise<string[]> {
+  const { data: own } = await db.from("trips").select("booking_group_id").eq("tenant_id", tenantId).in("id", tripIds);
+  const groups = [...new Set((own ?? []).map((t) => t.booking_group_id as string | null).filter(Boolean))] as string[];
+  if (!groups.length) return tripIds;
+  const { data: sib } = await db.from("trips").select("id").eq("tenant_id", tenantId).in("booking_group_id", groups);
+  return [...new Set([...tripIds, ...(sib ?? []).map((t) => t.id as string)])];
+}
+
 async function loadTrips(tripIds: string[]): Promise<PackageTrip[]> {
   if (!tripIds.length) return [];
   const { data } = await db.from("trips").select("id, scheduled_at, client_amount, operational_status").in("id", tripIds);
@@ -35,8 +44,9 @@ async function loadTrips(tripIds: string[]): Promise<PackageTrip[]> {
 
 /** Pacote da corrida (todas as corridas ligadas pelos pagamentos) e o resumo do que foi pago. */
 export async function packageForTrip(tenantId: string, tripId: string): Promise<PackageSummary & { trip_ids: string[]; allocated_here: number }> {
-  const payments = await paymentsForTrips(tenantId, [tripId]);
-  const ids = [...new Set([tripId, ...payments.flatMap((p) => p.trip_ids)])];
+  const group = await groupTripIds(tenantId, [tripId]);
+  const payments = await paymentsForTrips(tenantId, group);
+  const ids = [...new Set([...group, ...payments.flatMap((p) => p.trip_ids)])];
   const trips = await loadTrips(ids);
   const alloc = allocatePrepaid(trips, payments);
   return { ...summarizePackage(trips, payments), trip_ids: ids, allocated_here: alloc.get(tripId) ?? 0 };

@@ -18,3 +18,7 @@ create table if not exists public.booking_payments (
 create index if not exists booking_payments_trip_ids_gin on public.booking_payments using gin (trip_ids);
 create index if not exists booking_payments_tenant_idx on public.booking_payments (tenant_id, paid_on);
 alter table public.booking_payments enable row level security;
+
+-- Pacote de corridas (vários dias / ida e volta): mesmo id = mesma reserva.
+alter table public.trips add column if not exists booking_group_id uuid;
+create index if not exists trips_booking_group_idx on public.trips (booking_group_id) where booking_group_id is not null;

@@ -71,6 +71,8 @@ const createTripSchema = z.object({
   trip_legs: tripLegsSchema.optional(),
   trip_pickup_stops: tripPickupStopsSchema.optional(),
   trip_dropoff_stops: dropoffStopsSchema.optional(),
+  /** Pacote (vários dias): corridas com o mesmo id formam uma reserva só (pagamento, saldo). */
+  booking_group_id: z.string().uuid().optional(),
   round_trip: z.boolean().optional(),
   return_scheduled_at: z.string().optional()
 });
@@ -110,6 +112,8 @@ export async function POST(request: Request) {
       }
     }
     const body = createTripSchema.parse(raw);
+    // Ida e volta também é um pacote (o pagamento na reserva cobre as duas).
+    const bookingGroupId = body.booking_group_id ?? (body.round_trip && body.return_scheduled_at ? crypto.randomUUID() : null);
     const sessionTenantId = assertTenantScope(session);
 
     if (session.role === "cliente") {
@@ -311,6 +315,7 @@ export async function POST(request: Request) {
         trip_legs: legs?.length ? legs : null,
         trip_pickup_stops: pickupStops?.length ? pickupStopsForStorage(pickupStops) : null,
         ...(body.trip_dropoff_stops?.length ? { trip_dropoff_stops: body.trip_dropoff_stops.map((s) => ({ ...s, dropped_at: null })) } : {}),
+        ...(bookingGroupId ? { booking_group_id: bookingGroupId } : {}),
         dispatch_mode: body.dispatch_mode,
         passenger_name: pickupStops?.length
           ? pickupStops[0].passenger_name
@@ -375,6 +380,7 @@ export async function POST(request: Request) {
           cost_center_id: body.cost_center_id ?? null,
           service_type: serviceType,
           scheduled_at: returnScheduled,
+          ...(bookingGroupId ? { booking_group_id: bookingGroupId } : {}),
           origin_text: destinationText,
           origin_lat: destLat,
           origin_lng: destLng,
