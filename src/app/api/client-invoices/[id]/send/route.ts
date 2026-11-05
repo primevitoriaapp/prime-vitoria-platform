@@ -8,6 +8,7 @@ import { getClientInvoice, updateClientInvoiceStatus } from "@/lib/finance/clien
 import { formatInvoiceNumber } from "@/lib/finance/client-invoice-calc";
 import { sendOperationalEmail } from "@/lib/notifications/send-email";
 import { insertAuditEvent } from "@/lib/server/audit-log";
+import { invoicePdfFor } from "@/lib/finance/invoice-pdf-data";
 
 const BUCKET = "invoice-files";
 const COPY_TO = "contato@primevitoria.com";
@@ -51,7 +52,7 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
       ? `Identificamos que a fatura ${num}${inv.client_ref ? ` (voucher ${inv.client_ref})` : ""}, no valor de ${brl(invoice.total_amount)}, venceu em ${brDate(invoice.due_date)} e ainda consta em aberto em nosso sistema.`
       : `Lembramos que a fatura ${num}${inv.client_ref ? ` (voucher ${inv.client_ref})` : ""}, no valor de ${brl(invoice.total_amount)}, vence em ${brDate(invoice.due_date)}.`,
     "",
-    invoice.boleto_line ? `Linha digitável: ${invoice.boleto_line}` : "O boleto segue novamente em anexo.",
+    invoice.boleto_line ? `Linha digitável: ${invoice.boleto_line}` : "A fatura detalhada e o boleto seguem novamente em anexo.",
     "",
     vencida ? "Se o pagamento já foi feito, por favor desconsidere esta mensagem e, se possível, nos envie o comprovante." : "Se o pagamento já foi programado, por favor desconsidere esta mensagem.",
     "",
@@ -70,7 +71,7 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
     `Vencimento: ${brDate(invoice.due_date)}`,
     invoice.boleto_line ? `Linha digitável: ${invoice.boleto_line}` : null,
     "",
-    "O boleto segue em anexo. Qualquer dúvida, estamos à disposição.",
+    "Seguem em anexo a fatura detalhada (com todos os serviços) e o boleto. Qualquer dúvida, estamos à disposição.",
     "",
     "Atenciosamente,"
   ]
@@ -85,7 +86,7 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
         ? `${vencida ? "Fatura vencida" : "Lembrete de vencimento"}: ${num}${ref} — ${brDate(invoice.due_date)} — Prime Vitória`
         : `Fatura ${num}${ref} — ${name} — Prime Vitória`,
     message,
-    files: { boleto: Boolean(inv.boleto_path), nf: Boolean(inv.nf_path), voucher: Boolean(inv.voucher_path) },
+    files: { fatura: true, boleto: Boolean(inv.boleto_path), nf: Boolean(inv.nf_path), voucher: Boolean(inv.voucher_path) },
     link: `${OFFICIAL_URLS.empresa}/fatura/${invoice.id}`,
     copy_to: COPY_TO
   };
@@ -116,7 +117,10 @@ const bodySchema = z
     cc: emailList,
     subject: z.string().trim().min(3).max(200).optional(),
     message: z.string().trim().max(5000).optional(),
-    attach: z.object({ boleto: z.boolean().default(true), nf: z.boolean().default(true), voucher: z.boolean().default(true) }).partial().optional(),
+    attach: z
+      .object({ fatura: z.boolean().default(true), boleto: z.boolean().default(true), nf: z.boolean().default(true), voucher: z.boolean().default(true) })
+      .partial()
+      .optional(),
     copy_me: z.boolean().default(true),
     save_client_email: z.boolean().default(false),
     tipo: z.enum(["fatura", "lembrete"]).default("fatura")
@@ -151,9 +155,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const inv = d.invoice;
     const num = formatInvoiceNumber(inv.number);
     const ref = inv.client_ref ? `-${inv.client_ref}` : "";
-    const want = { boleto: true, nf: true, voucher: true, ...(body.attach ?? {}) };
+    const want = { fatura: true, boleto: true, nf: true, voucher: true, ...(body.attach ?? {}) };
+    // Fatura detalhada em PDF: o cliente nem sempre tem acesso ao painel, então vai sempre anexa.
+    const faturaPdf = want.fatura
+      ? await invoicePdfFor(tenantId, id)
+          .then((p) => (p ? { filename: p.filename, content: Buffer.from(p.bytes).toString("base64"), content_type: "application/pdf" } : null))
+          .catch(() => null)
+      : null;
     const attachments = (
       await Promise.all([
+        faturaPdf,
         want.boleto ? fileAttachment(inv.boleto_path, `Boleto-${num}${ref}`) : null,
         want.nf ? fileAttachment(inv.nf_path, `NotaFiscal-${num}${ref}`) : null,
         want.voucher ? fileAttachment(inv.voucher_path, `Voucher${ref || `-${num}`}`) : null
@@ -161,7 +172,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     ).filter((a): a is NonNullable<typeof a> => Boolean(a));
 
     const signature = "Prime Vitória | Transporte Executivo\nCentral 24h: (27) 2142-8307 | (27) 99806-3956\ncontato@primevitoria.com";
-    const text = `${message}\n\n${signature}\n\nRelatório completo e 2ª via: ${d.link}`;
+    const text = `${message}\n\n${signature}`;
     const html = `<!doctype html><html><body style="margin:0;background:#F4F1EA;font-family:Arial,Helvetica,sans-serif">
 <div style="max-width:600px;margin:0 auto;padding:24px 16px">
   <div style="background:#0B0B0B;color:#fff;padding:18px 20px;border-radius:12px 12px 0 0;border-bottom:3px solid #C9A84C">
@@ -174,7 +185,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   </div>
   <div style="background:#fff;padding:22px;border-radius:0 0 12px 12px;font-size:14px;line-height:1.6;color:#222">
     ${esc(message).replace(/\n/g, "<br>")}
-    <p style="margin:18px 0"><a href="${d.link}" style="background:#111;color:#C9A84C;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Ver fatura e 2ª via</a></p>
+    <p style="margin:18px 0 14px;font-size:13px;color:#555">📎 Em anexo: ${attachments.map((a) => esc(a.filename)).join(", ") || "—"}</p>
     <p style="margin:0;font-size:13px;border-top:1px solid #EFEAE0;padding-top:12px"><b>Prime Vitória</b> | Transporte Executivo<br>Central 24h: (27) 2142-8307 | (27) 99806-3956<br><a href="mailto:contato@primevitoria.com" style="color:#8A6D1F">contato@primevitoria.com</a></p>
   </div>
 </div></body></html>`;

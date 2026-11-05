@@ -104,6 +104,9 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
           <a href={`/fatura/${inv.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#111] px-4 py-2.5 text-sm font-semibold text-[#fff]">
             📄 Ver fatura
           </a>
+          <a href={`/api/client-invoices/${inv.id}/pdf`} target="_blank" rel="noopener noreferrer" className={btn}>
+            ⬇ Fatura em PDF
+          </a>
           {inv.boleto_path ? (
             <a href={`/api/client-invoices/${inv.id}/files?kind=boleto`} target="_blank" rel="noopener noreferrer" className={btn}>
               ⬇ Baixar boleto

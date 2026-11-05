@@ -8,7 +8,7 @@ type Draft = {
   cc: string[];
   subject: string;
   message: string;
-  files: { boleto: boolean; nf: boolean; voucher: boolean };
+  files: { fatura?: boolean; boleto: boolean; nf: boolean; voucher: boolean };
   link: string;
   copy_to: string;
 };
@@ -38,7 +38,7 @@ export function InvoiceEmailComposer({
   const [cc, setCc] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [attach, setAttach] = useState({ boleto: true, nf: true, voucher: true });
+  const [attach, setAttach] = useState({ fatura: true, boleto: true, nf: true, voucher: true });
   const [copyMe, setCopyMe] = useState(true);
   const [saveEmail, setSaveEmail] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -116,26 +116,35 @@ export function InvoiceEmailComposer({
             <label className="grid gap-1 text-sm">
               <span className="font-medium">Mensagem</span>
               <textarea className={`${field} min-h-[220px] leading-relaxed`} value={message} onChange={(e) => setMessage(e.target.value)} />
-              <span className="text-xs text-prime-muted">A assinatura da Prime e o botão “Ver fatura e 2ª via” entram sozinhos no fim.</span>
+              <span className="text-xs text-prime-muted">A assinatura da Prime e a lista de anexos entram sozinhas no fim.</span>
             </label>
             <div className="grid gap-1 rounded-xl bg-prime-bg p-3 text-sm">
               <span className="font-medium">Anexos</span>
               {(
                 [
+                  ["fatura", "Fatura detalhada (PDF com todos os serviços)"],
                   ["boleto", "Boleto (PDF)"],
                   ["nf", "Nota fiscal"],
                   ["voucher", "Voucher do cliente"]
                 ] as const
               ).map(([k, label]) => (
-                <label key={k} className={`flex items-center gap-2 ${d.files[k] ? "" : "text-prime-muted"}`}>
+                <label key={k} className={`flex items-center gap-2 ${d.files[k] !== false ? "" : "text-prime-muted"}`}>
                   <input
                     type="checkbox"
-                    disabled={!d.files[k]}
-                    checked={d.files[k] && attach[k]}
+                    disabled={d.files[k] === false || d.files[k] == null && k !== "fatura"}
+                    checked={(k === "fatura" || Boolean(d.files[k])) && attach[k]}
                     onChange={(e) => setAttach((a) => ({ ...a, [k]: e.target.checked }))}
                   />
                   {label}
-                  {!d.files[k] ? " — não anexado na fatura" : ""}
+                  {k === "fatura" ? (
+                    <a href={`/api/client-invoices/${invoiceId}/pdf`} target="_blank" rel="noopener noreferrer" className="text-xs underline">
+                      ver
+                    </a>
+                  ) : !d.files[k] ? (
+                    " — não anexado na fatura"
+                  ) : (
+                    ""
+                  )}
                 </label>
               ))}
               <label className="mt-1 flex items-center gap-2">

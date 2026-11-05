@@ -113,6 +113,14 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
       <div className="invoice-actions" style={{ maxWidth: 1000, margin: "0 auto 12px", display: "flex", gap: 8, justifyContent: "space-between", flexWrap: "wrap" }}>
         <VoucherPrintButton />
         <a
+          href={`/api/client-invoices/${invoice.id}/pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ borderRadius: 8, padding: "8px 14px", fontWeight: 600, background: "#111", color: "#C9A84C", textDecoration: "none", fontFamily: "system-ui, sans-serif", fontSize: 14, marginLeft: "auto" }}
+        >
+          ⬇ Fatura detalhada (PDF)
+        </a>
+        <a
           href={`/api/client-invoices/${invoice.id}/csv`}
           style={{ borderRadius: 8, padding: "8px 14px", fontWeight: 600, border: "1px solid #CFC7B0", color: "#111", textDecoration: "none", fontFamily: "system-ui, sans-serif", fontSize: 14 }}
         >
