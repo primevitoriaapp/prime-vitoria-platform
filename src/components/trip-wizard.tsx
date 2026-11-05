@@ -62,6 +62,8 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [skipDays, setSkipDays] = useState<string[]>([]);
   // Pagamento na reserva (sinal / antecipado).
   const [prepaid, setPrepaid] = useState(false);
+  // Pacote de vários dias: o valor digitado é o total do pacote (divide pelos dias) ou o de cada dia.
+  const [pricePer, setPricePer] = useState<"total" | "dia">("total");
   const [prepay, setPrepay] = useState(() => emptyBookingPayment(saoPauloTodayYmd()));
 
   // 3. Veículo
@@ -215,6 +217,19 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const allDays = useMemo(() => (multiDay ? daysBetween(date, lastDate) : []), [multiDay, date, lastDate]);
   const days = useMemo(() => allDays.filter((d) => !skipDays.includes(d)), [allDays, skipDays]);
   const windowHours = useMemo(() => hoursBetween(time, endTime), [time, endTime]);
+  const nDays = multiDay ? Math.max(1, days.length) : 1;
+  // "7.000,00" ou "7000,5" (digitado) e "1400.5" (vindo da tabela).
+  const money = (v: string) => Number(v.includes(",") ? v.replace(/\./g, "").replace(",", ".") : v) || 0;
+  /** Valor de cada dia (dia i): no modo "total", divide e joga os centavos que sobram no último dia. */
+  const dayAmount = (v: string, i: number) => {
+    const n = money(v);
+    if (!n) return 0;
+    if (!multiDay || pricePer === "dia") return n;
+    const base = Math.floor((n * 100) / nDays) / 100;
+    return i === nDays - 1 ? Math.round((n - base * (nDays - 1)) * 100) / 100 : base;
+  };
+  /** Total do pacote (cliente ou motorista). */
+  const pkgTotal = (v: string) => (multiDay ? (pricePer === "dia" ? money(v) * nDays : money(v)) : money(v) * (roundTrip ? 2 : 1));
   const returnIso = roundTrip && returnDate && returnTime ? saoPauloDateAndTimeToUtcIso(returnDate, returnTime) : null;
 
   function missing(s: number): string[] {
@@ -343,8 +358,8 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
           : {}),
       flight_number: normalizeFlightNumber(flight) ?? undefined,
       notes: notesFull || undefined,
-      client_amount: Number(clientAmount.replace(",", ".")) || undefined,
-      driver_amount: Number(driverAmount.replace(",", ".")) || undefined,
+      client_amount: dayAmount(clientAmount, i) || undefined,
+      driver_amount: dayAmount(driverAmount, i) || undefined,
       dispatch_mode: "directed" as const,
       presentation_minutes: presentation,
       service_extras: extras,
@@ -727,7 +742,34 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 </label>
 
                 <div className="mt-3 rounded-2xl border-2 border-prime-gold bg-[#FBF7EC] p-4">
-                  <p className="text-base font-semibold">{multiDay ? "Valores de cada dia (diária)" : "Valores desta corrida"}</p>
+                  <p className="text-base font-semibold">{multiDay ? `Valores do pacote (${nDays} dias)` : "Valores desta corrida"}</p>
+                  {multiDay ? (
+                    <div className="mt-2 grid gap-2">
+                      <div className="inline-flex w-fit rounded-xl bg-white p-1 text-sm ring-1 ring-prime-border">
+                        {(
+                          [
+                            ["total", "Digitar o valor TOTAL do pacote"],
+                            ["dia", "Digitar o valor de CADA dia"]
+                          ] as const
+                        ).map(([k, l]) => (
+                          <button
+                            key={k}
+                            type="button"
+                            onClick={() => setPricePer(k)}
+                            className={`rounded-lg px-3 py-1.5 ${pricePer === k ? "bg-[#111] font-semibold text-[#fff]" : "text-prime-muted"}`}
+                          >
+                            {l}
+                          </button>
+                        ))}
+                      </div>
+                      {money(clientAmount) > 0 ? (
+                        <p className="text-sm font-medium text-emerald-800">
+                          Cliente: {brl(pkgTotal(clientAmount))} no total = {brl(dayAmount(clientAmount, 0))} por dia × {nDays}
+                          {money(driverAmount) > 0 ? ` · Motorista: ${brl(pkgTotal(driverAmount))} no total = ${brl(dayAmount(driverAmount, 0))} por dia` : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <p className="text-xs text-prime-muted">
                     {mode === "km"
                       ? `Por km: deixe em branco para calcular pelo km rodado, ou digite um valor fechado.${kmMin ? ` KM mínimo deste cliente: ${kmMin} km (corrida menor cobra ${kmMin} km).` : " Este cliente não tem KM mínimo cadastrado."}`
@@ -998,20 +1040,24 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               </div>
               <div className="flex gap-6">
                 <div>
-                  <dt className="text-xs text-prime-muted">Cliente paga{multiDay ? " (por dia)" : ""}</dt>
+                  <dt className="text-xs text-prime-muted">Cliente paga</dt>
                   <dd className="font-semibold">
-                    {Number(clientAmount.replace(",", "."))
-                      ? `${brl(Number(clientAmount.replace(",", ".")))}${multiDay && days.length > 1 ? ` · total ${brl(Number(clientAmount.replace(",", ".")) * days.length)}` : ""}`
+                    {money(clientAmount)
+                      ? multiDay
+                        ? `Total ${brl(pkgTotal(clientAmount))} · ${brl(dayAmount(clientAmount, 0))} por dia`
+                        : brl(money(clientAmount))
                       : mode === "km" && kmEstimate
                         ? `≈ ${brl(kmEstimate.client)} (por km)`
                         : "Tabela / a combinar"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-prime-muted">Motorista recebe{multiDay ? " (por dia)" : ""}</dt>
+                  <dt className="text-xs text-prime-muted">Motorista recebe</dt>
                   <dd className="font-semibold">
-                    {Number(driverAmount.replace(",", "."))
-                      ? `${brl(Number(driverAmount.replace(",", ".")))}${multiDay && days.length > 1 ? ` · total ${brl(Number(driverAmount.replace(",", ".")) * days.length)}` : ""}`
+                    {money(driverAmount)
+                      ? multiDay
+                        ? `Total ${brl(pkgTotal(driverAmount))} · ${brl(dayAmount(driverAmount, 0))} por dia`
+                        : brl(money(driverAmount))
                       : mode === "km" && kmEstimate?.driver != null
                         ? `≈ ${brl(kmEstimate.driver)} (por km)`
                         : "Tabela"}
@@ -1029,7 +1075,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                   <BookingPaymentFields
                     value={prepay}
                     onChange={setPrepay}
-                    total={(Number(clientAmount.replace(",", ".")) || 0) * (multiDay ? Math.max(1, days.length) : roundTrip ? 2 : 1) || null}
+                    total={pkgTotal(clientAmount) || null}
                   />
                   {Number(clientAmount.replace(",", ".")) > 0 && bookingPaymentBody(prepay) ? (
                     <p className="mt-2 text-sm font-medium text-emerald-800">
@@ -1037,7 +1083,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                       {brl(
                         Math.max(
                           0,
-                          (Number(clientAmount.replace(",", ".")) || 0) * (multiDay ? Math.max(1, days.length) : roundTrip ? 2 : 1) - (bookingPaymentBody(prepay)?.amount ?? 0)
+                          pkgTotal(clientAmount) - (bookingPaymentBody(prepay)?.amount ?? 0)
                         )
                       )}
                     </p>
