@@ -15,7 +15,7 @@ import { VoucherPrintButton } from "./print-button";
 import { parseDropoffStops } from "@/lib/trips/trip-dropoff-stops";
 import { clientRefFromNotes } from "@/lib/trips/client-ref";
 import { shortAddress } from "@/lib/client/short-address";
-import { DOC_GOLD, DOC_LABEL, DOC_TD, DOC_TH, DocClientBlock, DocHeader, DocInfoGrid, DocRoute, DocSheet, docPrintCss, type RoutePoint } from "@/components/docs/prime-doc";
+import { DOC_GOLD, DOC_LABEL, DOC_TD, DOC_TH, DocHeader, DocInfoGrid, DocRoute, DocSheet, docPrintCss, type RoutePoint } from "@/components/docs/prime-doc";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +61,7 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
   }
 
   const [clientRes, driverRes, vehicleRes, company] = await Promise.all([
-    db.from("clients").select("name, trade_name, document, email, address_line, city, state, postal_code, billing_issuer, type").eq("id", trip.client_id).maybeSingle(),
+    db.from("clients").select("billing_issuer, type").eq("id", trip.client_id).maybeSingle(),
     trip.driver_id
       ? db.from("drivers").select("full_name, phone, whatsapp").eq("id", trip.driver_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -90,7 +90,8 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
   const driverPhone = driver?.whatsapp || driver?.phone || null;
   const passengers = pickups.length ? pickups.map((s) => s.passenger_name).join(", ") : (trip.passenger_name as string | null);
   const service = primeServiceTypeLabel(String(trip.service_type ?? ""), { audience, scheduledAt: trip.scheduled_at as string });
-  const showValue = !isDriver && trip.client_amount != null;
+  // Sem valor: o motorista vê o voucher e saberia quanto o cliente paga.
+  const showValue = false;
   const amount = trip.client_amount == null ? null : Number(trip.client_amount);
   const km = trip.km_billable != null ? Number(trip.km_billable) : trip.actual_km != null ? Number(trip.actual_km) : null;
   // Observações sem a linha do NR (já está no cabeçalho).
@@ -108,9 +109,6 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
           ...dropoffs.map((x) => ({ address: shortAddress(x.address_text), who: [x.passenger_name, isDriver ? x.passenger_phone : null].filter(Boolean).join(" · ") || null })),
           { address: shortAddress(trip.destination_text as string | null) }
         ];
-  const clientAddress = [client?.address_line, [client?.city, client?.state].filter(Boolean).join("/"), client?.postal_code ? `CEP ${client.postal_code}` : null]
-    .filter(Boolean)
-    .join(" · ");
   const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
@@ -132,16 +130,11 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
         />
 
         <section style={{ padding: "18px 24px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
-          {isDriver ? (
-            <div>
-              <div style={DOC_LABEL}>Atendimento</div>
-              <div style={{ fontWeight: 700 }}>{String(client?.type ?? "").toUpperCase() === "PF" ? "Corrida particular" : "Corrida empresarial"}</div>
-            </div>
-          ) : (
-            <div style={{ gridColumn: "span 2", minWidth: 0 }}>
-              <DocClientBlock name={client?.name} tradeName={client?.trade_name} document={client?.document} address={clientAddress || null} email={client?.email} />
-            </div>
-          )}
+          {/* O voucher vai para a mão do motorista no embarque: nada de nome, CNPJ ou endereço do cliente. */}
+          <div>
+            <div style={DOC_LABEL}>Atendimento</div>
+            <div style={{ fontWeight: 700 }}>{String(client?.type ?? "").toUpperCase() === "PF" ? "Atendimento particular" : "Atendimento empresarial"}</div>
+          </div>
           <div>
             <div style={DOC_LABEL}>Data e horário</div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>{formatBrDateTime(trip.scheduled_at as string)}</div>
