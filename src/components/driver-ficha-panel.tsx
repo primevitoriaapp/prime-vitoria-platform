@@ -160,6 +160,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
   const [pinInput, setPinInput] = useState("");
   const [pinBusy, setPinBusy] = useState(false);
   const [vehicleCategories, setVehicleCategories] = useState<{ id: string; name: string; passengers: number }[]>([]);
+  const [pv, setPv] = useState({ plate: "", brand: "", model: "", color: "", model_year: "", vehicle_category_id: "" });
 
   useEffect(() => {
     void (async () => {
@@ -499,6 +500,47 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       await loadDetail();
       onSaved();
       setFeedback({ kind: "success", message: "Veículo vinculado." });
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Erro inesperado." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Parceiro com carro próprio: cadastra o carro e já vincula como padrão (sem passar por Veículos). */
+  async function createPartnerVehicle() {
+    if (!detail) return;
+    const plate = pv.plate.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (plate.length < 7) return setFeedback({ kind: "error", message: "Placa incompleta (ex.: ABC1D23)." });
+    if (pv.model.trim().length < 2) return setFeedback({ kind: "error", message: "Informe o modelo do carro." });
+    const cat = vehicleCategories.find((c) => c.id === pv.vehicle_category_id);
+    setBusy(true);
+    try {
+      const res = await fetchWithSupabaseSession(
+        `/api/drivers/${detail.id}/vehicles`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            plate,
+            model: pv.model.trim(),
+            brand: pv.brand.trim() || null,
+            color: pv.color.trim() || null,
+            model_year: Number(pv.model_year) || null,
+            vehicle_category_id: cat?.id ?? null,
+            category: cat?.name ?? null,
+            capacity: cat?.passengers ?? null,
+            notes: `Carro do motorista parceiro ${detail.profile_name ?? ""}`.trim(),
+            set_default: true
+          })
+        },
+        "admin"
+      );
+      const json = await parseApiResponse(res);
+      if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha ao cadastrar o carro");
+      setPv({ plate: "", brand: "", model: "", color: "", model_year: "", vehicle_category_id: "" });
+      await loadDetail();
+      onSaved();
+      setFeedback({ kind: "success", message: "Carro do parceiro cadastrado e vinculado como padrão." });
     } catch (error) {
       setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Erro inesperado." });
     } finally {
@@ -928,6 +970,65 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
             </select>
           </label>
         </fieldset>
+
+        {detail.employment_type !== "funcionario" ? (
+          <fieldset className="grid gap-3 rounded-xl border border-prime-gold/50 bg-[#FBF8F1] p-4 md:grid-cols-3">
+            <legend className="px-1 text-sm font-semibold text-prime-text">Carro do parceiro</legend>
+            {detail.linked_vehicles.length ? (
+              <p className="text-sm md:col-span-3">
+                Carro atual:{" "}
+                <b>
+                  {(detail.linked_vehicles.find((v) => v.is_default) ?? detail.linked_vehicles[0]).plate} ·{" "}
+                  {(detail.linked_vehicles.find((v) => v.is_default) ?? detail.linked_vehicles[0]).model}
+                </b>
+                <span className="text-prime-muted"> — para trocar, cadastre o novo abaixo (ele vira o padrão).</span>
+              </p>
+            ) : (
+              <p className="text-sm text-prime-muted md:col-span-3">O carro é do parceiro: cadastre aqui mesmo. Não pede manutenção nem seguro da frota.</p>
+            )}
+            <label className="grid gap-1 text-sm">
+              <span>Placa *</span>
+              <input className={inputClass} placeholder="ABC1D23" value={pv.plate} onChange={(e) => setPv({ ...pv, plate: e.target.value.toUpperCase() })} />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span>Marca</span>
+              <input className={inputClass} placeholder="Toyota" value={pv.brand} onChange={(e) => setPv({ ...pv, brand: e.target.value })} />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span>Modelo *</span>
+              <input className={inputClass} placeholder="Corolla XEi" value={pv.model} onChange={(e) => setPv({ ...pv, model: e.target.value })} />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span>Cor</span>
+              <input className={inputClass} placeholder="Preto" value={pv.color} onChange={(e) => setPv({ ...pv, color: e.target.value })} />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span>Ano</span>
+              <input className={inputClass} inputMode="numeric" placeholder="2023" value={pv.model_year} onChange={(e) => setPv({ ...pv, model_year: e.target.value.replace(/\D/g, "").slice(0, 4) })} />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span>Categoria</span>
+              <select className={inputClass} value={pv.vehicle_category_id} onChange={(e) => setPv({ ...pv, vehicle_category_id: e.target.value })}>
+                <option value="">Escolha</option>
+                {vehicleCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.passengers} lugares)
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="md:col-span-3">
+              <button
+                type="button"
+                disabled={busy || !pv.plate.trim() || !pv.model.trim()}
+                onClick={() => void createPartnerVehicle()}
+                className="rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-[#C9A84C] disabled:opacity-50"
+              >
+                Salvar carro do parceiro
+              </button>
+            </div>
+          </fieldset>
+        ) : null}
 
         <div className="rounded-xl border border-prime-border bg-prime-bg p-4 text-sm">
           <p className="font-semibold text-prime-text">Quanto o motorista recebe</p>
