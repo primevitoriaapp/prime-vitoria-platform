@@ -54,6 +54,11 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [roundTrip, setRoundTrip] = useState(false);
   const [returnDate, setReturnDate] = useState("");
   const [returnTime, setReturnTime] = useState("");
+  // Vários dias seguidos (carro à disposição / diárias): uma corrida por dia, mesmo horário.
+  const [multiDay, setMultiDay] = useState(false);
+  const [lastDate, setLastDate] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [skipDays, setSkipDays] = useState<string[]>([]);
 
   // 3. Veículo
   const [categories, setCategories] = useState<Category[]>([]);
@@ -202,13 +207,23 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   }, [clients, clientQuery, clientType]);
 
   const scheduledIso = date && time ? saoPauloDateAndTimeToUtcIso(date, time) : null;
+  /** Dias do pacote (de date até lastDate), menos os que foram desmarcados. Máx. 31. */
+  const allDays = useMemo(() => (multiDay ? daysBetween(date, lastDate) : []), [multiDay, date, lastDate]);
+  const days = useMemo(() => allDays.filter((d) => !skipDays.includes(d)), [allDays, skipDays]);
+  const windowHours = useMemo(() => hoursBetween(time, endTime), [time, endTime]);
   const returnIso = roundTrip && returnDate && returnTime ? saoPauloDateAndTimeToUtcIso(returnDate, returnTime) : null;
 
   function missing(s: number): string[] {
     const m: string[] = [];
     if (s === 0 && !clientId) m.push("escolher o cliente");
     if (s === 1) {
-      if (!scheduledIso) m.push("data e horário");
+      if (!scheduledIso) m.push(multiDay ? "primeiro dia e horário de início" : "data e horário");
+      if (multiDay) {
+        if (!lastDate || (date && lastDate <= date)) m.push("último dia (depois do primeiro)");
+        else if (allDays.length > 31) m.push("no máximo 31 dias");
+        if (!/^\d{2}:\d{2}$/.test(endTime)) m.push("horário de término");
+        if (allDays.length && days.length === 0) m.push("pelo menos um dia marcado");
+      }
       if (roundTrip && !returnIso) m.push("data e horário da volta");
       if (roundTrip && scheduledIso && returnIso && returnIso <= scheduledIso) m.push("volta depois da ida");
     }
@@ -291,13 +306,20 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     }
     setBusy(true);
     setError(null);
-    const notesFull = [osRef.trim() ? `O.S./Ref.: ${osRef.trim()}` : "", notes.trim()].filter(Boolean).join("\n");
-    const body = {
+    const runDays = multiDay ? days : [date];
+    const buildBody = (day: string, i: number) => {
+    const at = saoPauloDateAndTimeToUtcIso(day, time) ?? scheduledIso;
+    const ref = osRef.trim() ? (multiDay ? `${osRef.trim()}-D${i + 1}` : osRef.trim()) : "";
+    const pkg = multiDay
+      ? `Carro à disposição: dia ${i + 1} de ${runDays.length} (${runDays.map(brDay).join(", ")}) · das ${time} às ${endTime}`
+      : "";
+    const notesFull = [ref ? `O.S./Ref.: ${ref}` : "", pkg, notes.trim()].filter(Boolean).join("\n");
+    return {
       client_id: client.id,
       service_type: legacyServiceType(category.kind, mode),
       vehicle_category_id: category.id,
       service_mode: mode,
-      scheduled_at: scheduledIso,
+      scheduled_at: at,
       origin_text: origin.text.trim(),
       origin_lat: origin.lat ?? undefined,
       origin_lng: origin.lng ?? undefined,
@@ -322,33 +344,45 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       dispatch_mode: "directed" as const,
       presentation_minutes: presentation,
       service_extras: extras,
-      ...(roundTrip && returnIso ? { round_trip: true, return_scheduled_at: returnIso } : {})
+      ...(!multiDay && roundTrip && returnIso ? { round_trip: true, return_scheduled_at: returnIso } : {})
     };
-    const res = await fetchWithSupabaseSession("/api/trips", { method: "POST", body: JSON.stringify(body) }, "admin");
-    const json = (await res.json().catch(() => ({}))) as {
-      success?: boolean;
-      data?: { id: string; operational_status?: string; trip_id_return?: string | null };
-      error?: { message?: string };
     };
-    if (!res.ok || !json.success || !json.data?.id) {
-      setBusy(false);
-      setError(json.error?.message ?? "Não foi possível criar a corrida.");
-      return;
-    }
+    const created: { id: string; status?: string; returnId?: string | null }[] = [];
     let assignNote = "";
+    for (let i = 0; i < runDays.length; i++) {
+      const res = await fetchWithSupabaseSession("/api/trips", { method: "POST", body: JSON.stringify(buildBody(runDays[i], i)) }, "admin");
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        data?: { id: string; operational_status?: string; trip_id_return?: string | null };
+        error?: { message?: string };
+      };
+      if (!res.ok || !json.success || !json.data?.id) {
+        setBusy(false);
+        const why = json.error?.message ?? "Não foi possível criar a corrida.";
+        setError(
+          created.length
+            ? `Foram criados ${created.length} de ${runDays.length} dias. Parou no dia ${brDay(runDays[i])}: ${why} Confira na Agenda antes de tentar de novo.`
+            : why
+        );
+        return;
+      }
+      created.push({ id: json.data.id, status: json.data.operational_status, returnId: json.data.trip_id_return });
+    }
     if (driverId) {
-      const ids = [json.data.id, json.data.trip_id_return].filter(Boolean) as string[];
-      for (const id of ids) {
-        if (json.data.operational_status === "requested") await fetchWithSupabaseSession(`/api/trips/${id}/approve`, { method: "POST" }, "admin");
-        const d = await fetchWithSupabaseSession(`/api/trips/${id}/dispatch-directed`, { method: "POST", body: JSON.stringify({ driver_id: driverId }) }, "admin");
-        const dj = (await d.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
-        if (!d.ok || !dj.success) assignNote = dj.error?.message ?? "Não foi possível atribuir o motorista.";
+      for (const c of created) {
+        for (const id of [c.id, c.returnId].filter(Boolean) as string[]) {
+          if (c.status === "requested") await fetchWithSupabaseSession(`/api/trips/${id}/approve`, { method: "POST" }, "admin");
+          const d = await fetchWithSupabaseSession(`/api/trips/${id}/dispatch-directed`, { method: "POST", body: JSON.stringify({ driver_id: driverId }) }, "admin");
+          const dj = (await d.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
+          if (!d.ok || !dj.success) assignNote = dj.error?.message ?? "Não foi possível atribuir o motorista.";
+        }
       }
     }
     setBusy(false);
     onDone?.();
-    if (assignNote) window.alert(`Corrida criada, mas o motorista não foi atribuído: ${assignNote}`);
-    router.push(`/agenda?trip=${json.data.id}#trip-detail` as Route);
+    if (assignNote) window.alert(`Corrida(s) criada(s), mas o motorista não foi atribuído em todas: ${assignNote}`);
+    else if (created.length > 1) window.alert(`${created.length} diárias criadas (${runDays.map(brDay).join(", ")}).`);
+    router.push(`/agenda?trip=${created[0].id}#trip-detail` as Route);
     router.refresh();
   }
 
@@ -509,15 +543,73 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
         {step === 1 ? (
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
-              <TypedDateTime label="Ida" date={date} time={time} today={today} onDate={setDate} onTime={setTime} autoFocus />
+              <TypedDateTime label={multiDay ? "Primeiro dia e hora de início" : "Ida"} date={date} time={time} today={today} onDate={setDate} onTime={setTime} autoFocus />
               {scheduledIso ? <p className="text-sm font-medium text-emerald-800">Embarque: {formatBrDateTime(scheduledIso)}</p> : null}
             </div>
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold">
+                <input
+                  type="checkbox"
+                  checked={multiDay}
+                  onChange={(e) => {
+                    setMultiDay(e.target.checked);
+                    if (e.target.checked) setRoundTrip(false);
+                    setSkipDays([]);
+                  }}
+                />
+                Vários dias seguidos (carro à disposição / diárias)
+              </label>
+              {multiDay ? (
+                <div className="grid gap-3 rounded-xl border border-prime-gold bg-[#FBF7EC] p-3">
+                  <p className="text-xs text-prime-muted">
+                    Em cima você escolhe o <b>primeiro dia</b> e o horário de <b>início</b>. Aqui, o último dia e até que horas o carro fica com o cliente. Vira uma corrida
+                    por dia, no mesmo horário.
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="grid gap-1 text-sm">
+                      <span className="font-medium">Último dia</span>
+                      <input type="date" className={input} min={date || today} value={lastDate} onChange={(e) => setLastDate(e.target.value)} />
+                    </label>
+                    <label className="grid gap-1 text-sm">
+                      <span className="font-medium">Disponível até as</span>
+                      <input type="time" className={input} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+                    </label>
+                  </div>
+                  {allDays.length ? (
+                    <div>
+                      <p className="mb-1 text-xs text-prime-muted">Toque num dia para tirar (ex.: domingo sem atendimento).</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {allDays.map((d) => {
+                          const on = !skipDays.includes(d);
+                          return (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => setSkipDays((xs) => (on ? [...xs, d] : xs.filter((x) => x !== d)))}
+                              className={`rounded-lg px-2.5 py-1.5 text-xs ring-1 ${on ? "bg-[#111] text-[#fff] ring-[#111]" : "text-prime-muted line-through ring-prime-border"}`}
+                            >
+                              {weekday(d)} {brDay(d)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                  {days.length && time && endTime ? (
+                    <p className="text-sm font-medium text-emerald-800">
+                      {days.length} dia{days.length > 1 ? "s" : ""} · das {time} às {endTime}
+                      {windowHours != null ? ` (${windowHours.toLocaleString("pt-BR")}h por dia)` : ""}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {!multiDay ? (
+              <label className="flex items-center gap-2 text-sm font-semibold">
                 <input type="checkbox" checked={roundTrip} onChange={(e) => setRoundTrip(e.target.checked)} />
                 Tem volta (ida e volta)
               </label>
-              {roundTrip ? (
+              ) : null}
+              {!multiDay && roundTrip ? (
                 <>
                   <TypedDateTime label="Volta" date={returnDate} time={returnTime} today={today} onDate={setReturnDate} onTime={setReturnTime} />
                   <p className="text-xs text-prime-muted">A volta vira uma segunda corrida, com o trajeto invertido.</p>
@@ -546,7 +638,13 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                       setDriverAmount("");
                       const modes = enabledFor(c.id);
                       // Prime Essencial: só por km.
-                      setMode(c.allows_km ? "km" : modes.find((m) => m !== "km") ?? "transfer");
+                      setMode(
+                        c.allows_km
+                          ? "km"
+                          : multiDay
+                            ? suggestDiaria(windowHours, modes)
+                            : modes.find((m) => m !== "km") ?? "transfer"
+                      );
                     }}
                     className={`overflow-hidden rounded-2xl border text-left transition ${
                       sel ? "border-prime-gold ring-2 ring-prime-gold" : "border-prime-border hover:border-prime-gold"
@@ -617,7 +715,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 </label>
 
                 <div className="mt-3 rounded-2xl border-2 border-prime-gold bg-[#FBF7EC] p-4">
-                  <p className="text-base font-semibold">Valores desta corrida</p>
+                  <p className="text-base font-semibold">{multiDay ? "Valores de cada dia (diária)" : "Valores desta corrida"}</p>
                   <p className="text-xs text-prime-muted">
                     {mode === "km"
                       ? `Por km: deixe em branco para calcular pelo km rodado, ou digite um valor fechado.${kmMin ? ` KM mínimo deste cliente: ${kmMin} km (corrida menor cobra ${kmMin} km).` : " Este cliente não tem KM mínimo cadastrado."}`
@@ -849,7 +947,13 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               </div>
               <div>
                 <dt className="text-xs text-prime-muted">Quando</dt>
-                <dd className="font-semibold">{scheduledIso ? formatBrDateTime(scheduledIso) : "—"}</dd>
+                <dd className="font-semibold">
+                  {multiDay && days.length
+                    ? `${days.length} dias: ${days.map(brDay).join(", ")} · das ${time} às ${endTime}`
+                    : scheduledIso
+                      ? formatBrDateTime(scheduledIso)
+                      : "—"}
+                </dd>
                 {roundTrip && returnIso ? <dd>Volta: {formatBrDateTime(returnIso)}</dd> : null}
               </div>
               <div>
@@ -882,20 +986,20 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               </div>
               <div className="flex gap-6">
                 <div>
-                  <dt className="text-xs text-prime-muted">Cliente paga</dt>
+                  <dt className="text-xs text-prime-muted">Cliente paga{multiDay ? " (por dia)" : ""}</dt>
                   <dd className="font-semibold">
                     {Number(clientAmount.replace(",", "."))
-                      ? brl(Number(clientAmount.replace(",", ".")))
+                      ? `${brl(Number(clientAmount.replace(",", ".")))}${multiDay && days.length > 1 ? ` · total ${brl(Number(clientAmount.replace(",", ".")) * days.length)}` : ""}`
                       : mode === "km" && kmEstimate
                         ? `≈ ${brl(kmEstimate.client)} (por km)`
                         : "Tabela / a combinar"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-prime-muted">Motorista recebe</dt>
+                  <dt className="text-xs text-prime-muted">Motorista recebe{multiDay ? " (por dia)" : ""}</dt>
                   <dd className="font-semibold">
                     {Number(driverAmount.replace(",", "."))
-                      ? brl(Number(driverAmount.replace(",", ".")))
+                      ? `${brl(Number(driverAmount.replace(",", ".")))}${multiDay && days.length > 1 ? ` · total ${brl(Number(driverAmount.replace(",", ".")) * days.length)}` : ""}`
                       : mode === "km" && kmEstimate?.driver != null
                         ? `≈ ${brl(kmEstimate.driver)} (por km)`
                         : "Tabela"}
@@ -983,7 +1087,9 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
             </button>
           ) : (
             <button type="button" disabled={busy} className="btn-primary ml-auto disabled:opacity-50" onClick={() => void submit()}>
-              {busy ? "Criando…" : `${roundTrip ? "Criar ida e volta" : "Criar corrida"}${driverId ? " e enviar ao motorista" : ""}`}
+              {busy
+                ? "Criando…"
+                : `${multiDay && days.length > 1 ? `Criar ${days.length} diárias` : roundTrip ? "Criar ida e volta" : "Criar corrida"}${driverId ? " e enviar ao motorista" : ""}`}
             </button>
           )}
         </div>
@@ -1018,4 +1124,38 @@ function KmTable({ prices, categoryId, kmMin }: { prices: PriceRow[]; categoryId
       </div>
     </div>
   );
+}
+
+/** Dias (YYYY-MM-DD) de a até b, inclusive. Vazio se inválido; até 62 dias para mostrar o erro de limite. */
+function daysBetween(a: string, b: string): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(a) || !/^\d{4}-\d{2}-\d{2}$/.test(b) || b < a) return [];
+  const out: string[] = [];
+  const d = new Date(`${a}T12:00:00Z`);
+  while (out.length < 62) {
+    const ymd = d.toISOString().slice(0, 10);
+    if (ymd > b) break;
+    out.push(ymd);
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+function hoursBetween(start: string, end: string): number | null {
+  const m1 = /^(\d{2}):(\d{2})$/.exec(start);
+  const m2 = /^(\d{2}):(\d{2})$/.exec(end);
+  if (!m1 || !m2) return null;
+  let mins = Number(m2[1]) * 60 + Number(m2[2]) - (Number(m1[1]) * 60 + Number(m1[2]));
+  if (mins <= 0) mins += 24 * 60;
+  return Math.round((mins / 60) * 10) / 10;
+}
+
+const brDay = (ymd: string) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
+const weekday = (ymd: string) => ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][new Date(`${ymd}T12:00:00Z`).getUTCDay()];
+
+/** Diária que cobre a janela pedida (5h, 10h ou 12h), preferindo a que tem preço na tabela do cliente. */
+function suggestDiaria(hours: number | null, released: ServiceMode[]): ServiceMode {
+  const want: ServiceMode = hours == null || hours > 10 ? "diaria_12h" : hours > 5 ? "diaria_10h" : "diaria_5h";
+  if (released.includes(want) || !released.some((m) => m.startsWith("diaria"))) return want;
+  const order: ServiceMode[] = ["diaria_5h", "diaria_10h", "diaria_12h"];
+  return order.slice(order.indexOf(want)).find((m) => released.includes(m)) ?? want;
 }
