@@ -13,7 +13,7 @@ const bodySchema = z.object({
   wait_client_price_per_hour: money,
   wait_driver_price_per_hour: money,
   payment_term_days: z.coerce.number().int().min(0).max(180).nullable(),
-  billing_issuer: z.enum(["rj_prime", "prime_servicos", "ilha_prime"]).nullable(),
+  billing_issuer: z.enum(["rj_prime", "prime_servicos", "ilha_prime"]).nullable().optional(),
   invoice_closing_day: z.coerce.number().int().min(0).max(28).default(0),
   invoice_auto_close: z.boolean().default(true),
   invoiced: z.boolean().default(true),
@@ -48,7 +48,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const { id } = await params;
     if (!(await clientExists(id, tenantId))) return fail("CLIENT_NOT_FOUND", "Cliente não encontrado", 404);
     const body = bodySchema.parse(await request.json());
-    const { data, error } = await updateClientBillingTerms(id, tenantId, body);
+    const { data, error } = await updateClientBillingTerms(id, tenantId, body as Parameters<typeof updateClientBillingTerms>[2]);
     if (error) return fail("BILLING_TERMS_SAVE_FAILED", error.message, 500);
     // Prazo mudou: recalcula a data prevista dos repasses ainda em aberto deste cliente.
     await import("@/lib/finance/driver-payout-sync")

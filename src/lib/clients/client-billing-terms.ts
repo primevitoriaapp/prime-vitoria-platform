@@ -52,7 +52,7 @@ export async function updateClientBillingTerms(
       wait_client_price_per_hour: terms.wait_client_price_per_hour,
       wait_driver_price_per_hour: terms.wait_driver_price_per_hour,
       payment_term_days: terms.payment_term_days,
-      billing_issuer: terms.billing_issuer,
+      ...(terms.billing_issuer === undefined ? {} : { billing_issuer: terms.billing_issuer }),
       invoice_closing_day: terms.invoice_closing_day,
       invoice_auto_close: terms.invoice_auto_close,
       invoiced: terms.invoiced,

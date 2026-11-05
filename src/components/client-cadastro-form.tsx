@@ -3,6 +3,8 @@
 import { FormEvent, useRef, useState } from "react";
 import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
 import { ClientBillingTermsSection } from "@/components/client-billing-terms-section";
+import { BILLING_ISSUER_OPTIONS } from "@/lib/clients/billing-terms-calc";
+import { useCompany } from "@/lib/company/company-context";
 import { ClientCategoryPricesSection } from "@/components/client-category-prices-section";
 import { ClientTeamPortalSection } from "@/components/client-team-portal-section";
 import { ClientContractUploadSection } from "@/components/client-contract-upload-section";
@@ -27,6 +29,7 @@ export type ClientFormValues = {
   active: boolean;
   portal_requests_enabled: boolean;
   service_types: ClientServiceTypeId[];
+  billing_issuer: string;
 };
 
 const emptyForm = (): ClientFormValues => ({
@@ -45,7 +48,8 @@ const emptyForm = (): ClientFormValues => ({
   registry_status: "",
   active: true,
   portal_requests_enabled: false,
-  service_types: []
+  service_types: [],
+  billing_issuer: ""
 });
 
 const inputClass = PRIME_INPUT_CLASS;
@@ -100,7 +104,13 @@ type Props = {
 };
 
 export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCancel }: Props) {
-  const [form, setForm] = useState<ClientFormValues>({ ...emptyForm(), ...initial });
+  const { company } = useCompany();
+  const [form, setForm] = useState<ClientFormValues>(() => {
+    const f = { ...emptyForm(), ...initial };
+    // Cadastro novo: já vem com a empresa escolhida no topo (ou a Prime Locadora).
+    if (!clientId && !f.billing_issuer) f.billing_issuer = company && company !== "todas" ? company : "prime_servicos";
+    return f;
+  });
   const [busy, setBusy] = useState(false);
   const [lookupBusy, setLookupBusy] = useState(false);
   const [feedback, setFeedback] = useState<FormFeedback | null>(null);
@@ -232,6 +242,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
   }
 
   function validateBeforeSave(): string | null {
+    if (!form.billing_issuer) return "Escolha a empresa da Prime que fatura este cliente.";
     if (!form.name.trim()) {
       return form.type === "PJ" ? "Informe a razão social." : "Informe o nome completo.";
     }
@@ -267,7 +278,8 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         notes: form.notes.trim() || null,
         registry_status: form.registry_status.trim() || null,
         active: form.active,
-        portal_requests_enabled: form.portal_requests_enabled
+        portal_requests_enabled: form.portal_requests_enabled,
+        billing_issuer: form.billing_issuer || null
       };
       const url = clientId ? `/api/clients/${clientId}` : "/api/clients";
       const res = await fetchWithSupabaseSession(
@@ -317,6 +329,18 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
     <section className="card">
       <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
       <form className="mt-4 grid gap-3 md:grid-cols-2" noValidate onSubmit={(e) => void onSubmit(e)}>
+        <label className="grid gap-1 rounded-xl bg-[#FBF8F1] p-3 text-sm ring-1 ring-prime-gold/40 md:col-span-2">
+          <span className="font-semibold">Empresa da Prime que fatura este cliente *</span>
+          <select className={inputClass} value={form.billing_issuer} onChange={(e) => set("billing_issuer", e.target.value)}>
+            <option value="">Escolha a empresa</option>
+            {BILLING_ISSUER_OPTIONS.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label} · CNPJ {o.cnpj}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-prime-muted">É o CNPJ que sai na fatura e na nota, e onde as corridas desse cliente aparecem no Início.</span>
+        </label>
         <label className="grid gap-1 text-sm">
           <span>Tipo</span>
           <select
@@ -517,6 +541,7 @@ export function clientRowToForm(row: {
   active?: boolean;
   portal_requests_enabled?: boolean;
   service_types?: string[] | null;
+  billing_issuer?: string | null;
 }): ClientFormValues {
   return {
     type: row.type === "PF" ? "PF" : "PJ",
@@ -536,6 +561,7 @@ export function clientRowToForm(row: {
     portal_requests_enabled: row.portal_requests_enabled === true,
     service_types: (row.service_types ?? []).filter((id): id is ClientServiceTypeId =>
       CLIENT_SERVICE_TYPE_OPTIONS.some((o) => o.id === id)
-    )
+    ),
+    billing_issuer: row.billing_issuer ?? ""
   };
 }

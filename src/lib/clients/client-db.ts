@@ -26,11 +26,15 @@ const CONTRACT_PATH_KEY = "contract_storage_path";
 /** 0063_client_portal_requests_enabled.sql */
 const PORTAL_REQUESTS_KEY = "portal_requests_enabled";
 
+/** Empresa da Prime que fatura (CNPJ da nota). */
+const BILLING_ISSUER_KEY = "billing_issuer";
+
 const ALL_OPTIONAL_KEYS = [
   ...EXTENDED_CLIENT_KEYS,
   SERVICE_TYPES_KEY,
   CONTRACT_PATH_KEY,
-  PORTAL_REQUESTS_KEY
+  PORTAL_REQUESTS_KEY,
+  BILLING_ISSUER_KEY
 ] as const;
 
 const LIST_CORE_SELECT = "id,type,name,document,email,phone,active,tenant_id,created_at";
@@ -38,7 +42,8 @@ const LIST_EXTENDED_SELECT = [
   ...EXTENDED_CLIENT_KEYS,
   SERVICE_TYPES_KEY,
   CONTRACT_PATH_KEY,
-  PORTAL_REQUESTS_KEY
+  PORTAL_REQUESTS_KEY,
+  BILLING_ISSUER_KEY
 ].join(",");
 
 export type ClientListRow = {
@@ -56,6 +61,7 @@ export type ClientListRow = {
   postal_code?: string | null;
   notes?: string | null;
   registry_status?: string | null;
+  billing_issuer?: string | null;
   active: boolean;
   tenant_id?: string | null;
   service_types?: string[] | null;

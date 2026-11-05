@@ -90,7 +90,6 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
       wait_client_price_per_hour: numOrNull(form.wait_client_price_per_hour),
       wait_driver_price_per_hour: numOrNull(form.wait_driver_price_per_hour),
       payment_term_days: numOrNull(form.payment_term_days) == null ? null : Math.round(numOrNull(form.payment_term_days)!),
-      billing_issuer: form.billing_issuer || null,
       invoice_closing_day: Number(form.invoice_closing_day) || 0,
       invoice_auto_close: form.invoice_auto_close,
       invoiced: form.invoiced,
@@ -204,23 +203,9 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
             ) : null}
           </select>
         </label>
-        <label className="grid gap-1 text-sm sm:col-span-2">
-          <span>CNPJ da Prime que fatura este cliente</span>
-          <select
-            id="billing-issuer"
-            className={PRIME_INPUT_CLASS}
-            value={form.billing_issuer}
-            onChange={(e) => setForm((f) => ({ ...f, billing_issuer: e.target.value }))}
-            disabled={off}
-          >
-            <option value="">Escolha a empresa</option>
-            {BILLING_ISSUER_OPTIONS.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <p className="text-xs text-prime-muted sm:col-span-2">
+          Empresa que fatura: {BILLING_ISSUER_OPTIONS.find((o) => o.id === form.billing_issuer)?.label ?? "não definida"} — muda no topo do cadastro.
+        </p>
 
         <label className="grid gap-1 text-sm sm:col-span-2">
           <span>Forma de cobrança</span>

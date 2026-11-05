@@ -50,6 +50,18 @@ export type PriceCell = {
 };
 
 /** Modos que o cliente pode pedir para a categoria (a partir das células ligadas). */
+const KM_SERVICES = new Set<CategoryService>(["km_b1", "km_b2", "km_minimo", "hora_extra", "hora_parada"]);
+const KM_ONLY = new Set<CategoryService>(["km_b1", "km_b2", "km_minimo"]);
+
+/**
+ * Serviços que cada veículo oferece. Categoria que cobra por km (Prime Essencial) é SÓ por km:
+ * km bandeira 1/2, km mínimo, hora extra e hora parada — sem transfer nem diárias.
+ * As outras não têm km.
+ */
+export function servicesForCategory(allowsKm: boolean | undefined): typeof CATEGORY_SERVICES {
+  return CATEGORY_SERVICES.filter((s) => (allowsKm ? KM_SERVICES.has(s.id) : !KM_ONLY.has(s.id)));
+}
+
 export function enabledModes(cells: PriceCell[]): ServiceMode[] {
   const on = new Set(cells.filter((c) => c.enabled).map((c) => c.service));
   const modes: ServiceMode[] = [];

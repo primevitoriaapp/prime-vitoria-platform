@@ -17,7 +17,8 @@ export const clientCadastroSchema = z.object({
   registry_status: z.string().optional().nullable(),
   active: z.boolean().optional(),
   portal_requests_enabled: z.boolean().optional(),
-  service_types: z.array(z.string()).optional()
+  service_types: z.array(z.string()).optional(),
+  billing_issuer: z.enum(["rj_prime", "prime_servicos", "ilha_prime"]).optional().nullable()
 });
 
 export type ClientCadastroInput = z.infer<typeof clientCadastroSchema>;
@@ -45,6 +46,8 @@ export function normalizeClientBody(body: ClientCadastroInput) {
     registry_status: emptyToNull(body.registry_status ?? undefined),
     active: body.active,
     portal_requests_enabled: body.portal_requests_enabled,
+    // Sem empresa escolhida, entra na Prime Locadora & Serviços (a mais usada).
+    billing_issuer: body.billing_issuer ?? "prime_servicos",
     ...(body.type === "PJ" ? { service_types } : {})
   };
 }
@@ -67,6 +70,7 @@ export function normalizeClientPatch(body: Partial<ClientCadastroInput>) {
   if (body.registry_status !== undefined) {
     out.registry_status = emptyToNull(body.registry_status ?? undefined);
   }
+  if (body.billing_issuer !== undefined) out.billing_issuer = body.billing_issuer;
   if (body.service_types !== undefined) {
     out.service_types = normalizeServiceTypes(body.service_types);
   }

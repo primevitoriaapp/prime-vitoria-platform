@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CATEGORY_SERVICES, type CategoryService } from "@/lib/pricing/category-catalog";
+import { servicesForCategory, type CategoryService } from "@/lib/pricing/category-catalog";
 
 type Category = { id: string; name: string; passengers: number; photo_url: string | null; active: boolean; allows_km?: boolean };
 type Cell = { category_id: string; service: CategoryService; enabled: boolean; client_price: string; partner_price: string };
@@ -60,9 +60,12 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
   }
 
   const enabledCount = useMemo(
-    () => (catId: string) => CATEGORY_SERVICES.filter((s) => cell(catId, s.id).enabled).length,
+    () => (catId: string) => {
+      const cat = categories.find((x) => x.id === catId);
+      return servicesForCategory(cat?.allows_km).filter((s) => cell(catId, s.id).enabled).length;
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cells]
+    [cells, categories]
   );
 
   async function save() {
@@ -117,7 +120,7 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
                   <span className="block font-medium">{c.name}</span>
                   <span className="text-xs text-prime-muted">
                     {c.passengers} lugares · {n > 0 ? `${n} serviço(s) liberado(s)` : "não liberado"}
-                    {c.allows_km ? " · cobra por km" : " · só transfer e diárias"}
+                    {c.allows_km ? " · só por km (km, km mínimo, hora extra e parada)" : " · transfer e diárias"}
                   </span>
                 </span>
                 <span className="text-prime-muted">{isOpen ? "▲" : "▼"}</span>
@@ -134,7 +137,7 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
                       </tr>
                     </thead>
                     <tbody>
-                      {CATEGORY_SERVICES.filter((s) => c.allows_km || (s.id !== "km_b1" && s.id !== "km_b2" && s.id !== "km_minimo")).map((s) => {
+                      {servicesForCategory(c.allows_km).map((s) => {
                         const v = cell(c.id, s.id);
                         return (
                           <tr key={s.id} className="border-t border-prime-border">
