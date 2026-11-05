@@ -77,7 +77,7 @@ export async function generateClientInvoices(input: {
 
   const { data: clients } = await db
     .from("clients")
-    .select("id, name, trade_name, payment_term_days, billing_issuer, invoiced")
+    .select("id, name, trade_name, payment_term_days, billing_issuer, invoiced, invoice_per_service")
     .in("id", [...byClient.keys()]);
   const clientById = new Map((clients ?? []).map((c) => [c.id as string, c]));
 
@@ -97,6 +97,8 @@ export async function generateClientInvoices(input: {
       });
       continue;
     }
+    // Cliente que fecha por voucher (ex.: CEP) fica fora do fechamento do mês: fecha em "Vouchers a fechar".
+    if (c?.invoice_per_service && !input.clientId) continue;
     const due = input.dueDate || invoiceDueDate(input.periodEnd, (c?.payment_term_days as number | null) ?? null);
 
     const { data: inv, error: invErr } = await db
@@ -264,11 +266,11 @@ export async function updateClientInvoiceStatus(
   return data as ClientInvoiceRow;
 }
 
-/** "NR263982-C1" → "NR263982" (os trechos C1, C2… do mesmo voucher vão na mesma fatura). */
+/** "NR263261-C1" → "NR263261": todos os itens/trechos (B, C1, C2…) do mesmo voucher vão na mesma fatura. */
 export function baseClientRef(ref: string | null | undefined): string | null {
   const r = String(ref ?? "").trim().toUpperCase();
   if (!r) return null;
-  return r.replace(/-C\d+$/i, "");
+  return r.split("-")[0] || r;
 }
 
 /**
@@ -306,6 +308,25 @@ export async function generateInvoiceForTrip(input: {
       .ilike("notes", `%${base.replace(/[%_]/g, "")}%`)
       .limit(50);
     list = ((data ?? []) as (typeof list[number] & { notes: string | null })[]).filter((t) => baseClientRef(clientRefFromNotes(t.notes)) === base);
+  }
+  // Voucher só fecha inteiro: algum item ainda não concluído (e não cancelado) segura a fatura.
+  if (base) {
+    const { data: pend } = await db
+      .from("trips")
+      .select("id, notes, scheduled_at, operational_status")
+      .eq("tenant_id", input.tenantId)
+      .eq("client_id", trip.client_id)
+      .is("client_invoice_id", null)
+      .not("operational_status", "in", "(completed,cancelled,rejected,no_show)")
+      .ilike("notes", `%${base.replace(/[%_]/g, "")}%`)
+      .limit(50);
+    const open = (pend ?? []).filter((t) => baseClientRef(clientRefFromNotes(t.notes as string | null)) === base);
+    if (open.length)
+      throw new Error(
+        `O voucher ${base} ainda tem ${open.length} serviço(s) sem concluir (${open
+          .map((t) => clientRefFromNotes(t.notes as string | null))
+          .join(", ")}). Feche quando todos terminarem.`
+      );
   }
   if (!list.some((t) => t.id === trip.id)) {
     const { data: self } = await db

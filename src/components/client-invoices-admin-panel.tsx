@@ -1,5 +1,6 @@
 "use client";
 
+import { VouchersToCloseCard } from "@/components/vouchers-to-close-card";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { inCompany, useCompany } from "@/lib/company/company-context";
@@ -8,6 +9,7 @@ import { INVOICE_STATUS_LABEL, formatInvoiceNumber } from "@/lib/finance/client-
 type Row = {
   id: string;
   number: number;
+  client_ref?: string | null;
   client_id: string;
   client_name?: string | null;
   period_start: string;
@@ -247,6 +249,8 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
         </button>
       </div>
 
+      <VouchersToCloseCard onClosed={() => void load()} />
+
       {msg ? <p className={`text-sm ${msg.kind === "ok" ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p> : null}
 
       {rows.length === 0 ? (
@@ -269,7 +273,10 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
             <tbody>
               {rows.filter((r) => inCompany(company, r.billing_issuer)).map((r) => (
                 <tr key={r.id} className={`border-t border-prime-border ${r.status === "cancelada" ? "opacity-50" : ""}`}>
-                  <td className="py-2 font-medium">{formatInvoiceNumber(r.number)}</td>
+                  <td className="py-2 font-medium">
+                    {formatInvoiceNumber(r.number)}
+                    {r.client_ref ? <span className="block text-xs font-normal text-prime-muted">{r.client_ref}</span> : null}
+                  </td>
                   <td>{r.client_name ?? "—"}</td>
                   <td>
                     {brDate(r.period_start)} – {brDate(r.period_end)}
