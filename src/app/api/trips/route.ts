@@ -1,3 +1,4 @@
+import { clientRefFromNotes } from "@/lib/trips/client-ref";
 import { dropoffStopsSchema } from "@/lib/trips/trip-dropoff-stops";
 import { categoryAllowed, permissionForProfile } from "@/lib/clients/passenger-permissions";
 import { normalizeFlightNumber } from "@/lib/trips/flight";
@@ -158,6 +159,34 @@ export async function POST(request: Request) {
       if (perm && !perm.canRequest) return fail("FORBIDDEN", "Seu acesso permite só acompanhar as viagens. Peça ao gestor da sua empresa.", 403);
       if (perm?.allowed && !categoryAllowed(perm, body.vehicle_category_id ?? null))
         return fail("CATEGORY_NOT_ALLOWED", "Esta categoria de veículo não está liberada para você. Escolha outra ou fale com o gestor.", 403);
+    }
+
+    // Mesma NR/O.S. do cliente já cadastrada (ex.: voucher da CEP importado duas vezes): bloqueia.
+    const ref = clientRefFromNotes(body.notes);
+    if (ref) {
+      const { data: same } = await db
+        .from("trips")
+        .select("id, scheduled_at, notes, operational_status")
+        .eq("tenant_id", tenantId)
+        .eq("client_id", body.client_id)
+        .ilike("notes", `%${ref.replace(/[%_]/g, "")}%`)
+        .not("operational_status", "in", "(cancelled,rejected)")
+        .limit(5);
+      const dup = (same ?? []).find((t) => clientRefFromNotes(t.notes as string | null) === ref);
+      if (dup) {
+        const quando = new Date(dup.scheduled_at as string).toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+        return fail(
+          "DUPLICATE_CLIENT_REF",
+          `A ${ref} já está cadastrada (corrida Nº ${String(dup.id).slice(0, 8).toUpperCase()}, ${quando}). Abra essa corrida em vez de cadastrar de novo.`,
+          409
+        );
+      }
     }
 
     const uiServiceType = normalizePrimeServiceType(body.service_type);

@@ -141,3 +141,74 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return mapApiError(error);
   }
 }
+
+const STARTED = new Set(["on_the_way", "arrived", "in_progress", "completed"]);
+
+/**
+ * Excluir corrida lançada por engano (ex.: duplicada). Só admin/operador, só antes de o motorista sair,
+ * sem fatura e sem nada pago. Fica registrado na auditoria com os dados da corrida.
+ */
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await getSessionContext();
+    if (session.role !== "admin" && session.role !== "operador") return fail("FORBIDDEN", "Sem permissão", 403);
+    const tenantId = assertTenantScope(session);
+    const { id } = await params;
+    const { data: trip } = await db.from("trips").select("*").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+    if (!trip) return fail("TRIP_NOT_FOUND", "Corrida não encontrada", 404);
+    if (STARTED.has(trip.operational_status as string))
+      return fail("TRIP_STARTED", "Esta corrida já começou ou terminou: não dá para excluir. Use cancelar ou ajuste os valores.", 409);
+    if (trip.client_invoice_id) return fail("TRIP_INVOICED", "Esta corrida já está numa fatura: tire da fatura antes de excluir.", 409);
+    const [{ data: ar }, { data: dp }] = await Promise.all([
+      db.from("accounts_receivable").select("id, status").eq("trip_id", id),
+      db.from("driver_payables").select("id, status").eq("trip_id", id)
+    ]);
+    if ([...(ar ?? []), ...(dp ?? [])].some((r) => r.status !== "open"))
+      return fail("TRIP_HAS_PAYMENTS", "Já tem recebimento ou repasse pago nesta corrida: não dá para excluir.", 409);
+
+    await db.from("trips").update({ trip_id_return: null }).eq("trip_id_return", id).eq("tenant_id", tenantId);
+    await db.from("driver_locations").delete().eq("trip_id", id);
+    if (ar?.length) await db.from("accounts_receivable").delete().eq("trip_id", id);
+    if (dp?.length) await db.from("driver_payables").delete().eq("trip_id", id);
+    const { error } = await db.from("trips").delete().eq("id", id).eq("tenant_id", tenantId);
+    if (error) return fail("TRIP_DELETE_FAILED", error.message, 500);
+
+    await insertAuditEvent({
+      tenantId,
+      actorUserId: session.userId,
+      action: "trip.delete",
+      entityType: "trip",
+      entityId: id,
+      metadata: {
+        scheduled_at: trip.scheduled_at,
+        client_id: trip.client_id,
+        passenger_name: trip.passenger_name,
+        origin_text: trip.origin_text,
+        destination_text: trip.destination_text,
+        notes: trip.notes,
+        client_amount: trip.client_amount,
+        driver_id: trip.driver_id
+      },
+      request
+    });
+
+    // Motorista já escalado: avisa que a corrida saiu da agenda dele.
+    const driverId = trip.driver_id as string | null;
+    if (driverId) {
+      await runBestEffort("trip.delete.driver_push", async () => {
+        const { pushToDriver } = await import("@/lib/push/web-push");
+        const quando = new Date(trip.scheduled_at as string).toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+        await pushToDriver(tenantId, driverId, { title: "Corrida cancelada", body: `A corrida de ${quando} saiu da sua agenda.`, url: "/driver", tag: `trip-${id}` });
+      });
+    }
+    return ok({ deleted: id });
+  } catch (error) {
+    return mapApiError(error);
+  }
+}

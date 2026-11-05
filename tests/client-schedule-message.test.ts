@@ -38,3 +38,9 @@ test("lista em ordem, com motorista e carro; sem motorista diz 'a confirmar'; se
   assert.doesNotMatch(msg, /29052|Brasil/);
   assert.doesNotMatch(msg, /\(27\) 9\d{4}-\d{4}.*Motorista/);
 });
+
+import { clientRefFromNotes } from "../src/lib/trips/client-ref.ts";
+test("lê a NR do cliente das observações", () => {
+  assert.equal(clientRefFromNotes("O.S./Ref.: NR263982-C1\nPlaca com nome"), "NR263982-C1");
+  assert.equal(clientRefFromNotes("sem referência"), null);
+});
