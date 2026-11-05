@@ -13,6 +13,7 @@ import { shortAddress } from "@/lib/client/short-address";
 import { VoucherPrintButton } from "@/app/voucher/[id]/print-button";
 import { loadInvoiceDetail } from "@/lib/finance/invoice-detail";
 import { InvoiceOverview } from "@/components/invoice-overview";
+import { DocHeader, DocRoute } from "@/components/docs/prime-doc";
 
 export const dynamic = "force-dynamic";
 
@@ -120,28 +121,14 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
       </div>
 
       <article className="invoice-sheet" style={{ maxWidth: 1000, margin: "0 auto", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,.08)", fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", color: "#111" }}>
-        <header style={{ background: "#111", color: "#fff", padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/api/public/brand-logo" alt="Prime Vitória" style={{ height: 64, width: "auto", objectFit: "contain", borderRadius: 6 }} />
-            <div>
-              <div style={{ fontSize: 11, letterSpacing: "0.16em", color: GOLD }}>TRANSPORTE EXECUTIVO · MOBILIDADE CORPORATIVA</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 6 }}>{issuerName}</div>
-              <div style={{ fontSize: 11, color: "#BBB" }}>CNPJ {fmtDoc(issuerCnpj)}</div>
-              <div style={{ fontSize: 11, color: "#BBB" }}>
-                {company.email ?? "contato@primevitoria.com"}
-                {company.phone ? ` · ${company.phone}` : ""}
-              </div>
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, letterSpacing: "0.12em", color: "#BBB" }}>FATURA</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: GOLD }}>{num}</div>
-            {invoice.client_ref ? <div style={{ fontSize: 12, color: "#DDD" }}>Voucher {invoice.client_ref}</div> : null}
-            <div style={{ fontSize: 12, color: "#DDD" }}>{INVOICE_STATUS_LABEL[invoice.status]}{overdue ? " · vencida" : ""}</div>
-          </div>
-        </header>
-        <div style={{ height: 4, background: GOLD }} />
+        <DocHeader
+          issuerName={issuerName}
+          issuerCnpj={issuerCnpj}
+          contact={[company.email ?? "contato@primevitoria.com", company.phone].filter(Boolean).join(" · ")}
+          kind="FATURA"
+          number={num}
+          lines={[invoice.client_ref ? `Voucher ${invoice.client_ref}` : null, `${INVOICE_STATUS_LABEL[invoice.status]}${overdue ? " · vencida" : ""}`]}
+        />
 
         <section style={{ padding: "18px 24px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
           <div style={{ gridColumn: "span 2", minWidth: 0 }}>
@@ -237,18 +224,13 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                   </td>
                   <td style={td}>{r.requester ?? "—"}</td>
                   <td style={td}>
-                    <div>
-                      <b style={{ color: "#7A6A3A" }}>●</b> {shortAddress(r.origin)}
-                    </div>
-                    {r.stops.map((st, i) => (
-                      <div key={i}>
-                        <span style={{ color: "#7A6A3A" }}>→</span> {shortAddress(st.address)}
-                        {st.passenger ? <span style={{ color: "#888" }}> · {st.passenger}</span> : null}
-                      </div>
-                    ))}
-                    <div>
-                      <span style={{ color: "#7A6A3A" }}>→</span> {shortAddress(r.destination)}
-                    </div>
+                    <DocRoute
+                      points={[
+                        { address: shortAddress(r.origin) },
+                        ...r.stops.map((st) => ({ address: shortAddress(st.address), who: st.passenger })),
+                        { address: shortAddress(r.destination) }
+                      ]}
+                    />
                     {r.flight ? <div style={{ fontSize: 10, color: "#888" }}>Voo {r.flight}</div> : null}
                     {r.wait_minutes > 0 ? <div style={{ fontSize: 10, color: "#888" }}>Espera {r.wait_minutes} min</div> : null}
                   </td>

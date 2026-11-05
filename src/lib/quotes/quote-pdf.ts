@@ -26,13 +26,25 @@ export function buildQuotePdf(q: QuoteDoc, logo: Uint8Array | null, photos: Map<
   pdf.rect(0, HEAD, pdf.W, 3, GOLD);
   let tx = M;
   if (logo) {
-    pdf.roundRect(M, 18, 68, 68, 10, WHITE);
-    pdf.image(logo, M + 2, 20, 64, 64);
-    tx = M + 82;
+    try {
+      const info = jpegInfo(logo);
+      const k = info ? Math.min(72 / info.w, 72 / info.h) : 1;
+      const w = info ? info.w * k : 72;
+      const h = info ? info.h * k : 72;
+      pdf.roundRect(M, 14, w + 4, h + 4, 6, WHITE);
+      pdf.image(logo, M + 2, 16, w, h);
+      tx = M + w + 18;
+    } catch {
+      tx = M;
+    }
   }
-  pdf.text("PRIME VITÓRIA", tx, 44, { font: "B", size: 19, color: WHITE, spacing: 0.6 });
-  pdf.text("TRANSPORTE EXECUTIVO", tx, 59, { font: "B", size: 7.5, color: GOLD, spacing: 1.6 });
-  pdf.text(`${q.issuer.legalName} · CNPJ ${q.issuer.cnpj}`, tx, 76, { size: 8, color: [200, 200, 200] });
+  // Mesmo cabeçalho da fatura, do voucher e da O.S.
+  if (tx === M) pdf.text("PRIME VITÓRIA", tx, 34, { font: "B", size: 18, color: WHITE, spacing: 0.6 });
+  const hy = tx === M ? 48 : 34;
+  pdf.text("TRANSPORTE EXECUTIVO · MOBILIDADE CORPORATIVA", tx, hy, { font: "B", size: 7.5, color: GOLD, spacing: 1 });
+  pdf.text(q.issuer.legalName, tx, hy + 16, { font: "B", size: 9.5, color: WHITE });
+  pdf.text(`CNPJ ${q.issuer.cnpj}`, tx, hy + 29, { size: 8, color: [190, 190, 190] });
+  pdf.text([q.issuer.email, q.issuer.phone].filter(Boolean).join(" · "), tx, hy + 41, { size: 8, color: [190, 190, 190] });
   pdf.text("ORÇAMENTO", R, 36, { font: "B", size: 8, color: [190, 190, 190], align: "right", spacing: 1.4 });
   pdf.text(q.number, R, 60, { font: "B", size: 22, color: GOLD, align: "right" });
   pdf.text(`Emitido em ${new Date(q.createdAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`, R, 76, { size: 8.5, color: [220, 220, 220], align: "right" });
@@ -77,14 +89,17 @@ export function buildQuotePdf(q: QuoteDoc, logo: Uint8Array | null, photos: Map<
   const routeW = C.qty - C.route - 22;
   const footerSpace = 60;
   const header = () => {
-    pdf.rect(M, y, CW, 20, INK);
-    const ty = y + 13.5;
-    pdf.text("HORA", C.time + 6, ty, { font: "B", size: 7, color: GOLD, spacing: 0.8 });
-    pdf.text("VEÍCULO E SERVIÇO", C.svc, ty, { font: "B", size: 7, color: GOLD, spacing: 0.8 });
-    pdf.text("TRAJETO", C.route, ty, { font: "B", size: 7, color: GOLD, spacing: 0.8 });
-    pdf.text("QTD.", C.qty, ty, { font: "B", size: 7, color: GOLD, spacing: 0.8, align: "center" });
-    pdf.text("VALOR", C.val - 6, ty, { font: "B", size: 7, color: GOLD, spacing: 0.8, align: "right" });
-    y += 20;
+    // Cabeçalho da tabela igual ao relatório da fatura: rótulos dourados e linha dourada.
+    const ty = y + 12;
+    const LBL: RGB = [122, 106, 58];
+    pdf.text("HORA", C.time + 6, ty, { size: 7, color: LBL, spacing: 0.8 });
+    pdf.text("VEÍCULO E SERVIÇO", C.svc, ty, { size: 7, color: LBL, spacing: 0.8 });
+    pdf.text("TRAJETO (EMBARQUE » DESTINO)", C.route, ty, { size: 7, color: LBL, spacing: 0.8 });
+    pdf.text("QTD.", C.qty, ty, { size: 7, color: LBL, spacing: 0.8, align: "center" });
+    pdf.text("VALOR", C.val - 6, ty, { size: 7, color: LBL, spacing: 0.8, align: "right" });
+    y += 18;
+    pdf.line(M, y, R, y, GOLD, 1.5);
+    y += 2;
   };
   const newPage = () => {
     pdf.addPage();
@@ -105,8 +120,8 @@ export function buildQuotePdf(q: QuoteDoc, logo: Uint8Array | null, photos: Map<
       if (r.note) for (const l of wrap(`Passageiros: ${r.note}`, "R", 8.5, svcW)) svc.push({ t: l, f: "R", c: MUTED, s: 8.5 });
       if (r.detail) for (const l of wrap(`Obs.: ${r.detail}`, "R", 8.5, svcW)) svc.push({ t: l, f: "R", c: GOLD_DARK, s: 8.5 });
       const rt: { t: string; c: RGB }[] = [];
-      for (const l of wrap(r.from, "R", 8.5, routeW)) rt.push({ t: l, c: INK });
-      if (r.to) for (const l of wrap(r.diaria ? r.to : `» ${r.to}`, "R", 8.5, routeW)) rt.push({ t: l, c: MUTED });
+      for (const l of wrap(r.diaria || !r.to ? r.from : `• ${r.from}`, "R", 8.5, routeW)) rt.push({ t: l, c: INK });
+      if (r.to) for (const l of wrap(r.diaria ? r.to : `» ${r.to}`, "R", 8.5, routeW)) rt.push({ t: l, c: r.diaria ? MUTED : INK });
       const rowH = Math.max(svc.length, rt.length, r.qty > 1 ? 2 : 1) * 11.5 + 12;
       if (y + rowH > pdf.H - footerSpace) newPage();
       const ty = y + 14;

@@ -12,21 +12,12 @@ import { billingIssuerById } from "@/lib/clients/billing-terms-calc";
 import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { VoucherPrintButton } from "./print-button";
+import { parseDropoffStops } from "@/lib/trips/trip-dropoff-stops";
+import { clientRefFromNotes } from "@/lib/trips/client-ref";
+import { shortAddress } from "@/lib/client/short-address";
+import { DOC_GOLD, DOC_LABEL, DOC_TD, DOC_TH, DocClientBlock, DocHeader, DocInfoGrid, DocRoute, DocSheet, docPrintCss, type RoutePoint } from "@/components/docs/prime-doc";
 
 export const dynamic = "force-dynamic";
-
-const GOLD = "#C9A84C";
-const INK = "#111111";
-
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  if (value == null || value === "") return null;
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 12, padding: "8px 0", borderBottom: "1px solid #E7E2D3" }}>
-      <dt style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#7A6A3A" }}>{label}</dt>
-      <dd style={{ margin: 0, fontSize: 14, color: INK }}>{value}</dd>
-    </div>
-  );
-}
 
 function Message({ title, text }: { title: string; text: string }) {
   return (
@@ -70,7 +61,7 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
   }
 
   const [clientRes, driverRes, vehicleRes, company] = await Promise.all([
-    db.from("clients").select("name, trade_name, document, billing_issuer, type").eq("id", trip.client_id).maybeSingle(),
+    db.from("clients").select("name, trade_name, document, email, address_line, city, state, postal_code, billing_issuer, type").eq("id", trip.client_id).maybeSingle(),
     trip.driver_id
       ? db.from("drivers").select("full_name, phone, whatsapp").eq("id", trip.driver_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -87,111 +78,143 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
   const issuerName = issuer?.legal_name ?? company.legal_name;
   const issuerCnpj = issuer?.cnpj ?? company.cnpj;
 
-  const stops = parseTripPickupStops(trip.trip_pickup_stops);
+  const isDriver = session.role === "motorista";
+  const pickups = parseTripPickupStops(trip.trip_pickup_stops);
+  const dropoffs = parseDropoffStops(trip.trip_dropoff_stops);
   const audience = session.role === "cliente" ? "client" : "operator";
-  const voucherNumber = String(trip.id).slice(0, 8).toUpperCase();
+  const ref = clientRefFromNotes(trip.notes as string | null);
+  const voucherNumber = ref ?? `Nº ${String(trip.id).slice(0, 8).toUpperCase()}`;
   const vehicleText = vehicle
     ? [vehicle.brand, vehicle.model, vehicle.color].filter(Boolean).join(" ") + (vehicle.plate ? ` · placa ${vehicle.plate}` : "")
     : null;
   const driverPhone = driver?.whatsapp || driver?.phone || null;
-  const passengers = stops.length
-    ? stops.map((s) => s.passenger_name).join(", ")
-    : (trip.passenger_name as string | null);
+  const passengers = pickups.length ? pickups.map((s) => s.passenger_name).join(", ") : (trip.passenger_name as string | null);
+  const service = primeServiceTypeLabel(String(trip.service_type ?? ""), { audience, scheduledAt: trip.scheduled_at as string });
+  const showValue = !isDriver && trip.client_amount != null;
+  const amount = trip.client_amount == null ? null : Number(trip.client_amount);
+  const km = trip.km_billable != null ? Number(trip.km_billable) : trip.actual_km != null ? Number(trip.actual_km) : null;
+  // Observações sem a linha do NR (já está no cabeçalho).
+  const notes = String(trip.notes ?? "")
+    .split("\n")
+    .filter((l) => !/^O\.S\.\/Ref\.:/i.test(l.trim()))
+    .join("\n")
+    .trim();
+
+  const route: RoutePoint[] =
+    pickups.length > 1
+      ? [...pickups.map((p) => ({ address: shortAddress(p.pickup_text), who: p.passenger_name })), { address: shortAddress(trip.destination_text as string | null) }]
+      : [
+          { address: shortAddress(trip.origin_text as string | null) },
+          ...dropoffs.map((x) => ({ address: shortAddress(x.address_text), who: [x.passenger_name, isDriver ? x.passenger_phone : null].filter(Boolean).join(" · ") || null })),
+          { address: shortAddress(trip.destination_text as string | null) }
+        ];
+  const clientAddress = [client?.address_line, [client?.city, client?.state].filter(Boolean).join("/"), client?.postal_code ? `CEP ${client.postal_code}` : null]
+    .filter(Boolean)
+    .join(" · ");
+  const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
-    <main style={{ background: "#F4F1EA", minHeight: "100vh", padding: "24px 16px" }} className="voucher-root">
-      <style>{`
-        @media print {
-          .voucher-root { background: #fff !important; padding: 0 !important; }
-          .voucher-actions { display: none !important; }
-          .voucher-sheet { box-shadow: none !important; margin: 0 !important; }
-          @page { size: A4; margin: 12mm; }
-        }
-      `}</style>
+    <main style={{ background: "#F4F1EA", minHeight: "100vh", padding: "24px 12px" }} className="voucher-root">
+      <style>{docPrintCss("voucher-root", "voucher-sheet", "voucher-actions")}</style>
 
-      <div className="voucher-actions" style={{ maxWidth: 720, margin: "0 auto 12px", display: "flex", gap: 8, justifyContent: "space-between" }}>
+      <div className="voucher-actions" style={{ maxWidth: 900, margin: "0 auto 12px", display: "flex", gap: 8, justifyContent: "space-between" }}>
         <VoucherPrintButton />
       </div>
 
-      <article
-        className="voucher-sheet"
-        style={{ maxWidth: 720, margin: "0 auto", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,.08)", fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif" }}
-      >
-        <header style={{ background: INK, color: "#fff", padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "0.04em" }}>
-              PRIME <span style={{ color: GOLD }}>VITÓRIA</span>
-            </div>
-            <div style={{ fontSize: 11, letterSpacing: "0.16em", color: GOLD, marginTop: 2 }}>TRANSPORTE EXECUTIVO</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, letterSpacing: "0.12em", color: "#BBB" }}>VOUCHER</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: GOLD, fontVariantNumeric: "tabular-nums" }}>Nº {voucherNumber}</div>
-          </div>
-        </header>
-        <div style={{ height: 4, background: GOLD }} />
+      <DocSheet className="voucher-sheet" maxWidth={900}>
+        <DocHeader
+          issuerName={issuerName}
+          issuerCnpj={issuerCnpj}
+          contact={[company.email ?? "contato@primevitoria.com", company.phone].filter(Boolean).join(" · ")}
+          kind="VOUCHER"
+          number={voucherNumber}
+          lines={[ref ? `Atendimento ${String(trip.id).slice(0, 8).toUpperCase()}` : null]}
+        />
 
-        <section style={{ padding: "20px 24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <section style={{ padding: "18px 24px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
+          {isDriver ? (
             <div>
-              <div style={{ fontSize: 11, letterSpacing: "0.08em", color: "#7A6A3A", textTransform: "uppercase" }}>Data e horário</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: INK }}>{formatBrDateTime(trip.scheduled_at as string)}</div>
+              <div style={DOC_LABEL}>Atendimento</div>
+              <div style={{ fontWeight: 700 }}>{String(client?.type ?? "").toUpperCase() === "PF" ? "Corrida particular" : "Corrida empresarial"}</div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 11, letterSpacing: "0.08em", color: "#7A6A3A", textTransform: "uppercase" }}>Serviço</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: INK }}>
-                {primeServiceTypeLabel(String(trip.service_type ?? ""), { audience, scheduledAt: trip.scheduled_at as string })}
-              </div>
+          ) : (
+            <div style={{ gridColumn: "span 2", minWidth: 0 }}>
+              <DocClientBlock name={client?.name} tradeName={client?.trade_name} document={client?.document} address={clientAddress || null} email={client?.email} />
             </div>
+          )}
+          <div>
+            <div style={DOC_LABEL}>Data e horário</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{formatBrDateTime(trip.scheduled_at as string)}</div>
           </div>
-
-          <dl style={{ margin: 0 }}>
-            {session.role === "motorista" ? (
-              <Row label="Atendimento" value={String(client?.type ?? "").toUpperCase() === "PF" ? "Corrida particular" : "Corrida empresarial"} />
-            ) : (
-              <Row label="Cliente" value={client?.trade_name || client?.name} />
-            )}
-            <Row label="Passageiro(s)" value={passengers} />
-            <Row label="Telefone" value={stops.length ? null : (trip.passenger_phone as string | null)} />
-            <Row
-              label="Embarque"
-              value={
-                stops.length ? (
-                  <ol style={{ margin: 0, paddingLeft: 18 }}>
-                    {stops.map((s, i) => (
-                      <li key={i}>
-                        {s.pickup_text}
-                        <span style={{ color: "#666" }}> · {s.passenger_name}</span>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  (trip.origin_text as string | null)
-                )
-              }
-            />
-            <Row label="Destino" value={trip.destination_text as string | null} />
-            <Row label="Passageiros" value={trip.passenger_count ? `${trip.passenger_count}` : null} />
-            <Row label="Voo" value={(trip.flight_number as string | null) ?? null} />
-            <Row label="Serviços" value={serviceExtrasLabel(trip.service_extras as string[] | null) || null} />
-            <Row label="Motorista" value={driver?.full_name ? `${driver.full_name}${driverPhone ? ` · ${driverPhone}` : ""}` : "A definir"} />
-            <Row label="Veículo" value={vehicleText ?? "A definir"} />
-            <Row label="Observações" value={trip.notes as string | null} />
-          </dl>
+          {showValue && amount != null ? (
+            <div style={{ background: "#111", color: "#fff", borderRadius: 8, padding: "10px 14px" }}>
+              <div style={{ ...DOC_LABEL, color: "#BBB" }}>Valor</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: DOC_GOLD }}>{brl(amount)}</div>
+              <div style={{ fontSize: 11, color: "#BBB" }}>{service}</div>
+            </div>
+          ) : (
+            <div>
+              <div style={DOC_LABEL}>Serviço</div>
+              <div style={{ fontWeight: 600 }}>{service}</div>
+            </div>
+          )}
         </section>
 
-        <footer style={{ borderTop: `2px solid ${GOLD}`, padding: "14px 24px 20px", fontSize: 12, color: "#555", display: "grid", gap: 6 }}>
-          <div>
-            Apresente este voucher ao motorista no embarque. Alterações e cancelamentos devem ser solicitados à central Prime
-            Vitória, conforme as condições combinadas com a sua empresa.
-          </div>
-          <div style={{ color: INK }}>
-            {issuerName} · CNPJ {issuerCnpj}
-            {company.email ? ` · ${company.email}` : ""}
-            {company.phone ? ` · ${company.phone}` : ""}
-          </div>
+        <DocInfoGrid
+          items={[
+            ["Motorista", driver?.full_name ? `${driver.full_name}${driverPhone && !isDriver ? ` · ${driverPhone}` : ""}` : "A definir"],
+            ["Veículo", vehicleText ?? "A definir"],
+            ["Voo", (trip.flight_number as string | null) ?? null],
+            ["Serviços", serviceExtrasLabel(trip.service_extras as string[] | null) || null]
+          ]}
+        />
+
+        <section style={{ padding: "4px 24px 18px", overflowX: "auto" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", margin: "6px 0 8px" }}>Serviço</div>
+          <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 620 }}>
+            <thead>
+              <tr>
+                <th style={DOC_TH}>Data</th>
+                <th style={DOC_TH}>Passageiro</th>
+                <th style={DOC_TH}>Trajeto (embarque → paradas → destino)</th>
+                <th style={DOC_TH}>Serviço</th>
+                <th style={{ ...DOC_TH, textAlign: "right" }}>KM</th>
+                {showValue ? <th style={{ ...DOC_TH, textAlign: "right" }}>Valor</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ ...DOC_TD, whiteSpace: "nowrap" }}>
+                  {formatBrDateTime(trip.scheduled_at as string)}
+                  <div style={{ fontSize: 10, color: "#888" }}>{ref ?? `Nº ${String(trip.id).slice(0, 8).toUpperCase()}`}</div>
+                </td>
+                <td style={DOC_TD}>
+                  {passengers || "—"}
+                  {trip.passenger_count && Number(trip.passenger_count) > 1 ? <div style={{ fontSize: 10, color: "#888" }}>{trip.passenger_count} passageiros</div> : null}
+                  {!pickups.length && trip.passenger_phone ? <div style={{ fontSize: 10, color: "#888" }}>{trip.passenger_phone as string}</div> : null}
+                </td>
+                <td style={DOC_TD}>
+                  <DocRoute points={route} />
+                </td>
+                <td style={DOC_TD}>{service}</td>
+                <td style={{ ...DOC_TD, textAlign: "right" }}>{km ? km.toLocaleString("pt-BR") : "—"}</td>
+                {showValue && amount != null ? <td style={{ ...DOC_TD, textAlign: "right", fontWeight: 600 }}>{brl(amount)}</td> : null}
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        {notes ? (
+          <section style={{ margin: "0 24px 18px", background: "#F8F5EE", border: "1px solid #EAE4D6", borderRadius: 10, padding: "12px 14px", fontSize: 12 }}>
+            <div style={DOC_LABEL}>Observações</div>
+            <div style={{ whiteSpace: "pre-line" }}>{notes}</div>
+          </section>
+        ) : null}
+
+        <footer style={{ borderTop: `2px solid ${DOC_GOLD}`, padding: "14px 24px 20px", fontSize: 12, color: "#555" }}>
+          Apresente este voucher ao motorista no embarque. Alterações e cancelamentos devem ser solicitados à central Prime Vitória, conforme as condições combinadas.
         </footer>
-      </article>
+      </DocSheet>
     </main>
   );
 }

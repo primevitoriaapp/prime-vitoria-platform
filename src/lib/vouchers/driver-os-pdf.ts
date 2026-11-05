@@ -22,6 +22,8 @@ export type DriverOsData = {
   origin: string;
   destination: string;
   stops?: { name: string; address: string }[];
+  /** true: as paradas são os embarques (busca de vários passageiros) e a primeira é o embarque. */
+  stopsArePickups?: boolean;
   flight?: string | null;
   presentation?: string | null;
   vehicle?: string | null;
@@ -41,8 +43,6 @@ function rgb(h: string): RGB {
 
 const INK = "#111111";
 const GOLD = "#C9A84C";
-const BAR = "#1A1A1A";
-const GRID = "#CFC8B5";
 const MUTED = "#6B6F76";
 
 /** Tira cidade e UF do fim do endereço: "..., Vitória - ES" → "Vitória / ES". */
@@ -59,105 +59,132 @@ export function buildDriverOsPdf(d: DriverOsData): Uint8Array {
   const T = (s: string, x: number, y: number, size = 9, o: { bold?: boolean; color?: string; align?: "left" | "right" } = {}) =>
     pdf.text(s, x, y, { font: o.bold ? "B" : "R", size, color: rgb(o.color ?? INK), align: o.align });
   const wrap = (s: string, size: number, w: number, bold = false) => wrapF(s, bold ? "B" : "R", size, w);
-  let y = 0;
+  const LABEL = "#7A6A3A";
+  const LINE = "#EEE9DC";
 
-  // Cabeçalho da Prime: logo + nome + linha de serviço.
-  pdf.rect(0, 0, 595.28, 82, rgb("#0B0B0B"));
-  pdf.rect(0, 82, 595.28, 2.5, rgb(GOLD));
+  // Cabeçalho no padrão da fatura: logo + empresa à esquerda, documento e número à direita.
+  pdf.rect(0, 0, 595.28, 96, rgb("#0B0B0B"));
+  pdf.rect(0, 96, 595.28, 3, rgb(GOLD));
   let tx = L;
   if (d.logo) {
     try {
-      pdf.roundRect(L, 11, 60, 60, 8, rgb("#FFFFFF"));
-      // Mantém a proporção da logo dentro do quadro branco.
       const info = jpegInfo(d.logo);
-      const k = info ? Math.min(56 / info.w, 56 / info.h) : 1;
-      const w = info ? info.w * k : 56;
-      const h = info ? info.h * k : 56;
-      pdf.image(d.logo, L + 2 + (56 - w) / 2, 13 + (56 - h) / 2, w, h);
-      tx = L + 72;
+      const k = info ? Math.min(70 / info.w, 70 / info.h) : 1;
+      const w = info ? info.w * k : 70;
+      const h = info ? info.h * k : 70;
+      pdf.roundRect(L, 13, w + 4, h + 4, 6, rgb("#FFFFFF"));
+      pdf.image(d.logo, L + 2, 15, w, h);
+      tx = L + w + 16;
     } catch {
       tx = L;
     }
   }
-  T("PRIME VITÓRIA", tx, 38, 19, { bold: true, color: "#FFFFFF" });
-  T("TRANSPORTE EXECUTIVO · MOBILIDADE CORPORATIVA", tx, 53, 7.5, { bold: true, color: GOLD });
-  T("Central 24h", R, 28, 9, { bold: true, color: GOLD, align: "right" });
-  const phones = (d.centralPhones || d.company.phone || "(27) 2142-8307").split("|").map((x) => x.trim());
-  phones.forEach((ph, i) => T(ph, R, 42 + i * 12, 9, { color: "#FFFFFF", align: "right" }));
-  T(d.company.email || "contato@primevitoria.com", R, 42 + phones.length * 12 + 2, 8, { color: "#CCCCCC", align: "right" });
-  y = 100;
-  T(`CNPJ ${d.company.cnpj} | ${d.company.name}${d.company.address ? ` | ${d.company.address}` : ""}`, L, y, 7, { color: MUTED });
+  if (tx === L) T("PRIME VITÓRIA", tx, 30, 18, { bold: true, color: "#FFFFFF" });
+  T("TRANSPORTE EXECUTIVO · MOBILIDADE CORPORATIVA", tx, tx === L ? 44 : 30, 7.5, { bold: true, color: GOLD });
+  T(d.company.name, tx, tx === L ? 58 : 46, 9.5, { bold: true, color: "#FFFFFF" });
+  T(`CNPJ ${d.company.cnpj}`, tx, tx === L ? 70 : 58, 8, { color: "#BBBBBB" });
+  T(`${d.company.email || "contato@primevitoria.com"} · ${d.centralPhones || d.company.phone || "(27) 2142-8307"}`, tx, tx === L ? 82 : 70, 8, { color: "#BBBBBB" });
+  T("ORDEM DE SERVIÇO", R, 30, 8, { color: "#BBBBBB", align: "right" });
+  T(`Nº ${d.number}`, R, 50, 17, { bold: true, color: GOLD, align: "right" });
+  T(d.version === "atualizada" ? "ATUALIZADA" : `Emitida em ${d.issuedAt}`, R, 64, 8, { bold: d.version === "atualizada", color: d.version === "atualizada" ? GOLD : "#DDDDDD", align: "right" });
 
-  y += 20;
-  T(`SOLICITAÇÃO DE SERVIÇO AO MOTORISTA Nº ${d.number}`, L, y, 11, { bold: true });
+  let y = 118;
   if (d.version === "atualizada") {
-    y += 16;
     pdf.rect(L, y - 11, W, 16, rgb("#FFF4D6"));
-    T(`ATUALIZADA em ${d.issuedAt} — esta solicitação substitui a anterior. Confira horário, endereços e passageiros.`, L + 6, y, 8.5, {
-      bold: true,
-      color: "#8A5A00"
-    });
-  } else {
-    y += 14;
-    T(`Emitida em ${d.issuedAt}`, L, y, 8, { color: MUTED });
+    T(`ATUALIZADA em ${d.issuedAt}: substitui a anterior. Confira horário, endereços e passageiros.`, L + 6, y, 8.5, { bold: true, color: "#8A5A00" });
+    y += 18;
   }
-
-  y += 18;
-  for (const ln of wrap(
-    "Este serviço foi atribuído a você pela Prime Vitória. Consulte as informações abaixo e siga as orientações da Ordem de Serviço.",
-    8.5,
-    W
-  )) {
-    T(ln, L, y, 8.5);
+  for (const ln of wrap("Este serviço foi atribuído a você pela Prime Vitória. Consulte as informações abaixo e siga as orientações da Ordem de Serviço.", 8.5, W)) {
+    T(ln, L, y, 8.5, { color: "#444444" });
     y += 11;
   }
-  y += 4;
-  T(`MOTORISTA: ${d.driverName}${d.driverPhone ? ` · ${d.driverPhone}` : ""}`, L, y, 8.5, { bold: true });
-  y += 18;
+  y += 8;
 
-  // Grade no estilo do voucher de fornecedor.
-  const half = W / 2;
-  const bar = (cols: [string, number, number][]) => {
-    pdf.rect(L, y, W, 13, rgb(BAR));
-    for (const [label, x] of cols) T(label, L + x + 4, y + 9.5, 7.5, { bold: true, color: "#FFFFFF" });
-    y += 13;
+  // Quadro de informações (rótulo pequeno + valor), 4 por linha, como na fatura.
+  const cards = (items: [string, string | null | undefined][]) => {
+    const list = items.filter(([, v]) => v);
+    const cw = W / 4;
+    for (let i = 0; i < list.length; i += 4) {
+      const row = list.slice(i, i + 4);
+      const lines = row.map(([, v]) => wrap(String(v), 9.5, cw - 10, true));
+      const h = 16 + Math.max(...lines.map((l) => l.length)) * 12;
+      row.forEach(([label], k) => {
+        const x = L + k * cw;
+        T(label.toUpperCase(), x, y, 7, { color: LABEL });
+        lines[k].forEach((ln, j) => T(ln, x, y + 13 + j * 12, 9.5, { bold: true }));
+      });
+      y += h;
+    }
   };
-  const cell = (rows: [string, number, number][], size = 8.5, bold = false) => {
-    const wrapped = rows.map(([text, , w]) => wrap(text || "-", size, w - 8, bold));
-    const h = Math.max(...wrapped.map((l) => l.length)) * (size + 2.5) + 6;
-    pdf.rect(L, y, W, h, rgb("#FFFFFF"), rgb(GRID), 0.5);
-    rows.forEach(([, x], i) => {
-      if (x > 0) pdf.line(L + x, y, L + x, y + h, rgb(GRID), 0.5);
-      wrapped[i].forEach((ln, k) => T(ln, L + x + 4, y + 9 + k * (size + 2.5), size, { bold }));
-    });
-    y += h;
-  };
+  cards([
+    ["Data e horário", d.when],
+    ["Chegar no local", d.presentation],
+    ["Serviço", d.service],
+    ["Atendimento", d.kindLabel],
+    ["Motorista", `${d.driverName}${d.driverPhone ? ` · ${d.driverPhone}` : ""}`],
+    ["Veículo", d.vehicle || "A definir"],
+    ["Voo", d.flight],
+    ["Cidade", d.city]
+  ]);
+  y += 6;
 
-  bar([["Data / horário", 0, 0], ["Cidade", 150, 0], ["Tipo / Serviço", 290, 0]]);
-  cell([[d.when, 0, 150], [d.city ?? "-", 150, 140], [`${d.service} · ${d.kindLabel}`, 290, W - 290]], 9, true);
-  if (d.presentation || d.flight) {
-    bar([["Chegar no local", 0, 0], ["Voo", half, 0]]);
-    cell([[d.presentation ?? "-", 0, half], [d.flight ?? "-", half, half]]);
+  // Tabela do serviço (mesmo desenho do relatório da fatura).
+  T("SERVIÇO", L, y, 9, { bold: true });
+  y += 10;
+  const cols: { label: string; w: number; align?: "right" }[] = [
+    { label: "PASSAGEIRO(S)", w: 120 },
+    { label: "TRAJETO (EMBARQUE » PARADAS » DESTINO)", w: d.pay ? W - 120 - 85 : W - 120 },
+    ...(d.pay ? [{ label: "REPASSE", w: 85, align: "right" as const }] : [])
+  ];
+  let cx = L;
+  for (const c of cols) {
+    T(c.label, c.align === "right" ? cx + c.w - 4 : cx + 4, y + 9, 7, { color: LABEL, align: c.align });
+    cx += c.w;
   }
-  bar([["Origem", 0, 0], ["Destino", half, 0]]);
-  cell([[d.origin, 0, half], [d.destination, half, half]]);
-  if (d.stops?.length) {
-    bar([["Paradas (na ordem)", 0, 0]]);
-    cell([[d.stops.map((s, i) => `${i + 1}. ${s.name} — ${s.address}`).join("\n"), 0, W]]);
+  y += 14;
+  pdf.line(L, y, R, y, rgb(GOLD), 1.5);
+
+  const tw = cols[1].w - 8;
+  const routeLines: { text: string; bold?: boolean; muted?: boolean }[] = [];
+  const point = (mark: string, address: string, who?: string | null, strong = false) => {
+    wrap(`${mark} ${address}`, 8.5, tw).forEach((ln, i) => routeLines.push({ text: i ? `   ${ln}` : ln, bold: strong || mark === "•" }));
+    if (who) routeLines.push({ text: `   ${who}`, muted: true });
+  };
+  const stops = d.stops ?? [];
+  if (d.stopsArePickups && stops.length) {
+    stops.forEach((st, i) => point(i === 0 ? "•" : "»", st.address, st.name));
+  } else {
+    point("•", d.origin);
+    stops.forEach((st) => point("»", st.address, st.name));
   }
-  bar([["Passageiros", 0, 0], ["Atendimento", half, 0]]);
-  cell([[d.passengerPhone ? `${d.passenger} [${d.passengerPhone}]` : d.passenger, 0, half], [d.kindLabel, half, half]]);
-  bar([["Observações do serviço", 0, 0]]);
-  cell([[d.notes || "-", 0, W]]);
-  bar([["Veículo / Tipo", 0, 0], ["Motorista", half, 0]]);
-  cell([[d.vehicle || "-", 0, half], [d.driverName, half, half]]);
+  point("»", d.destination, null, true);
+
+  const paxLines = [
+    ...wrap(d.passenger || "-", 8.5, cols[0].w - 8, true),
+    ...(d.passengerPhone ? wrap(d.passengerPhone, 8, cols[0].w - 8) : [])
+  ];
+  const rowH = Math.max(routeLines.length * 11, paxLines.length * 11, d.pay ? 26 : 0) + 10;
+  let ry = y + 12;
+  paxLines.forEach((ln, i) => T(ln, L + 4, ry + i * 11, i < paxLines.length - (d.passengerPhone ? 1 : 0) ? 8.5 : 8, { bold: i === 0, color: i > 0 && d.passengerPhone && i === paxLines.length - 1 ? MUTED : INK }));
+  routeLines.forEach((ln, i) => T(ln.text, L + cols[0].w + 4, ry + i * 11, ln.muted ? 7.5 : 8.5, { bold: ln.bold, color: ln.muted ? MUTED : INK }));
   if (d.pay) {
-    bar([["Forma de pagamento", 0, 0], ["Tipo", 150, 0], ["Valor (estimado)", 290, 0], ["Pagamento previsto", 410, 0]]);
-    cell([["Repasse ao motorista", 0, 150], ["Faturado", 150, 140], [d.pay.amount, 290, 120], [d.pay.forecast ?? "-", 410, W - 410]], 9, true);
+    T(d.pay.amount, R - 4, ry, 9.5, { bold: true, align: "right" });
+    if (d.pay.forecast) T(`previsto ${d.pay.forecast}`, R - 4, ry + 12, 7.5, { color: MUTED, align: "right" });
+  }
+  y += rowH;
+  pdf.line(L, y, R, y, rgb(LINE), 0.8);
+  y += 16;
+
+  if (d.notes) {
+    const lines = wrap(d.notes, 8.5, W - 20);
+    const h = lines.length * 11 + 20;
+    pdf.roundRect(L, y, W, h, 6, rgb("#F8F5EE"), rgb("#EAE4D6"), 0.6);
+    T("OBSERVAÇÕES", L + 10, y + 12, 7, { color: LABEL });
+    lines.forEach((ln, i) => T(ln, L + 10, y + 24 + i * 11, 8.5));
+    y += h + 14;
   }
 
-  y += 16;
-  T("INFORMAÇÕES IMPORTANTES:", L, y, 8.5, { bold: true });
+  T("INFORMAÇÕES IMPORTANTES", L, y, 8, { bold: true, color: LABEL });
   y += 12;
   const info = [
     "Confirme a corrida no app e esteja no local no horário de chegada indicado. Qualquer imprevisto, avise a Central IMEDIATAMENTE.",
@@ -175,10 +202,9 @@ export function buildDriverOsPdf(d: DriverOsData): Uint8Array {
     }
   }
 
-  // Informações para fechamento (o app já registra; o papel fica de reserva).
-  if (y < 720) {
-    y += 10;
-    T("Informações para fechamento (o app registra sozinho; use se o app falhar)", L, y, 8, { bold: true });
+  if (y < 730) {
+    y += 12;
+    T("PARA FECHAMENTO (o app registra sozinho; use se o app falhar)", L, y, 7.5, { bold: true, color: LABEL });
     y += 14;
     const blanks = ["Início ___/___ ___:___", "Término ___/___ ___:___", "KM inicial ________", "KM final ________"];
     blanks.forEach((b, i) => T(b, L + i * (W / 4), y, 8.5));

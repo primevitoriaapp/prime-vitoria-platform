@@ -5,6 +5,7 @@ import { db } from "@/lib/server/db";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { loadQuoteDoc } from "@/lib/quotes/quote-document";
 import { QuoteClientResponse } from "@/components/quote-client-response";
+import { DocHeader, DocRoute } from "@/components/docs/prime-doc";
 
 export const dynamic = "force-dynamic";
 
@@ -86,25 +87,17 @@ export default async function OrcamentoPage({
         </div>
       </div>
       <article className="quote-sheet" style={{ maxWidth: 820, margin: "0 auto", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,.08)", fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", color: "#111" }}>
-        <header style={{ background: "#111", color: "#fff", padding: "20px 26px", display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/api/public/brand-logo" alt="Prime Vitória" width={64} height={64} style={{ width: 64, height: 64, borderRadius: 12, background: "#fff", objectFit: "cover" }} />
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "0.04em" }}>
-                PRIME <span style={{ color: GOLD }}>VITÓRIA</span>
-              </div>
-              <div style={{ fontSize: 10, letterSpacing: "0.16em", color: GOLD, marginTop: 2 }}>TRANSPORTE EXECUTIVO</div>
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, letterSpacing: "0.12em", color: "#BBB" }}>ORÇAMENTO</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: GOLD }}>{d.number}</div>
-            <div style={{ fontSize: 12, color: "#DDD" }}>Emitido em {new Date(d.createdAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}</div>
-            {d.validUntil ? <div style={{ fontSize: 12, color: "#DDD" }}>Válido até {brDate(d.validUntil)}</div> : null}
-          </div>
-        </header>
-        <div style={{ height: 4, background: GOLD }} />
+        <DocHeader
+          issuerName={d.issuer.legalName}
+          issuerCnpj={d.issuer.cnpj}
+          contact={[d.issuer.email, d.issuer.phone].filter(Boolean).join(" · ")}
+          kind="ORÇAMENTO"
+          number={d.number}
+          lines={[
+            `Emitido em ${new Date(d.createdAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
+            d.validUntil ? `Válido até ${brDate(d.validUntil)}` : null
+          ]}
+        />
 
         <section style={{ padding: "18px 26px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
           <div style={box}>
@@ -135,7 +128,7 @@ export default async function OrcamentoPage({
               <tr>
                 <th style={{ ...th, width: 70 }}>Hora</th>
                 <th style={th}>Veículo e serviço</th>
-                <th style={th}>Trajeto</th>
+                <th style={th}>Trajeto (embarque → destino)</th>
                 <th style={{ ...th, textAlign: "center" }}>Qtd.</th>
                 <th style={{ ...th, textAlign: "right" }}>Valor</th>
               </tr>
@@ -158,8 +151,14 @@ export default async function OrcamentoPage({
                       {r.detail ? <div style={{ color: "#8C702C", marginTop: 2 }}>Obs.: {r.detail}</div> : null}
                     </td>
                     <td style={td}>
-                      {r.from}
-                      {r.to ? <div style={{ color: "#555" }}>{r.diaria ? r.to : `→ ${r.to}`}</div> : null}
+                      {r.diaria || !r.to ? (
+                        <>
+                          {r.from}
+                          {r.to ? <div style={{ color: "#555" }}>{r.to}</div> : null}
+                        </>
+                      ) : (
+                        <DocRoute points={[{ address: r.from }, { address: r.to }]} />
+                      )}
                     </td>
                     <td style={{ ...td, textAlign: "center" }}>{r.qty}</td>
                     <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>

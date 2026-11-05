@@ -226,6 +226,7 @@ export async function emailDriverAssignment(
       : pickups.length > 1
         ? pickups.map((x) => ({ name: x.passenger_name, address: x.pickup_text }))
         : [],
+    stopsArePickups: !dropoffs.length && pickups.length > 1,
     flight,
     presentation: presentationText,
     vehicle: vehicleText,
