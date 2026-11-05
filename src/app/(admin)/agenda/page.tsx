@@ -21,6 +21,7 @@ type AgendaTrip = TripRow & {
 import { OperadorTripCreatePanel } from "@/components/operador-trip-create-panel";
 import { TripFocusHeader } from "@/components/trip-focus-header";
 import { TripWhatsappMessages } from "@/components/trip-whatsapp-messages";
+import { ClientScheduleMessageCard } from "@/components/client-schedule-message-card";
 import { defaultAgendaRangeIso } from "@/lib/operations/agenda-default-range";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
@@ -140,6 +141,7 @@ export default async function AgendaPage({
           </div>
         </details>
       ) : null}
+      {showClaimBar ? <ClientScheduleMessageCard /> : null}
       <div className="mb-4">
         <TripsToReviewAlert />
         <StaleTripsPanel />
