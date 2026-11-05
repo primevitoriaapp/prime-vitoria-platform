@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
@@ -6,82 +7,183 @@ import { OFFICIAL_URLS } from "@/lib/server/official-urls";
 import { getClientInvoice, updateClientInvoiceStatus } from "@/lib/finance/client-invoices";
 import { formatInvoiceNumber } from "@/lib/finance/client-invoice-calc";
 import { sendOperationalEmail } from "@/lib/notifications/send-email";
+import { insertAuditEvent } from "@/lib/server/audit-log";
 
-function publicBaseUrl(): string {
-  return OFFICIAL_URLS.empresa;
-}
-
+const BUCKET = "invoice-files";
+const COPY_TO = "contato@primevitoria.com";
 const brDate = (ymd: string) => ymd.split("-").reverse().join("/");
 const brl = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** Envia a fatura por e-mail para o cliente (e-mail do cadastro + gestores com acesso ao portal). */
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+function staff(role: string) {
+  return role === "admin" || role === "financeiro";
+}
+
+async function defaults(tenantId: string, id: string) {
+  const invoice = await getClientInvoice(tenantId, id);
+  if (!invoice || invoice.status === "cancelada") return null;
+  const inv = invoice as typeof invoice & { client_ref?: string | null; voucher_path?: string | null; boleto_path?: string | null; nf_path?: string | null };
+  const { data: client } = await db.from("clients").select("name, trade_name, email").eq("id", invoice.client_id).maybeSingle();
+  const to = new Set<string>();
+  if (client?.email) to.add(String(client.email).trim().toLowerCase());
+  const { data: gestores } = await db
+    .from("profiles")
+    .select("id")
+    .eq("client_id", invoice.client_id)
+    .eq("role", "cliente")
+    .eq("client_access", "gestor")
+    .eq("active", true);
+  for (const g of gestores ?? []) {
+    const { data } = await db.auth.admin.getUserById(g.id as string);
+    if (data.user?.email) to.add(data.user.email.toLowerCase());
+  }
+  const num = formatInvoiceNumber(invoice.number);
+  const name = (client?.trade_name as string | null) || (client?.name as string | null) || "Cliente";
+  const ref = inv.client_ref ? ` · ${inv.client_ref}` : "";
+  const periodo =
+    invoice.period_start === invoice.period_end ? brDate(invoice.period_start) : `${brDate(invoice.period_start)} a ${brDate(invoice.period_end)}`;
+  const message = [
+    `Olá, equipe ${name}.`,
+    "",
+    inv.client_ref
+      ? `Segue o fechamento do voucher ${inv.client_ref} (serviços de ${periodo}).`
+      : `Segue o fechamento dos serviços de ${periodo}.`,
+    "",
+    `Fatura: ${num}`,
+    `Serviços: ${invoice.trip_count}`,
+    `Valor total: ${brl(invoice.total_amount)}`,
+    `Vencimento: ${brDate(invoice.due_date)}`,
+    invoice.boleto_line ? `Linha digitável: ${invoice.boleto_line}` : null,
+    "",
+    "O boleto segue em anexo. Qualquer dúvida, estamos à disposição.",
+    "",
+    "Atenciosamente,"
+  ]
+    .filter((l) => l !== null)
+    .join("\n");
+  return {
+    invoice: inv,
+    to: [...to],
+    cc: [] as string[],
+    subject: `Fatura ${num}${ref} — ${name} — Prime Vitória`,
+    message,
+    files: { boleto: Boolean(inv.boleto_path), nf: Boolean(inv.nf_path), voucher: Boolean(inv.voucher_path) },
+    link: `${OFFICIAL_URLS.empresa}/fatura/${invoice.id}`,
+    copy_to: COPY_TO
+  };
+}
+
+/** Rascunho do e-mail da fatura (para revisar antes de enviar). */
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSessionContext();
-    if (session.role !== "admin" && session.role !== "financeiro") {
-      return fail("FORBIDDEN", "Só admin ou financeiro enviam faturas", 403);
-    }
+    if (!staff(session.role)) return fail("FORBIDDEN", "Só admin ou financeiro enviam faturas", 403);
     const tenantId = assertTenantScope(session);
     const { id } = await params;
-    const invoice = await getClientInvoice(tenantId, id);
-    if (!invoice || invoice.status === "cancelada") return fail("INVOICE_NOT_FOUND", "Fatura não encontrada", 404);
+    const d = await defaults(tenantId, id);
+    if (!d) return fail("INVOICE_NOT_FOUND", "Fatura não encontrada", 404);
+    return ok({ to: d.to, cc: d.cc, subject: d.subject, message: d.message, files: d.files, link: d.link, copy_to: d.copy_to });
+  } catch (error) {
+    return mapApiError(error);
+  }
+}
 
-    const { data: client } = await db.from("clients").select("name, trade_name, email").eq("id", invoice.client_id).maybeSingle();
-    const recipients = new Set<string>();
-    if (client?.email) recipients.add(String(client.email).trim().toLowerCase());
-    const { data: gestores } = await db
-      .from("profiles")
-      .select("id")
-      .eq("client_id", invoice.client_id)
-      .eq("role", "cliente")
-      .eq("client_access", "gestor")
-      .eq("active", true);
-    for (const g of gestores ?? []) {
-      const { data } = await db.auth.admin.getUserById(g.id as string);
-      if (data.user?.email) recipients.add(data.user.email.toLowerCase());
-    }
-    if (recipients.size === 0) return fail("NO_RECIPIENT", "O cliente não tem e-mail cadastrado", 400);
+const emailList = z
+  .array(z.string().trim().toLowerCase().email())
+  .max(15)
+  .default([]);
+const bodySchema = z
+  .object({
+    to: emailList,
+    cc: emailList,
+    subject: z.string().trim().min(3).max(200).optional(),
+    message: z.string().trim().max(5000).optional(),
+    attach: z.object({ boleto: z.boolean().default(true), nf: z.boolean().default(true), voucher: z.boolean().default(true) }).partial().optional(),
+    copy_me: z.boolean().default(true),
+    save_client_email: z.boolean().default(false)
+  })
+  .partial();
 
-    const num = formatInvoiceNumber(invoice.number);
-    const link = `${publicBaseUrl()}/fatura/${invoice.id}`;
-    const name = (client?.trade_name as string | null) || (client?.name as string | null) || "Cliente";
-    const text = [
-      `Olá, ${name}.`,
-      `Segue a fatura ${num} da Prime Vitória, referente a ${brDate(invoice.period_start)} a ${brDate(invoice.period_end)}.`,
-      `Corridas: ${invoice.trip_count} · Total: ${brl(invoice.total_amount)} · Vencimento: ${brDate(invoice.due_date)}.`,
-      invoice.boleto_url ? `Boleto: ${invoice.boleto_url}` : null,
-      invoice.boleto_line ? `Linha digitável: ${invoice.boleto_line}` : null,
-      invoice.nf_number ? `Nota fiscal nº ${invoice.nf_number}${invoice.nf_url ? `: ${invoice.nf_url}` : ""}` : null,
-      `Relatório completo e 2ª via: ${link}`,
-      "",
-      "Prime Vitória — Transporte Executivo"
-    ]
-      .filter((l) => l !== null)
-      .join("\n");
-    const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto">
-<div style="background:#111;color:#fff;padding:16px 20px;border-radius:10px 10px 0 0"><b>PRIME <span style="color:#C9A84C">VITÓRIA</span></b><div style="font-size:11px;letter-spacing:.14em;color:#C9A84C">FATURA ${num}</div></div>
-<div style="border:1px solid #E8E4DC;border-top:0;padding:20px;border-radius:0 0 10px 10px">
-<p>Olá, ${name}.</p><p>Segue a fatura referente a <b>${brDate(invoice.period_start)} a ${brDate(invoice.period_end)}</b>.</p>
-<table style="border-collapse:collapse;font-size:14px"><tr><td style="padding:4px 16px 4px 0;color:#666">Corridas</td><td>${invoice.trip_count}</td></tr>
-<tr><td style="padding:4px 16px 4px 0;color:#666">Total</td><td><b>${brl(invoice.total_amount)}</b></td></tr>
-<tr><td style="padding:4px 16px 4px 0;color:#666">Vencimento</td><td>${brDate(invoice.due_date)}</td></tr></table>
-${invoice.boleto_url ? `<p><a href="${invoice.boleto_url}" style="background:#111;color:#C9A84C;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Abrir boleto</a></p>` : ""}
-${invoice.boleto_line ? `<p style="font-family:monospace;font-size:13px">${invoice.boleto_line}</p>` : ""}
-${invoice.nf_number ? `<p>Nota fiscal nº ${invoice.nf_number}${invoice.nf_url ? ` · <a href="${invoice.nf_url}" style="color:#B8943E">abrir PDF</a>` : ""}</p>` : ""}
-<p><a href="${link}" style="color:#B8943E">Ver relatório completo e 2ª via no portal</a></p></div></div>`;
+async function fileAttachment(path: string | null | undefined, filename: string) {
+  if (!path) return null;
+  const { data } = await db.storage.from(BUCKET).download(path);
+  if (!data) return null;
+  const ext = path.split(".").pop() || "pdf";
+  const buf = Buffer.from(await data.arrayBuffer());
+  return { filename: `${filename}.${ext}`, content: buf.toString("base64"), content_type: data.type || "application/pdf" };
+}
 
-    const sent = await sendOperationalEmail({ to: [...recipients], subject: `Fatura ${num} — Prime Vitória`, text, html });
-    if (!sent.ok) {
-      return fail(
-        "EMAIL_FAILED",
-        sent.skipped
-          ? "E-mail não configurado na plataforma"
-          : "O e-mail não saiu. Enquanto o domínio primevitoria.com não for verificado, só chegam e-mails para a sua própria caixa.",
-        502
-      );
-    }
-    if (invoice.status === "aberta") await updateClientInvoiceStatus(tenantId, id, { status: "enviada" });
-    return ok({ sent_to: [...recipients] });
+/** Envia a fatura por e-mail: destinatários, assunto e texto editáveis; boleto, nota e voucher anexados. Cópia para a Prime. */
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await getSessionContext();
+    if (!staff(session.role)) return fail("FORBIDDEN", "Só admin ou financeiro enviam faturas", 403);
+    const tenantId = assertTenantScope(session);
+    const { id } = await params;
+    const raw = await request.text();
+    const body = bodySchema.parse(raw ? JSON.parse(raw) : {});
+    const d = await defaults(tenantId, id);
+    if (!d) return fail("INVOICE_NOT_FOUND", "Fatura não encontrada", 404);
+
+    const to = body.to?.length ? body.to : d.to;
+    if (!to.length) return fail("NO_RECIPIENT", "Informe para quem enviar (o cliente não tem e-mail no cadastro).", 400);
+    const subject = body.subject || d.subject;
+    const message = body.message || d.message;
+    const inv = d.invoice;
+    const num = formatInvoiceNumber(inv.number);
+    const ref = inv.client_ref ? `-${inv.client_ref}` : "";
+    const want = { boleto: true, nf: true, voucher: true, ...(body.attach ?? {}) };
+    const attachments = (
+      await Promise.all([
+        want.boleto ? fileAttachment(inv.boleto_path, `Boleto-${num}${ref}`) : null,
+        want.nf ? fileAttachment(inv.nf_path, `NotaFiscal-${num}${ref}`) : null,
+        want.voucher ? fileAttachment(inv.voucher_path, `Voucher${ref || `-${num}`}`) : null
+      ])
+    ).filter((a): a is NonNullable<typeof a> => Boolean(a));
+
+    const signature = "Prime Vitória | Transporte Executivo\nCentral 24h: (27) 2142-8307 | (27) 99806-3956\ncontato@primevitoria.com";
+    const text = `${message}\n\n${signature}\n\nRelatório completo e 2ª via: ${d.link}`;
+    const html = `<!doctype html><html><body style="margin:0;background:#F4F1EA;font-family:Arial,Helvetica,sans-serif">
+<div style="max-width:600px;margin:0 auto;padding:24px 16px">
+  <div style="background:#0B0B0B;color:#fff;padding:18px 20px;border-radius:12px 12px 0 0;border-bottom:3px solid #C9A84C">
+    <table style="border-collapse:collapse;width:100%"><tr>
+      <td style="width:64px;padding-right:14px"><img src="${OFFICIAL_URLS.central}/api/public/brand-logo" width="56" height="56" alt="Prime Vitória" style="display:block;border-radius:10px;background:#fff"></td>
+      <td><div style="font-size:19px;font-weight:bold;letter-spacing:.04em">PRIME <span style="color:#C9A84C">VITÓRIA</span></div>
+      <div style="font-size:10.5px;letter-spacing:.14em;color:#C9A84C;margin-top:3px">TRANSPORTE EXECUTIVO · MOBILIDADE CORPORATIVA</div></td>
+      <td style="text-align:right;font-size:11px;color:#bbb;white-space:nowrap">FATURA<br><b style="color:#C9A84C;font-size:15px">${num}</b></td>
+    </tr></table>
+  </div>
+  <div style="background:#fff;padding:22px;border-radius:0 0 12px 12px;font-size:14px;line-height:1.6;color:#222">
+    ${esc(message).replace(/\n/g, "<br>")}
+    <p style="margin:18px 0"><a href="${d.link}" style="background:#111;color:#C9A84C;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Ver fatura e 2ª via</a></p>
+    <p style="margin:0;font-size:13px;border-top:1px solid #EFEAE0;padding-top:12px"><b>Prime Vitória</b> | Transporte Executivo<br>Central 24h: (27) 2142-8307 | (27) 99806-3956<br><a href="mailto:contato@primevitoria.com" style="color:#8A6D1F">contato@primevitoria.com</a></p>
+  </div>
+</div></body></html>`;
+
+    const sent = await sendOperationalEmail({
+      to,
+      cc: body.cc ?? [],
+      bcc: body.copy_me === false ? [] : [COPY_TO],
+      subject,
+      text,
+      html,
+      replyTo: COPY_TO,
+      attachments
+    });
+    if (!sent.ok) return fail("EMAIL_FAILED", sent.skipped ? "E-mail não configurado na plataforma." : `O e-mail não saiu: ${sent.reason}`, 502);
+    if (inv.status === "aberta") await updateClientInvoiceStatus(tenantId, id, { status: "enviada" });
+    // Cliente sem e-mail no cadastro: guarda o primeiro destinatário para as próximas faturas.
+    if (body.save_client_email && !d.to.length) await db.from("clients").update({ email: to[0] }).eq("id", inv.client_id).is("email", null);
+    await insertAuditEvent({
+      tenantId,
+      actorUserId: session.userId,
+      action: "invoice.send",
+      entityType: "client_invoice",
+      entityId: id,
+      metadata: { to, cc: body.cc ?? [], subject, anexos: attachments.map((a) => a.filename) },
+      request
+    });
+    return ok({ sent_to: to, attachments: attachments.map((a) => a.filename) });
   } catch (error) {
     return mapApiError(error);
   }

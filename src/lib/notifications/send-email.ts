@@ -21,6 +21,8 @@ export type SendEmailInput = {
   from?: string;
   /** Respostas do cliente vão para este endereço. */
   replyTo?: string;
+  cc?: string[];
+  bcc?: string[];
   /** Anexos (conteúdo em base64), ex.: convite de agenda .ics. */
   attachments?: { filename: string; content: string; content_type?: string }[];
 };
@@ -75,6 +77,8 @@ export async function sendOperationalEmail(input: SendEmailInput): Promise<SendE
       text: input.text,
       html: input.html ?? undefined,
       reply_to: input.replyTo ?? DEFAULT_EMAIL_REPLY_TO,
+      cc: input.cc?.length ? input.cc : undefined,
+      bcc: input.bcc?.length ? input.bcc : undefined,
       attachments: input.attachments?.length ? input.attachments : undefined
     })
   });

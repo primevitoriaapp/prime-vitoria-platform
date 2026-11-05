@@ -1,6 +1,7 @@
 "use client";
 
 import { VouchersToCloseCard } from "@/components/vouchers-to-close-card";
+import { InvoiceEmailComposer } from "@/components/invoice-email-composer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { inCompany, useCompany } from "@/lib/company/company-context";
@@ -136,19 +137,9 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
     void load();
   }
 
-  async function send(id: string) {
-    setBusy(true);
-    const res = await fetchWithSupabaseSession(`/api/client-invoices/${id}/send`, { method: "POST" }, devFallbackRole);
-    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { sent_to: string[] }; error?: { message?: string } };
-    setBusy(false);
-    setMsg(
-      res.ok && json.success
-        ? { kind: "ok", text: `Fatura enviada para ${json.data?.sent_to.join(", ")}.` }
-        : { kind: "err", text: json.error?.message ?? "Falha ao enviar." }
-    );
-    void load();
-  }
 
+
+  const [composer, setComposer] = useState<{ id: string; title: string } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [pendingUpload, setPendingUpload] = useState<{ row: Row; kind: "boleto" | "nf" } | null>(null);
 
@@ -186,6 +177,18 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
 
   return (
     <section className="mb-6 space-y-4">
+      {composer ? (
+        <InvoiceEmailComposer
+          invoiceId={composer.id}
+          title={composer.title}
+          onClose={() => setComposer(null)}
+          onSent={(text) => {
+            setComposer(null);
+            setMsg({ kind: "ok", text });
+            void load();
+          }}
+        />
+      ) : null}
       <input
         ref={fileRef}
         type="file"
@@ -421,7 +424,12 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                             </button>
                             {r.status === "aberta" ? (
                               <>
-                                <button type="button" disabled={busy} onClick={() => void send(r.id)} className={action}>
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => setComposer({ id: r.id, title: `${formatInvoiceNumber(r.number)}${r.client_ref ? ` · ${r.client_ref}` : ""} · ${r.client_name ?? ""}` })}
+                                  className={action}
+                                >
                                   ✉ Enviar por e-mail
                                 </button>
                                 <button
@@ -434,7 +442,12 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                                 </button>
                               </>
                             ) : (
-                              <button type="button" disabled={busy} onClick={() => void send(r.id)} className={action}>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => setComposer({ id: r.id, title: `${formatInvoiceNumber(r.number)}${r.client_ref ? ` · ${r.client_ref}` : ""} · ${r.client_name ?? ""}` })}
+                                className={action}
+                              >
                                 ✉ Reenviar
                               </button>
                             )}
