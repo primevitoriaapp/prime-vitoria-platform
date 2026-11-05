@@ -169,6 +169,7 @@ export function ClientRequestConsole({
   const [created, setCreated] = useState<Created | null>(null);
   const [presets, setPresets] = useState<ClientTripPreset[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [otherPax, setOtherPax] = useState<string[]>([]);
   const [teamDir, setTeamDir] = useState<TeamDirection>("buscar");
   const teamShape = useMemo(() => teamTripShape(team, teamDir), [team, teamDir]);
 
@@ -392,7 +393,10 @@ export function ClientRequestConsole({
           destination_text: destination,
           destination_lat: destinationLat,
           destination_lng: destinationLng,
-          passenger_name: passengerName || undefined,
+          passenger_name:
+            [passengerName.trim(), ...(team.length ? [] : otherPax.slice(0, Math.max(0, passengerCount - 1)).map((x) => x.trim()))]
+              .filter(Boolean)
+              .join(", ") || undefined,
           passenger_phone: passengerPhone || undefined,
           passenger_count: passengerCount,
           ...(teamShape?.pickupStops ? { trip_pickup_stops: teamShape.pickupStops } : {}),
@@ -805,6 +809,27 @@ export function ClientRequestConsole({
             />
           </label>
         </div>
+        {!team.length && passengerCount > 1 ? (
+          <div className="grid gap-2 rounded-xl bg-prime-bg p-3 sm:grid-cols-2">
+            {Array.from({ length: passengerCount - 1 }, (_, i) => (
+              <PassengerAutocompleteInput
+                key={i}
+                clientId={clientId}
+                label={`Passageiro ${i + 2}`}
+                value={otherPax[i] ?? ""}
+                onChange={(v) =>
+                  setOtherPax((arr) => {
+                    const next = [...arr];
+                    next[i] = v;
+                    return next;
+                  })
+                }
+                devFallbackRole={devFallbackRole}
+              />
+            ))}
+            <p className="text-xs text-prime-muted sm:col-span-2">Nomes dos outros passageiros (opcional). Se cada um embarca ou desce num endereço, use “Funcionários cadastrados” no Trajeto.</p>
+          </div>
+        ) : null}
         {costCenters.length > 0 ? (
           <label className={LABEL}>
             Centro de custo

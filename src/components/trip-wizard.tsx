@@ -74,6 +74,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [presentation, setPresentation] = useState(15);
   const [extras, setExtras] = useState<string[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [otherPax, setOtherPax] = useState<string[]>([]);
   const [teamDir, setTeamDir] = useState<TeamDirection>("buscar");
   const teamShape = useMemo(() => teamTripShape(team, teamDir), [team, teamDir]);
 
@@ -301,7 +302,9 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       destination_text: dest.text.trim(),
       destination_lat: dest.lat ?? undefined,
       destination_lng: dest.lng ?? undefined,
-      passenger_name: paxName.trim() || undefined,
+      passenger_name:
+        [paxName.trim(), ...(team.length ? [] : otherPax.slice(0, Math.max(0, passengers - 1)).map((x) => x.trim()))].filter(Boolean).join(", ") ||
+        undefined,
       passenger_phone: paxPhone.trim() || undefined,
       passenger_count: passengers,
       ...(teamShape?.pickupStops ? { trip_pickup_stops: teamShape.pickupStops } : {}),
@@ -713,6 +716,44 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               <span>WhatsApp do passageiro</span>
               <input className={input} placeholder="(27) 99999-9999" value={paxPhone} onChange={(e) => setPaxPhone(e.target.value)} />
             </label>
+            {!team.length ? (
+              <div className="grid gap-2 rounded-xl bg-prime-bg p-3 md:col-span-2">
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="font-semibold">Quantos passageiros?</span>
+                  <button type="button" className="h-8 w-8 rounded-full bg-white ring-1 ring-prime-border" onClick={() => setPassengers((n) => Math.max(1, n - 1))}>
+                    −
+                  </button>
+                  <span className="w-6 text-center text-lg font-semibold">{passengers}</span>
+                  <button
+                    type="button"
+                    className="h-8 w-8 rounded-full bg-white ring-1 ring-prime-border"
+                    onClick={() => setPassengers((n) => Math.min(category?.passengers ?? 60, n + 1))}
+                  >
+                    +
+                  </button>
+                  <span className="text-xs text-prime-muted">máx. {category?.passengers ?? "—"}</span>
+                </div>
+                {passengers > 1 ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {Array.from({ length: passengers - 1 }, (_, i) => (
+                      <PassengerAutocompleteInput
+                        key={i}
+                        clientId={client.id}
+                        label={`Passageiro ${i + 2}`}
+                        value={otherPax[i] ?? ""}
+                        onChange={(v) => setOtherPax((arr) => {
+                          const next = [...arr];
+                          next[i] = v;
+                          return next;
+                        })}
+                        devFallbackRole="admin"
+                      />
+                    ))}
+                    <p className="text-xs text-prime-muted sm:col-span-2">Os nomes vão para o motorista, a O.S. e a fatura. Pode deixar em branco quem ainda não sabe.</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <label className="grid gap-1 text-sm">
               <span>Nº do voo (se for aeroporto)</span>
               <input className={input} placeholder="Ex.: LA3456" value={flight} onChange={(e) => setFlight(e.target.value)} />
