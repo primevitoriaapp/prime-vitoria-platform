@@ -370,6 +370,43 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                         </div>
                       </div>
 
+                      {(() => {
+                        const steps = [
+                          { label: "Serviços concluídos", done: true },
+                          { label: "Fatura emitida", done: true },
+                          { label: "Enviada ao cliente", done: Boolean(r.sent_at) || r.status === "enviada" || r.status === "paga" },
+                          { label: "Pagamento confirmado", done: r.status === "paga" }
+                        ];
+                        const current = steps.findIndex((x) => !x.done);
+                        return (
+                          <ol className="mt-4 grid grid-cols-4 gap-1">
+                            {steps.map((st, i) => (
+                              <li key={st.label} className="relative flex flex-col items-center text-center">
+                                {i > 0 ? (
+                                  <span className={`absolute right-1/2 top-3 h-0.5 w-full -translate-y-1/2 ${steps[i - 1].done ? "bg-prime-gold" : "bg-prime-border"}`} aria-hidden />
+                                ) : null}
+                                <span
+                                  className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${
+                                    st.done
+                                      ? "bg-prime-gold text-[#fff]"
+                                      : i === current
+                                        ? isLate
+                                          ? "border-[3px] border-red-500 bg-white"
+                                          : "border-[3px] border-prime-gold bg-white"
+                                        : "border-2 border-prime-border bg-white"
+                                  }`}
+                                >
+                                  {st.done ? "✓" : ""}
+                                </span>
+                                <span className={`mt-1 text-[11px] leading-tight sm:text-xs ${i === current ? "font-semibold" : st.done ? "" : "text-prime-muted"}`}>
+                                  {i === current && i === 3 && isLate ? "Vencida — cobrar" : i === current && i === 3 ? "Aguardando pagamento" : st.label}
+                                </span>
+                              </li>
+                            ))}
+                          </ol>
+                        );
+                      })()}
+
                       <div className="mt-3 grid gap-2 rounded-xl bg-prime-bg/60 p-3 text-sm sm:grid-cols-3">
                         <p>
                           <span className="block text-xs text-prime-muted">Boleto</span>
