@@ -48,7 +48,11 @@ export function VouchersToCloseCard({ onClosed }: { onClosed?: () => void }) {
   async function close(g: VoucherGroup) {
     setBusy(true);
     setMsg(null);
-    const r = await fetchWithSupabaseSession(`/api/trips/${g.first_trip_id}/invoice`, { method: "POST", body: JSON.stringify({ due_date: due }) }, "admin");
+    const r = await fetchWithSupabaseSession(
+      "/api/client-invoices/vouchers",
+      { method: "POST", body: JSON.stringify({ trip_ids: g.trips.map((t) => t.id), due_date: due, ref: g.ref }) },
+      "admin"
+    );
     const j = (await r.json().catch(() => ({}))) as { success?: boolean; data?: { number: number; trip_ids: string[]; total_amount: number }; error?: { message?: string } };
     setBusy(false);
     if (!r.ok || !j.success || !j.data) return setMsg({ ok: false, text: j.error?.message ?? "Não foi possível fechar." });
@@ -70,9 +74,9 @@ export function VouchersToCloseCard({ onClosed }: { onClosed?: () => void }) {
     <section className="overflow-hidden rounded-2xl border border-prime-border bg-white shadow-prime-card">
       <header className="flex flex-wrap items-end justify-between gap-3 border-b border-prime-border px-5 py-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">Fechamento por voucher</p>
-          <h3 className="text-lg font-semibold">Vouchers a fechar</h3>
-          <p className="text-xs text-prime-muted">Um voucher (NR) por vez: todos os serviços dele — inclusive os divididos entre motoristas — viram uma fatura e um boleto.</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">Fechamento por serviço</p>
+          <h3 className="text-lg font-semibold">Serviços a faturar</h3>
+          <p className="text-xs text-prime-muted">Clientes que fecham por serviço. Com voucher (NR, ex.: CEP), junta os serviços do mesmo NR; sem voucher (ex.: Seg Pro), junta os serviços do mesmo dia. Um grupo = uma fatura e um boleto.</p>
         </div>
         <div className="inline-flex rounded-xl bg-prime-bg p-1 text-sm">
           {(

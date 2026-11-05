@@ -49,12 +49,13 @@ export async function GET(request: Request) {
 
     const [{ data: invs }, { data: clients }, { data: drv }] = await Promise.all([
       invoiceIds.length ? db.from("client_invoices").select("id, status").in("id", invoiceIds) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
-      clientIds.length ? db.from("clients").select("id, name, trade_name").in("id", clientIds) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+      clientIds.length ? db.from("clients").select("id, name, trade_name, driver_paid_upfront").in("id", clientIds) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
       driverIds.length
         ? db.from("drivers").select("id, full_name, cpf, pix_key, phone, whatsapp, partner_id").in("id", driverIds)
         : Promise.resolve({ data: [] as Record<string, unknown>[] })
     ]);
     const invPaid = new Set((invs ?? []).filter((i) => i.status === "paga").map((i) => i.id as string));
+    const upfront = new Set((clients ?? []).filter((c) => c.driver_paid_upfront === true).map((c) => c.id as string));
     const clientName = new Map((clients ?? []).map((c) => [c.id as string, ((c.trade_name as string) || (c.name as string)) ?? "Cliente"]));
     const driverRows = drv ?? [];
     const partnerIds = [...new Set(driverRows.map((d) => d.partner_id as string).filter(Boolean))];
@@ -92,7 +93,11 @@ export async function GET(request: Request) {
 
     const rows: PayoutRow[] = list.map((p) => {
       const t = tripById.get(p.trip_id as string);
-      const released = recPaid.has(p.trip_id as string) || (t?.client_invoice_id ? invPaid.has(t.client_invoice_id as string) : false);
+      // Cliente com repasse imediato (a Prime paga o motorista sem esperar o cliente): já liberado.
+      const released =
+        (t?.client_id ? upfront.has(t.client_id as string) : false) ||
+        recPaid.has(p.trip_id as string) ||
+        (t?.client_invoice_id ? invPaid.has(t.client_invoice_id as string) : false);
       return {
         id: p.id as string,
         amount: Number(p.amount) || 0,

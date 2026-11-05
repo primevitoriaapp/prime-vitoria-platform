@@ -1,10 +1,10 @@
 import { db } from "@/lib/server/db";
-import { clientDueDate, driverPayoutDateFromClientDue, spDay, type ClientPaymentTerms } from "@/lib/finance/payout-schedule";
+import { clientDueDate, driverPayoutDateFromClientDue, nextBusinessDay, spDay, type ClientPaymentTerms } from "@/lib/finance/payout-schedule";
 
 type TripRow = { id: string; client_id: string; scheduled_at: string; client_invoice_id: string | null };
 type InvoiceRow = { id: string; due_date: string; status: string; paid_at: string | null };
 
-const TERMS_COLS = "id, invoiced, invoice_closing_day, invoice_per_service, payment_term_days, reconciliation_business_days";
+const TERMS_COLS = "id, invoiced, invoice_closing_day, invoice_per_service, driver_paid_upfront, payment_term_days, reconciliation_business_days";
 
 /**
  * Data prevista de pagamento ao motorista para cada corrida:
@@ -31,7 +31,10 @@ export async function driverPayoutDatesForTrips(trips: TripRow[]): Promise<Map<s
     if (inv && inv.status === "paga" && inv.paid_at) clientDue = spDay(inv.paid_at);
     else if (inv && inv.status !== "cancelada" && inv.due_date) clientDue = inv.due_date;
     else clientDue = clientDueDate(spDay(t.scheduled_at), terms);
-    out.set(t.id, { clientDue, payout: driverPayoutDateFromClientDue(clientDue, terms.reconciliation_business_days) });
+    const payout = terms.driver_paid_upfront
+      ? nextBusinessDay(spDay(t.scheduled_at))
+      : driverPayoutDateFromClientDue(clientDue, terms.reconciliation_business_days);
+    out.set(t.id, { clientDue, payout });
   }
   return out;
 }

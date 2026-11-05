@@ -22,6 +22,7 @@ type FormState = {
   km_minimum: string;
   reconciliation_business_days: string;
   requires_passenger_list: boolean;
+  driver_paid_upfront: boolean;
 };
 
 const TERM_PRESETS = [
@@ -47,7 +48,8 @@ function toForm(d: Record<string, unknown> | undefined): FormState {
     invoiced: d?.invoiced !== false,
     km_minimum: s(d?.km_minimum),
     reconciliation_business_days: s(d?.reconciliation_business_days, "0"),
-    requires_passenger_list: d?.requires_passenger_list === true
+    requires_passenger_list: d?.requires_passenger_list === true,
+    driver_paid_upfront: d?.driver_paid_upfront === true
   };
 }
 
@@ -96,7 +98,8 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
       invoiced: form.invoiced,
       km_minimum: numOrNull(form.km_minimum),
       reconciliation_business_days: Math.max(0, Math.min(15, Math.round(numOrNull(form.reconciliation_business_days) ?? 0))),
-      requires_passenger_list: form.requires_passenger_list
+      requires_passenger_list: form.requires_passenger_list,
+      driver_paid_upfront: form.driver_paid_upfront
     };
     const res = await fetchWithSupabaseSession(
       `/api/clients/${clientId}/billing-terms`,
@@ -275,13 +278,29 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
         <div className="self-end rounded-lg bg-prime-bg p-3 text-sm">
           <p className="font-medium">Pagamento previsto ao motorista</p>
           <p className="text-xs text-prime-muted">
-            {form.invoice_closing_day === "servico"
+            {form.driver_paid_upfront ? "Logo depois da corrida (sem esperar o cliente). " : ""}
+            {form.driver_paid_upfront ? null : form.invoice_closing_day === "servico"
               ? "Boleto no dia seguinte ao serviço"
               : `Fechamento ${form.invoice_closing_day === "0" ? "no fim do mês" : `no dia ${form.invoice_closing_day}`}`}{" "}
-            + {form.payment_term_days || "30"} dias para o cliente pagar
+            {form.driver_paid_upfront ? "Cliente paga" : "+"} {form.payment_term_days || "30"} dias {form.driver_paid_upfront ? "depois do boleto" : "para o cliente pagar"}
             {form.reconciliation_business_days !== "0" ? ` + ${form.reconciliation_business_days} dia(s) útil(eis) de conciliação` : ""}; cai sempre em dia útil.
           </p>
         </div>
+        <label className="flex items-start gap-2 rounded-lg border border-prime-border p-3 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={form.driver_paid_upfront}
+            onChange={(e) => setForm((f) => ({ ...f, driver_paid_upfront: e.target.checked }))}
+            disabled={off}
+          />
+          <span>
+            <span className="font-medium">Pagar os motoristas assim que a corrida termina</span>
+            <span className="block text-xs text-prime-muted">
+              Não espera o cliente pagar: em Repasses as corridas deste cliente já aparecem como liberadas, e a carteira do motorista mostra o próximo dia útil.
+            </span>
+          </span>
+        </label>
         <label className="flex items-start gap-2 rounded-lg border border-prime-border p-3 text-sm sm:col-span-2">
           <input
             type="checkbox"

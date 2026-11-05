@@ -408,3 +408,68 @@ export async function generateInvoiceForTrip(input: {
     .catch(() => undefined);
   return { invoice_id: inv.id as string, number: inv.number as number, trip_ids: ids, total_amount: summary.total_amount };
 }
+
+/** Fatura com as corridas escolhidas (um voucher ou os serviços de um dia). Todas do mesmo cliente, concluídas e aprovadas. */
+export async function generateInvoiceFromTrips(input: {
+  tenantId: string;
+  tripIds: string[];
+  dueDate: string;
+  clientRef?: string | null;
+  createdBy?: string | null;
+}): Promise<{ invoice_id: string; number: number; trip_ids: string[]; total_amount: number }> {
+  const ids = [...new Set(input.tripIds)];
+  if (!ids.length) throw new Error("Nenhuma corrida escolhida");
+  const { data: trips } = await db
+    .from("trips")
+    .select("id, client_id, scheduled_at, operational_status, client_invoice_id, reviewed_at, client_amount, km_billable, actual_km, planned_km, client_voucher_path")
+    .eq("tenant_id", input.tenantId)
+    .in("id", ids);
+  const list = trips ?? [];
+  if (list.length !== ids.length) throw new Error("Alguma corrida não foi encontrada");
+  const clients = new Set(list.map((t) => t.client_id as string));
+  if (clients.size !== 1) throw new Error("As corridas precisam ser do mesmo cliente");
+  if (list.some((t) => t.operational_status !== "completed")) throw new Error("Ainda tem corrida sem concluir neste grupo");
+  if (list.some((t) => t.client_invoice_id)) throw new Error("Alguma corrida já está em outra fatura");
+  if (list.some((t) => !t.reviewed_at)) throw new Error('Falta aprovar corrida deste grupo em "Aprovar corridas"');
+  const clientId = list[0].client_id as string;
+  const days = list.map((t) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(t.scheduled_at as string))).sort();
+  const summary = summarizeInvoice(list as unknown as InvoiceTripInput[]);
+  const { data: c } = await db.from("clients").select("billing_issuer").eq("id", clientId).maybeSingle();
+  let ref = input.clientRef ?? null;
+  let inv: { id: string; number: number } | null = null;
+  for (let attempt = 1; attempt <= 5 && !inv; attempt++) {
+    const { data, error } = await db
+      .from("client_invoices")
+      .insert({
+        tenant_id: input.tenantId,
+        client_id: clientId,
+        period_start: days[0],
+        period_end: days[days.length - 1],
+        due_date: input.dueDate,
+        billing_issuer: (c?.billing_issuer as string | null) ?? null,
+        trip_count: summary.trip_count,
+        total_km: summary.total_km,
+        total_amount: summary.total_amount,
+        created_by: input.createdBy ?? null,
+        client_ref: ref,
+        voucher_path: list.find((t) => t.client_voucher_path)?.client_voucher_path ?? null
+      })
+      .select("id, number")
+      .single();
+    if (data) inv = { id: data.id as string, number: data.number as number };
+    else if (/uq_client_invoices_period/.test(error?.message ?? "")) ref = `${input.clientRef ?? "Lote"} (${attempt + 1})`;
+    else throw new Error(error?.message ?? "Falha ao criar a fatura");
+  }
+  if (!inv) throw new Error("Não foi possível criar a fatura");
+  await db.from("trips").update({ client_invoice_id: inv.id }).in("id", ids).eq("tenant_id", input.tenantId);
+  await db
+    .from("accounts_receivable")
+    .update({ due_date: input.dueDate, reference: `Fatura ${String(inv.number).padStart(5, "0")}${ref ? ` · ${ref}` : ""}` })
+    .in("trip_id", ids)
+    .eq("tenant_id", input.tenantId)
+    .neq("status", "paid");
+  await import("@/lib/finance/driver-payout-sync")
+    .then(({ resyncOpenDriverPayoutDates }) => resyncOpenDriverPayoutDates(input.tenantId, { tripIds: ids }))
+    .catch(() => undefined);
+  return { invoice_id: inv.id, number: inv.number, trip_ids: ids, total_amount: summary.total_amount };
+}

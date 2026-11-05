@@ -4,6 +4,9 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { clientRefFromNotes } from "@/lib/trips/client-ref";
 import { groupVouchers, type VoucherTrip } from "@/lib/finance/voucher-groups";
+import { z } from "zod";
+import { generateInvoiceFromTrips } from "@/lib/finance/client-invoices";
+import { insertAuditEvent } from "@/lib/server/audit-log";
 
 /** Vouchers (NR) ainda sem fatura, dos clientes que fecham por serviço (ex.: CEP). */
 export async function GET() {
@@ -31,8 +34,10 @@ export async function GET() {
     if (error) return fail("TRIPS_FAILED", error.message, 500);
     const list: VoucherTrip[] = [];
     for (const t of trips ?? []) {
-      const ref = clientRefFromNotes(t.notes as string | null);
-      if (!ref) continue;
+      // Sem NR (ex.: Seg Pro): agrupa os serviços do mesmo dia.
+      const ref =
+        clientRefFromNotes(t.notes as string | null) ??
+        `Serviços de ${new Date(t.scheduled_at as string).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" })}`;
       list.push({
         id: t.id as string,
         client_id: t.client_id as string,
@@ -46,6 +51,42 @@ export async function GET() {
       });
     }
     return ok({ groups: groupVouchers(list) });
+  } catch (error) {
+    return mapApiError(error);
+  }
+}
+
+const closeSchema = z.object({
+  trip_ids: z.array(z.string().uuid()).min(1).max(100),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  ref: z.string().max(60).optional()
+});
+
+/** Fecha um grupo (voucher ou dia): uma fatura com essas corridas. */
+export async function POST(request: Request) {
+  try {
+    const session = await getSessionContext();
+    if (session.role !== "admin" && session.role !== "financeiro") return fail("FORBIDDEN", "Só admin ou financeiro faturam", 403);
+    const tenantId = assertTenantScope(session);
+    const body = closeSchema.parse(await request.json());
+    const r = await generateInvoiceFromTrips({
+      tenantId,
+      tripIds: body.trip_ids,
+      dueDate: body.due_date,
+      clientRef: body.ref ?? null,
+      createdBy: session.userId
+    }).catch((e: Error) => e);
+    if (r instanceof Error) return fail("INVOICE_FAILED", r.message, 409);
+    await insertAuditEvent({
+      tenantId,
+      actorUserId: session.userId,
+      action: "invoice.per_service",
+      entityType: "client_invoice",
+      entityId: r.invoice_id,
+      metadata: { trip_ids: r.trip_ids, due_date: body.due_date, ref: body.ref ?? null },
+      request
+    });
+    return ok(r, 201);
   } catch (error) {
     return mapApiError(error);
   }

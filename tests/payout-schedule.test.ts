@@ -99,3 +99,10 @@ test("CEP: fecha por serviço, boleto no dia seguinte + 30, motorista 1 dia úti
   // Vencimento numa quarta → quinta.
   assert.equal(driverPayoutDateFromClientDue("2026-12-09", 1), "2026-12-10");
 });
+
+test("Seg Pro: motorista recebe logo depois da corrida (próximo dia útil), sem esperar o cliente", async () => {
+  const { driverPayoutDate } = await import("../src/lib/finance/payout-schedule.ts");
+  const seg = { invoiced: true, invoice_per_service: true, driver_paid_upfront: true, payment_term_days: 30 };
+  assert.equal(driverPayoutDate("2026-11-05", seg), "2026-11-05"); // quinta
+  assert.equal(driverPayoutDate("2026-11-07", seg), "2026-11-09"); // sábado → segunda
+});

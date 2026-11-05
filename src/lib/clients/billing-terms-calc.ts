@@ -39,6 +39,8 @@ export type ClientBillingTerms = {
   invoice_auto_close: boolean;
   /** Cada serviço (voucher/NR) vira uma fatura própria, fechada à mão no dia seguinte (ex.: CEP). */
   invoice_per_service?: boolean;
+  /** Paga o motorista assim que a corrida termina, sem esperar o cliente pagar. */
+  driver_paid_upfront?: boolean;
   /** false = cliente paga antes do serviço (não entra em fatura). */
   invoiced: boolean;
   /** Km mínimo cobrado por corrida na cobrança por km (null = sem mínimo). */

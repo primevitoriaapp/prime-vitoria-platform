@@ -94,6 +94,8 @@ export type ClientPaymentTerms = {
   /** false = cliente paga antes do serviço (não entra em fatura). */
   invoiced?: boolean | null;
   invoice_closing_day?: number | null;
+  /** A Prime paga o motorista assim que a corrida termina, sem esperar o cliente (ex.: Seg Pro). */
+  driver_paid_upfront?: boolean | null;
   /** Fecha cada serviço (voucher/NR) separado: o boleto sai no dia seguinte ao serviço (ex.: CEP). */
   invoice_per_service?: boolean | null;
   /** Dias para pagar depois do fechamento (sem cadastro: 30). */
@@ -116,6 +118,7 @@ export function driverPayoutDateFromClientDue(clientDue: string, reconciliationB
 }
 
 export function driverPayoutDate(tripDay: string, terms: ClientPaymentTerms): string {
+  if (terms.driver_paid_upfront) return nextBusinessDay(tripDay);
   return driverPayoutDateFromClientDue(clientDueDate(tripDay, terms), terms.reconciliation_business_days);
 }
 
