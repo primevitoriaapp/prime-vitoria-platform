@@ -23,7 +23,7 @@ function staff(role: string) {
 async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete" = "fatura") {
   const invoice = await getClientInvoice(tenantId, id);
   if (!invoice || invoice.status === "cancelada") return null;
-  const inv = invoice as typeof invoice & { client_ref?: string | null; voucher_path?: string | null; boleto_path?: string | null; nf_path?: string | null };
+  const inv = invoice as typeof invoice & { client_ref?: string | null; voucher_path?: string | null; boleto_path?: string | null; nf_path?: string | null; nf_extra_paths?: string[] | null };
   const { data: client } = await db.from("clients").select("name, trade_name, email").eq("id", invoice.client_id).maybeSingle();
   const to = new Set<string>();
   if (client?.email) to.add(String(client.email).trim().toLowerCase());
@@ -71,7 +71,7 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
     `Vencimento: ${brDate(invoice.due_date)}`,
     invoice.boleto_line ? `Linha digitável: ${invoice.boleto_line}` : null,
     "",
-    "Seguem em anexo a fatura detalhada (com todos os serviços) e o boleto. Qualquer dúvida, estamos à disposição.",
+    `Seguem em anexo a fatura detalhada (com todos os serviços)${(inv.nf_path ? 1 : 0) + (inv.nf_extra_paths?.length ?? 0) > 1 ? ", as notas fiscais" : ""} e o boleto. Qualquer dúvida, estamos à disposição.`,
     "",
     "Atenciosamente,"
   ]
@@ -86,7 +86,7 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
         ? `${vencida ? "Fatura vencida" : "Lembrete de vencimento"}: ${num}${ref} — ${brDate(invoice.due_date)} — Prime Vitória`
         : `Fatura ${num}${ref} — ${name} — Prime Vitória`,
     message,
-    files: { fatura: true, boleto: Boolean(inv.boleto_path), nf: Boolean(inv.nf_path), voucher: Boolean(inv.voucher_path) },
+    files: { fatura: true, boleto: Boolean(inv.boleto_path), nf: Boolean(inv.nf_path || inv.nf_extra_paths?.length), voucher: Boolean(inv.voucher_path) },
     link: `${OFFICIAL_URLS.empresa}/fatura/${invoice.id}`,
     copy_to: COPY_TO
   };
@@ -166,7 +166,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       await Promise.all([
         faturaPdf,
         want.boleto ? fileAttachment(inv.boleto_path, `Boleto-${num}${ref}`) : null,
-        want.nf ? fileAttachment(inv.nf_path, `NotaFiscal-${num}${ref}`) : null,
+        want.nf ? fileAttachment(inv.nf_path, `NotaFiscal-${num}${ref}${inv.nf_extra_paths?.length ? "-1" : ""}`) : null,
+        ...(want.nf ? (inv.nf_extra_paths ?? []).map((p, i) => fileAttachment(p, `NotaFiscal-${num}${ref}-${i + (inv.nf_path ? 2 : 1)}`)) : []),
         want.voucher ? fileAttachment(inv.voucher_path, `Voucher${ref || `-${num}`}`) : null
       ])
     ).filter((a): a is NonNullable<typeof a> => Boolean(a));

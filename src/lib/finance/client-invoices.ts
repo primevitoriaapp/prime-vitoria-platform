@@ -32,6 +32,7 @@ export type ClientInvoiceRow = {
   voucher_path?: string | null;
   boleto_path?: string | null;
   nf_path?: string | null;
+  nf_extra_paths?: string[] | null;
   payment_method?: string | null;
   viewed_at?: string | null;
 };

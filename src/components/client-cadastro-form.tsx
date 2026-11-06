@@ -262,6 +262,13 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
     }
     setBusy(true);
     setFeedback(null);
+    // Salva junto o funcionário que ficou preenchido na seção "Equipe".
+    let pendingTeamOk = true;
+    if (clientId) {
+      const wait: Promise<boolean>[] = [];
+      window.dispatchEvent(new CustomEvent("client-cadastro-saving", { detail: { clientId, wait } }));
+      pendingTeamOk = (await Promise.all(wait)).every(Boolean);
+    }
     try {
       const payload = {
         type: form.type,
@@ -307,6 +314,13 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         : form.type === "PJ"
           ? "Cliente cadastrado com sucesso."
           : "Cliente cadastrado com sucesso.";
+      if (!pendingTeamOk) {
+        setFeedback({
+          kind: "error",
+          message: `${successMsg} MAS o funcionário preenchido em "Equipe e acesso ao portal" NÃO foi salvo — veja o aviso vermelho lá e clique em "Adicionar funcionário".`
+        });
+        return;
+      }
       setFeedback({
         kind: saved?._warning ? "info" : "success",
         message: saved?._warning ? `${successMsg} ${saved._warning}` : successMsg

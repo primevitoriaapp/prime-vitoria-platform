@@ -14,6 +14,7 @@ type Inv = {
   boleto_path: string | null;
   boleto_line: string | null;
   nf_path: string | null;
+  nf_extra_paths?: string[] | null;
   voucher_path: string | null;
 };
 
@@ -32,7 +33,7 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const [kind, setKind] = useState<"boleto" | "nf" | "voucher">("boleto");
+  const [kind, setKind] = useState<"boleto" | "nf" | "nf_extra" | "voucher">("boleto");
   const live = inv.status !== "paga" && inv.status !== "cancelada";
 
   async function patch(body: Record<string, unknown>, okText: string) {
@@ -56,7 +57,7 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
     router.refresh();
   }
 
-  const pick = (k: "boleto" | "nf" | "voucher") => {
+  const pick = (k: "boleto" | "nf" | "nf_extra" | "voucher") => {
     setKind(k);
     setMore(false);
     window.setTimeout(() => fileRef.current?.click(), 0);
@@ -180,9 +181,34 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
                   {inv.nf_path ? "Trocar nota fiscal" : "Anexar nota fiscal"}
                 </button>
                 {inv.nf_path ? (
-                  <a className="rounded-lg px-3 py-2 hover:bg-prime-bg" href={`/api/client-invoices/${inv.id}/files?kind=nf`} target="_blank" rel="noopener noreferrer">
-                    Ver nota fiscal
-                  </a>
+                  <>
+                    <a className="rounded-lg px-3 py-2 hover:bg-prime-bg" href={`/api/client-invoices/${inv.id}/files?kind=nf`} target="_blank" rel="noopener noreferrer">
+                      Ver nota fiscal{inv.nf_extra_paths?.length ? " 1" : ""}
+                    </a>
+                    {(inv.nf_extra_paths ?? []).map((_, i) => (
+                      <span key={i} className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 hover:bg-prime-bg">
+                        <a href={`/api/client-invoices/${inv.id}/files?kind=nf&i=${i + 1}`} target="_blank" rel="noopener noreferrer">
+                          Ver nota fiscal {i + 2}
+                        </a>
+                        <button
+                          type="button"
+                          className="text-xs text-red-700"
+                          onClick={async () => {
+                            if (!window.confirm(`Remover a nota fiscal ${i + 2} desta fatura?`)) return;
+                            setMore(false);
+                            const r = await fetchWithSupabaseSession(`/api/client-invoices/${inv.id}/files?i=${i + 1}`, { method: "DELETE" }, "admin");
+                            setMsg(r.ok ? { ok: true, text: `Nota ${i + 2} removida.` } : { ok: false, text: "Não foi possível remover." });
+                            router.refresh();
+                          }}
+                        >
+                          remover
+                        </button>
+                      </span>
+                    ))}
+                    <button type="button" className="rounded-lg px-3 py-2 text-left font-semibold hover:bg-prime-bg" onClick={() => pick("nf_extra")}>
+                      ＋ Anexar outra nota fiscal (2ª, 3ª…)
+                    </button>
+                  </>
                 ) : null}
                 <button type="button" className="rounded-lg px-3 py-2 text-left hover:bg-prime-bg" onClick={() => pick("voucher")}>
                   {inv.voucher_path ? "Trocar voucher" : "Anexar voucher do cliente"}

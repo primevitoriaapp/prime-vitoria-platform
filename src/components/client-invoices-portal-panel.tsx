@@ -19,6 +19,7 @@ type Row = {
   nf_url: string | null;
   boleto_path?: string | null;
   nf_path?: string | null;
+  nf_extra_paths?: string[] | null;
   boleto_line?: string | null;
 };
 
@@ -86,7 +87,15 @@ export function ClientInvoicesPortalPanel({ devFallbackRole = "cliente" }: { dev
                     <a href={`/api/client-invoices/${r.id}/files?kind=nf`} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold-ink hover:underline">
                       Nota fiscal {r.nf_number ? `nº ${r.nf_number}` : ""}
                     </a>
-                  ) : r.nf_url ? (
+                  ) : null}
+                  {r.nf_path
+                    ? (r.nf_extra_paths ?? []).map((_, i) => (
+                        <a key={i} href={`/api/client-invoices/${r.id}/files?kind=nf&i=${i + 1}`} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold-ink hover:underline">
+                          Nota fiscal {i + 2}
+                        </a>
+                      ))
+                    : null}
+                  {r.nf_path ? null : r.nf_url ? (
                     <a href={r.nf_url} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold-ink hover:underline">
                       Nota fiscal {r.nf_number ? `nº ${r.nf_number}` : ""}
                     </a>

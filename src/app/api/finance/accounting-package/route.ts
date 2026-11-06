@@ -58,7 +58,7 @@ export async function GET(request: Request) {
     // ---------- Receitas: faturas emitidas ou recebidas no mês ----------
     const { data: invs } = await db
       .from("client_invoices")
-      .select("id, number, client_id, billing_issuer, issue_date, created_at, due_date, total_amount, status, paid_at, payment_method, nf_number, client_ref, boleto_path, nf_path, period_start, period_end")
+      .select("id, number, client_id, billing_issuer, issue_date, created_at, due_date, total_amount, status, paid_at, payment_method, nf_number, client_ref, boleto_path, nf_path, nf_extra_paths, period_start, period_end")
       .eq("tenant_id", tenantId)
       .neq("status", "cancelada")
       .or(`and(issue_date.gte.${first},issue_date.lte.${last}),and(paid_at.gte.${fromIso},paid_at.lte.${toIso})`)
@@ -93,6 +93,9 @@ export async function GET(request: Request) {
       const base = `01_Receitas/Faturas/Fatura_${num}_${safe(String(c?.trade_name || c?.name || "cliente"))}`;
       files.push({ path: `${base}.pdf`, url: `/api/client-invoices/${i.id}/pdf?download=1` });
       await sign("invoice-files", i.nf_path as string | null, `${base}_NotaFiscal.${extOf(String(i.nf_path ?? ""))}`);
+      for (const [k, pth] of ((i.nf_extra_paths as string[] | null) ?? []).entries()) {
+        await sign("invoice-files", pth, `${base}_NotaFiscal-${k + 2}.${extOf(pth)}`);
+      }
       await sign("invoice-files", i.boleto_path as string | null, `${base}_Boleto.${extOf(String(i.boleto_path ?? ""))}`);
     }
     csvs.push({

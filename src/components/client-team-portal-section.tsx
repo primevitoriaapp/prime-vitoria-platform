@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { ClientPassengerRow } from "@/lib/clients/client-passengers";
 import type { CostCenterRow } from "@/lib/clients/client-cost-centers";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
@@ -85,6 +85,7 @@ export function ClientTeamPortalSection({
   const [busy, setBusy] = useState(false);
   const [cepBusy, setCepBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pMsg, setPMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
@@ -182,12 +183,17 @@ export function ClientTeamPortalSection({
     });
   }
 
-  async function savePassenger(e?: FormEvent) {
+  async function savePassenger(e?: FormEvent): Promise<boolean> {
     e?.preventDefault();
     e?.stopPropagation();
-    if (!canManage || !pForm.name.trim()) return;
+    if (!canManage) return false;
+    if (pForm.name.trim().length < 2) {
+      setPMsg({ kind: "error", text: "Digite o nome do funcionário (mínimo 2 letras)." });
+      return false;
+    }
     setBusy(true);
     setMessage(null);
+    setPMsg(null);
     const body = {
       name: pForm.name.trim(),
       phone: pForm.phone.trim() || null,
@@ -200,7 +206,10 @@ export function ClientTeamPortalSection({
       can_request: pForm.can_request,
       allowed_category_ids: pForm.allowed?.length ? pForm.allowed : null
     };
-    const res = editingId
+    let res: Response;
+    let json: { success?: boolean; data?: ClientPassengerRow; error?: { message?: string } } = {};
+    try {
+    res = editingId
       ? await fetchWithSupabaseSession(
           `/api/clients/${clientId}/passengers/${editingId}`,
           { method: "PATCH", body: JSON.stringify(body) },
@@ -211,36 +220,55 @@ export function ClientTeamPortalSection({
           { method: "POST", body: JSON.stringify(body) },
           devFallbackRole
         );
-    const json = (await res.json()) as {
-      success?: boolean;
-      data?: ClientPassengerRow;
-      error?: { message?: string };
-    };
+    json = (await res.json().catch(() => ({}))) as typeof json;
+    } catch {
+      setBusy(false);
+      setPMsg({ kind: "error", text: "Sem conexão com o servidor. Verifique a internet e clique de novo." });
+      return false;
+    }
     setBusy(false);
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Falha ao salvar funcionário.");
-      return;
+      setPMsg({ kind: "error", text: `Não salvou: ${json.error?.message ?? `erro ${res.status}`}. Nada foi gravado — corrija e clique de novo.` });
+      return false;
     }
     const savedRow = json.data;
+    let okText = "";
     const before = editingId ? passengers.find((x) => x.id === editingId) : null;
     if (savedRow?.profile_id && before && (before.portal_access === "gestor") !== pForm.gestor && savedRow.email) {
       // Só mudou o nível (gestor/solicitante) de quem já entra no portal.
       await grantAccess(savedRow.id, savedRow.email, pForm.gestor ? "gestor" : "solicitante", true);
-      setMessage(pForm.gestor ? `${savedRow.name} agora é gestor da empresa.` : `${savedRow.name} agora é solicitante.`);
+      okText = (pForm.gestor ? `${savedRow.name} agora é gestor da empresa.` : `${savedRow.name} agora é solicitante.`);
     } else if (pForm.giveAccess && (pForm.can_request || pForm.gestor) && pForm.email.trim() && savedRow && !savedRow.profile_id) {
       const sent = await grantAccess(savedRow.id, pForm.email.trim(), pForm.gestor ? "gestor" : "solicitante");
-      setMessage(
+      okText = (
         sent
           ? `${savedRow.name} cadastrado. Enviamos um convite para ${pForm.email.trim()} criar a senha.`
-          : `${savedRow.name} cadastrado, mas o convite não foi enviado (veja o aviso acima).`
+          : `${savedRow.name} cadastrado, mas o convite NÃO foi enviado: ${inviteErrRef.current}`
       );
     } else {
-      setMessage(editingId ? "Funcionário atualizado." : "Funcionário adicionado.");
+      okText = (editingId ? "Funcionário atualizado." : "Funcionário adicionado.");
     }
+    setPMsg({ kind: "ok", text: `✓ ${okText || `${savedRow?.name ?? "Funcionário"} salvo.`} Ele já aparece na lista abaixo.` });
     setEditingId(null);
     setPForm(emptyPassenger());
     void loadPassengers();
+    return true;
   }
+
+  // Quando clicam no "Salvar alterações" principal do cadastro, salva também
+  // o funcionário que ficou preenchido (antes ele era ignorado sem aviso).
+  const inviteErrRef = useRef<string>("");
+  const pendingRef = useRef<() => Promise<boolean>>(async () => true);
+  pendingRef.current = async () => (pForm.name.trim() ? savePassenger() : true);
+  useEffect(() => {
+    function onSaving(ev: Event) {
+      const d = (ev as CustomEvent<{ clientId: string; wait: Promise<boolean>[] }>).detail;
+      if (!d || d.clientId !== clientId) return;
+      d.wait.push(pendingRef.current());
+    }
+    window.addEventListener("client-cadastro-saving", onSaving);
+    return () => window.removeEventListener("client-cadastro-saving", onSaving);
+  }, [clientId]);
 
   async function grantAccess(passengerId: string, email: string, access: "gestor" | "solicitante" = "solicitante", skipEmail = false): Promise<boolean> {
     const res = await fetchWithSupabaseSession(
@@ -250,7 +278,8 @@ export function ClientTeamPortalSection({
     );
     const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
     if (!res.ok || !json.success) {
-      setMessage(json.error?.message ?? "Não foi possível enviar o convite.");
+      inviteErrRef.current = json.error?.message ?? "Não foi possível enviar o convite.";
+      setMessage(inviteErrRef.current);
       return false;
     }
     void loadPassengers();
@@ -555,6 +584,15 @@ export function ClientTeamPortalSection({
                 <button type="button" onClick={() => void savePassenger()} disabled={busy} className="btn-primary disabled:opacity-50">
                   {busy ? "Salvando…" : editingId ? "Atualizar" : "Adicionar funcionário"}
                 </button>
+                {pMsg ? (
+                  <p className={`w-full rounded-lg px-3 py-2 text-sm font-semibold ${pMsg.kind === "error" ? "bg-red-600 text-[#fff]" : "bg-emerald-600 text-[#fff]"}`}>
+                    {pMsg.text}
+                  </p>
+                ) : pForm.name.trim() && !editingId ? (
+                  <p className="w-full text-xs font-semibold text-amber-600">
+                    ⚠ Ainda não salvo — clique em “Adicionar funcionário” (ou no “Salvar alterações” do cadastro).
+                  </p>
+                ) : null}
                 {editingId ? (
                   <button
                     type="button"

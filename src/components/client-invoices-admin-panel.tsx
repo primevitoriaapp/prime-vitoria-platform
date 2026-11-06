@@ -28,6 +28,7 @@ type Row = {
   billing_issuer?: string | null;
   boleto_path?: string | null;
   nf_path?: string | null;
+  nf_extra_paths?: string[] | null;
   voucher_path?: string | null;
   sent_at?: string | null;
   paid_at?: string | null;
@@ -142,9 +143,9 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
 
   const [composer, setComposer] = useState<{ id: string; title: string } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const [pendingUpload, setPendingUpload] = useState<{ row: Row; kind: "boleto" | "nf" } | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<{ row: Row; kind: "boleto" | "nf" | "nf_extra" } | null>(null);
 
-  function pickFile(r: Row, kind: "boleto" | "nf") {
+  function pickFile(r: Row, kind: "boleto" | "nf" | "nf_extra") {
     setPendingUpload({ row: r, kind });
     fileRef.current?.click();
   }
@@ -168,6 +169,8 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
       const line = window.prompt("Boleto anexado. Quer colar a linha digitável também? (opcional)", target.row.boleto_line ?? "")?.trim();
       if (line !== undefined) await patch(target.row.id, { boleto_line: line || null }, "Boleto anexado à fatura. O cliente já vê no portal.");
       else setMsg({ kind: "ok", text: "Boleto anexado à fatura. O cliente já vê no portal." });
+    } else if (target.kind === "nf_extra") {
+      setMsg({ kind: "ok", text: "Mais uma nota fiscal anexada. Ela vai junto no e-mail da fatura." });
     } else {
       const number = window.prompt("Nota anexada. Qual o número da nota fiscal?", target.row.nf_number ?? "")?.trim();
       if (number !== undefined) await patch(target.row.id, { nf_number: number || null }, "Nota fiscal anexada à fatura.");
@@ -428,7 +431,14 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                             <a href={`/api/client-invoices/${r.id}/files?kind=nf`} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold-ink hover:underline">
                               NF {r.nf_number ?? ""}
                             </a>
-                          ) : r.nf_number ? (
+                          ) : null}
+                          {r.nf_path && r.nf_extra_paths?.length ? (
+                            r.nf_extra_paths.map((_, i) => (
+                              <a key={i} href={`/api/client-invoices/${r.id}/files?kind=nf&i=${i + 1}`} target="_blank" rel="noopener noreferrer" className="ml-2 font-medium text-prime-gold-ink hover:underline">
+                                NF {i + 2}
+                              </a>
+                            ))
+                          ) : r.nf_path ? null : r.nf_number ? (
                             `NF ${r.nf_number}`
                           ) : (
                             <span className="text-prime-muted">Sem nota</span>
@@ -466,8 +476,13 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
                               {r.boleto_path ? "Trocar boleto" : "⬆ Anexar boleto"}
                             </button>
                             <button type="button" disabled={busy} onClick={() => pickFile(r, "nf")} className={action}>
-                              {r.nf_path ? "Trocar nota" : "⬆ Anexar nota"}
+                              {r.nf_path ? "Trocar 1ª nota" : "⬆ Anexar nota"}
                             </button>
+                            {r.nf_path ? (
+                              <button type="button" disabled={busy} onClick={() => pickFile(r, "nf_extra")} className={action}>
+                                ＋ Outra nota fiscal
+                              </button>
+                            ) : null}
                             {r.status === "aberta" ? (
                               <>
                                 <button

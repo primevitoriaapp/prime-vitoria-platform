@@ -39,6 +39,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             boleto_path: inv.boleto_path ?? null,
             boleto_line: inv.boleto_line,
             nf_path: inv.nf_path ?? null,
+            nf_extra_paths: inv.nf_extra_paths ?? [],
             voucher_path: inv.voucher_path ?? null
           }}
         />
