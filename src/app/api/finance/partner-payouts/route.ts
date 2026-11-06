@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     for (let i = 0; i < tripIds.length; i += 200) {
       const chunk = tripIds.slice(i, i + 200);
       const [t, r] = await Promise.all([
-        db.from("trips").select("id, scheduled_at, origin_text, destination_text, client_id, client_invoice_id").in("id", chunk),
+        db.from("trips").select("id, scheduled_at, origin_text, destination_text, client_id, client_invoice_id, service_mode, actual_km, km_billable, wait_minutes, calculation_metadata").in("id", chunk),
         db.from("accounts_receivable").select("trip_id, status").in("trip_id", chunk)
       ]);
       trips.push(...(t.data ?? []));
@@ -115,6 +115,7 @@ export async function GET(request: Request) {
         trip_id: p.trip_id as string,
         trip_at: (t?.scheduled_at as string) ?? null,
         route: t ? `${shortAddress(String(t.origin_text ?? ""))} → ${shortAddress(String(t.destination_text ?? ""))}` : "—",
+        km_info: t ? kmInfo(t as Record<string, unknown>, Number(p.amount)) : null,
         client_name: clientName.get(t?.client_id as string) ?? "Cliente",
         driver_id: p.driver_id as string,
         driver_name: drivers.get(p.driver_id as string)?.name ?? "Motorista",
@@ -130,4 +131,27 @@ export async function GET(request: Request) {
   } catch (error) {
     return mapApiError(error);
   }
+}
+
+/** "20 km × R$ 2,50 (mínimo; rodou 19,9 km) + espera 15 min R$ 8,75" para o extrato do motorista. */
+function kmInfo(t: Record<string, unknown>, amount: number): string | null {
+  const fmt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const meta = (t.calculation_metadata ?? null) as { wait?: { driver_amount?: number; billable_minutes?: number; wait_minutes?: number } } | null;
+  const waitMin = Number(t.wait_minutes ?? 0) || 0;
+  const waitDrv = waitMin > 0 && Number(meta?.wait?.wait_minutes ?? -1) === waitMin ? Number(meta?.wait?.driver_amount ?? 0) : 0;
+  const waitTxt = waitDrv > 0 ? ` + espera ${meta?.wait?.billable_minutes ?? waitMin} min ${brl(waitDrv)}` : "";
+  if (t.service_mode !== "km") return waitTxt ? waitTxt.slice(3) : null;
+  const real = t.actual_km != null ? Number(t.actual_km) : null;
+  const base = Math.round((amount - waitDrv) * 100) / 100;
+  // KM pago ao motorista: o real, ou o mínimo quando o valor mostra que foi pago pelo mínimo.
+  const billed = t.km_billable != null ? Number(t.km_billable) : real;
+  if (!billed || !(base > 0)) return real ? `${fmt(real)} km${waitTxt}` : waitTxt || null;
+  const rateBilled = base / billed;
+  const rateReal = real ? base / real : null;
+  const clean = (r: number) => Math.abs(r * 100 - Math.round(r * 100)) < 0.001;
+  const usedMin = real != null && billed > real && clean(rateBilled) && !(rateReal != null && clean(rateReal));
+  const km = usedMin ? billed : real ?? billed;
+  const rate = base / km;
+  return `${fmt(km)} km × ${brl(Math.round(rate * 100) / 100)}${usedMin ? ` (mínimo; rodou ${fmt(real!)} km)` : ""}${waitTxt}`;
 }

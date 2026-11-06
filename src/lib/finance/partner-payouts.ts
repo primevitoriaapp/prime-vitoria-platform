@@ -10,6 +10,8 @@ export type PayoutRow = {
   trip_id: string;
   trip_at: string | null;
   route: string;
+  /** Conta do valor: "20 km × R$ 2,50 (mínimo; rodou 19,9 km)". */
+  km_info?: string | null;
   client_name: string;
   driver_id: string;
   driver_name: string;
@@ -63,7 +65,9 @@ export function payoutStatementText(g: PayoutGroup, onlyIds?: Set<string>): stri
   const when = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
   // Extrato vai para o motorista/parceiro: nunca o nome do cliente, só o nº da O.S.
-  const lines = rows.map((r) => `• ${when(r.trip_at)} · OS ${r.trip_id.slice(0, 8).toUpperCase()} · ${r.route}${g.drivers.length > 1 ? ` · ${r.driver_name}` : ""} — ${brl(r.amount)}`);
+  const lines = rows.map(
+    (r) => `• ${when(r.trip_at)} · OS ${r.trip_id.slice(0, 8).toUpperCase()} · ${r.route}${g.drivers.length > 1 ? ` · ${r.driver_name}` : ""}${r.km_info ? `\n   ${r.km_info}` : ""} = *${brl(r.amount)}*`
+  );
   const total = r2(rows.reduce((s, r) => s + r.amount, 0));
   return [`*Prime Vitória · Extrato de repasse*`, g.name, "", ...lines, "", `*Total: ${brl(total)}* (${rows.length} serviço(s))`, g.pix_key ? `PIX: ${g.pix_key}` : ""]
     .filter((l, i, a) => !(l === "" && a[i - 1] === ""))
