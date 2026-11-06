@@ -32,6 +32,8 @@ type Props = {
   onCreated?: () => void;
 };
 
+/** Antecedência mínima para pedir carro pelo portal (minutos). */
+const MIN_LEAD_MINUTES = 40;
 const FIELD =
   "w-full rounded-lg border border-prime-input-border bg-white px-3 py-2.5 text-base text-prime-text outline-none focus:border-prime-gold focus:ring-2 focus:ring-prime-gold/25";
 const LABEL = "grid gap-1.5 text-sm font-medium text-prime-text";
@@ -228,6 +230,15 @@ export function ClientRequestConsole({
   }, [clientId, devFallbackRole]);
 
   const scheduledIso = useMemo(() => (date && time ? saoPauloDateAndTimeToUtcIso(date, time) : null), [date, time]);
+  // Antecedência mínima: pedido com menos de 40 min avisa que o motorista pode levar até 1 hora.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const leadMinutes = scheduledIso ? Math.round((new Date(scheduledIso).getTime() - nowTick) / 60_000) : null;
+  const shortNotice = leadMinutes != null && leadMinutes < MIN_LEAD_MINUTES;
+  const [shortAck, setShortAck] = useState(false);
   const catalogMode = catalog.length > 0;
   const selectedCategory = catalog.find((c) => c.id === categoryId) ?? null;
   const maxPassengers = catalogMode
@@ -366,6 +377,11 @@ export function ClientRequestConsole({
       setError("O horário precisa ser no futuro. Para uma corrida imediata, ligue para a central Prime.");
       return;
     }
+    const lead = Math.round((new Date(scheduledIso).getTime() - Date.now()) / 60_000);
+    if (lead < MIN_LEAD_MINUTES && !shortAck) {
+      setError(`Pedido com menos de ${MIN_LEAD_MINUTES} minutos de antecedência: confirme que está ciente de que o motorista pode levar até 1 hora para chegar.`);
+      return;
+    }
     const semEndereco = teamMissingAddress(team);
     if (semEndereco.length) {
       setError(`Falta o endereço de: ${semEndereco.join(", ")}.`);
@@ -403,6 +419,9 @@ export function ClientRequestConsole({
           ...(teamShape?.dropoffStops ? { trip_dropoff_stops: teamShape.dropoffStops } : {}),
           notes:
             [
+              lead < MIN_LEAD_MINUTES
+                ? `⚠ PEDIDO EM CIMA DA HORA (${Math.max(0, lead)} min de antecedência). Cliente ciente de que o motorista pode levar até 1 hora.`
+                : null,
               isDisposicao ? `Diária de ${pacoteLabel}.` : null,
               isDisposicao && untilTime ? `À disposição até ${untilTime}.` : null,
               isDisposicao
@@ -691,6 +710,19 @@ export function ClientRequestConsole({
         {scheduledIso ? (
           <p className="text-xs text-prime-muted">Embarque em {formatBrDateTime(scheduledIso)} (horário de Brasília).</p>
         ) : null}
+        {shortNotice ? (
+          <div role="alert" className="grid gap-2 rounded-xl border-2 border-red-500 bg-red-50 p-4 text-red-900">
+            <p className="text-base font-bold">⚠ Atenção: pedido em cima da hora</p>
+            <p className="text-sm">
+              Trabalhamos com agendamento de <b>pelo menos {MIN_LEAD_MINUTES} minutos de antecedência</b>. Para este horário, <b>o motorista pode levar até 1 hora para chegar</b> ao local de embarque.
+            </p>
+            <p className="text-sm">Se puder, escolha um horário mais tarde. Para urgências, ligue para a central: (27) 2142-8307 | (27) 99806-3956.</p>
+            <label className="flex items-center gap-2 text-sm font-semibold">
+              <input type="checkbox" checked={shortAck} onChange={(e) => setShortAck(e.target.checked)} />
+              Estou ciente e quero pedir mesmo assim
+            </label>
+          </div>
+        ) : null}
       </section>
 
       {/* 3. Trajeto */}
@@ -865,7 +897,7 @@ export function ClientRequestConsole({
       ) : null}
 
       <div className="grid gap-2">
-        <button type="submit" disabled={loading} className="w-full rounded-lg bg-[#111] px-4 py-3.5 text-base font-semibold text-[#fff] hover:bg-black disabled:opacity-60">
+        <button type="submit" disabled={loading || (shortNotice && !shortAck)} className="w-full rounded-lg bg-[#111] px-4 py-3.5 text-base font-semibold text-[#fff] hover:bg-black disabled:opacity-60">
           {loading ? "Enviando…" : "Solicitar corrida"}
         </button>
         {clientName ? (
