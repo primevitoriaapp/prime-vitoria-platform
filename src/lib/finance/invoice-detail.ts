@@ -2,9 +2,12 @@ import { db } from "@/lib/server/db";
 import { getClientInvoice, type ClientInvoiceRow } from "@/lib/finance/client-invoices";
 import { clientRefFromNotes } from "@/lib/trips/client-ref";
 import { prepaidByTrip } from "@/lib/finance/booking-payments";
+import { groupSplitItems, isSplitGroup, sumMoney } from "@/lib/finance/merge-split-services";
 
 export type InvoiceService = {
   id: string;
+  /** Item que junta trechos divididos (NR-E1 + NR-E2): todas as corridas. */
+  trip_ids?: string[];
   ref: string | null;
   when: string;
   route: string;
@@ -69,7 +72,7 @@ export async function loadInvoiceDetail(tenantId: string, id: string, opts: { in
       .limit(60)
   ]);
 
-  const services: InvoiceService[] = (trips ?? []).map((t) => ({
+  const rawServices: InvoiceService[] = (trips ?? []).map((t) => ({
     id: t.id as string,
     ref: clientRefFromNotes(t.notes as string | null),
     when: new Date(t.scheduled_at as string).toLocaleString("pt-BR", { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
@@ -86,6 +89,26 @@ export async function loadInvoiceDetail(tenantId: string, id: string, opts: { in
     status: t.operational_status as string,
     km: t.km_billable != null ? Number(t.km_billable) : t.actual_km != null ? Number(t.actual_km) : null
   }));
+
+  // Serviço dividido em trechos (NR-E1, NR-E2) aparece como um item só (NR-E), como o cliente pediu.
+  const services: InvoiceService[] = groupSplitItems(rawServices, (x) => x.ref).map((x) => {
+    if (!isSplitGroup(x)) return x;
+    const [first] = x.parts;
+    const pts: string[] = [];
+    for (const p of x.parts) for (const pt of p.route.split(" → ")) if (pts[pts.length - 1] !== pt) pts.push(pt);
+    const route = pts.join(" → ");
+    return {
+      ...first,
+      ref: x.base,
+      when: `${x.parts.map((p) => p.when).join(" e ")} · ${x.parts.length} trechos`,
+      route,
+      passenger: [...new Set(x.parts.map((p) => p.passenger))].join(", "),
+      amount: sumMoney(x.parts.map((p) => p.amount)),
+      status: x.parts.every((p) => p.status === "completed") ? "completed" : x.parts.find((p) => p.status !== "completed")?.status ?? first.status,
+      km: x.parts.some((p) => p.km != null) ? Math.round(x.parts.reduce((s2, p) => s2 + (p.km ?? 0), 0) * 10) / 10 : null,
+      trip_ids: x.parts.map((p) => p.id)
+    };
+  });
 
   // Histórico: o que de fato aconteceu (registro de auditoria + datas da fatura).
   const history: InvoiceEvent[] = [];
@@ -115,8 +138,8 @@ export async function loadInvoiceDetail(tenantId: string, id: string, opts: { in
     history.push({ at: `${invoice.due_date}T12:00:00-03:00`, label: "Aguardando vencimento", detail: `Vence em ${brDate(invoice.due_date)}`, done: false });
   }
 
-  const pre = await prepaidByTrip(tenantId, services.map((x) => x.id)).catch(() => new Map<string, number>());
-  const prepaid = Math.round(services.reduce((acc, x) => acc + (pre.get(x.id) ?? 0), 0) * 100) / 100;
+  const pre = await prepaidByTrip(tenantId, rawServices.map((x) => x.id)).catch(() => new Map<string, number>());
+  const prepaid = Math.round(rawServices.reduce((acc, x) => acc + (pre.get(x.id) ?? 0), 0) * 100) / 100;
 
   const out: InvoiceDetail = {
     prepaid,
@@ -127,7 +150,7 @@ export async function loadInvoiceDetail(tenantId: string, id: string, opts: { in
   };
 
   if (opts.internal) {
-    const tripIds = services.map((s) => s.id);
+    const tripIds = rawServices.map((s) => s.id);
     const { data: pays } = tripIds.length
       ? await db.from("driver_payables").select("driver_id, amount, due_date, status").in("trip_id", tripIds)
       : { data: [] as { driver_id: string; amount: number; due_date: string | null; status: string }[] };

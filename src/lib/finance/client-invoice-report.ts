@@ -4,6 +4,7 @@ import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
 import { listInvoiceTrips } from "@/lib/finance/client-invoices";
 import { tripKm } from "@/lib/finance/client-invoice-calc";
 import { clientRefFromNotes } from "@/lib/trips/client-ref";
+import { groupSplitItems, isSplitGroup, sumMoney } from "@/lib/finance/merge-split-services";
 
 /** Hora parada que o cálculo somou no valor da corrida (metadata.wait). */
 export function waitChargeOf(meta: unknown, tripWaitMinutes: number): { minutes: number; billable_minutes: number; amount: number } | null {
@@ -44,7 +45,46 @@ export type InvoiceReportRow = {
   /** Hora parada cobrada nesta corrida (já somada em `amount`). */
   wait_charge: { minutes: number; billable_minutes: number; amount: number } | null;
   amount: number | null;
+  /** Item que junta trechos divididos (ex.: NR-E1 + NR-E2): ids de todas as corridas. */
+  trip_ids?: string[];
 };
+
+/** Junta os trechos de um serviço dividido (NR-E1, NR-E2…) num item só, como o cliente pediu. */
+export function mergeSplitReportRows(rows: InvoiceReportRow[]): InvoiceReportRow[] {
+  return groupSplitItems(rows, (r) => r.ref).map((x) => {
+    if (!isSplitGroup(x)) return x;
+    const [first, ...rest] = x.parts;
+    const last = x.parts[x.parts.length - 1];
+    const stops: InvoiceReportStop[] = [];
+    x.parts.forEach((p, i) => {
+      stops.push(...p.stops);
+      if (i < x.parts.length - 1) stops.push({ address: p.destination, passenger: `fim do trecho ${i + 1} (${p.when})` });
+      if (i > 0 && x.parts[i - 1].destination !== p.origin) stops.push({ address: p.origin, passenger: `início do trecho ${i + 1} (${p.when})` });
+    });
+    const waitAmt = x.parts.reduce((s, p) => s + (p.wait_charge?.amount ?? 0), 0);
+    return {
+      ...first,
+      ref: x.base,
+      service: `${first.service} · ${x.parts.length} trechos (${x.parts.map((p) => p.when).join(" e ")})`,
+      passenger: [...new Set(x.parts.map((p) => p.passenger))].join(", "),
+      destination: last.destination,
+      stops,
+      km: Math.round(x.parts.reduce((s, p) => s + (Number(p.km) || 0), 0) * 10) / 10,
+      wait_minutes: x.parts.reduce((s, p) => s + p.wait_minutes, 0),
+      wait_charge:
+        waitAmt > 0
+          ? {
+              minutes: x.parts.reduce((s, p) => s + (p.wait_charge?.minutes ?? 0), 0),
+              billable_minutes: x.parts.reduce((s, p) => s + (p.wait_charge?.billable_minutes ?? 0), 0),
+              amount: Math.round(waitAmt * 100) / 100
+            }
+          : null,
+      amount: sumMoney(x.parts.map((p) => p.amount)),
+      flight: first.flight ?? rest.find((p) => p.flight)?.flight ?? null,
+      trip_ids: x.parts.flatMap((p) => p.trip_ids ?? [p.id])
+    };
+  });
+}
 
 /** Linhas do relatório da fatura: quem usou, quem pediu, de onde, para onde, KM e valor. */
 export async function buildInvoiceReport(invoiceId: string): Promise<InvoiceReportRow[]> {
@@ -65,7 +105,7 @@ export async function buildInvoiceReport(invoiceId: string): Promise<InvoiceRepo
     ((centers ?? []) as { id: string; code: string | null; name: string }[]).map((c) => [c.id, c.code ? `${c.code} · ${c.name}` : c.name])
   );
 
-  return trips.map((t) => ({
+  const rows: InvoiceReportRow[] = trips.map((t) => ({
     id: t.id as string,
     number: String(t.id).slice(0, 8).toUpperCase(),
     when: formatBrDateTime(t.scheduled_at as string),
@@ -83,6 +123,7 @@ export async function buildInvoiceReport(invoiceId: string): Promise<InvoiceRepo
     wait_charge: waitChargeOf((t as { calculation_metadata?: unknown }).calculation_metadata, Number(t.wait_minutes ?? 0) || 0),
     amount: t.client_amount == null ? null : Number(t.client_amount)
   }));
+  return mergeSplitReportRows(rows);
 }
 
 function csvCell(v: unknown): string {

@@ -156,7 +156,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
             <div style={{ fontSize: 10, letterSpacing: ".08em", color: "#BBB", textTransform: "uppercase" }}>Total</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: GOLD }}>{brl(invoice.total_amount)}</div>
             <div style={{ fontSize: 11, color: "#BBB" }}>
-              {invoice.trip_count} corrida{invoice.trip_count === 1 ? "" : "s"} · {Number(invoice.total_km).toLocaleString("pt-BR")} km
+              {rows.length} serviço{rows.length === 1 ? "" : "s"} · {Number(invoice.total_km).toLocaleString("pt-BR")} km
             </div>
             {overview && overview.prepaid > 0 ? (
               <div style={{ fontSize: 12, color: "#DDD", marginTop: 6, borderTop: "1px solid #333", paddingTop: 6 }}>

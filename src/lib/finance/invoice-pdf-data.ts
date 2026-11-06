@@ -22,8 +22,9 @@ export async function invoicePdfFor(tenantId: string, id: string): Promise<{ byt
     getTenantCompanyProfile(tenantId)
   ]);
   const issuer = billingIssuerById(invoice.billing_issuer);
-  const pre = await prepaidByTrip(tenantId, rows.map((r) => r.id)).catch(() => new Map<string, number>());
-  const prepaid = Math.round(rows.reduce((s, r) => s + (pre.get(r.id) ?? 0), 0) * 100) / 100;
+  const allIds = rows.flatMap((r) => r.trip_ids ?? [r.id]);
+  const pre = await prepaidByTrip(tenantId, allIds).catch(() => new Map<string, number>());
+  const prepaid = Math.round(allIds.reduce((s, id) => s + (pre.get(id) ?? 0), 0) * 100) / 100;
   const logo = await loadLogoBytes(company.logo_storage_path ?? null).catch(() => null);
   const num = formatInvoiceNumber(invoice.number);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -53,7 +54,7 @@ export async function invoicePdfFor(tenantId: string, id: string): Promise<{ byt
     dueDate: brDate(invoice.due_date),
     total: Number(invoice.total_amount) || 0,
     totalKm: Number(invoice.total_km) || 0,
-    tripCount: invoice.trip_count,
+    tripCount: rows.length,
     prepaid,
     boletoLine: invoice.boleto_line ?? null,
     nfNumber: invoice.nf_number ?? null,
