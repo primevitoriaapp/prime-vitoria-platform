@@ -1,6 +1,7 @@
 "use client";
 
 import { VouchersToCloseCard } from "@/components/vouchers-to-close-card";
+import { OpenPeriodCard } from "@/components/open-period-card";
 import { InvoiceEmailComposer } from "@/components/invoice-email-composer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
@@ -210,6 +211,7 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
         </div>
       </div>
 
+      <OpenPeriodCard />
       <VouchersToCloseCard onClosed={() => void load()} />
 
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">Fechamento do mês (clientes mensais)</p>

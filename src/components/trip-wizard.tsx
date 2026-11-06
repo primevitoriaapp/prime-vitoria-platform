@@ -64,6 +64,10 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [prepaid, setPrepaid] = useState(false);
   // Pacote de vários dias: o valor digitado é o total do pacote (divide pelos dias) ou o de cada dia.
   const [pricePer, setPricePer] = useState<"total" | "dia">("total");
+  // Corrida que já aconteceu (registrar depois): término e KM rodado.
+  const [alreadyDone, setAlreadyDone] = useState(false);
+  const [doneEnd, setDoneEnd] = useState("");
+  const [doneKm, setDoneKm] = useState("");
   const [prepay, setPrepay] = useState(() => emptyBookingPayment(saoPauloTodayYmd()));
 
   // 3. Veículo
@@ -218,6 +222,8 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const days = useMemo(() => allDays.filter((d) => !skipDays.includes(d)), [allDays, skipDays]);
   const windowHours = useMemo(() => hoursBetween(time, endTime), [time, endTime]);
   const nDays = multiDay ? Math.max(1, days.length) : 1;
+  const isPast = !multiDay && Boolean(scheduledIso) && new Date(String(scheduledIso)).getTime() < Date.now() - 10 * 60_000;
+  const doneMode = isPast && alreadyDone;
   // "7.000,00" ou "7000,5" (digitado) e "1400.5" (vindo da tabela).
   const money = (v: string) => Number(v.includes(",") ? v.replace(/\./g, "").replace(",", ".") : v) || 0;
   /** Valor de cada dia (dia i): no modo "total", divide e joga os centavos que sobram no último dia. */
@@ -249,6 +255,9 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     if (s === 2) {
       if (!categoryId) m.push("escolher o veículo");
       if (category && passengers > category.passengers) m.push(`no máximo ${category.passengers} passageiros nesse veículo`);
+    }
+    if (s === 1 && doneMode) {
+      if (!/^\d{2}:\d{2}$/.test(doneEnd)) m.push("horário em que terminou");
     }
     if (s === 3) {
       if (origin.text.trim().length < 3) m.push("local de embarque");
@@ -395,6 +404,29 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       const pr = await fetchWithSupabaseSession(`/api/trips/${created[0].id}/payments`, { method: "POST", body: JSON.stringify(payBody) }, "admin");
       const pj = (await pr.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
       if (!pr.ok || !pj.success) payNote = `O pagamento antecipado não foi salvo (${pj.error?.message ?? "erro"}). Registre na corrida, em “Pagamento do cliente”.`;
+    }
+    if (doneMode) {
+      // Já aconteceu: vira concluída direto (sem mandar O.S. ao motorista) e vai para "Aprovar corridas".
+      const startIso = String(scheduledIso);
+      let endIso = saoPauloDateAndTimeToUtcIso(date, doneEnd) ?? startIso;
+      if (new Date(endIso) <= new Date(startIso)) endIso = new Date(new Date(endIso).getTime() + 86_400_000).toISOString();
+      const kmN = money(doneKm);
+      const rd = await fetchWithSupabaseSession(
+        `/api/trips/${created[0].id}/register-done`,
+        { method: "POST", body: JSON.stringify({ driver_id: driverId || null, started_at: startIso, ended_at: endIso, ...(kmN > 0 ? { km: kmN } : {}) }) },
+        "admin"
+      );
+      const rj = (await rd.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
+      setBusy(false);
+      onDone?.();
+      window.alert(
+        rd.ok && rj.success
+          ? "Corrida registrada como já feita. Confira o KM e os valores em “Aprovar corridas”."
+          : `Corrida criada, mas não deu para marcar como feita: ${rj.error?.message ?? "erro"}. Abra a corrida e ajuste.`
+      );
+      router.push((rd.ok ? "/conferencia" : `/agenda?trip=${created[0].id}#trip-detail`) as Route);
+      router.refresh();
+      return;
     }
     if (driverId) {
       for (const c of created) {
@@ -632,7 +664,41 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                   ) : null}
                 </div>
               ) : null}
-              {!multiDay ? (
+              {isPast ? (
+                <div className="grid gap-3 rounded-xl border-2 border-sky-300 bg-sky-50 p-3">
+                  <label className="flex items-center gap-2 text-sm font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={alreadyDone}
+                      onChange={(e) => {
+                        setAlreadyDone(e.target.checked);
+                        if (e.target.checked) setRoundTrip(false);
+                      }}
+                    />
+                    Esta corrida já foi feita (registrar depois)
+                  </label>
+                  {alreadyDone ? (
+                    <>
+                      <p className="text-xs text-prime-muted">
+                        O horário acima é quando começou. Ela entra como concluída, calcula os valores pela tabela e vai para “Aprovar corridas”. O motorista não recebe O.S.
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="grid gap-1 text-sm">
+                          <span className="font-medium">Terminou às</span>
+                          <input type="time" className={input} value={doneEnd} onChange={(e) => setDoneEnd(e.target.value)} />
+                        </label>
+                        <label className="grid gap-1 text-sm">
+                          <span className="font-medium">KM rodado (se souber)</span>
+                          <input className={input} inputMode="decimal" placeholder="Ex.: 20" value={doneKm} onChange={(e) => setDoneKm(e.target.value)} />
+                        </label>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-prime-muted">O horário escolhido já passou. Se a corrida já aconteceu, marque acima para lançar com o KM e o fim.</p>
+                  )}
+                </div>
+              ) : null}
+              {!multiDay && !doneMode ? (
               <label className="flex items-center gap-2 text-sm font-semibold">
                 <input type="checkbox" checked={roundTrip} onChange={(e) => setRoundTrip(e.target.checked)} />
                 Tem volta (ida e volta)
@@ -1172,10 +1238,14 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               Continuar →
             </button>
           ) : (
-            <button type="button" disabled={busy} className="btn-primary ml-auto disabled:opacity-50" onClick={() => void submit()}>
+            <button type="button" disabled={busy || (doneMode && !driverId)} className="btn-primary ml-auto disabled:opacity-50" onClick={() => void submit()}>
               {busy
                 ? "Criando…"
-                : `${multiDay && days.length > 1 ? `Criar ${days.length} diárias` : roundTrip ? "Criar ida e volta" : "Criar corrida"}${driverId ? " e enviar ao motorista" : ""}`}
+                : doneMode
+                  ? driverId
+                    ? "Registrar corrida já feita"
+                    : "Escolha o motorista que fez a corrida"
+                  : `${multiDay && days.length > 1 ? `Criar ${days.length} diárias` : roundTrip ? "Criar ida e volta" : "Criar corrida"}${driverId ? " e enviar ao motorista" : ""}`}
             </button>
           )}
         </div>
