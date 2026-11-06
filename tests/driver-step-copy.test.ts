@@ -7,15 +7,15 @@ import {
 } from "../src/lib/trips/driver-step-copy.ts";
 
 test("driverOperationalHint for dispatched", () => {
-  assert.match(driverOperationalHint("dispatched"), /A caminho/i);
+  assert.match(driverOperationalHint("dispatched"), /Sair para buscar/i);
 });
 
 test("driverPrimaryActionLabel accept", () => {
-  assert.equal(driverPrimaryActionLabel("dispatched", "accepted"), "Aceitar corrida");
+  assert.equal(driverPrimaryActionLabel("dispatched", "accepted"), "Confirmar que vou fazer");
 });
 
 test("driverPrimaryActionLabel full flow", () => {
-  assert.equal(driverPrimaryActionLabel("accepted", "on_the_way"), "A caminho do passageiro");
+  assert.equal(driverPrimaryActionLabel("accepted", "on_the_way"), "Sair para buscar (a caminho)");
   assert.equal(driverPrimaryActionLabel("on_the_way", "arrived"), "Cheguei ao local");
   assert.equal(driverPrimaryActionLabel("arrived", "in_progress"), "Iniciar corrida");
   assert.equal(driverPrimaryActionLabel("in_progress", "completed"), "Finalizar corrida");

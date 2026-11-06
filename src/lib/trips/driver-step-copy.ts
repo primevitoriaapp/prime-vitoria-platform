@@ -4,8 +4,8 @@ import { driverNextStatuses } from "./driver-next-status.ts";
 
 /** Rótulos dos botões de ação no app do motorista (não confundir com badges de estado). */
 export const DRIVER_TRIP_ACTION_PT: Partial<Record<TripOperationalStatus, string>> = {
-  accepted: "Aceitar corrida",
-  on_the_way: "A caminho do passageiro",
+  accepted: "Confirmar que vou fazer",
+  on_the_way: "Sair para buscar (a caminho)",
   arrived: "Cheguei ao local",
   in_progress: "Iniciar corrida",
   completed: "Finalizar corrida"
@@ -15,9 +15,9 @@ export const DRIVER_TRIP_ACTION_PT: Partial<Record<TripOperationalStatus, string
 export function driverOperationalHint(status: TripOperationalStatus): string {
   switch (status) {
     case "dispatched":
-      return "Corrida atribuída a você. Na hora de sair, toque em A caminho.";
+      return "Corrida atribuída a você. Confirme que vai fazer; na hora de sair, toque em Sair para buscar.";
     case "accepted":
-      return "Confirme que está a caminho do passageiro.";
+      return "Corrida confirmada. Na hora de sair, toque em Sair para buscar — o passageiro é avisado.";
     case "on_the_way":
       return "Ao chegar ao local de embarque, marque Cheguei ao local.";
     case "arrived":

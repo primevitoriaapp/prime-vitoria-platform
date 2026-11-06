@@ -244,6 +244,15 @@ export function DriverTripsPanel({
     extra?: StatusExtra
   ) {
     const trip = trips.find((item) => item.id === tripId);
+    // "A caminho" avisa o passageiro. Se ainda falta muito, confirma antes.
+    if (to_status === "on_the_way" && trip && typeof window !== "undefined") {
+      const min = Math.round((new Date(trip.scheduled_at).getTime() - Date.now()) / 60000);
+      if (min > 90) {
+        const hora = new Date(trip.scheduled_at).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+        const falta = `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
+        if (!window.confirm(`O embarque é às ${hora} (faltam ${falta}).\n\n"A caminho" avisa o passageiro que você já saiu. Você está mesmo saindo agora?`)) return;
+      }
+    }
     // KM do painel: pede o inicial ao iniciar e o final (com assinatura) ao finalizar.
     if (to_status === "in_progress" && !extra) {
       setMessage(null);
@@ -569,8 +578,9 @@ export function DriverTripsPanel({
                 <div className={`rounded-[28px] bg-white p-4 ${["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? "pv-glow" : "shadow-[0_18px_40px_rgba(0,0,0,0.18)]"}`}>
                   <button type="button" onClick={() => setDetailOpen(true)} className="block w-full text-left">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="rounded-full bg-[#FBF3E0] px-3 py-1 text-xs font-semibold text-[#8A5A00]">
-                        {groupByDay([primaryTrip])[0]?.label} · {hm(primaryTrip.scheduled_at)}
+                      <span className="rounded-2xl bg-[#111] px-3 py-1.5 font-bold text-[#fff]">
+                        <span className="text-xs uppercase tracking-wide text-prime-gold">{groupByDay([primaryTrip])[0]?.label}</span>{" "}
+                        <span className="text-2xl tabular-nums">{hm(primaryTrip.scheduled_at)}</span>
                       </span>
                       <span className="text-xs font-medium text-[#6B6F76]">Ver detalhes ›</span>
                     </div>
@@ -583,15 +593,31 @@ export function DriverTripsPanel({
                     </div>
                     <DriverPayLine trip={primaryTrip} />
                   </button>
-                  {["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? (
-                    <button
-                      type="button"
-                      disabled={busyTrip === primaryTrip.id}
-                      onClick={() => void setStatus(primaryTrip.id, "on_the_way")}
-                      className="mt-3 w-full rounded-2xl bg-[#111] py-4 text-base font-bold text-prime-gold disabled:opacity-60"
-                    >
-                      {busyTrip === primaryTrip.id ? "Abrindo…" : "Pegar corrida"}
-                    </button>
+                  {primaryTrip.operational_status === "dispatched" ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={busyTrip === primaryTrip.id}
+                        onClick={() => void setStatus(primaryTrip.id, "accepted")}
+                        className="mt-3 w-full rounded-2xl bg-[#111] py-4 text-base font-bold text-prime-gold disabled:opacity-60"
+                      >
+                        {busyTrip === primaryTrip.id ? "Confirmando…" : "✓ Confirmar que vou fazer"}
+                      </button>
+                      <p className="mt-1.5 text-center text-xs text-[#6B6F76]">Confirmar não avisa o passageiro. Na hora de sair, você toca em “Sair para buscar”.</p>
+                    </>
+                  ) : ["accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? (
+                    <>
+                      <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-center text-sm font-semibold text-emerald-800">✓ Corrida confirmada</p>
+                      <button
+                        type="button"
+                        disabled={busyTrip === primaryTrip.id}
+                        onClick={() => void setStatus(primaryTrip.id, "on_the_way")}
+                        className="mt-2 w-full rounded-2xl bg-[#111] py-4 text-base font-bold text-prime-gold disabled:opacity-60"
+                      >
+                        {busyTrip === primaryTrip.id ? "Abrindo…" : "🚗 Sair para buscar (a caminho)"}
+                      </button>
+                      <p className="mt-1.5 text-center text-xs text-[#6B6F76]">O passageiro é avisado que você saiu.</p>
+                    </>
                   ) : (
                     <button type="button" onClick={() => setDetailOpen(true)} className="mt-3 w-full rounded-2xl bg-[#111] py-4 text-base font-bold text-prime-gold">
                       Continuar corrida

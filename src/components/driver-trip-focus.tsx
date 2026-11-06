@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { driverPrimaryActionLabel } from "@/lib/trips/driver-step-copy";
@@ -14,6 +16,33 @@ import { DriverDropoffStopsPanel } from "@/components/driver-dropoff-stops-panel
 import { DriverPassengerLink } from "@/components/driver-passenger-link";
 import { DriverTripExpenses } from "@/components/trip-expenses";
 import { ReceptiveSignButton, needsReceptiveSign } from "@/components/receptive-sign";
+
+const TZ = "America/Sao_Paulo";
+
+function dayKey(d: Date) {
+  return d.toLocaleDateString("pt-BR", { timeZone: TZ });
+}
+
+/** "HOJE", "AMANHÃ" ou "sex, 07/11". */
+function dayLabel(iso: string, now: Date) {
+  const d = new Date(iso);
+  if (dayKey(d) === dayKey(now)) return "HOJE";
+  if (dayKey(d) === dayKey(new Date(now.getTime() + 86400000))) return "AMANHÃ";
+  return d.toLocaleDateString("pt-BR", { timeZone: TZ, weekday: "short", day: "2-digit", month: "2-digit" }).toUpperCase();
+}
+
+function hhmm(iso: string) {
+  return new Date(iso).toLocaleTimeString("pt-BR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+}
+
+/** "faltam 3h40", "faltam 25 min", "agora", "atrasado 12 min". */
+function untilLabel(iso: string, now: Date): { text: string; tone: "far" | "soon" | "late" } {
+  const min = Math.round((new Date(iso).getTime() - now.getTime()) / 60000);
+  if (min > 59) return { text: `faltam ${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`, tone: "far" };
+  if (min > 2) return { text: `faltam ${min} min`, tone: "soon" };
+  if (min >= -2) return { text: "é agora", tone: "soon" };
+  return { text: `atrasado ${-min} min`, tone: "late" };
+}
 
 const STEPS: { label: string; status: TripOperationalStatus }[] = [
   { label: "A caminho", status: "on_the_way" },
@@ -68,6 +97,14 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
   const extras = (trip as { service_extras?: string[] | null }).service_extras ?? [];
   const blockStart = next === "in_progress" && !pickupsDone;
   const phone = trip.passenger_phone?.trim();
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(t);
+  }, []);
+  const pickupAt = presentation ?? trip.scheduled_at;
+  const until = untilLabel(pickupAt, now);
+  const tooEarly = s === "on_the_way" && new Date(pickupAt).getTime() - now.getTime() > 90 * 60000;
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-[#F1F0EC]">
@@ -98,6 +135,32 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-lg space-y-4 px-4 py-4 pb-40">
           {message ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{message}</p> : null}
+          {!goingToDestination ? (
+            <section
+              className={`rounded-3xl p-5 text-center shadow-[0_8px_30px_rgba(0,0,0,0.06)] ${until.tone === "late" ? "bg-red-600" : "bg-[#111]"}`}
+              aria-label="Horário do embarque"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: until.tone === "late" ? "#fff" : "#C9A84C" }}>
+                {presentation ? "Estar no local" : "Horário do embarque"} · {dayLabel(pickupAt, now)}
+              </p>
+              <p className="mt-1 text-5xl font-bold tabular-nums" style={{ color: "#fff" }}>
+                {hhmm(pickupAt)}
+              </p>
+              <p className="mt-1 text-base font-semibold" style={{ color: until.tone === "late" ? "#fff" : until.tone === "soon" ? "#C9A84C" : "rgba(255,255,255,0.75)" }}>
+                {until.text}
+              </p>
+              {presentation ? (
+                <p className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  Passageiro marcado para {hhmm(trip.scheduled_at)}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+          {tooEarly ? (
+            <p className="rounded-2xl bg-amber-100 px-4 py-3 text-sm font-semibold text-amber-900">
+              Ainda falta bastante para o embarque ({until.text}). Saia com tempo de chegar uns 10 minutos antes de {hhmm(pickupAt)}.
+            </p>
+          ) : null}
           {!goingToDestination && needsReceptiveSign({ service_extras: extras, origin_text: trip.origin_text }) ? (
             <ReceptiveSignButton name={trip.passenger_name} />
           ) : null}
@@ -107,11 +170,6 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
             </p>
             <p className="mt-1 text-xl font-bold leading-snug text-[#111]">{targetText.split(",")[0]}</p>
             {targetText.includes(",") ? <p className="text-sm text-[#6B6F76]">{targetText.split(",").slice(1).join(",").trim()}</p> : null}
-            {!goingToDestination && presentation ? (
-              <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-                Estar no local às {new Date(presentation).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}
-              </p>
-            ) : null}
             {s !== "arrived" ? (
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <a href={google} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1.5 rounded-2xl border border-[#E5E1D8] bg-[#F8F7F3] px-3 py-4 text-sm font-semibold text-[#111]">
