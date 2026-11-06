@@ -61,7 +61,17 @@ async function sendWelcome(opts: { email: string; name: string; clientId: string
     logoUrl: `${OFFICIAL_URLS.central}/api/public/brand-logo`,
     phones: "(27) 2142-8307 | (27) 99806-3956"
   });
-  const r = await sendOperationalEmail({ to: opts.email, subject: mail.subject, text: mail.text, html: mail.html, replyTo: DEFAULT_EMAIL_REPLY_TO, bcc: ["contato@primevitoria.com"] });
+  // O convite leva um link pessoal de criar senha: vai SÓ para o funcionário.
+  // A Prime recebe um aviso separado, sem o link (quem clicasse na cópia entraria na conta dele).
+  const r = await sendOperationalEmail({ to: opts.email, subject: mail.subject, text: mail.text, html: mail.html, replyTo: DEFAULT_EMAIL_REPLY_TO });
+  if (r.ok) {
+    const nivel = opts.access === "gestor" ? "gestor" : "solicitante";
+    await sendOperationalEmail({
+      to: "contato@primevitoria.com",
+      subject: `Convite do portal enviado: ${opts.name} · ${company}`,
+      text: `Aviso interno (não é preciso fazer nada).\n\nO convite do Portal Prime Vitória foi enviado para ${opts.name} (${opts.email}), da ${company}, como ${nivel}.\nEle(a) recebeu o link pessoal para criar a senha. Por segurança, o link não vai nesta cópia.\n\nSe ele(a) não achar o e-mail, peça para olhar o spam ou reenvie o convite pelo cadastro do cliente.`
+    }).catch(() => null);
+  }
   return r.ok;
 }
 
