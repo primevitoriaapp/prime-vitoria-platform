@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const tenantId = assertTenantScope(session);
     const url = new URL(request.url);
     const view = url.searchParams.get("visao") === "pagos" ? "pagos" : "abertos";
-    let q = db.from("driver_payables").select("id, trip_id, driver_id, amount, due_date, status, paid_at").eq("tenant_id", tenantId).limit(3000);
+    let q = db.from("driver_payables").select("id, trip_id, driver_id, amount, due_date, status, paid_at, batch_id, payment_method").eq("tenant_id", tenantId).limit(3000);
     if (view === "abertos") q = q.eq("status", "open");
     else {
       const from = url.searchParams.get("from");
@@ -91,6 +91,13 @@ export async function GET(request: Request) {
     );
     const partnerOf = new Map(driverRows.map((d) => [d.id as string, (d.partner_id as string) ?? null]));
 
+    // Quais repasses pagos já têm comprovante.
+    const paidIdsList = list.filter((p) => p.status === "paid").map((p) => p.id as string);
+    const withProof = new Map<string, string>();
+    for (let i = 0; i < paidIdsList.length; i += 300) {
+      const { data: pr } = await db.from("driver_payment_proofs").select("driver_payable_id, storage_url, created_at").in("driver_payable_id", paidIdsList.slice(i, i + 300)).order("created_at");
+      for (const r of pr ?? []) withProof.set(r.driver_payable_id as string, r.storage_url as string); // o mais recente vence
+    }
     const rows: PayoutRow[] = list.map((p) => {
       const t = tripById.get(p.trip_id as string);
       // Cliente com repasse imediato (a Prime paga o motorista sem esperar o cliente): já liberado.
@@ -111,7 +118,11 @@ export async function GET(request: Request) {
         client_name: clientName.get(t?.client_id as string) ?? "Cliente",
         driver_id: p.driver_id as string,
         driver_name: drivers.get(p.driver_id as string)?.name ?? "Motorista",
-        partner_id: partnerOf.get(p.driver_id as string) ?? null
+        partner_id: partnerOf.get(p.driver_id as string) ?? null,
+        batch_id: (p.batch_id as string | null) ?? null,
+        payment_method: (p.payment_method as string | null) ?? null,
+        has_proof: withProof.has(p.id as string),
+        proof_url: withProof.get(p.id as string) ?? null
       };
     });
 

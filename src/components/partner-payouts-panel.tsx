@@ -150,6 +150,12 @@ function PayoutGroupCard({
   const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Comprovante depois do pagamento (esqueceu na hora ou quer trocar).
+  const paidRows = g.rows.filter((r) => r.status === "paid");
+  const [selPaid, setSelPaid] = useState<Set<string>>(() => new Set(paidRows.filter((r) => !r.has_proof).map((r) => r.id)));
+  const [attaching, setAttaching] = useState(false);
+  const [lateFile, setLateFile] = useState<File | null>(null);
+  const [lateNotify, setLateNotify] = useState(true);
   const selTotal = Math.round(openRows.filter((r) => sel.has(r.id)).reduce((s, r) => s + r.amount, 0) * 100) / 100;
   const k = KIND[g.kind] ?? KIND.avulso;
 
@@ -173,6 +179,26 @@ function PayoutGroupCard({
     if (notify) {
       if (d?.emailed) parts.push(`E-mail enviado a ${d.emailed} motorista(s).`);
       if (d?.notEmailed?.length) parts.push(`Sem e-mail (avise por WhatsApp): ${d.notEmailed.join(", ")}.`);
+    }
+    onPaid(parts.join(" "));
+  }
+
+  async function attachLate() {
+    if (!lateFile) return onError("Escolha o arquivo do comprovante.");
+    setBusy(true);
+    const form = new FormData();
+    form.append("payload", JSON.stringify({ payable_ids: [...selPaid], notify: lateNotify }));
+    form.append("file", lateFile);
+    const res = await fetchWithSupabaseSession("/api/finance/partner-payouts/proof", { method: "POST", body: form }, "admin");
+    const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { attached: number; emailed: number; notEmailed: string[] }; error?: { message?: string } };
+    setBusy(false);
+    if (!res.ok || !j.success) return onError(j.error?.message ?? "Não foi possível anexar o comprovante.");
+    setAttaching(false);
+    setLateFile(null);
+    const parts = [`${g.name}: comprovante anexado em ${j.data?.attached ?? 0} corrida(s).`];
+    if (lateNotify) {
+      if (j.data?.emailed) parts.push(`E-mail reenviado com o comprovante.`);
+      if (j.data?.notEmailed?.length) parts.push(`Sem e-mail (avise por WhatsApp): ${j.data.notEmailed.join(", ")}.`);
     }
     onPaid(parts.join(" "));
   }
@@ -206,7 +232,7 @@ function PayoutGroupCard({
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase text-prime-muted">
-                  {view === "abertos" ? <th className="w-8 py-2" /> : null}
+                  <th className="w-8 py-2" />
                   <th className="py-2">Data</th>
                   <th className="py-2">Cliente / trajeto</th>
                   <th className="py-2">Motorista</th>
@@ -217,6 +243,24 @@ function PayoutGroupCard({
               <tbody>
                 {g.rows.map((r) => (
                   <tr key={r.id} className="border-t border-prime-border">
+                    {view !== "abertos" ? (
+                      <td className="py-2">
+                        {r.status === "paid" ? (
+                          <input
+                            type="checkbox"
+                            checked={selPaid.has(r.id)}
+                            onChange={(e) =>
+                              setSelPaid((s) => {
+                                const n = new Set(s);
+                                if (e.target.checked) n.add(r.id);
+                                else n.delete(r.id);
+                                return n;
+                              })
+                            }
+                          />
+                        ) : null}
+                      </td>
+                    ) : null}
                     {view === "abertos" ? (
                       <td className="py-2">
                         <input
@@ -241,7 +285,16 @@ function PayoutGroupCard({
                     <td className="py-2">{r.driver_name}</td>
                     <td className="py-2 text-xs">
                       {r.status === "paid" ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">Pago {r.paid_at ? new Date(r.paid_at).toLocaleDateString("pt-BR") : ""}</span>
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">Pago {r.paid_at ? new Date(r.paid_at).toLocaleDateString("pt-BR") : ""}</span>
+                          {r.proof_url ? (
+                            <a href={r.proof_url} target="_blank" rel="noopener noreferrer" className="font-medium text-prime-gold-ink underline">
+                              📎 comprovante
+                            </a>
+                          ) : (
+                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-900">sem comprovante</span>
+                          )}
+                        </span>
                       ) : r.released ? (
                         <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-800">Liberado</span>
                       ) : (
@@ -275,7 +328,20 @@ function PayoutGroupCard({
                 </button>
               </>
             ) : (
-              <span className="mr-auto" />
+              <>
+                <span className="mr-auto text-sm">
+                  {paidRows.some((r) => !r.has_proof) ? (
+                    <span className="text-amber-900">{paidRows.filter((r) => !r.has_proof).length} pagamento(s) sem comprovante</span>
+                  ) : (
+                    <span className="text-emerald-700">✓ Todos com comprovante</span>
+                  )}
+                </span>
+                {paidRows.length ? (
+                  <button type="button" disabled={!selPaid.size} className="btn-primary disabled:opacity-40" onClick={() => setAttaching(true)}>
+                    📎 Anexar / trocar comprovante
+                  </button>
+                ) : null}
+              </>
             )}
             <button type="button" className="rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-prime-border hover:ring-prime-gold" onClick={() => downloadCsv(`repasse_${g.name.replace(/\W+/g, "_")}.csv`, g)}>
               Baixar planilha
@@ -287,6 +353,29 @@ function PayoutGroupCard({
             ) : null}
           </div>
 
+          {attaching ? (
+            <div className="mt-3 grid gap-3 rounded-xl bg-prime-bg p-3">
+              <p className="text-sm font-semibold">
+                Comprovante para {selPaid.size} corrida(s) paga(s) ·{" "}
+                {brl(Math.round(paidRows.filter((r) => selPaid.has(r.id)).reduce((s2, r) => s2 + r.amount, 0) * 100) / 100)}
+              </p>
+              <p className="text-xs text-prime-muted">Marque na lista acima as corridas que este comprovante paga. Se já tinha um comprovante, o novo substitui.</p>
+              <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="text-sm" onChange={(e) => setLateFile(e.target.files?.[0] ?? null)} />
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" className="mt-1" checked={lateNotify} onChange={(e) => setLateNotify(e.target.checked)} />
+                <span>Reenviar o e-mail ao motorista com as corridas e o comprovante</span>
+              </label>
+              <span className="flex gap-2">
+                <button type="button" className="rounded-lg px-3 py-2 text-sm ring-1 ring-prime-border" onClick={() => setAttaching(false)}>
+                  Cancelar
+                </button>
+                <button type="button" disabled={busy || !lateFile} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-[#fff] disabled:opacity-50" onClick={() => void attachLate()}>
+                  {busy ? "Salvando…" : "Salvar comprovante"}
+                </button>
+              </span>
+            </div>
+          ) : null}
+
           {paying ? (
             <div className="mt-3 grid gap-3 rounded-xl bg-prime-bg p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <div className="rounded-lg bg-white p-3 text-sm sm:col-span-3">
@@ -295,8 +384,9 @@ function PayoutGroupCard({
                 </p>
                 <p className="mt-0.5 text-xs text-prime-muted">{g.pix_key ? `PIX: ${g.pix_key}` : "Sem PIX cadastrado para este parceiro."}</p>
               </div>
-              <label className="grid gap-1 text-sm sm:col-span-3">
-                <span>Comprovante do pagamento (PDF ou foto, até 5 MB)</span>
+              <label className={`grid gap-1 rounded-lg border-2 border-dashed p-3 text-sm sm:col-span-3 ${proofFile ? "border-emerald-400 bg-emerald-50" : "border-prime-gold bg-white"}`}>
+                <span className="font-semibold">📎 {proofFile ? `Comprovante: ${proofFile.name}` : "Anexe o comprovante do PIX (PDF ou foto, até 5 MB)"}</span>
+                <span className="text-xs text-prime-muted">Esqueceu? Dá para anexar depois na aba “Pagos”.</span>
                 <input
                   type="file"
                   accept="application/pdf,image/jpeg,image/png,image/webp"

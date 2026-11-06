@@ -14,6 +14,11 @@ export type PayoutRow = {
   driver_id: string;
   driver_name: string;
   partner_id: string | null;
+  /** Lote do pagamento e se já tem comprovante anexado. */
+  batch_id?: string | null;
+  payment_method?: string | null;
+  has_proof?: boolean;
+  proof_url?: string | null;
 };
 
 export type PayoutOwner = { id: string; kind: "PJ" | "PF" | "avulso"; name: string; document: string | null; pix_key: string | null; phone: string | null };
