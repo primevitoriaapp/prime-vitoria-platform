@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
+import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 
 export type ClientPassengerOption = {
   id: string;
@@ -41,6 +42,30 @@ export function PassengerAutocompleteInput({
   const [options, setOptions] = useState<ClientPassengerOption[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Cadastro rápido: funcionário que ainda não existe na empresa.
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ name: "", phone: "", address: "", sector: "" });
+  const [saving, setSaving] = useState(false);
+  const [addErr, setAddErr] = useState<string | null>(null);
+
+  async function saveNew() {
+    if (form.name.trim().length < 2) return setAddErr("Digite o nome.");
+    setSaving(true);
+    setAddErr(null);
+    const res = await fetchWithSupabaseSession(
+      `/api/clients/${clientId}/passengers`,
+      {
+        method: "POST",
+        body: JSON.stringify({ name: form.name.trim(), phone: form.phone.trim() || null, address: form.address.trim() || null, sector: form.sector.trim() || null, active: true })
+      },
+      devFallbackRole
+    );
+    const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: ClientPassengerOption; error?: { message?: string } };
+    setSaving(false);
+    if (!res.ok || !j.success || !j.data) return setAddErr(j.error?.message ?? "Não foi possível cadastrar.");
+    setAdding(false);
+    pick(j.data);
+  }
 
   const fetchOptions = useCallback(
     async (q: string) => {
@@ -78,7 +103,8 @@ export function PassengerAutocompleteInput({
   }
 
   return (
-    <label className={`grid gap-1 text-sm ${className}`}>
+    <div className={`grid gap-2 ${className}`}>
+    <label className="grid gap-1 text-sm">
       <span>{label}</span>
       <div className="relative">
         <input
@@ -124,6 +150,24 @@ export function PassengerAutocompleteInput({
             ))}
           </ul>
         ) : null}
+        {open && !loading && !adding && clientId && value.trim().length >= 2 && options.length === 0 ? (
+          <div className="absolute z-20 mt-1 w-full rounded-lg border border-prime-border bg-white p-3 text-sm shadow-lg">
+            <p className="text-prime-muted">Nenhum funcionário com esse nome nesta empresa.</p>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setForm({ name: value.trim().replace(/\b\w/g, (c) => c.toUpperCase()), phone: "", address: "", sector: "" });
+                setAddErr(null);
+                setAdding(true);
+                setOpen(false);
+              }}
+              className="mt-1 font-semibold text-prime-gold-ink underline"
+            >
+              + Cadastrar “{value.trim()}” como funcionário agora
+            </button>
+          </div>
+        ) : null}
         {open && loading ? (
           <p className="absolute z-20 mt-1 w-full rounded-lg border bg-white px-3 py-2 text-xs text-prime-muted shadow">
             A buscar…
@@ -131,5 +175,42 @@ export function PassengerAutocompleteInput({
         ) : null}
       </div>
     </label>
+    {adding ? (
+      <div className="grid gap-3 rounded-xl border-2 border-prime-gold bg-[#FBF7EC] p-3">
+        <p className="text-sm font-semibold">Novo funcionário da empresa</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1 text-sm">
+            <span>Nome</span>
+            <input className={PRIME_INPUT_CLASS} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span>WhatsApp</span>
+            <input className={PRIME_INPUT_CLASS} inputMode="tel" placeholder="(27) 99999-9999" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </label>
+        </div>
+        <AddressAutocompleteInput
+          label="Endereço de casa (para buscar e levar)"
+          value={form.address}
+          onChange={(v) => setForm((f) => ({ ...f, address: v }))}
+          placeholder="Rua, número, bairro, cidade"
+          devFallbackRole={devFallbackRole === "cliente" ? "cliente" : "admin"}
+        />
+        <label className="grid gap-1 text-sm">
+          <span>Setor / turno (opcional)</span>
+          <input className={PRIME_INPUT_CLASS} placeholder="Ex.: Logística, turno da noite" value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} />
+        </label>
+        {addErr ? <p className="text-sm text-red-700">{addErr}</p> : null}
+        <div className="flex gap-2">
+          <button type="button" disabled={saving} onClick={() => void saveNew()} className="rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-[#C9A84C] disabled:opacity-50">
+            {saving ? "Salvando…" : "Salvar e usar nesta corrida"}
+          </button>
+          <button type="button" onClick={() => setAdding(false)} className="rounded-lg px-4 py-2 text-sm ring-1 ring-prime-border">
+            Cancelar
+          </button>
+        </div>
+        <p className="text-xs text-prime-muted">Fica salvo na ficha da empresa: na próxima corrida é só digitar o nome.</p>
+      </div>
+    ) : null}
+    </div>
   );
 }
