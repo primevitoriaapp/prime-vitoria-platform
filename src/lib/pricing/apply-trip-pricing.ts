@@ -25,6 +25,10 @@ export type ApplyTripPricingInput = {
   kmPlanned: number | null;
   scheduledAt?: string | null;
   completedAt?: string;
+  /** Recalcula pela tabela mesmo que a corrida tenha valor combinado (conferência da central). */
+  forceTable?: boolean;
+  /** Espera a considerar (minutos); padrão: a gravada na corrida. */
+  waitMinutes?: number | null;
 };
 
 export type ApplyTripPricingResult = {
@@ -49,7 +53,20 @@ export { loadActivePricingRule } from "@/lib/pricing/load-active-pricing";
  * Tabela nova (veículo × serviço da empresa). Retorna null quando a corrida não usa a tabela nova
  * ou a célula está sem valor — aí segue o motor antigo / valor digitado na corrida.
  */
-async function applyCategoryPricing(input: ApplyTripPricingInput): Promise<ApplyTripPricingResult | null> {
+export type CategoryPricingPreview = {
+  client: number;
+  driverAmount: number;
+  margin: number;
+  km: number | null;
+  usedHours: number | null;
+  table: { client: number | null; partner: number | null; detail: string };
+  wait: ReturnType<typeof calculateWaitCharge>;
+  quoted: boolean;
+  metadata: Record<string, unknown>;
+};
+
+/** Calcula pela tabela do cliente sem gravar nada (prévia da conferência = o que o salvar grava). */
+export async function computeCategoryPricing(input: ApplyTripPricingInput): Promise<CategoryPricingPreview | null> {
   const { data: trip } = await db
     .from("trips")
     .select("vehicle_category_id, service_mode, driver_id, scheduled_at, wait_minutes, client_amount, driver_amount, calculation_metadata")
@@ -59,7 +76,7 @@ async function applyCategoryPricing(input: ApplyTripPricingInput): Promise<Apply
   if (!trip?.vehicle_category_id || !trip.service_mode) return null;
   // Valor que a própria tabela calculou antes (ex.: KM corrigido depois): recalcula, não trata como valor combinado.
   const prevMeta = (trip.calculation_metadata ?? null) as { source?: string; quoted?: boolean } | null;
-  const prevWasTable = prevMeta?.source === "categoria" && prevMeta.quoted === false;
+  const prevWasTable = input.forceTable || (prevMeta?.source === "categoria" && prevMeta.quoted === false);
 
   const { data: rows } = await db
     .from("client_category_prices")
@@ -94,7 +111,7 @@ async function applyCategoryPricing(input: ApplyTripPricingInput): Promise<Apply
 
   // Hora parada: valores da tabela do veículo, se houver; senão os do cadastro da empresa.
   const hp = cells.find((c) => c.service === "hora_parada" && c.enabled);
-  const wait = calculateWaitCharge(trip.wait_minutes as number | null | undefined, {
+  const wait = calculateWaitCharge((input.waitMinutes ?? (trip.wait_minutes as number | null | undefined)) as number | null | undefined, {
     ...terms,
     wait_client_price_per_hour: hp?.client_price ?? terms.wait_client_price_per_hour,
     wait_driver_price_per_hour: hp?.partner_price ?? terms.wait_driver_price_per_hour
@@ -106,6 +123,24 @@ async function applyCategoryPricing(input: ApplyTripPricingInput): Promise<Apply
   const driverAmount = hasDriver ? (partner ?? 0) : 0;
   const margin = roundMoney(client - driverAmount);
   const metadata = { source: "categoria", detail: table.detail, km, used_hours: usedHours, wait, quoted: quotedClient > 0 };
+  return {
+    client,
+    driverAmount,
+    margin,
+    km,
+    usedHours,
+    table: { client: table.client ?? null, partner: table.partner ?? null, detail: String(table.detail ?? "") },
+    wait,
+    quoted: quotedClient > 0,
+    metadata
+  };
+}
+
+async function applyCategoryPricing(input: ApplyTripPricingInput): Promise<ApplyTripPricingResult | null> {
+  const p = await computeCategoryPricing(input);
+  if (!p) return null;
+  const { client, driverAmount, margin, km, metadata } = p;
+  const table = p.table;
 
   const { error: tripErr } = await db
     .from("trips")

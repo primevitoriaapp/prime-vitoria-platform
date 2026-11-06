@@ -6,7 +6,7 @@ import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { actualKmFromTrail, gpsTrailGaps } from "@/lib/trips/km-distance";
 import { odometerDistance, parseOdometer } from "@/lib/trips/odometer";
-import { applyTripPricingOnCompletion } from "@/lib/pricing/apply-trip-pricing";
+import { applyTripPricingOnCompletion, computeCategoryPricing } from "@/lib/pricing/apply-trip-pricing";
 
 const COLS =
   "id, client_id, driver_id, operational_status, service_mode, scheduled_at, odometer_start, odometer_end, actual_km, planned_km, km_billable, km_source, client_amount, driver_amount, review_required, review_reason, reviewed_at, client_invoice_id, wait_minutes";
@@ -35,7 +35,43 @@ async function lockState(tripId: string, invoiceId: unknown) {
 }
 
 /** Conferência de KM pela central: painel do motorista × GPS × KM cobrado. */
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+/** Prévia: quanto fica com este KM e esta espera, sem gravar (?preview=1&km=34&wait=30). */
+async function preview(request: Request, id: string, tenantId: string, clientId: string, actorUserId: string, t: Record<string, unknown>) {
+  const u = new URL(request.url);
+  const kmQ = u.searchParams.get("km");
+  const waitQ = u.searchParams.get("wait");
+  const km = kmQ != null && kmQ !== "" ? Number(kmQ.replace(",", ".")) : t.km_billable != null ? Number(t.km_billable) : t.actual_km != null ? Number(t.actual_km) : null;
+  const wait = waitQ != null && waitQ !== "" ? Math.max(0, Math.round(Number(waitQ))) : Number(t.wait_minutes ?? 0) || 0;
+  const p = await computeCategoryPricing({
+    tripId: id,
+    tenantId,
+    clientId,
+    actorUserId,
+    kmReal: km != null && Number.isFinite(km) ? km : null,
+    kmPlanned: t.planned_km == null ? null : Number(t.planned_km),
+    scheduledAt: t.scheduled_at as string,
+    // Por KM: sempre pela tabela. Transfer/diária com valor combinado: mantém o combinado e soma a espera.
+    forceTable: t.service_mode === "km",
+    waitMinutes: wait
+  }).catch(() => null);
+  if (!p) return ok({ by_table: false });
+  return ok({
+    by_table: true,
+    km: p.km,
+    base_client: p.table.client,
+    base_driver: p.table.partner,
+    detail: p.table.detail,
+    wait_minutes: p.wait.wait_minutes,
+    wait_billable_minutes: p.wait.billable_minutes,
+    wait_tolerance_minutes: p.wait.tolerance_minutes,
+    wait_client: p.wait.client_amount,
+    wait_driver: p.wait.driver_amount,
+    client_amount: p.client,
+    driver_amount: p.driverAmount
+  });
+}
+
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { session, denied } = await staffOnly();
     if (denied) return denied;
@@ -43,6 +79,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const { id } = await params;
     const { data: t } = await db.from("trips").select(COLS).eq("id", id).eq("tenant_id", tenantId).maybeSingle();
     if (!t) return fail("TRIP_NOT_FOUND", "Corrida não encontrada", 404);
+    if (new URL(request.url).searchParams.get("preview") === "1") {
+      return await preview(request, id, tenantId, t.client_id as string, session.userId, t as unknown as Record<string, unknown>);
+    }
     const gps = await gpsKm(id);
     const start = t.odometer_start == null ? null : Number(t.odometer_start);
     const end = t.odometer_end == null ? null : Number(t.odometer_end);
@@ -74,6 +113,8 @@ const bodySchema = z.object({
   choice: z.enum(["odometer", "gps", "manual", "keep"]),
   /** Minutos de espera/atraso do passageiro (cobra o que passar da tolerância do cliente). */
   wait_minutes: z.coerce.number().int().min(0).max(24 * 60).optional(),
+  /** Recalcula pela tabela mesmo se a corrida tinha valor combinado (conferência na aprovação). */
+  recalc: z.boolean().optional(),
   odometer_start: z.union([z.string(), z.number()]).optional().nullable(),
   odometer_end: z.union([z.string(), z.number()]).optional().nullable(),
   km: z.coerce.number().positive().max(3000).optional()
@@ -131,7 +172,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         actorUserId: session.userId,
         kmReal: km,
         kmPlanned: t.planned_km == null ? null : Number(t.planned_km),
-        scheduledAt: t.scheduled_at as string
+        scheduledAt: t.scheduled_at as string,
+        forceTable: body.recalc === true
       }).catch(() => null);
       // Conta a receber e repasse em aberto acompanham o novo valor.
       const { data: fin } = await db.from("trip_financials").select("amount_client, amount_driver").eq("trip_id", id).maybeSingle();

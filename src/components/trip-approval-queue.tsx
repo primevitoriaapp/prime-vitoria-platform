@@ -28,6 +28,20 @@ type Item = {
   alert: string | null;
 };
 
+type Preview = {
+  by_table: boolean;
+  km?: number | null;
+  base_client?: number | null;
+  base_driver?: number | null;
+  wait_minutes?: number;
+  wait_billable_minutes?: number;
+  wait_tolerance_minutes?: number;
+  wait_client?: number;
+  wait_driver?: number;
+  client_amount?: number;
+  driver_amount?: number;
+};
+const money = (n: number | null | undefined) => (n == null ? "" : n.toFixed(2).replace(".", ","));
 const brl = (n: number | null) => (n == null ? "—" : n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
 const km = (n: number | null) => (n == null ? "—" : `${n.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`);
 const when = (iso: string) =>
@@ -53,6 +67,10 @@ export function TripApprovalQueue() {
   const [edit, setEdit] = useState<string | null>(null);
   const [form, setForm] = useState({ km: "", client: "", driver: "", wait: "" });
   const [busy, setBusy] = useState<string | null>(null);
+  /** Valores digitados à mão (não sobrescreve com o cálculo da tabela). */
+  const [manual, setManual] = useState(false);
+  const [prev, setPrev] = useState<Preview | null>(null);
+  const [calc, setCalc] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -64,6 +82,27 @@ export function TripApprovalQueue() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Prévia ao vivo: mudou KM ou espera, recalcula pela tabela do cliente (o mesmo que o salvar grava).
+  useEffect(() => {
+    if (!edit) return;
+    const it = items?.find((x) => x.id === edit);
+    if (!it) return;
+    setCalc(true);
+    const t = setTimeout(async () => {
+      const q = new URLSearchParams({ preview: "1" });
+      if (it.by_km && form.km.trim()) q.set("km", String(num(form.km)));
+      if (form.wait.trim()) q.set("wait", String(Math.max(0, Math.round(num(form.wait)))));
+      const r = await fetchWithSupabaseSession(`/api/trips/${edit}/km-review?${q}`, {}, "admin");
+      const j = (await r.json().catch(() => ({}))) as { success?: boolean; data?: Preview };
+      setCalc(false);
+      if (!j.success || !j.data) return;
+      setPrev(j.data);
+      if (j.data.by_table && !manual) setForm((f) => ({ ...f, client: money(j.data?.client_amount), driver: money(j.data?.driver_amount) }));
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edit, form.km, form.wait, manual]);
 
   async function approve(id: string, silent = false) {
     setBusy(id);
@@ -81,22 +120,33 @@ export function TripApprovalQueue() {
       const kmChanged = it.by_km && newKm != null && newKm !== it.billed_km;
       const newWait = form.wait.trim() ? Math.max(0, Math.round(num(form.wait))) : null;
       const waitChanged = newWait != null && newWait !== it.wait_minutes;
+      let current = { client: it.client_amount, driver: it.driver_amount };
       if (kmChanged || waitChanged) {
         const r = await fetchWithSupabaseSession(
           `/api/trips/${it.id}/km-review`,
-          { method: "POST", body: JSON.stringify({ choice: kmChanged ? "manual" : "keep", ...(kmChanged ? { km: newKm } : {}), ...(waitChanged ? { wait_minutes: newWait } : {}) }) },
+          {
+            method: "POST",
+            body: JSON.stringify({
+              choice: kmChanged ? "manual" : "keep",
+              ...(kmChanged ? { km: newKm } : {}),
+              ...(waitChanged ? { wait_minutes: newWait } : {}),
+              recalc: it.by_km && Boolean(prev?.by_table)
+            })
+          },
           "admin"
         );
-        const j = (await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
+        const j = (await r.json().catch(() => ({}))) as { success?: boolean; data?: { client_amount: number | null; driver_amount: number | null }; error?: { message?: string } };
         if (!r.ok || !j.success) throw new Error(j.error?.message ?? "Falha ao recalcular");
+        current = { client: j.data?.client_amount == null ? null : Number(j.data.client_amount), driver: j.data?.driver_amount == null ? null : Number(j.data.driver_amount) };
       }
+      // Valor digitado diferente do calculado: grava o digitado (valor fechado).
       const c = form.client.trim() ? num(form.client) : null;
       const d = form.driver.trim() ? num(form.driver) : null;
-      const valuesChanged = (c != null && c !== it.client_amount) || (d != null && d !== it.driver_amount);
+      const valuesChanged = (c != null && Math.abs(c - Number(current.client ?? 0)) > 0.004) || (d != null && Math.abs(d - Number(current.driver ?? 0)) > 0.004);
       if (valuesChanged) {
         const r = await fetchWithSupabaseSession(
           `/api/trips/${it.id}/amounts`,
-          { method: "PATCH", body: JSON.stringify({ client_amount: c ?? it.client_amount, driver_amount: d ?? it.driver_amount }) },
+          { method: "PATCH", body: JSON.stringify({ client_amount: c ?? current.client, driver_amount: d ?? current.driver }) },
           "admin"
         );
         if (!r.ok) throw new Error("Falha ao salvar os valores");
@@ -236,6 +286,8 @@ export function TripApprovalQueue() {
                   type="button"
                   onClick={() => {
                     setEdit(editing ? null : it.id);
+                    setManual(false);
+                    setPrev(null);
                     setForm({
                       wait: String(Math.max(it.wait_minutes, lateMinutes(it))),
                       km: it.billed_km != null ? String(it.billed_km).replace(".", ",") : "",
@@ -251,38 +303,86 @@ export function TripApprovalQueue() {
             </div>
 
             {editing ? (
-              <div className="grid gap-3 border-t border-prime-border bg-prime-bg/50 px-5 py-4 sm:grid-cols-5 sm:items-end">
-                {it.by_km ? (
-                  <label className="grid gap-1 text-sm">
-                    KM a cobrar
-                    <input className="rounded-lg border border-prime-border bg-white px-3 py-2" inputMode="decimal" value={form.km} onChange={(e) => setForm({ ...form, km: e.target.value })} />
-                    <span className="text-[11px] text-prime-muted">Recalcula pela tabela do cliente</span>
+              <div className="grid gap-4 border-t border-prime-border bg-prime-bg/50 px-5 py-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {it.by_km ? (
+                    <label className="grid content-start gap-1 text-sm">
+                      <span className="font-medium">KM a cobrar</span>
+                      <input className="w-full rounded-lg border border-prime-border bg-white px-3 py-2 text-base" inputMode="decimal" value={form.km} onChange={(e) => setForm({ ...form, km: e.target.value })} />
+                      <span className="text-[11px] text-prime-muted">O motorista informou {km(it.odometer_km ?? it.billed_km)}</span>
+                    </label>
+                  ) : null}
+                  <label className="grid content-start gap-1 text-sm">
+                    <span className="font-medium">Espera / atraso (min)</span>
+                    <input className="w-full rounded-lg border border-prime-border bg-white px-3 py-2 text-base" inputMode="numeric" value={form.wait} onChange={(e) => setForm({ ...form, wait: e.target.value })} />
+                    <span className="text-[11px] text-prime-muted">
+                      {prev?.wait_tolerance_minutes != null ? `Tolerância do cliente: ${prev.wait_tolerance_minutes} min` : "Cobra o que passar da tolerância"}
+                    </span>
                   </label>
-                ) : null}
-                <label className="grid gap-1 text-sm">
-                  Espera / atraso (min)
-                  <input className="rounded-lg border border-prime-border bg-white px-3 py-2" inputMode="numeric" value={form.wait} onChange={(e) => setForm({ ...form, wait: e.target.value })} />
-                  <span className="text-[11px] text-prime-muted">Cobra hora parada do que passar da tolerância do cliente</span>
-                </label>
-                <label className="grid gap-1 text-sm">
-                  Cliente paga (R$)
-                  <input className="rounded-lg border border-prime-border bg-white px-3 py-2" inputMode="decimal" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  Motorista recebe (R$)
-                  <input className="rounded-lg border border-prime-border bg-white px-3 py-2" inputMode="decimal" value={form.driver} onChange={(e) => setForm({ ...form, driver: e.target.value })} />
-                </label>
-                <button
-                  type="button"
-                  disabled={busy === it.id}
-                  onClick={() => void saveEdit(it)}
-                  className="rounded-xl bg-[#111] px-4 py-2.5 text-sm font-semibold text-[#C9A84C] disabled:opacity-50"
-                >
-                  {busy === it.id ? "Salvando…" : "Salvar e aprovar"}
-                </button>
-                <p className="text-xs text-prime-muted sm:col-span-5">
-                  Mudou o KM ou a espera? Deixe os valores como estão: o sistema recalcula pela tabela. Quer um valor fechado? Digite os valores. Motorista e cliente não veem que houve ajuste.
-                </p>
+                  <label className="grid content-start gap-1 text-sm">
+                    <span className="font-medium">Cliente paga (R$)</span>
+                    <input
+                      className="w-full rounded-lg border border-prime-border bg-white px-3 py-2 text-base font-semibold"
+                      inputMode="decimal"
+                      value={form.client}
+                      onChange={(e) => {
+                        setManual(true);
+                        setForm({ ...form, client: e.target.value });
+                      }}
+                    />
+                    <span className="text-[11px] text-prime-muted">Antes: {brl(it.client_amount)}</span>
+                  </label>
+                  <label className="grid content-start gap-1 text-sm">
+                    <span className="font-medium">Motorista recebe (R$)</span>
+                    <input
+                      className="w-full rounded-lg border border-prime-border bg-white px-3 py-2 text-base font-semibold"
+                      inputMode="decimal"
+                      value={form.driver}
+                      onChange={(e) => {
+                        setManual(true);
+                        setForm({ ...form, driver: e.target.value });
+                      }}
+                    />
+                    <span className="text-[11px] text-prime-muted">Antes: {brl(it.driver_amount)}</span>
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-prime-border bg-white px-4 py-3">
+                  <div className="min-w-0 text-sm">
+                    {calc ? (
+                      <span className="text-prime-muted">Recalculando…</span>
+                    ) : prev?.by_table ? (
+                      <>
+                        <p>
+                          <b>Pela tabela:</b> {prev.km != null ? `${km(prev.km)} = ` : ""}
+                          {brl(prev.base_client ?? null)}
+                          {prev.wait_client ? ` + espera ${prev.wait_billable_minutes} min = ${brl(prev.wait_client)}` : prev.wait_minutes ? ` · espera ${prev.wait_minutes} min dentro da tolerância (sem cobrança)` : ""}
+                          {" → "}
+                          <b>cliente {brl(prev.client_amount ?? null)}</b> · motorista {brl(prev.driver_amount ?? null)}
+                          {prev.client_amount != null && prev.driver_amount != null ? ` · margem ${brl(prev.client_amount - prev.driver_amount)}` : ""}
+                        </p>
+                        {manual ? (
+                          <p className="text-amber-800">
+                            Você digitou valores à mão; vai salvar os digitados.{" "}
+                            <button type="button" onClick={() => setManual(false)} className="font-semibold underline">
+                              Usar o cálculo da tabela
+                            </button>
+                          </p>
+                        ) : null}
+                      </>
+                    ) : prev ? (
+                      <span className="text-prime-muted">Corrida de valor fechado: KM e espera não mudam o valor. Se precisar, digite os valores.</span>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy === it.id || calc}
+                    onClick={() => void saveEdit(it)}
+                    className="shrink-0 rounded-xl bg-[#111] px-5 py-3 text-sm font-semibold text-[#C9A84C] disabled:opacity-50"
+                  >
+                    {busy === it.id ? "Salvando…" : "Salvar e aprovar"}
+                  </button>
+                </div>
               </div>
             ) : null}
           </article>
