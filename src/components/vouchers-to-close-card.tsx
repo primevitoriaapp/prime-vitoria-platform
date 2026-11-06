@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
-import type { VoucherGroup } from "@/lib/finance/voucher-groups";
+import type { VoucherGroup, VoucherTrip } from "@/lib/finance/voucher-groups";
+import { groupSplitItems, isSplitGroup, splitBaseRef } from "@/lib/finance/merge-split-services";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const when = (iso: string) =>
@@ -34,6 +35,16 @@ export function VouchersToCloseCard({ onClosed }: { onClosed?: () => void }) {
   const [due, setDue] = useState(plus30());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pick, setPick] = useState<Set<string>>(new Set());
+
+  async function setMerge(tripIds: string[], key: string | null) {
+    setBusy(true);
+    const r = await fetchWithSupabaseSession("/api/client-invoices/merge", { method: "POST", body: JSON.stringify({ trip_ids: tripIds, key }) }, "admin");
+    setBusy(false);
+    if (!r.ok) setMsg({ ok: false, text: "Não foi possível juntar/separar." });
+    setPick(new Set());
+    await load();
+  }
 
   const load = useCallback(async () => {
     const r = await fetchWithSupabaseSession("/api/client-invoices/vouchers", {}, "admin");
@@ -185,6 +196,14 @@ export function VouchersToCloseCard({ onClosed }: { onClosed?: () => void }) {
                       </table>
                     </div>
 
+                    <MergeBox
+                      trips={g.trips}
+                      pick={pick}
+                      setPick={setPick}
+                      busy={busy}
+                      onMerge={(ids, key) => void setMerge(ids, key)}
+                    />
+
                     <div className="flex flex-wrap items-end justify-between gap-3">
                       {g.has_voucher_file ? (
                         <a
@@ -237,5 +256,84 @@ export function VouchersToCloseCard({ onClosed }: { onClosed?: () => void }) {
         </ul>
       )}
     </section>
+  );
+}
+
+/** Pergunta no fechamento: juntar serviços num item só na fatura (ou deixar separados). */
+function MergeBox({
+  trips,
+  pick,
+  setPick,
+  busy,
+  onMerge
+}: {
+  trips: VoucherTrip[];
+  pick: Set<string>;
+  setPick: (s: Set<string>) => void;
+  busy: boolean;
+  onMerge: (tripIds: string[], key: string | null) => void;
+}) {
+  if (trips.length < 2) return null;
+  const items = groupSplitItems(trips, (t) => t.ref, (t) => t.merge_key);
+  const sum = (ts: VoucherTrip[]) => ts.reduce((s2, t) => s2 + Number(t.client_amount ?? 0), 0);
+  return (
+    <div className="rounded-xl border border-prime-gold bg-white p-3">
+      <p className="text-sm font-semibold">Quer juntar algum serviço num item só na fatura?</p>
+      <p className="text-xs text-prime-muted">
+        Ex.: o cliente pediu um “disponível” e vocês dividiram em ida e volta. Marque os trechos e junte: na fatura do cliente aparece um item só, com o valor somado. As corridas e os repasses continuam separados.
+      </p>
+      <ul className="mt-2 grid gap-1.5 text-sm">
+        {items.map((x) =>
+          isSplitGroup(x) ? (
+            <li key={x.base} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-50 px-3 py-2">
+              <span>
+                <b>{x.base}</b> · junta {x.parts.map((p) => p.ref).join(" + ")} · <b>{brl(sum(x.parts))}</b>
+              </span>
+              <button type="button" disabled={busy} onClick={() => onMerge(x.parts.map((p) => p.id), "-")} className="text-xs font-semibold text-red-700 underline">
+                Deixar separados
+              </button>
+            </li>
+          ) : (
+            <li key={x.id} className="flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 ring-1 ring-prime-border">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={pick.has(x.id)}
+                  onChange={(e) => {
+                    const n = new Set(pick);
+                    if (e.target.checked) n.add(x.id);
+                    else n.delete(x.id);
+                    setPick(n);
+                  }}
+                />
+                <span>
+                  {x.ref} · {brl(Number(x.client_amount ?? 0))}
+                </span>
+              </label>
+              {x.merge_key === "-" ? (
+                <button type="button" disabled={busy} onClick={() => onMerge([x.id], null)} className="text-xs text-prime-muted underline">
+                  voltar ao automático
+                </button>
+              ) : null}
+            </li>
+          )
+        )}
+      </ul>
+      {pick.size >= 2 ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            const chosen = trips.filter((t) => pick.has(t.id));
+            const suggestion = splitBaseRef(chosen[0].ref) ?? chosen[0].ref;
+            const name = window.prompt("Nome do item na fatura (como o cliente vai ver):", suggestion);
+            if (name && name.trim()) onMerge(chosen.map((t) => t.id), name.trim());
+          }}
+          className="mt-2 rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-[#C9A84C] disabled:opacity-50"
+        >
+          Juntar {pick.size} serviços em um item
+        </button>
+      ) : null}
+    </div>
   );
 }

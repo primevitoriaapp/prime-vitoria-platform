@@ -10,6 +10,8 @@ export type VoucherTrip = {
   has_voucher: boolean;
   /** Aprovada pelo gestor (KM e valores conferidos). */
   approved?: boolean;
+  /** Chave para juntar na fatura ("-" = separado). */
+  merge_key?: string | null;
 };
 
 export type VoucherGroup = {

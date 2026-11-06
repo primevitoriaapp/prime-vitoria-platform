@@ -47,11 +47,13 @@ export type InvoiceReportRow = {
   amount: number | null;
   /** Item que junta trechos divididos (ex.: NR-E1 + NR-E2): ids de todas as corridas. */
   trip_ids?: string[];
+  /** Chave para juntar na fatura (escolhida no fechamento). */
+  merge_key?: string | null;
 };
 
 /** Junta os trechos de um serviço dividido (NR-E1, NR-E2…) num item só, como o cliente pediu. */
 export function mergeSplitReportRows(rows: InvoiceReportRow[]): InvoiceReportRow[] {
-  return groupSplitItems(rows, (r) => r.ref).map((x) => {
+  return groupSplitItems(rows, (r) => r.ref, (r) => r.merge_key).map((x) => {
     if (!isSplitGroup(x)) return x;
     const [first, ...rest] = x.parts;
     const last = x.parts[x.parts.length - 1];
@@ -121,7 +123,8 @@ export async function buildInvoiceReport(invoiceId: string): Promise<InvoiceRepo
     km: tripKm(t as never),
     wait_minutes: Number(t.wait_minutes ?? 0) || 0,
     wait_charge: waitChargeOf((t as { calculation_metadata?: unknown }).calculation_metadata, Number(t.wait_minutes ?? 0) || 0),
-    amount: t.client_amount == null ? null : Number(t.client_amount)
+    amount: t.client_amount == null ? null : Number(t.client_amount),
+    merge_key: ((t as { invoice_merge_key?: string | null }).invoice_merge_key ?? null) || null
   }));
   return mergeSplitReportRows(rows);
 }

@@ -24,7 +24,7 @@ export async function GET() {
     const nameBy = new Map((clients ?? []).map((c) => [c.id as string, ((c.trade_name as string | null) || (c.name as string)).trim()]));
     const { data: trips, error } = await db
       .from("trips")
-      .select("id, client_id, scheduled_at, operational_status, client_amount, notes, client_voucher_path, reviewed_at")
+      .select("id, client_id, scheduled_at, operational_status, client_amount, notes, client_voucher_path, reviewed_at, invoice_merge_key")
       .eq("tenant_id", tenantId)
       .in("client_id", ids)
       .is("client_invoice_id", null)
@@ -47,7 +47,8 @@ export async function GET() {
         operational_status: t.operational_status as string,
         client_amount: t.client_amount == null ? null : Number(t.client_amount),
         has_voucher: Boolean(t.client_voucher_path),
-        approved: Boolean(t.reviewed_at)
+        approved: Boolean(t.reviewed_at),
+        merge_key: (t.invoice_merge_key as string | null) ?? null
       });
     }
     return ok({ groups: groupVouchers(list) });

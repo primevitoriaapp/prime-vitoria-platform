@@ -10,17 +10,30 @@ export function splitBaseRef(ref: string | null | undefined): string | null {
   return m ? m[1] : null;
 }
 
-/** Agrupa itens com o mesmo NR base (2 ou mais trechos) mantendo a ordem do primeiro. */
-export function groupSplitItems<T>(items: T[], refOf: (t: T) => string | null | undefined): (T | { base: string; parts: T[] })[] {
+/**
+ * Agrupa itens com a mesma chave (2 ou mais) mantendo a ordem do primeiro.
+ * Chave = a escolhida na hora de fechar ("Juntar serviços"); sem ela, o NR base (NR-E1 + NR-E2 → NR-E).
+ */
+export function groupSplitItems<T>(
+  items: T[],
+  refOf: (t: T) => string | null | undefined,
+  mergeKeyOf?: (t: T) => string | null | undefined
+): (T | { base: string; parts: T[] })[] {
+  // "-" = a central escolheu deixar separado.
+  const keyOf = (it: T) => {
+    const k = (mergeKeyOf?.(it) || "").trim();
+    if (k === "-") return null;
+    return k || splitBaseRef(refOf(it));
+  };
   const count = new Map<string, number>();
   for (const it of items) {
-    const b = splitBaseRef(refOf(it));
+    const b = keyOf(it);
     if (b) count.set(b, (count.get(b) ?? 0) + 1);
   }
   const out: (T | { base: string; parts: T[] })[] = [];
   const groupAt = new Map<string, { base: string; parts: T[] }>();
   for (const it of items) {
-    const b = splitBaseRef(refOf(it));
+    const b = keyOf(it);
     if (!b || (count.get(b) ?? 0) < 2) {
       out.push(it);
       continue;

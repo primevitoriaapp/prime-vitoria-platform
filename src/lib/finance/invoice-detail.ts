@@ -8,6 +8,7 @@ export type InvoiceService = {
   id: string;
   /** Item que junta trechos divididos (NR-E1 + NR-E2): todas as corridas. */
   trip_ids?: string[];
+  merge_key?: string | null;
   ref: string | null;
   when: string;
   route: string;
@@ -59,7 +60,7 @@ export async function loadInvoiceDetail(tenantId: string, id: string, opts: { in
     db.from("clients").select("name, trade_name").eq("id", invoice.client_id).maybeSingle(),
     db
       .from("trips")
-      .select("id, scheduled_at, origin_text, destination_text, passenger_name, passenger_count, client_amount, operational_status, notes, km_billable, actual_km, trip_dropoff_stops")
+      .select("id, scheduled_at, origin_text, destination_text, passenger_name, passenger_count, client_amount, operational_status, notes, km_billable, actual_km, trip_dropoff_stops, invoice_merge_key")
       .eq("client_invoice_id", id)
       .order("scheduled_at"),
     db
@@ -87,11 +88,12 @@ export async function loadInvoiceDetail(tenantId: string, id: string, opts: { in
       ((t.passenger_name as string | null)?.trim() || "—") + (t.passenger_count && Number(t.passenger_count) > 1 && !String(t.passenger_name ?? "").includes(",") ? ` (+${Number(t.passenger_count) - 1})` : ""),
     amount: t.client_amount == null ? null : Number(t.client_amount),
     status: t.operational_status as string,
-    km: t.km_billable != null ? Number(t.km_billable) : t.actual_km != null ? Number(t.actual_km) : null
+    km: t.km_billable != null ? Number(t.km_billable) : t.actual_km != null ? Number(t.actual_km) : null,
+    merge_key: ((t as { invoice_merge_key?: string | null }).invoice_merge_key ?? null) || null
   }));
 
   // Serviço dividido em trechos (NR-E1, NR-E2) aparece como um item só (NR-E), como o cliente pediu.
-  const services: InvoiceService[] = groupSplitItems(rawServices, (x) => x.ref).map((x) => {
+  const services: InvoiceService[] = groupSplitItems(rawServices, (x) => x.ref, (x) => x.merge_key).map((x) => {
     if (!isSplitGroup(x)) return x;
     const [first] = x.parts;
     const pts: string[] = [];
