@@ -147,7 +147,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           : { lat: trip.destination_lat as number | null, lng: trip.destination_lng as number | null }
         : { lat: trip.origin_lat as number | null, lng: trip.origin_lng as number | null };
       const check = geofenceCheck(body.position ?? null, target);
-      if (!check.ok) {
+      // Finalizar NUNCA trava: o motorista às vezes para longe do ponto exato (portaria, outro
+      // portão, GPS ruim, passageiro desceu antes). Só vai para a central conferir se ficou
+      // a mais de 2 km do destino. Sem GPS do celular, nenhuma etapa trava.
+      if (!check.ok && (atDestination || check.reason === "sem_gps")) {
+        if (atDestination && check.reason === "longe" && (check.distance ?? 0) > 2000) {
+          reviewNote = `Fim fora do destino: motorista a ${formatDistance(check.distance ?? 0)} do destino${body.review_reason ? ` · motorista: ${body.review_reason}` : ""}`;
+        }
+      } else if (!check.ok) {
         const where = atDestination ? "do destino" : "do local de embarque";
         const detail = check.reason === "sem_gps" ? "GPS do celular não informou a localização" : `motorista a ${formatDistance(check.distance ?? 0)} ${where}`;
         if (!body.force_review) {
