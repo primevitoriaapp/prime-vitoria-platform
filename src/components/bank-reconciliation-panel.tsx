@@ -175,6 +175,27 @@ export function BankReconciliationPanel() {
       const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { inserted: number; skipped: number }; error?: { message?: string } };
       if (!j.success) throw new Error(j.error?.message ?? "Falha ao importar.");
       const months = [...new Set(parsed.map((l) => l.posted_at.slice(0, 7)))].sort();
+      // Guarda o arquivo original do extrato (vai no pacote do contador).
+      void (async () => {
+        try {
+          const label = accounts.find((x) => x.id === accountId)?.label ?? "Conta";
+          const u = await fetchWithSupabaseSession("/api/archive/upload-url", { method: "POST", body: JSON.stringify({ file_name: file.name, size: file.size, category: "extratos_mes" }) }, "admin");
+          const uj = (await u.json().catch(() => ({}))) as { success?: boolean; data?: { path: string; url: string } };
+          if (!uj.success || !uj.data) return;
+          const put = await fetch(uj.data.url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "application/octet-stream", "x-upsert": "false" } });
+          if (!put.ok) return;
+          await fetchWithSupabaseSession(
+            "/api/archive",
+            {
+              method: "POST",
+              body: JSON.stringify({ path: uj.data.path, file_name: file.name, size: file.size, content_type: file.type || null, category: "extratos_mes", period: months.join(", "), notes: label })
+            },
+            "admin"
+          );
+        } catch {
+          /* o importante (lançamentos) já foi salvo */
+        }
+      })();
       if (!months.includes(month)) setMonth(months[months.length - 1]);
       setMsg({ ok: true, text: `${j.data?.inserted ?? 0} lançamento(s) novo(s) importado(s)${j.data?.skipped ? `, ${j.data.skipped} já existiam` : ""}.` });
       await loadLines();

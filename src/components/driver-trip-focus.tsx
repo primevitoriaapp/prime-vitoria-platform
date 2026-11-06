@@ -13,6 +13,7 @@ import { DriverPickupStopsPanel } from "@/components/driver-pickup-stops-panel";
 import { DriverDropoffStopsPanel } from "@/components/driver-dropoff-stops-panel";
 import { DriverPassengerLink } from "@/components/driver-passenger-link";
 import { DriverTripExpenses } from "@/components/trip-expenses";
+import { ReceptiveSignButton, needsReceptiveSign } from "@/components/receptive-sign";
 
 const STEPS: { label: string; status: TripOperationalStatus }[] = [
   { label: "A caminho", status: "on_the_way" },
@@ -97,6 +98,9 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-lg space-y-4 px-4 py-4 pb-40">
           {message ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{message}</p> : null}
+          {!goingToDestination && needsReceptiveSign({ service_extras: extras, origin_text: trip.origin_text }) ? (
+            <ReceptiveSignButton name={trip.passenger_name} />
+          ) : null}
           <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-prime-gold">
               {goingToDestination ? "Levar o passageiro para" : multi && stopIdx != null ? `Buscar na parada ${stopIdx + 1}` : "Buscar o passageiro em"}

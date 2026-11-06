@@ -3,6 +3,7 @@
 import { formatBrTime } from "@/lib/dates/br-date";
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
 import { SERVICE_EXTRAS, presentationAtIso } from "@/lib/trips/service-extras";
+import { ReceptiveSignButton, needsReceptiveSign } from "@/components/receptive-sign";
 import { flightTrackerUrl } from "@/lib/trips/flight";
 import { buildDriverNavigationLinks, buildNavigationLinksToPoint } from "@/lib/trips/driver-nav-links";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
@@ -197,6 +198,11 @@ export function DriverActiveTripHero({
         </div>
       ) : null}
 
+      {needsReceptiveSign({ service_extras: (trip as { service_extras?: string[] | null }).service_extras, origin_text: trip.origin_text }) ? (
+        <div className="mt-2">
+          <ReceptiveSignButton name={trip.passenger_name} />
+        </div>
+      ) : null}
       {trip.flight_number ? (
         <p className="mt-1 text-sm text-prime-muted">
           Voo <span className="font-semibold text-prime-text">{trip.flight_number}</span> ·{" "}

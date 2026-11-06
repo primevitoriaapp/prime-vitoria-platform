@@ -6,6 +6,7 @@ export const ARCHIVE_CATEGORIES = {
   omie_pagar: "Omie · Contas a pagar",
   omie_outros: "Omie · Outros relatórios",
   notas_fiscais: "Notas fiscais emitidas (XML/PDF)",
+  extratos_mes: "Extratos bancários (enviados na conciliação)",
   extratos_antigos: "Extratos bancários antigos",
   contratos: "Contratos e documentos",
   outros: "Outros"

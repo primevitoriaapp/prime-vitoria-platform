@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FinanceFilesChips } from "@/components/finance-files-chips";
+import type { FinanceFile } from "@/lib/finance/finance-files";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { BoletoReader } from "@/components/boleto-reader";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
@@ -66,6 +68,7 @@ export function CompanyPayablesPanel() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [filter, setFilter] = useState<"todas" | "abertas" | "pagas">("abertas");
+  const [files, setFiles] = useState<FinanceFile[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,8 +80,15 @@ export function CompanyPayablesPanel() {
     const ja = (await a.json().catch(() => ({}))) as { success?: boolean; data?: Row[] };
     const jb = (await b.json().catch(() => ({}))) as { success?: boolean; data?: Row[] };
     setRows(ja.success ? (ja.data ?? []) : []);
-    setOverdueOld(jb.success ? (jb.data ?? []).filter((r) => r.due_date < `${month}-01`) : []);
+    const old = jb.success ? (jb.data ?? []).filter((r) => r.due_date < `${month}-01`) : [];
+    setOverdueOld(old);
     setLoading(false);
+    const ids = [...(ja.success ? (ja.data ?? []) : []), ...old].map((r) => r.id);
+    if (ids.length) {
+      const f = await fetchWithSupabaseSession(`/api/finance/files?entity_type=company_payable&ids=${ids.join(",")}`, {}, "admin");
+      const jf = (await f.json().catch(() => ({}))) as { success?: boolean; data?: FinanceFile[] };
+      setFiles(jf.success ? (jf.data ?? []) : []);
+    } else setFiles([]);
   }, [month]);
 
   useEffect(() => {
@@ -325,6 +335,15 @@ export function CompanyPayablesPanel() {
                           .filter(Boolean)
                           .join(" · ")}
                       </p>
+                      {r.status !== "cancelada" ? (
+                        <FinanceFilesChips
+                          entityType="company_payable"
+                          entityId={r.id}
+                          files={files.filter((f) => f.entity_id === r.id)}
+                          onChange={() => void load()}
+                          suggest={r.status === "paga" ? "comprovante" : "boleto"}
+                        />
+                      ) : null}
                     </td>
                     <td className="px-3 py-2 text-xs">{categoryLabel(r.category)}</td>
                     <td className="px-3 py-2 text-right font-semibold">
