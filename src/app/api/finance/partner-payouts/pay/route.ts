@@ -99,7 +99,31 @@ export async function POST(request: Request) {
         console.warn("[partner-payouts.pay] e-mail", e instanceof Error ? e.message : e);
       }
     }
-    return ok({ paid: paidIds.length, total, batch, proofSaved, emailed, notEmailed });
+    // Aviso no celular do motorista (app): pagamento feito, confira na Carteira.
+    let pushed = 0;
+    if (paidIds.length) {
+      try {
+        const { pushToDriver } = await import("@/lib/push/web-push");
+        const { data: byDrv } = await db.from("driver_payables").select("driver_id, amount").in("id", paidIds);
+        const sums = new Map<string, { total: number; n: number }>();
+        for (const r of byDrv ?? []) {
+          const k = r.driver_id as string;
+          const cur = sums.get(k) ?? { total: 0, n: 0 };
+          sums.set(k, { total: cur.total + Number(r.amount), n: cur.n + 1 });
+        }
+        for (const [driverId, v] of sums) {
+          const brl = (Math.round(v.total * 100) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          pushed += await pushToDriver(tenantId, driverId, {
+            title: "💰 Pagamento feito pela Prime",
+            body: `${brl} · ${v.n} corrida(s). Confira na sua Carteira.`,
+            url: "/driver"
+          }).catch(() => 0);
+        }
+      } catch (e) {
+        console.warn("[partner-payouts.pay] push", e instanceof Error ? e.message : e);
+      }
+    }
+    return ok({ paid: paidIds.length, total, batch, proofSaved, emailed, notEmailed, pushed });
   } catch (error) {
     return mapApiError(error);
   }

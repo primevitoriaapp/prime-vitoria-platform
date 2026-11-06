@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { DriverUpfrontToggle } from "@/components/driver-upfront-toggle";
 import { BackButton } from "@/components/back-button";
 import { DateInput } from "@/components/date-input";
 import { normalizeDateFieldForStorage } from "@/lib/dates/br-date";
@@ -966,6 +967,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
             <span>Pix</span>
             <input className={inputClass} value={detail.pix_key ?? ""} onChange={(e) => patchDetail("pix_key", e.target.value)} />
           </label>
+          <DriverUpfrontToggle driverId={driverId} />
         </fieldset>
 
         <fieldset className="grid gap-3 md:grid-cols-2">

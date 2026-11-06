@@ -1,7 +1,7 @@
 import { db } from "@/lib/server/db";
 import { clientDueDate, driverPayoutDateFromClientDue, nextBusinessDay, spDay, type ClientPaymentTerms } from "@/lib/finance/payout-schedule";
 
-type TripRow = { id: string; client_id: string; scheduled_at: string; client_invoice_id: string | null };
+type TripRow = { id: string; client_id: string; scheduled_at: string; client_invoice_id: string | null; driver_id?: string | null };
 type InvoiceRow = { id: string; due_date: string; status: string; paid_at: string | null };
 
 const TERMS_COLS = "id, invoiced, invoice_closing_day, invoice_per_service, driver_paid_upfront, payment_term_days, reconciliation_business_days";
@@ -22,6 +22,10 @@ export async function driverPayoutDatesForTrips(trips: TripRow[]): Promise<Map<s
       ? db.from("client_invoices").select("id, due_date, status, paid_at").in("id", invoiceIds)
       : Promise.resolve({ data: [] as InvoiceRow[] })
   ]);
+  // Motorista "à vista": paga logo depois da corrida, independente do cliente.
+  const driverIds = [...new Set(trips.map((t) => t.driver_id).filter(Boolean) as string[])];
+  const { data: upDrivers } = driverIds.length ? await db.from("drivers").select("id").in("id", driverIds).eq("paid_upfront", true) : { data: [] as { id: string }[] };
+  const upfrontDriver = new Set((upDrivers ?? []).map((d) => d.id as string));
   const termsBy = new Map(((clients ?? []) as (ClientPaymentTerms & { id: string })[]).map((c) => [c.id, c]));
   const invBy = new Map(((invoices ?? []) as InvoiceRow[]).map((i) => [i.id, i]));
   for (const t of trips) {
@@ -31,7 +35,8 @@ export async function driverPayoutDatesForTrips(trips: TripRow[]): Promise<Map<s
     if (inv && inv.status === "paga" && inv.paid_at) clientDue = spDay(inv.paid_at);
     else if (inv && inv.status !== "cancelada" && inv.due_date) clientDue = inv.due_date;
     else clientDue = clientDueDate(spDay(t.scheduled_at), terms);
-    const payout = terms.driver_paid_upfront
+    const payout =
+      terms.driver_paid_upfront || (t.driver_id && upfrontDriver.has(t.driver_id))
       ? nextBusinessDay(spDay(t.scheduled_at))
       : driverPayoutDateFromClientDue(clientDue, terms.reconciliation_business_days);
     out.set(t.id, { clientDue, payout });
@@ -40,7 +45,7 @@ export async function driverPayoutDatesForTrips(trips: TripRow[]): Promise<Map<s
 }
 
 export async function driverPayoutDateForTrip(tripId: string): Promise<{ clientDue: string; payout: string } | null> {
-  const { data } = await db.from("trips").select("id, client_id, scheduled_at, client_invoice_id").eq("id", tripId).maybeSingle();
+  const { data } = await db.from("trips").select("id, client_id, scheduled_at, client_invoice_id, driver_id").eq("id", tripId).maybeSingle();
   if (!data) return null;
   const m = await driverPayoutDatesForTrips([data as TripRow]);
   return m.get(tripId) ?? null;
@@ -56,7 +61,7 @@ export async function resyncOpenDriverPayoutDates(
   const { data: payables } = await q;
   const rows = (payables ?? []) as { id: string; trip_id: string; due_date: string }[];
   if (!rows.length) return 0;
-  let tq = db.from("trips").select("id, client_id, scheduled_at, client_invoice_id").in("id", rows.map((r) => r.trip_id));
+  let tq = db.from("trips").select("id, client_id, scheduled_at, client_invoice_id, driver_id").in("id", rows.map((r) => r.trip_id));
   if (scope.clientId) tq = tq.eq("client_id", scope.clientId);
   const { data: trips } = await tq;
   const dates = await driverPayoutDatesForTrips((trips ?? []) as TripRow[]);

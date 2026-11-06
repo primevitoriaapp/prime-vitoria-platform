@@ -309,6 +309,7 @@ async function shapeDriverPay<T extends Record<string, unknown>>(rows: T[], sess
     client_id: string;
     scheduled_at: string;
     client_invoice_id: string | null;
+    driver_id?: string | null;
   }[];
   if (!withPay.length) return rows;
   const { driverPayoutDatesForTrips } = await import("@/lib/finance/driver-payout-sync");
