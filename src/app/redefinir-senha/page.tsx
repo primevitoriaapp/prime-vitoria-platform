@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { AUTH_BUTTON, AUTH_FIELD, AuthCard } from "@/components/auth-card";
 
-type Phase = "checking" | "ready" | "invalid" | "saving" | "done";
+type Phase = "checking" | "invite" | "opening" | "ready" | "invalid" | "saving" | "done";
 
 /**
  * Página aberta pelo link do e-mail "Esqueci minha senha".
@@ -42,6 +42,13 @@ export default function RedefinirSenhaPage() {
     const hash = window.location.hash;
     const hashError = new URLSearchParams(hash.replace(/^#/, "")).get("error_description");
 
+    const convite = new URLSearchParams(window.location.search).get("convite");
+    if (convite) {
+      // Convite do portal: só abre o acesso quando a pessoa clica (o antivírus não gasta o link).
+      setPhase("invite");
+      return;
+    }
+
     const check = async () => {
       // O cliente lê o #access_token sozinho; damos um instante para isso.
       const { data } = await supabase.auth.getSession();
@@ -62,6 +69,37 @@ export default function RedefinirSenhaPage() {
       window.clearTimeout(timer);
     };
   }, [supabase]);
+
+  const openInvite = async () => {
+    if (!supabase) return;
+    setError(null);
+    setPhase("opening");
+    const convite = new URLSearchParams(window.location.search).get("convite") ?? "";
+    try {
+      const res = await fetch("/api/portal-invite/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: convite })
+      });
+      const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { token_hash: string }; error?: { code?: string; message?: string } };
+      if (!res.ok || !j.success || !j.data) {
+        setError(j.error?.message ?? "Não foi possível abrir o convite. Tente de novo.");
+        setPhase(j.error?.code === "INVITE_USED" ? "invalid" : "invite");
+        return;
+      }
+      const { error: otpErr } = await supabase.auth.verifyOtp({ type: "recovery", token_hash: j.data.token_hash });
+      if (otpErr) {
+        setError("Não foi possível abrir agora. Clique de novo.");
+        setPhase("invite");
+        return;
+      }
+      window.history.replaceState(null, "", window.location.pathname);
+      setPhase("ready");
+    } catch {
+      setError("Sem conexão. Confira a internet e clique de novo.");
+      setPhase("invite");
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +131,21 @@ export default function RedefinirSenhaPage() {
   return (
     <AuthCard title="Criar senha">
       {phase === "checking" ? <p>Conferindo o link…</p> : null}
+
+      {phase === "invite" || phase === "opening" ? (
+        <div className="grid gap-4">
+          <p>Bem-vindo(a) ao Portal Prime Vitória. Clique abaixo para criar a sua senha de acesso.</p>
+          {error ? (
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+              {error}
+            </p>
+          ) : null}
+          <button type="button" onClick={() => void openInvite()} disabled={phase === "opening"} className={AUTH_BUTTON}>
+            {phase === "opening" ? "Abrindo…" : "Criar minha senha"}
+          </button>
+          <p className="text-xs text-prime-muted">Este convite vale por 7 dias.</p>
+        </div>
+      ) : null}
 
       {phase === "invalid" ? (
         <div className="grid gap-3">

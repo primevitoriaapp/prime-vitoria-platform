@@ -3,6 +3,7 @@ import { db } from "@/lib/server/db";
 import { sendOperationalEmail, DEFAULT_EMAIL_REPLY_TO } from "@/lib/notifications/send-email";
 import { buildPortalWelcomeEmail } from "@/lib/notifications/portal-welcome-email";
 import { OFFICIAL_URLS } from "@/lib/server/official-urls";
+import { createPortalInviteToken } from "@/lib/auth/portal-invite-token";
 
 export class PortalAccessError extends Error {
   constructor(
@@ -178,11 +179,10 @@ export async function grantPortalAccess(input: {
 
   let welcomed = false;
   if (!input.skipEmail) {
-    let link = inviteLink;
-    if (!link) {
-      const { data: rec } = await admin.generateLink({ type: "recovery", email, options: { redirectTo: `${input.origin}/redefinir-senha` } });
-      link = rec?.properties?.action_link ?? null;
-    }
+    // Link nosso, válido por 7 dias (o do sistema vence em 1 hora e o antivírus do
+    // e-mail corporativo às vezes "gasta" ele antes da pessoa clicar).
+    void inviteLink;
+    const link = `${input.origin}/redefinir-senha?convite=${encodeURIComponent(createPortalInviteToken(userId))}`;
     if (link) welcomed = await sendWelcome({ email, name: passenger.name, clientId: input.clientId, access, link }).catch(() => false);
     // Plano B: e-mail padrão de senha do sistema.
     if (!welcomed) {
