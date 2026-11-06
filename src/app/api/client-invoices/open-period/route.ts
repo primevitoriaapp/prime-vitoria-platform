@@ -50,7 +50,7 @@ export async function GET(request: Request) {
         ({
           client_id: t.client_id,
           client_name: String(c?.trade_name || c?.name || "Cliente"),
-          billing: c?.invoice_per_service ? "por serviço" : c?.invoiced === false ? "à vista" : `mensal (fecha dia ${c?.invoice_closing_day ?? "último"}, paga em ${c?.payment_term_days ?? 30} dias)`,
+          billing: c?.invoice_per_service ? "por serviço" : c?.invoiced === false ? "à vista" : `mensal (fecha ${Number(c?.invoice_closing_day ?? 0) > 0 ? `dia ${c?.invoice_closing_day}` : "no último dia"}, paga em ${c?.payment_term_days ?? 30} dias)`,
           approved_total: 0,
           approved_count: 0,
           to_approve_total: 0,
