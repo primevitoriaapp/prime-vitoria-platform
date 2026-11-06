@@ -182,8 +182,9 @@ export function ClientTeamPortalSection({
     });
   }
 
-  async function savePassenger(e: FormEvent) {
-    e.preventDefault();
+  async function savePassenger(e?: FormEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (!canManage || !pForm.name.trim()) return;
     setBusy(true);
     setMessage(null);
@@ -295,8 +296,9 @@ export function ClientTeamPortalSection({
     }
   }
 
-  async function saveCenter(e: FormEvent) {
-    e.preventDefault();
+  async function saveCenter(e?: FormEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (!canManage || !cForm.name.trim()) return;
     setBusy(true);
     setMessage(null);
@@ -368,7 +370,7 @@ export function ClientTeamPortalSection({
             />
           ) : null}
           {canManage ? (
-            <form onSubmit={(e) => void savePassenger(e)} className={`${PRIME_SURFACE_CARD} grid gap-3 sm:grid-cols-2`}>
+            <div className={`${PRIME_SURFACE_CARD} grid gap-3 sm:grid-cols-2`}>
               <label className="grid gap-1 text-sm sm:col-span-2">
                 <span>Nome completo *</span>
                 <input
@@ -550,7 +552,7 @@ export function ClientTeamPortalSection({
                   ) : null}
                 </div>
               <div className="flex flex-wrap gap-2 sm:col-span-2">
-                <button type="submit" disabled={busy} className="btn-primary disabled:opacity-50">
+                <button type="button" onClick={() => void savePassenger()} disabled={busy} className="btn-primary disabled:opacity-50">
                   {busy ? "Salvando…" : editingId ? "Atualizar" : "Adicionar funcionário"}
                 </button>
                 {editingId ? (
@@ -566,7 +568,7 @@ export function ClientTeamPortalSection({
                   </button>
                 ) : null}
               </div>
-            </form>
+            </div>
           ) : null}
 
           <div className={PRIME_SURFACE_CARD}>
@@ -650,7 +652,7 @@ export function ClientTeamPortalSection({
       ) : (
         <div className="space-y-4">
           {canManage ? (
-            <form onSubmit={(e) => void saveCenter(e)} className={`${PRIME_SURFACE_CARD} grid gap-3 sm:grid-cols-2`}>
+            <div className={`${PRIME_SURFACE_CARD} grid gap-3 sm:grid-cols-2`}>
               <label className="grid gap-1 text-sm">
                 <span>Nome do centro *</span>
                 <input
@@ -689,10 +691,10 @@ export function ClientTeamPortalSection({
                   disabled={busy}
                 />
               </label>
-              <button type="submit" disabled={busy} className="btn-primary sm:col-span-2 disabled:opacity-50">
+              <button type="button" onClick={() => void saveCenter()} disabled={busy} className="btn-primary sm:col-span-2 disabled:opacity-50">
                 {busy ? "Salvando…" : "Adicionar centro de custo"}
               </button>
-            </form>
+            </div>
           ) : null}
 
           <div className={PRIME_SURFACE_CARD}>
