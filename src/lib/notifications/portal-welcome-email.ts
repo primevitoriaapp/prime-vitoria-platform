@@ -32,7 +32,7 @@ export function buildPortalWelcomeEmail(d: PortalWelcomeInput): { subject: strin
     "Por aqui você pode:",
     ...items.map((i) => `• ${i}`),
     "",
-    "Para começar, crie a sua senha pelo link abaixo (vale por 24 horas):",
+    "Para começar, crie a sua senha pelo link abaixo (vale por 7 dias):",
     d.link,
     "",
     `Depois, entre sempre em ${d.portalUrl} com este e-mail e a senha que você criou.`,
@@ -60,7 +60,7 @@ export function buildPortalWelcomeEmail(d: PortalWelcomeInput): { subject: strin
   <ul style="margin:0 0 18px;padding-left:20px;font-size:15px;line-height:1.6">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>
   <p style="margin:0 0 18px;font-size:15px">Para começar, crie a sua senha:</p>
   <p style="margin:0 0 18px"><a href="${esc(d.link)}" style="background:#111;color:#C9A84C;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block">Criar minha senha e entrar</a></p>
-  <p style="margin:0 0 6px;font-size:13px;color:#555">O link vale por 24 horas. Depois, entre sempre em <a href="${esc(d.portalUrl)}" style="color:#7A6A3A">${esc(d.portalUrl.replace(/^https?:\/\//, ""))}</a> com este e-mail e a senha que você criou.</p>
+  <p style="margin:0 0 6px;font-size:13px;color:#555">O link vale por 7 dias. Depois, entre sempre em <a href="${esc(d.portalUrl)}" style="color:#7A6A3A">${esc(d.portalUrl.replace(/^https?:\/\//, ""))}</a> com este e-mail e a senha que você criou.</p>
   <p style="margin:0 0 22px;font-size:13px;color:#555">Se o link expirar, use “Esqueci minha senha” na tela de entrada.</p>
 </td></tr>
 <tr><td style="border-top:2px solid #C9A84C;padding:16px 28px;font-size:13px;color:#555">
