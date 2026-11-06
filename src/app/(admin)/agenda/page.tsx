@@ -25,6 +25,7 @@ import { ClientScheduleMessageCard } from "@/components/client-schedule-message-
 import { TripDeleteButton } from "@/components/trip-delete-button";
 import { TripKmReviewCard } from "@/components/trip-km-review-card";
 import { TripPaymentsCard } from "@/components/trip-payments-card";
+import { ReceptiveSignButton, needsReceptiveSign } from "@/components/receptive-sign";
 import { TripInvoiceCard } from "@/components/trip-invoice-card";
 import { defaultAgendaRangeIso } from "@/lib/operations/agenda-default-range";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
@@ -93,6 +94,12 @@ export default async function AgendaPage({
           />
           {showClaimBar ? <TripReviewBanner tripId={focusTripId} /> : null}
           {showClaimBar ? <TripKmReviewCard tripId={focusTripId} /> : null}
+          {focusTrip && needsReceptiveSign({ service_extras: (focusTrip as unknown as { service_extras?: string[] | null }).service_extras, origin_text: focusTrip.origin_text }) ? (
+            <div className="max-w-sm">
+              <ReceptiveSignButton name={focusTrip.passenger_name} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-prime-gold bg-white px-4 py-2.5 text-sm font-bold text-[#111]" />
+              <p className="mt-1 text-xs text-prime-muted">É a mesma placa que o motorista abre no app quando está indo buscar ou chegou ao embarque.</p>
+            </div>
+          ) : null}
           {showClaimBar ? <TripPaymentsCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripInvoiceCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripFlightCard tripId={focusTripId} /> : null}
