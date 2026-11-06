@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { BILLING_ISSUER_OPTIONS, calculateWaitCharge } from "@/lib/clients/billing-terms-calc";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
@@ -83,8 +83,22 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
     void load();
   }, [load]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  // Salva sozinho ao mudar qualquer campo (esta parte fica dentro do cadastro, que tem outro "Salvar").
+  const dirty = useRef(false);
+  useEffect(() => {
+    if (loading) return;
+    if (!dirty.current) {
+      dirty.current = true;
+      return;
+    }
+    const t = setTimeout(() => void onSubmit(), 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form]);
+
+  async function onSubmit(e?: FormEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
     setBusy(true);
     setMessage(null);
     const body = {
@@ -116,8 +130,9 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
       setMessage({ kind: "error", text: json.error?.message ?? "Não foi possível salvar. Confira os valores e tente de novo." });
       return;
     }
+    dirty.current = false; // o setForm abaixo não dispara novo salvamento
     setForm(toForm(json.data));
-    setMessage({ kind: "success", text: "Cobrança salva." });
+    setMessage({ kind: "success", text: "✓ Cobrança salva automaticamente." });
   }
 
   const example = calculateWaitCharge(45, {
@@ -137,7 +152,7 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
         </p>
       </div>
 
-      <form onSubmit={(e) => void onSubmit(e)} className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1 text-sm">
           <span>Hora parada cobrada do cliente (R$/hora)</span>
           <input
@@ -221,7 +236,7 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
             disabled={off}
           >
             <option value="sim">Faturado — as corridas entram na fatura do período</option>
-            <option value="nao">Não faturado — o cliente paga antes do serviço</option>
+            <option value="nao">Não faturado — pagou tudo antes, não gera fatura</option>
           </select>
         </label>
         <label className="grid gap-1 text-sm">
@@ -233,7 +248,7 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
             onChange={(e) => setForm((f) => ({ ...f, invoice_closing_day: e.target.value }))}
             disabled={off}
           >
-            <option value="servico">Por serviço — cada voucher/NR tem seu boleto (ex.: CEP)</option>
+            <option value="servico">Por serviço — fecha logo que o serviço termina (à vista, eventos, CEP)</option>
             <option value="0">Mês cheio (dia 1 ao último dia)</option>
             {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
               <option key={d} value={String(d)}>
@@ -326,14 +341,15 @@ export function ClientBillingTermsSection({ clientId, disabled }: Props) {
 
         <div className="sm:col-span-2">
           <button
-            type="submit"
+            type="button"
+            onClick={() => void onSubmit()}
             disabled={off}
             className="rounded-lg bg-prime-gold px-4 py-2 text-sm font-medium text-prime-text hover:bg-prime-gold-hover disabled:opacity-50"
           >
             {busy ? "Salvando…" : "Salvar cobrança"}
           </button>
         </div>
-      </form>
+      </div>
       {message ? (
         <p role={message.kind === "error" ? "alert" : "status"} className={message.kind === "error" ? "text-sm text-red-700" : "text-sm text-emerald-700"}>
           {message.text}
