@@ -93,7 +93,7 @@ export function ClientTeamPortalSection({
     void (async () => {
       try {
         const res = await fetchWithSupabaseSession(`/api/clients/${clientId}/catalog`, {}, devFallbackRole);
-        const json = (await res.json()) as { success?: boolean; data?: { id: string; name: string }[] };
+        const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { id: string; name: string }[] };
         if (res.ok && json.success) setCategories((json.data ?? []).map((c) => ({ id: c.id, name: c.name })));
       } catch {
         /* sem catálogo: só não mostra as categorias */
@@ -111,7 +111,7 @@ export function ClientTeamPortalSection({
       {},
       devFallbackRole
     );
-    const json = (await res.json()) as { success?: boolean; data?: ClientPassengerRow[] };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: ClientPassengerRow[] };
     if (res.ok && json.success) setPassengers(json.data ?? []);
   }, [clientId, canManage, devFallbackRole]);
 
@@ -121,7 +121,7 @@ export function ClientTeamPortalSection({
       {},
       devFallbackRole
     );
-    const json = (await res.json()) as { success?: boolean; data?: CostCenterRow[] };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: CostCenterRow[] };
     if (res.ok && json.success) setCenters(json.data ?? []);
   }, [clientId, devFallbackRole]);
 
@@ -147,7 +147,7 @@ export function ClientTeamPortalSection({
       {},
       devFallbackRole
     );
-    const json = (await res.json()) as {
+    const json = (await res.json().catch(() => ({}))) as {
       success?: boolean;
       data?: { logradouro?: string; bairro?: string; localidade?: string; uf?: string };
       error?: { message?: string };
@@ -276,7 +276,7 @@ export function ClientTeamPortalSection({
       { method: "POST", body: JSON.stringify({ passenger_id: passengerId, email, access, skip_email: skipEmail }) },
       devFallbackRole
     );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
     if (!res.ok || !json.success) {
       inviteErrRef.current = json.error?.message ?? "Não foi possível enviar o convite.";
       setMessage(inviteErrRef.current);
@@ -344,7 +344,7 @@ export function ClientTeamPortalSection({
       },
       devFallbackRole
     );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
     setBusy(false);
     if (!res.ok || !json.success) {
       setMessage(json.error?.message ?? "Falha ao salvar centro de custo.");

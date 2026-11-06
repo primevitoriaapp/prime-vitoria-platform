@@ -35,7 +35,7 @@ export function ClientTripDetailPanel({ tripId, costCenters = [], devFallbackRol
   const load = useCallback(async () => {
     setError(null);
     const res = await fetchWithSupabaseSession(`/api/trips/${tripId}`, {}, devFallbackRole);
-    const json = (await res.json()) as { success?: boolean; data?: TripDetail; error?: { message?: string } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: TripDetail; error?: { message?: string } };
     if (!res.ok || !json.success || !json.data) {
       setTrip(null);
       setError(res.status === 404 ? "Corrida não encontrada." : (json.error?.message ?? "Não foi possível abrir a corrida."));

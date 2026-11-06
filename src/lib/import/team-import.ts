@@ -83,6 +83,8 @@ export function buildTeamRows(table: string[][], categories: { id: string; name:
     const warnings: string[] = [];
     const name = get("name");
     if (name.length < 2) errors.push("sem nome");
+    // Linhas de exemplo do modelo (Alan Souza / Gustavo Lima @empresa.com.br) não entram.
+    if (/@empresa\.com\.br$/i.test(get("email")) && /^(alan souza|gustavo lima)$/i.test(name)) errors.push("linha de exemplo do modelo (apague)");
     let cpf: string | null = onlyDigits(get("cpf")) || null;
     if (cpf && !validCpf(cpf)) {
       warnings.push("CPF parece errado (vai em branco)");

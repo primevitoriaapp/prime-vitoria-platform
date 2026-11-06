@@ -128,7 +128,7 @@ export function ClientAppShell({
   const reloadClients = useCallback(async () => {
     if (mode !== "admin") return;
     const res = await fetch("/api/clients", { credentials: "include" });
-    const json = (await res.json()) as { success?: boolean; data?: ClientOption[] };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: ClientOption[] };
     if (res.ok && json.success) setClients(json.data ?? []);
   }, [mode]);
 

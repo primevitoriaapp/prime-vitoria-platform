@@ -42,7 +42,7 @@ export function ClientPricingRulesPanel({ clientId, clientName }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     const res = await fetch(`/api/pricing/rules?client_id=${clientId}&pageSize=20`, { credentials: "include" });
-    const json = (await res.json()) as { success?: boolean; data?: { items: PricingRule[] } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { items: PricingRule[] } };
     setRules(res.ok && json.success ? (json.data?.items ?? []) : []);
     setLoading(false);
   }, [clientId]);
@@ -86,7 +86,7 @@ export function ClientPricingRulesPanel({ clientId, clientName }: Props) {
       credentials: "include",
       body: JSON.stringify(body)
     });
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
     setBusy(false);
     if (!res.ok || !json.success) {
       setMessage(json.error?.message ?? "Falha ao criar regra.");

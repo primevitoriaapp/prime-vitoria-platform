@@ -28,7 +28,7 @@ export function ClientBillingConfigSection({ clientId, disabled, onSaved }: Prop
   const load = useCallback(async () => {
     setLoading(true);
     const res = await fetchWithSupabaseSession(`/api/clients/${clientId}/pricing-config`, {}, "admin");
-    const json = (await res.json()) as { success?: boolean; data?: ClientPricingConfigInput | null };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: ClientPricingConfigInput | null };
     if (res.ok && json.success && json.data) {
       setForm({
         service_type: json.data.service_type ?? "default",
@@ -57,7 +57,7 @@ export function ClientBillingConfigSection({ clientId, disabled, onSaved }: Prop
       { method: "PUT", body: JSON.stringify(form) },
       "admin"
     );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string; hint?: string } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string; hint?: string } };
     setBusy(false);
     if (!res.ok || !json.success) {
       setMessage({

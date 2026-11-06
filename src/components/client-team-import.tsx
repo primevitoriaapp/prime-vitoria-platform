@@ -28,7 +28,8 @@ export function ClientTeamImport({
   const [rows, setRows] = useState<TeamRow[]>([]);
   const [invite, setInvite] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
 
   function downloadTemplate() {
     const blob = new Blob([teamTemplateCsv(categories.map((c) => c.name))], { type: "text/csv;charset=utf-8" });
@@ -52,45 +53,74 @@ export function ClientTeamImport({
       const { mapping, rows: built } = buildTeamRows(table, categories, existing);
       if (mapping.name === undefined) {
         setRows([]);
-        setMsg("Não achei a coluna “Nome” na planilha. Baixe o modelo e use os mesmos títulos.");
+        setMsg({ kind: "error", text: "Não achei a coluna “Nome” na planilha. Baixe o modelo e use os mesmos títulos." });
         return;
       }
       setRows(built);
-    } catch {
-      setMsg("Não consegui ler o arquivo. Use Excel (.xlsx) ou CSV.");
+      if (!built.length) setMsg({ kind: "error", text: "A planilha está vazia (só tem o título). Preencha uma linha por funcionário." });
+    } catch (e) {
+      setRows([]);
+      setMsg({ kind: "error", text: e instanceof Error && e.message.includes("CSV") ? e.message : "Não consegui ler o arquivo. Use Excel (.xlsx) ou CSV." });
     }
   }
 
   async function runImport() {
     const valid = rows.filter((r) => r.errors.length === 0);
-    if (!valid.length) return;
+    if (!valid.length || busy) return;
     setBusy(true);
     setMsg(null);
-    const res = await fetchWithSupabaseSession(
-      `/api/clients/${clientId}/passengers/import`,
-      { method: "POST", body: JSON.stringify({ rows: valid.map((r) => r.data), invite }) },
-      devFallbackRole
-    );
-    const json = (await res.json()) as {
-      success?: boolean;
-      data?: { created: number; updated: number; invited: number; errors: { name: string; message: string }[] };
-      error?: { message?: string };
-    };
-    setBusy(false);
-    if (!res.ok || !json.success || !json.data) {
-      setMsg(json.error?.message ?? "Falha na importação.");
-      return;
+    // Envia em blocos pequenos: planilha grande não estoura o tempo do servidor
+    // e, se cair a internet no meio, o que já foi fica salvo (reenviar só atualiza).
+    const CHUNK = 15;
+    const total = { created: 0, updated: 0, invited: 0 };
+    const errors: { name: string; message: string }[] = [];
+    let stoppedAt: number | null = null;
+    for (let i = 0; i < valid.length; i += CHUNK) {
+      const part = valid.slice(i, i + CHUNK);
+      setProgress(`Importando ${Math.min(i + part.length, valid.length)} de ${valid.length}…`);
+      try {
+        const res = await fetchWithSupabaseSession(
+          `/api/clients/${clientId}/passengers/import`,
+          { method: "POST", body: JSON.stringify({ rows: part.map((r) => r.data), invite }) },
+          devFallbackRole
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          data?: { created: number; updated: number; invited: number; errors: { name: string; message: string }[] };
+          error?: { message?: string };
+        };
+        if (!res.ok || !json.success || !json.data) {
+          errors.push({ name: `linhas ${part[0].line}–${part[part.length - 1].line}`, message: json.error?.message ?? `erro ${res.status}` });
+          stoppedAt = i;
+          break;
+        }
+        total.created += json.data.created;
+        total.updated += json.data.updated;
+        total.invited += json.data.invited;
+        errors.push(...json.data.errors);
+      } catch {
+        errors.push({ name: `linhas ${part[0].line}–${part[part.length - 1].line}`, message: "sem conexão" });
+        stoppedAt = i;
+        break;
+      }
     }
-    const d = json.data;
-    setMsg(
-      `Pronto: ${d.created} novo(s), ${d.updated} atualizado(s)` +
-        (invite ? `, ${d.invited} convite(s) enviado(s)` : "") +
+    setBusy(false);
+    setProgress(null);
+    const done = total.created + total.updated;
+    setMsg({
+      kind: stoppedAt === null && !errors.length ? "ok" : "error",
+      text:
+        `${stoppedAt === null ? "Pronto" : "Parou no meio"}: ${total.created} novo(s), ${total.updated} atualizado(s)` +
+        (invite ? `, ${total.invited} convite(s) enviado(s)` : "") +
         "." +
-        (d.errors.length ? ` Atenção: ${d.errors.map((e) => `${e.name} (${e.message})`).join("; ")}` : "")
-    );
-    setRows([]);
-    setFileName("");
-    onDone();
+        (errors.length ? ` Atenção: ${errors.map((e) => `${e.name} (${e.message})`).join("; ")}.` : "") +
+        (stoppedAt !== null ? " Envie a mesma planilha de novo: quem já entrou só é atualizado, não duplica." : "")
+    });
+    if (stoppedAt === null) {
+      setRows([]);
+      setFileName("");
+    }
+    if (done) onDone();
   }
 
   const ok = rows.filter((r) => r.errors.length === 0).length;
@@ -163,13 +193,15 @@ export function ClientTeamImport({
                 Enviar convite de acesso por e-mail para quem pode pedir corrida
               </label>
               <button type="button" className="btn-primary disabled:opacity-50" disabled={busy || !ok} onClick={() => void runImport()}>
-                {busy ? "Importando…" : `Importar ${ok} funcionário(s)`}
+                {busy ? (progress ?? "Importando…") : `Importar ${ok} funcionário(s)`}
               </button>
             </>
           ) : null}
         </div>
       ) : null}
-      {msg ? <p className="mt-3 text-sm text-prime-text">{msg}</p> : null}
+      {msg ? (
+        <p className={`mt-3 rounded-lg px-3 py-2 text-sm font-semibold text-[#fff] ${msg.kind === "ok" ? "bg-emerald-600" : "bg-red-600"}`}>{msg.text}</p>
+      ) : null}
     </div>
   );
 }

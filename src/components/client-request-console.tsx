@@ -298,7 +298,7 @@ export function ClientRequestConsole({
           },
           devFallbackRole
         );
-        const json = (await res.json()) as {
+        const json = (await res.json().catch(() => ({}))) as {
           success?: boolean;
           data?: {
             has_rule?: boolean;
@@ -391,8 +391,12 @@ export function ClientRequestConsole({
       setError("Informe o local de embarque e o destino.");
       return;
     }
+    if (loading) return;
     setLoading(true);
-    const response = await fetchWithSupabaseSession(
+    let response: Response;
+    let body: { success?: boolean; error?: { message?: string } } = {};
+    try {
+    response = await fetchWithSupabaseSession(
       "/api/trips",
       {
         method: "POST",
@@ -439,7 +443,12 @@ export function ClientRequestConsole({
       },
       devFallbackRole
     );
-    const body = (await response.json()) as { success?: boolean; error?: { message?: string } };
+    body = (await response.json().catch(() => ({}))) as typeof body;
+    } catch {
+      setLoading(false);
+      setError("Sem conexão com a central agora. Confira a internet e veja em “Minhas corridas” se o pedido entrou antes de pedir de novo.");
+      return;
+    }
     setLoading(false);
     if (!response.ok || !body.success) {
       setError(body.error?.message ?? "Não foi possível enviar o pedido. Tente de novo.");

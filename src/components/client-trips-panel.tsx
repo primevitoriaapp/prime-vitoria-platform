@@ -69,7 +69,7 @@ export function ClientTripsPanel({
       const params = new URLSearchParams({ page: "1", pageSize: "100", sortDir: "desc" });
       if (clientIdOverride) params.set("clientId", clientIdOverride);
       const res = await fetchWithSupabaseSession(`/api/trips?${params}`, {}, devFallbackRole);
-      const json = (await res.json()) as {
+      const json = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         data?: { items: TripRow[]; total: number };
         error?: { message?: string };
@@ -100,7 +100,7 @@ export function ClientTripsPanel({
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to_status: "cancelled" }) },
       devFallbackRole
     );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
     setCancellingId(null);
     if (!res.ok || !json.success) {
       window.alert(json.error?.message ?? "Não foi possível cancelar.");

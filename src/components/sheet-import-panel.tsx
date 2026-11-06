@@ -30,7 +30,17 @@ function loadXlsx(): Promise<NonNullable<Window["XLSX"]>> {
 
 export async function readTable(file: File): Promise<string[][]> {
   const name = file.name.toLowerCase();
-  if (name.endsWith(".csv") || name.endsWith(".txt")) return parseCsv(await file.text());
+  if (name.endsWith(".csv") || name.endsWith(".txt")) {
+    // Excel no Brasil costuma salvar CSV em Windows-1252: sem isso os acentos viram "�".
+    const buf = await file.arrayBuffer();
+    let text: string;
+    try {
+      text = new TextDecoder("utf-8", { fatal: true }).decode(buf);
+    } catch {
+      text = new TextDecoder("windows-1252").decode(buf);
+    }
+    return parseCsv(text);
+  }
   const XLSX = await loadXlsx();
   const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
   const sheet = wb.Sheets[wb.SheetNames[0]];

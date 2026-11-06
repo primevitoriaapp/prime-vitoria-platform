@@ -101,7 +101,7 @@ export function ClientPricingServicesSection({ clientId, disabled }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     const res = await fetchWithSupabaseSession(`/api/clients/${clientId}/pricing-rules`, {}, "admin");
-    const json = (await res.json()) as {
+    const json = (await res.json().catch(() => ({}))) as {
       success?: boolean;
       data?: Array<{
         service_type: string;
@@ -310,7 +310,7 @@ export function ClientPricingServicesSection({ clientId, disabled }: Props) {
       { method: "PUT", body: JSON.stringify({ rules: [...activeRules, ...inactiveRules] }) },
       "admin"
     );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
     setBusy(false);
     if (res.ok && json.success) {
       setMessage({ kind: "success", text: "Serviços e valores salvos." });

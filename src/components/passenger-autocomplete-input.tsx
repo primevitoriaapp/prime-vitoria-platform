@@ -80,7 +80,7 @@ export function PassengerAutocompleteInput({
         {},
         devFallbackRole
       );
-      const json = (await res.json()) as { success?: boolean; data?: ClientPassengerOption[] };
+      const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: ClientPassengerOption[] };
       setOptions(res.ok && json.success ? (json.data ?? []) : []);
       setLoading(false);
     },
@@ -176,7 +176,13 @@ export function PassengerAutocompleteInput({
       </div>
     </label>
     {adding ? (
-      <div className="grid gap-3 rounded-xl border-2 border-prime-gold bg-[#FBF7EC] p-3">
+      <div
+        className="grid gap-3 rounded-xl border-2 border-prime-gold bg-[#FBF7EC] p-3"
+        onKeyDown={(e) => {
+          // Enter aqui não pode enviar o pedido de corrida (este quadro fica dentro do formulário dela).
+          if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") e.preventDefault();
+        }}
+      >
         <p className="text-sm font-semibold">Novo funcionário da empresa</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm">

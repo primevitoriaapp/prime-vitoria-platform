@@ -23,7 +23,7 @@ export function ClientContractUploadSection({ clientId, disabled }: Props) {
       { method: "POST", body: form },
       "admin"
     );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
     setBusy(false);
     if (!res.ok || !json.success) {
       setMessage(json.error?.message ?? "Falha no upload do contrato.");

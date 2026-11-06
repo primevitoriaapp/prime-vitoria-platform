@@ -81,10 +81,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const session = await getSessionContext();
     const tenantId = assertTenantScope(session);
     const { id } = await params;
-    const denied = await assertClientAccess(session, id, tenantId, true);
-    if (denied) return denied;
+    let body = createSchema.parse(await request.json());
+    // Solicitante (não gestor) pode cadastrar o colega na hora de pedir a corrida,
+    // mas só o básico: nome, telefone, endereço e setor — sem acesso ao portal nem regras.
+    const quickAdd =
+      session.role === "cliente" && session.clientId === id && !(await canManageClientTeam(session, id));
+    if (quickAdd) {
+      const { data: cl } = await db.from("clients").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+      if (!cl) return fail("CLIENT_NOT_FOUND", "Cliente não encontrado", 404);
+      body = { name: body.name, phone: body.phone ?? null, address: body.address ?? null, sector: body.sector ?? null, active: true, can_request: false };
+    } else {
+      const denied = await assertClientAccess(session, id, tenantId, true);
+      if (denied) return denied;
+    }
 
-    const body = createSchema.parse(await request.json());
     const clientTenantId = await getClientTenantId(id, tenantId);
     const { data, error } = await createClientPassenger(id, clientTenantId, body);
     if (error) {

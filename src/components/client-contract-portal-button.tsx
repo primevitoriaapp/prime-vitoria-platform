@@ -18,7 +18,7 @@ export function ClientContractPortalButton({ clientId, devFallbackRole = "client
       {},
       devFallbackRole
     );
-    const json = (await res.json()) as { success?: boolean; data?: { url?: string }; error?: { message?: string } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { url?: string }; error?: { message?: string } };
     setBusy(false);
     if (!res.ok || !json.success || !json.data?.url) {
       window.alert(json.error?.message ?? "Contrato não disponível.");

@@ -22,7 +22,7 @@ const row = z.object({
   can_request: z.boolean().optional(),
   allowed_category_ids: z.array(z.string().uuid()).max(30).nullable().optional()
 });
-const schema = z.object({ rows: z.array(row).min(1).max(500), invite: z.boolean().optional() });
+const schema = z.object({ rows: z.array(z.unknown()).min(1).max(500), invite: z.boolean().optional() });
 
 function requestOrigin(request: Request): string {
   const h = request.headers;
@@ -42,7 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     } else assertCapability(session, "client.write");
     const { data: client } = await db.from("clients").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
     if (!client) return fail("CLIENT_NOT_FOUND", "Cliente não encontrado", 404);
-    enforceRateLimit(`team-import:${session.userId}`, 10, 10 * 60_000);
+    enforceRateLimit(`team-import:${session.userId}`, 60, 10 * 60_000); // blocos de 15 linhas → até ~900 por vez
 
     const body = schema.parse(await request.json());
     const clientTenantId = await getClientTenantId(id, tenantId);
@@ -59,7 +59,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     let invited = 0;
     const errors: { name: string; message: string }[] = [];
     const origin = requestOrigin(request);
-    for (const r of body.rows) {
+    for (const raw of body.rows) {
+      const parsed = row.safeParse(raw);
+      if (!parsed.success) {
+        const nm = typeof (raw as { name?: unknown })?.name === "string" ? String((raw as { name: string }).name) : "linha sem nome";
+        errors.push({ name: nm, message: "dados inválidos (nome com menos de 2 letras ou campo grande demais)" });
+        continue;
+      }
+      const r = parsed.data;
       const cpf = normalizeCpf(r.cpf);
       const email = r.email?.trim().toLowerCase() || null;
       const match = (cpf && byCpf.get(cpf)) || (email && byEmail.get(email)) || null;

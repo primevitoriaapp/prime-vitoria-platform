@@ -39,7 +39,7 @@ export function ClientPassengersAdminSection({ clientId, disabled }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     const res = await fetchWithSupabaseSession(`/api/clients/${clientId}/passengers`, {}, "admin");
-    const json = (await res.json()) as { success?: boolean; data?: ClientPassengerRow[] };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: ClientPassengerRow[] };
     setRows(res.ok && json.success ? (json.data ?? []) : []);
     setLoading(false);
   }, [clientId]);
@@ -60,7 +60,7 @@ export function ClientPassengersAdminSection({ clientId, disabled }: Props) {
       {},
       "admin"
     );
-    const json = (await res.json()) as {
+    const json = (await res.json().catch(() => ({}))) as {
       success?: boolean;
       data?: { logradouro?: string; bairro?: string; localidade?: string; uf?: string };
       error?: { message?: string };
@@ -97,7 +97,7 @@ export function ClientPassengersAdminSection({ clientId, disabled }: Props) {
       },
       "admin"
     );
-    const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
     setBusy(false);
     if (res.ok && json.success) {
       setForm(emptyForm());

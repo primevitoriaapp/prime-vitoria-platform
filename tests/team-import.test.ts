@@ -36,3 +36,16 @@ test("planilha", () => {
   assert.ok(rows[1].warnings.some((w) => w.includes("já cadastrado")));
   assert.ok(rows[2].errors.includes("sem nome"));
 });
+
+test("modelo baixado: linhas de exemplo não são importadas; linha real entra", async () => {
+  const { buildTeamRows, teamTemplateCsv } = await import("../src/lib/import/team-import.ts");
+  const { parseCsv } = await import("../src/lib/import/sheet-import.ts");
+  const cats = [{ id: "11111111-1111-4111-8111-111111111111", name: "Prime Essencial" }];
+  const csv = teamTemplateCsv(["Prime Essencial"]) + '\n"Maria Silva";"";"maria@cliente.com.br";"27999990000";"Rua A, 1 - Vitória/ES";"";"RH";"";"sim";"Prime Essencial"';
+  const { rows } = buildTeamRows(parseCsv(csv), cats, { cpfs: new Set(), emails: new Set() });
+  assert.equal(rows.length, 3);
+  assert.ok(rows[0].errors.length && rows[1].errors.length, "exemplos bloqueados");
+  assert.deepEqual(rows[2].errors, []);
+  assert.equal(rows[2].data.name, "Maria Silva");
+  assert.deepEqual(rows[2].data.allowed_category_ids, ["11111111-1111-4111-8111-111111111111"]);
+});
