@@ -122,12 +122,13 @@ export async function computeCategoryPricing(input: ApplyTripPricingInput): Prom
   const hasDriver = Boolean(trip.driver_id);
   const driverAmount = hasDriver ? (partner ?? 0) : 0;
   const margin = roundMoney(client - driverAmount);
-  const metadata = { source: "categoria", detail: table.detail, km, used_hours: usedHours, wait, quoted: quotedClient > 0 };
+  const metadata = { source: "categoria", detail: table.detail, km, km_rodado: km, km_cobrado: table.billed_km ?? km, used_hours: usedHours, wait, quoted: quotedClient > 0 };
   return {
     client,
     driverAmount,
     margin,
-    km,
+    // KM cobrado (com o mínimo da tabela, se a corrida foi mais curta).
+    km: table.billed_km ?? km,
     usedHours,
     table: { client: table.client ?? null, partner: table.partner ?? null, detail: String(table.detail ?? "") },
     wait,

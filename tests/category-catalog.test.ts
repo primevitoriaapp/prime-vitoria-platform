@@ -34,3 +34,14 @@ test("preço pela tabela", () => {
   });
   assert.equal(priceFromCategoryTable({ mode: "diaria_5h", scheduledAt: "x", km: null, cells }).client, null);
 });
+
+test("km mínimo: cliente paga 20 km, motorista pelo real (sem mínimo próprio)", () => {
+  const cells: PriceCell[] = [
+    { service: "km_b1", enabled: true, client_price: 3.5, partner_price: 2.5 },
+    { service: "km_minimo", enabled: true, client_price: 20, partner_price: null }
+  ];
+  const r = priceFromCategoryTable({ mode: "km", scheduledAt: "2026-10-29T12:00:00Z", km: 19.9, cells });
+  assert.equal(r.client, 70);
+  assert.equal(r.partner, 49.75);
+  assert.equal(r.billed_km, 20);
+});

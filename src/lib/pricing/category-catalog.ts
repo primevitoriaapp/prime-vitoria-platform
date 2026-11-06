@@ -104,6 +104,8 @@ export type CategoryPricingResult = {
   client: number | null;
   partner: number | null;
   detail: string;
+  /** Corrida por KM: KM cobrado (já com o mínimo). */
+  billed_km?: number;
 };
 
 /**
@@ -121,13 +123,16 @@ export function priceFromCategoryTable(input: CategoryPricingInput): CategoryPri
     const tableMin = minCell?.client_price != null && minCell.client_price > 0 ? minCell.client_price : null;
     const min = tableMin ?? (input.minKmClient && input.minKmClient > 0 ? input.minKmClient : 0);
     const billedKm = Math.max(input.km, min);
-    const partnerKm = Math.max(input.km, minCell?.partner_price != null && minCell.partner_price > 0 ? minCell.partner_price : 0);
+    // Motorista: pelo km real, a não ser que a tabela tenha um mínimo próprio do motorista (coluna "motorista" do KM mínimo).
+    const partnerMin = minCell?.partner_price != null && minCell.partner_price > 0 ? minCell.partner_price : 0;
+    const partnerKm = Math.max(input.km, partnerMin);
     return {
       client: money(billedKm * c.client_price),
       partner: c.partner_price == null ? null : money(partnerKm * c.partner_price),
       detail:
         `${billedKm} km × ${b === "km_b1" ? "bandeira 1" : "bandeira 2"}` +
-        (billedKm > input.km ? ` (mínimo de ${min} km; rodou ${input.km} km)` : "")
+        (billedKm > input.km ? ` (mínimo de ${min} km; rodou ${input.km} km)` : ""),
+      ...(billedKm > input.km ? { billed_km: billedKm } : {})
     };
   }
   const c = cell(input.mode);

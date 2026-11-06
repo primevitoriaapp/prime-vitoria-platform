@@ -17,6 +17,7 @@ export function ReceptiveSignButton({ name, className }: { name: string | null |
   const [open, setOpen] = useState(false);
   const [text, setText] = useState((name ?? "").split(",")[0].trim());
   const [editing, setEditing] = useState(false);
+  const [logoOk, setLogoOk] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -48,8 +49,15 @@ export function ReceptiveSignButton({ name, className }: { name: string | null |
       {open ? (
         <div className="fixed inset-0 z-[200] flex flex-col bg-white" role="dialog" aria-label="Placa de receptivo">
           <div className="flex flex-1 flex-col items-center justify-center gap-[3vh] px-[4vw] text-center" onClick={() => !editing && setEditing(false)}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/api/public/brand-logo" alt="Prime Vitória" style={{ height: "min(18vh, 22vw)", width: "auto", objectFit: "contain" }} />
+            {logoOk ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/api/public/brand-logo" alt="Prime Vitória" onError={() => setLogoOk(false)} style={{ height: "min(18vh, 22vw)", width: "auto", objectFit: "contain" }} />
+            ) : (
+              <div style={{ textAlign: "center", lineHeight: 1.1 }}>
+                <div style={{ fontSize: "min(7vw, 8vh)", fontWeight: 800, letterSpacing: "0.08em", color: "#111" }}>PRIME VITÓRIA</div>
+                <div style={{ fontSize: "min(2.6vw, 3vh)", fontWeight: 700, letterSpacing: "0.3em", color: "#C9A84C" }}>TRANSPORTE EXECUTIVO</div>
+              </div>
+            )}
             <div style={{ height: 4, width: "40vw", background: "#C9A84C", borderRadius: 2 }} />
             <p style={{ fontSize: size, lineHeight: 1.05, fontWeight: 800, color: "#111", letterSpacing: "-0.01em", wordBreak: "break-word" }}>{shown}</p>
             <p style={{ fontSize: "min(3.2vw, 3.5vh)", letterSpacing: "0.25em", color: "#7A6A3A", fontWeight: 700 }}>PRIME VITÓRIA · TRANSPORTE EXECUTIVO</p>
