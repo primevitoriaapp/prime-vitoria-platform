@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 
 /** Mostra o botão quando a corrida pede placa/receptivo ou o embarque é em aeroporto. */
-export function needsReceptiveSign(trip: { service_extras?: string[] | null; origin_text?: string | null }): boolean {
-  const ex = trip.service_extras ?? [];
-  if (ex.includes("placa_nome") || ex.includes("receptivo")) return true;
-  return /aeroporto|airport|\bVIX\b|rodovi[aá]ria/i.test(String(trip.origin_text ?? ""));
-}
+export { needsReceptiveSign } from "@/lib/operations/receptive-sign-rule";
 
 /**
  * Placa de receptivo na tela do celular: logo da Prime e o nome do passageiro bem grande.

@@ -25,7 +25,8 @@ import { ClientScheduleMessageCard } from "@/components/client-schedule-message-
 import { TripDeleteButton } from "@/components/trip-delete-button";
 import { TripKmReviewCard } from "@/components/trip-km-review-card";
 import { TripPaymentsCard } from "@/components/trip-payments-card";
-import { ReceptiveSignButton, needsReceptiveSign } from "@/components/receptive-sign";
+import { ReceptiveSignButton } from "@/components/receptive-sign";
+import { needsReceptiveSign } from "@/lib/operations/receptive-sign-rule";
 import { TripInvoiceCard } from "@/components/trip-invoice-card";
 import { defaultAgendaRangeIso } from "@/lib/operations/agenda-default-range";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
