@@ -8,7 +8,7 @@ import { invoicePdfFor } from "@/lib/finance/invoice-pdf-data";
 export const runtime = "nodejs";
 
 /** Fatura detalhada em PDF (mesmo arquivo que vai anexo no e-mail). */
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSessionContext();
     if (session.role === "guest") return fail("UNAUTHORIZED", "Entre para baixar a fatura", 401);
@@ -19,7 +19,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const pdf = await invoicePdfFor(tenantId, id);
     if (!pdf) return fail("INVOICE_NOT_FOUND", "Fatura não encontrada", 404);
     return new Response(Buffer.from(pdf.bytes), {
-      headers: { "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${pdf.filename}"`, "Cache-Control": "no-store" }
+      headers: { "Content-Type": "application/pdf", "Content-Disposition": `${new URL(request.url).searchParams.get("download") === "1" ? "attachment" : "inline"}; filename="${pdf.filename.normalize("NFD").replace(/[^\x20-\x7E]/g, "")}"`, "Cache-Control": "no-store" }
     });
   } catch (e) {
     return mapApiError(e);

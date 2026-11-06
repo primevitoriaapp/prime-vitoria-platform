@@ -71,8 +71,10 @@ export async function invoicePdfFor(tenantId: string, id: string): Promise<{ byt
       extra: [r.flight ? `Voo ${r.flight}` : null, r.wait_minutes > 0 ? `Espera ${r.wait_minutes} min` : null].filter(Boolean).join(" · ") || null,
       service: r.service,
       km: r.km || null,
-      amount: r.amount
+      amount: r.amount,
+      waitCharge: r.wait_charge ? { billable_minutes: r.wait_charge.billable_minutes, amount: r.wait_charge.amount } : null
     }))
   });
-  return { bytes, filename: `Fatura-${num}${inv.client_ref ? `-${inv.client_ref}` : ""}.pdf` };
+  const ref = inv.client_ref ? `-${inv.client_ref.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w-]+/g, "_")}` : "";
+  return { bytes, filename: `Fatura-${num}${ref}.pdf` };
 }

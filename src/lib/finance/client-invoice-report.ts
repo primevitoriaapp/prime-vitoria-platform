@@ -5,6 +5,15 @@ import { listInvoiceTrips } from "@/lib/finance/client-invoices";
 import { tripKm } from "@/lib/finance/client-invoice-calc";
 import { clientRefFromNotes } from "@/lib/trips/client-ref";
 
+/** Hora parada que o cálculo somou no valor da corrida (metadata.wait). */
+export function waitChargeOf(meta: unknown, tripWaitMinutes: number): { minutes: number; billable_minutes: number; amount: number } | null {
+  const w = (meta as { wait?: { wait_minutes?: number; billable_minutes?: number; client_amount?: number } } | null)?.wait;
+  const amount = Number(w?.client_amount ?? 0);
+  // Só vale se bate com a espera gravada na corrida (cálculo antigo/zerado depois não aparece).
+  if (!w || !(amount > 0) || !(tripWaitMinutes > 0) || Number(w.wait_minutes ?? 0) !== tripWaitMinutes) return null;
+  return { minutes: Number(w.wait_minutes ?? 0), billable_minutes: Number(w.billable_minutes ?? 0), amount: Math.round(amount * 100) / 100 };
+}
+
 export type InvoiceReportStop = { address: string; passenger: string | null };
 
 function readStops(raw: unknown): InvoiceReportStop[] {
@@ -32,6 +41,8 @@ export type InvoiceReportRow = {
   flight: string | null;
   km: number;
   wait_minutes: number;
+  /** Hora parada cobrada nesta corrida (já somada em `amount`). */
+  wait_charge: { minutes: number; billable_minutes: number; amount: number } | null;
   amount: number | null;
 };
 
@@ -69,6 +80,7 @@ export async function buildInvoiceReport(invoiceId: string): Promise<InvoiceRepo
     flight: (t.flight_number as string | null) ?? null,
     km: tripKm(t as never),
     wait_minutes: Number(t.wait_minutes ?? 0) || 0,
+    wait_charge: waitChargeOf((t as { calculation_metadata?: unknown }).calculation_metadata, Number(t.wait_minutes ?? 0) || 0),
     amount: t.client_amount == null ? null : Number(t.client_amount)
   }));
 }

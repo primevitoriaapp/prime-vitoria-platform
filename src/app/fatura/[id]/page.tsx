@@ -10,7 +10,7 @@ import { INVOICE_STATUS_LABEL, formatInvoiceNumber } from "@/lib/finance/client-
 import { billingIssuerById } from "@/lib/clients/billing-terms-calc";
 import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
 import { shortAddress } from "@/lib/client/short-address";
-import { VoucherPrintButton } from "@/app/voucher/[id]/print-button";
+import { InvoiceSheetActions } from "./sheet-actions";
 import { loadInvoiceDetail } from "@/lib/finance/invoice-detail";
 import { InvoiceOverview } from "@/components/invoice-overview";
 import { DocHeader, DocRoute } from "@/components/docs/prime-doc";
@@ -111,15 +111,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
         </div>
       ) : null}
       <div className="invoice-actions" style={{ maxWidth: 1000, margin: "0 auto 12px", display: "flex", gap: 8, justifyContent: "space-between", flexWrap: "wrap" }}>
-        <VoucherPrintButton />
-        <a
-          href={`/api/client-invoices/${invoice.id}/pdf`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ borderRadius: 8, padding: "8px 14px", fontWeight: 600, background: "#111", color: "#C9A84C", textDecoration: "none", fontFamily: "system-ui, sans-serif", fontSize: 14, marginLeft: "auto" }}
-        >
-          ⬇ Fatura detalhada (PDF)
-        </a>
+        <InvoiceSheetActions pdfHref={`/api/client-invoices/${invoice.id}/pdf?download=1`} />
         <a
           href={`/api/client-invoices/${invoice.id}/csv`}
           style={{ borderRadius: 8, padding: "8px 14px", fontWeight: 600, border: "1px solid #CFC7B0", color: "#111", textDecoration: "none", fontFamily: "system-ui, sans-serif", fontSize: 14 }}
@@ -240,11 +232,25 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                       ]}
                     />
                     {r.flight ? <div style={{ fontSize: 10, color: "#888" }}>Voo {r.flight}</div> : null}
-                    {r.wait_minutes > 0 ? <div style={{ fontSize: 10, color: "#888" }}>Espera {r.wait_minutes} min</div> : null}
+                    {r.wait_charge ? (
+                      <div style={{ fontSize: 11, color: "#8A5A00", marginTop: 4, background: "#FFF4D6", borderRadius: 4, padding: "2px 6px", display: "inline-block" }}>
+                        + Hora extra / espera: {r.wait_charge.billable_minutes} min · {brl(r.wait_charge.amount)}
+                      </div>
+                    ) : r.wait_minutes > 0 ? (
+                      <div style={{ fontSize: 10, color: "#888" }}>Espera {r.wait_minutes} min (dentro da tolerância)</div>
+                    ) : null}
                   </td>
                   <td style={td}>{r.service}</td>
                   <td style={{ ...td, textAlign: "right" }}>{r.km ? r.km.toLocaleString("pt-BR") : "—"}</td>
-                  <td style={{ ...td, textAlign: "right", fontWeight: 600 }}>{brl(r.amount)}</td>
+                  <td style={{ ...td, textAlign: "right", fontWeight: 600 }}>
+                    {brl(r.amount)}
+                    {r.wait_charge && r.amount != null ? (
+                      <div style={{ fontSize: 10, fontWeight: 400, color: "#666", whiteSpace: "nowrap" }}>
+                        corrida {brl(Math.round((r.amount - r.wait_charge.amount) * 100) / 100)}
+                        <br />+ hora extra {brl(r.wait_charge.amount)}
+                      </div>
+                    ) : null}
+                  </td>
                 </tr>
               ))}
             </tbody>
