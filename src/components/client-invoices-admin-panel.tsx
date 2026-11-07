@@ -2,6 +2,7 @@
 
 import { VouchersToCloseCard } from "@/components/vouchers-to-close-card";
 import { OpenPeriodCard } from "@/components/open-period-card";
+import { InvoiceKanban } from "@/components/invoice-kanban";
 import { InvoiceEmailComposer } from "@/components/invoice-email-composer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
@@ -214,8 +215,11 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
         </div>
       </div>
 
+      <InvoiceKanban onChanged={() => void load()} />
       <OpenPeriodCard />
-      <VouchersToCloseCard onClosed={() => void load()} />
+      <div id="vouchers-a-fechar" className="scroll-mt-6">
+        <VouchersToCloseCard onClosed={() => void load()} />
+      </div>
 
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">Fechamento do mês (clientes mensais)</p>
       <div className="grid gap-3 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card md:grid-cols-[auto_1fr_1fr_auto] md:items-end">

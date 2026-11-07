@@ -51,6 +51,12 @@ export async function GET(request: Request) {
           client_id: t.client_id,
           client_name: String(c?.trade_name || c?.name || "Cliente"),
           billing: c?.invoice_per_service ? "por serviço" : c?.invoiced === false ? "à vista" : `mensal (fecha ${Number(c?.invoice_closing_day ?? 0) > 0 ? `dia ${c?.invoice_closing_day}` : "no último dia"}, paga em ${c?.payment_term_days ?? 30} dias)`,
+          per_service: c?.invoice_per_service === true,
+          invoiced: c?.invoiced !== false,
+          payment_term_days: c?.payment_term_days ?? null,
+          closing_day: Number(c?.invoice_closing_day ?? 0),
+          approved_from: null,
+          approved_to: null,
           approved_total: 0,
           approved_count: 0,
           to_approve_total: 0,
@@ -64,6 +70,9 @@ export async function GET(request: Request) {
       const done = DONE.includes(t.operational_status as string);
       const stage = done ? (t.reviewed_at ? "aprovada" : "aprovar") : "agendada";
       if (stage === "aprovada") {
+        const day = new Date(t.scheduled_at as string).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+        if (!g.approved_from || day < String(g.approved_from)) g.approved_from = day;
+        if (!g.approved_to || day > String(g.approved_to)) g.approved_to = day;
         g.approved_total = r2(Number(g.approved_total) + amt);
         g.approved_count = Number(g.approved_count) + 1;
       } else if (stage === "aprovar") {
