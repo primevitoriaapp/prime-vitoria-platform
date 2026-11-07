@@ -28,6 +28,7 @@ const NAV = [
   { href: "/whatsapp", label: "WhatsApp", icon: "✆", group: "Operação" },
   { href: "/clients", label: "Clientes", icon: "▦", group: "Cadastros" },
   { href: "/drivers", label: "Motoristas", icon: "◉", group: "Cadastros" },
+  { href: "/drivers/avisos", label: "Avisos p/ motoristas", icon: "📣", group: "Operação" },
   { href: "/parceiros", label: "Parceiros", icon: "◐", group: "Cadastros" },
   { href: "/vehicles", label: "Veículos", icon: "▤", group: "Cadastros" },
   { href: "/categorias", label: "Categorias e preços", icon: "◇", group: "Cadastros" },
@@ -53,6 +54,7 @@ const ICONS: Record<string, string> = {
   "/conferencia": "M9 12l2 2 4-4M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z",
   "/clients": "M4 21V5h10v16M14 9h6v12M7 9h4M7 13h4M7 17h4",
   "/drivers": "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0",
+  "/drivers/avisos": "M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1zM15 9a3 3 0 0 1 0 6M18 6a7 7 0 0 1 0 12",
   "/parceiros": "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 7M22 21a7 7 0 0 0-4-6.3",
   "/vehicles": "M5 16h14M6 16l1.5-6h9L18 16M5 16v3h3v-3M16 16v3h3v-3M8 13h.01M16 13h.01",
   "/categorias": "M20 12l-8 8-9-9V3h8zM7.5 7.5h.01",
@@ -315,5 +317,6 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
 function isActivePath(pathname: string | null, href: string): boolean {
   if (!pathname) return false;
   if (href === "/clients" && pathname.startsWith("/clients/relatorio")) return false;
+  if (href === "/drivers" && pathname.startsWith("/drivers/avisos")) return false;
   return pathname === href || pathname.startsWith(`${href}/`);
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { DriverMessagePopup, DriverMessagesList } from "@/components/driver-messages-inbox";
 import { useDriverPresenceBeacon } from "@/hooks/use-driver-presence-beacon";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -119,6 +120,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   return (
     <div className="min-h-dvh bg-[#F1F0EC] pb-28 text-[#111]">
       <OperationalRealtimeBridge tenantId={tenantId} />
+      {mode === "motorista" ? <DriverMessagePopup /> : null}
       <DriverTripDeepLink />
 
       {tab === "inicio" ? (
@@ -243,6 +245,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
             {mode === "motorista" ? (
               <>
                 <DriverProfilePanel devFallbackRole={devRole} />
+                <DriverMessagesList />
                 <InstallAppCard />
                 <DriverAccountEditor />
                 <ChangePinCard />
