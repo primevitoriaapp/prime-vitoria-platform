@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
     const { data: rows } = await db
       .from("driver_payables")
-      .select("id, trip_id, amount, status, paid_at, payment_method, batch_id")
+      .select("id, trip_id, driver_id, amount, status, paid_at, payment_method, batch_id")
       .eq("tenant_id", tenantId)
       .in("id", body.payable_ids);
     const paid = (rows ?? []).filter((r) => r.status === "paid");
@@ -53,6 +53,19 @@ export async function POST(request: Request) {
       }))
     );
     if (error) return fail("PROOF_SAVE_FAILED", error.message, 500);
+    // Avisa no celular do motorista que o comprovante está na carteira dele.
+    {
+      const { pushToDriver } = await import("@/lib/push/web-push");
+      const total = paid.reduce((s, r) => s + Number(r.amount ?? 0), 0);
+      for (const drv of [...new Set(paid.map((r) => r.driver_id as string).filter(Boolean))]) {
+        await pushToDriver(tenantId, drv, {
+          title: "📄 Comprovante de pagamento disponível",
+          body: `${total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} · veja em Carteira › Já recebidos`,
+          url: "/driver?aba=carteira",
+          tag: `proof-${paid[0].id}`
+        }).catch(() => 0);
+      }
+    }
 
     await insertAuditEvent({
       tenantId,

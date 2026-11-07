@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { CalendarFeedCard } from "@/components/calendar-feed-card";
+import { ZapsignTokenCard } from "@/components/zapsign-token-card";
 import { resolveEmailFrom } from "@/lib/notifications/send-email";
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { getSessionContext } from "@/lib/server/session";
@@ -151,6 +152,7 @@ export default async function IntegracoesPage() {
       />
       <div className="space-y-8">
         <CalendarFeedCard />
+        {session.role === "admin" ? <ZapsignTokenCard /> : null}
         {groups.map((g) => (
           <section key={g.group}>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-prime-muted">{g.group}</h2>

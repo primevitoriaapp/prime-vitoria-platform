@@ -33,6 +33,12 @@ export async function GET() {
     const recByTrip = new Map((recs ?? []).map((r) => [r.trip_id as string, r.status as string]));
     const short = (a: unknown) => String(a ?? "—").split(",")[0];
 
+    const paidIds = (payables ?? []).filter((p) => p.status === "paid").map((p) => p.id as string);
+    const proofBy = new Map<string, string>();
+    for (let i = 0; i < paidIds.length; i += 300) {
+      const { data: pr } = await db.from("driver_payment_proofs").select("driver_payable_id, storage_url, created_at").in("driver_payable_id", paidIds.slice(i, i + 300)).order("created_at");
+      for (const r of pr ?? []) if (r.storage_url) proofBy.set(r.driver_payable_id as string, r.storage_url as string);
+    }
     const items = (payables ?? []).map((p) => {
       const t = tripById.get(p.trip_id as string);
       const released = recByTrip.get(p.trip_id as string) === "paid" || (t?.client_invoice_id ? invPaid.has(t.client_invoice_id as string) : false);
@@ -44,7 +50,8 @@ export async function GET() {
         route: t ? `${short(t.origin_text)} → ${short(t.destination_text)}` : "Corrida",
         stage: p.status === "paid" ? "pago" : released ? "liberado" : "aguardando",
         due_date: (p.due_date as string) ?? null,
-        paid_at: (p.paid_at as string) ?? null
+        paid_at: (p.paid_at as string) ?? null,
+        proof_url: proofBy.get(p.id as string) ?? null
       };
     });
 
