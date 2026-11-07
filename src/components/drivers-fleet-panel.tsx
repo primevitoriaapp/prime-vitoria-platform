@@ -114,6 +114,15 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
   const router = useRouter();
   const [drivers, setDrivers] = useState(initialDrivers);
   const [fichaDriverId, setFichaDriverId] = useState<string | null>(null);
+  // Abre a ficha direto pelo link (?ficha=<id>), ex.: aviso de cadastro incompleto no início.
+  useEffect(() => {
+    try {
+      const f = new URLSearchParams(window.location.search).get("ficha");
+      if (f) setFichaDriverId(f);
+    } catch {
+      /* ignora */
+    }
+  }, []);
   const [feedback, setFeedback] = useState<FormFeedback | null>(null);
   const [includeInactive, setIncludeInactive] = useState(false);
 

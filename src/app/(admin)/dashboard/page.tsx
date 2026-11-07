@@ -4,6 +4,7 @@ import { resolveProfileNames } from "@/lib/profiles/resolve-profile-names";
 import { OperationsReportExport } from "@/components/operations-report-export";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { TripsToReviewAlert } from "@/components/trip-review-banner";
+import { DriversAlertsCard } from "@/components/drivers-alerts-card";
 import { can } from "@/lib/security/rbac";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { getSessionContext } from "@/lib/server/session";
@@ -50,6 +51,7 @@ export default async function DashboardPage() {
       </header>
       <div className="mb-5 empty:hidden">
         <TripsToReviewAlert />
+        <DriversAlertsCard />
       </div>
       <DashboardOverview tenantId={realtimeTenantId} showMoney={showMoney} />
 
