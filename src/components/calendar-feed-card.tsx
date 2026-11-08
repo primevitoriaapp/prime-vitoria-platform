@@ -53,6 +53,9 @@ export function CalendarFeedCard() {
           <p className="mt-1 text-sm text-prime-muted">
             Todas as corridas (14 dias para trás e 90 para frente) aparecem sozinhas no Google Agenda ou no calendário do iPhone. Sem valores.
           </p>
+          <p className="mt-1 text-xs font-semibold text-emerald-800">
+            Isto só precisa ser feito uma vez em cada agenda. Se já aparece “Prime Vitória — Corridas” no seu Google Agenda, está pronto: não assine de novo (as corridas ficam em dobro).
+          </p>
         </div>
       </div>
 
