@@ -46,7 +46,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     const driverIds = [...new Set(trips.map((t) => t.driver_id as string | null).filter((x): x is string => Boolean(x)))];
     const [{ data: drivers }, { data: links }] = await Promise.all([
-      driverIds.length ? db.from("drivers").select("id, full_name").in("id", driverIds) : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
+      driverIds.length ? db.from("drivers").select("id, full_name, phone, whatsapp").in("id", driverIds) : Promise.resolve({ data: [] as { id: string; full_name: string | null; phone: string | null; whatsapp: string | null }[] }),
       driverIds.length
         ? db.from("driver_vehicle_links").select("driver_id, vehicle_id, is_default").in("driver_id", driverIds).eq("active", true)
         : Promise.resolve({ data: [] as { driver_id: string; vehicle_id: string; is_default: boolean | null }[] })
@@ -65,6 +65,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ? await db.from("vehicles").select("id, brand, model, color, plate").in("id", vehicleIds)
       : { data: [] as { id: string; brand: string | null; model: string; color: string | null; plate: string }[] };
     const driverName = new Map((drivers ?? []).map((d) => [d.id as string, (d.full_name as string | null) ?? null]));
+    const driverPhone = new Map((drivers ?? []).map((d) => [d.id as string, ((d.whatsapp as string | null) || (d.phone as string | null)) ?? null]));
     const vehicleById = new Map((vehicles ?? []).map((v) => [v.id as string, v]));
 
     const list: ScheduleTrip[] = trips.map((t) => {
@@ -79,6 +80,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         destination_text: (t.destination_text as string | null) ?? null,
         flight_number: (t.flight_number as string | null) ?? null,
         driver_name: t.driver_id ? (driverName.get(t.driver_id as string) ?? null) : null,
+        driver_phone: t.driver_id ? (driverPhone.get(t.driver_id as string) ?? null) : null,
         vehicle: v ? { brand: v.brand, model: v.model, color: v.color, plate: v.plate } : null,
         stops
       };

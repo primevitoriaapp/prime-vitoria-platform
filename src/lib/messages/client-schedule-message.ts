@@ -1,6 +1,6 @@
 /**
  * Mensagem para o CLIENTE com as corridas agendadas (para copiar e mandar no WhatsApp).
- * Função pura. Não leva telefone do motorista: o contato do cliente é sempre a Central.
+ * Função pura. Leva o telefone do motorista quando ele já está definido (pedido do Rubens, 08/11).
  */
 export type ScheduleTrip = {
   scheduled_at: string;
@@ -10,6 +10,7 @@ export type ScheduleTrip = {
   destination_text: string | null;
   flight_number: string | null;
   driver_name: string | null;
+  driver_phone?: string | null;
   vehicle: { brand?: string | null; model: string; color?: string | null; plate: string } | null;
   stops?: string[];
 };
@@ -38,6 +39,15 @@ function cleanPlace(t: string | null): string {
     .replace(/,?\s*\d{5}-?\d{3}/, "")
     .replace(/,?\s*Brasil\s*$/i, "")
     .trim();
+}
+
+/** "27999990000" → "(27) 99999-0000". */
+export function formatPhoneBr(raw: string | null | undefined): string | null {
+  let d = String(raw ?? "").replace(/\D/g, "");
+  if (d.length >= 12 && d.startsWith("55")) d = d.slice(2);
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return d ? String(raw).trim() : null;
 }
 
 function firstLast(name: string | null): string | null {
@@ -78,6 +88,8 @@ export function buildClientScheduleMessage(input: { clientName: string; trips: S
     const car = v ? [[v.brand, v.model].filter(Boolean).join(" "), v.color, v.plate ? `placa ${v.plate}` : null].filter(Boolean).join(" · ") : null;
     const driver = firstLast(t.driver_name);
     lines.push(driver ? `🚘 Motorista: ${driver}${car ? ` · ${car}` : ""}` : "🚘 Motorista e veículo: a confirmar (enviamos assim que definidos)");
+    const tel = driver ? formatPhoneBr(t.driver_phone) : null;
+    if (tel) lines.push(`📞 Contato do motorista: ${tel}`);
   }
   lines.push("");
   lines.push(`Qualquer ajuste de horário ou passageiro, é só nos avisar por aqui ou na Central 24h: ${CENTRAL_PHONES}.`);
