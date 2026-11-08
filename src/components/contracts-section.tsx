@@ -114,7 +114,16 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
             file_path,
             link: mode === "link" ? link : null,
             template_id: mode === "modelo" ? templateId : null,
-            fields: mode === "modelo" ? fields : undefined,
+            fields:
+              mode === "modelo"
+                ? fields.map((f) => {
+                    // Testemunhas: se o campo do nome ficou vazio, usa o nome de quem vai assinar como testemunha.
+                    const m = f.variable.match(/TESTEMUNHA\s*_?(\d)\s*_?NOME/i);
+                    if (f.value || !m) return f;
+                    const w = valid.filter((x) => x.role === "Testemunha")[Number(m[1]) - 1];
+                    return w ? { ...f, value: w.name.trim() } : f;
+                  })
+                : undefined,
             signers: mode === "zapsign" || mode === "modelo" ? valid.map((s) => ({ name: s.name.trim(), email: s.email.trim() || null, phone: s.phone.trim() || null, role: s.role })) : undefined
           })
         },
