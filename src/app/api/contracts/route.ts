@@ -5,7 +5,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { syncPending, partySignUrl, type ContractRow } from "@/lib/contracts/contracts";
-import { mapZapStatus, zapsignCreateDoc, zapsignGetDoc, zapTokenFromLink } from "@/lib/integrations/zapsign";
+import { mapZapStatus, zapsignAddSigner, zapsignCreateDoc, zapsignCreateFromTemplate, zapsignGetDoc, zapTokenFromLink } from "@/lib/integrations/zapsign";
 import { pushToDriver } from "@/lib/push/web-push";
 
 const STAFF = ["admin", "operador", "financeiro"];
@@ -35,7 +35,9 @@ const schema = z.object({
   driver_id: z.string().uuid().optional().nullable(),
   client_id: z.string().uuid().optional().nullable(),
   title: z.string().trim().min(3).max(200),
-  mode: z.enum(["zapsign", "link", "arquivo"]),
+  mode: z.enum(["zapsign", "modelo", "link", "arquivo"]),
+  template_id: z.string().max(100).optional().nullable(),
+  fields: z.array(z.object({ variable: z.string().max(120), value: z.string().max(2000) })).max(200).optional(),
   file_path: z.string().max(300).optional().nullable(),
   link: z.string().trim().max(500).optional().nullable(),
   signers: z.array(signer).max(6).optional(),
@@ -69,6 +71,25 @@ export async function POST(request: Request) {
       const signers = (doc.signers ?? []).map((s) => ({ name: s.name, email: s.email ?? null, status: s.status, sign_url: s.sign_url ?? null, signed_at: s.signed_at ?? null }));
       const status = mapZapStatus(doc.status);
       row = { ...base, zapsign_token: token, signers, status, sign_url: partySignUrl(signers, null), synced_at: new Date().toISOString(), signed_at: status === "assinado" ? new Date().toISOString() : null };
+    } else if (b.mode === "modelo") {
+      if (!b.template_id) return fail("TEMPLATE_REQUIRED", "Escolha o modelo da ZapSign.", 400);
+      if (!b.signers?.length) return fail("SIGNERS_REQUIRED", "Informe quem assina.", 400);
+      const [first, ...others] = b.signers;
+      const doc = await zapsignCreateFromTemplate({
+        templateId: b.template_id,
+        signer: { ...first, email: first.email || null },
+        data: (b.fields ?? []).filter((f) => f.value.trim()).map((f) => ({ de: f.variable, para: f.value }))
+      });
+      const signers: { name: string; email: string | null; status?: string; sign_url: string | null; signed_at: null; role?: string }[] = (doc.signers ?? []).map((s) => ({ name: s.name, email: s.email ?? null, status: s.status, sign_url: s.sign_url ?? null, signed_at: null, role: first.role }));
+      for (const o of others) {
+        try {
+          const added = await zapsignAddSigner(doc.token, { ...o, email: o.email || null });
+          signers.push({ name: added.name ?? o.name, email: added.email ?? o.email ?? null, status: added.status ?? "new", sign_url: added.sign_url ?? null, signed_at: null, role: o.role });
+        } catch {
+          signers.push({ name: o.name, email: o.email ?? null, status: "erro", sign_url: null, signed_at: null, role: o.role });
+        }
+      }
+      row = { ...base, title: b.title || doc.name, zapsign_token: doc.token, signers, status: "pendente", sign_url: partySignUrl(signers, first.name), synced_at: new Date().toISOString() };
     } else {
       if (!b.file_path) return fail("FILE_REQUIRED", "Anexe o PDF do contrato.", 400);
       if (!b.signers?.length) return fail("SIGNERS_REQUIRED", "Informe quem assina.", 400);

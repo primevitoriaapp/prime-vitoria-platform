@@ -30,6 +30,8 @@ type LinkedVehicle = {
   model: string;
   brand?: string | null;
   is_default?: boolean;
+  insurance_expires_at?: string | null;
+  licensing_expires_at?: string | null;
 };
 
 export type DriverDetail = {
@@ -151,6 +153,15 @@ type Props = {
 
 export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
   const fichaRef = useRef<HTMLElement>(null);
+  async function saveVehicleDate(vehicleId: string, field: "insurance_expires_at" | "licensing_expires_at", value: string) {
+    if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
+    const res = await fetchWithSupabaseSession(
+      `/api/vehicles/${vehicleId}`,
+      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value || null }) },
+      "admin"
+    ).catch(() => null);
+    setFeedback(res?.ok ? { kind: "success", message: "Data do veículo salva." } : { kind: "error", message: "Não foi possível salvar a data do veículo." });
+  }
   const [detail, setDetail] = useState<DriverDetail | null>(null);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [feedback, setFeedback] = useState<FormFeedback | null>(null);
@@ -1121,6 +1132,26 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
                   {v.is_default ? (
                     <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">padrão</span>
                   ) : null}
+                </span>
+                <span className="flex w-full flex-wrap gap-3 text-xs text-slate-600">
+                  <label className="flex items-center gap-1">
+                    Seguro vence (opcional)
+                    <input
+                      type="date"
+                      defaultValue={v.insurance_expires_at ?? ""}
+                      className="rounded border border-slate-300 px-1.5 py-0.5"
+                      onChange={(e) => void saveVehicleDate(v.id, "insurance_expires_at", e.target.value)}
+                    />
+                  </label>
+                  <label className="flex items-center gap-1">
+                    Licenciamento vence (opcional)
+                    <input
+                      type="date"
+                      defaultValue={v.licensing_expires_at ?? ""}
+                      className="rounded border border-slate-300 px-1.5 py-0.5"
+                      onChange={(e) => void saveVehicleDate(v.id, "licensing_expires_at", e.target.value)}
+                    />
+                  </label>
                 </span>
                 {!v.is_default ? (
                   <button

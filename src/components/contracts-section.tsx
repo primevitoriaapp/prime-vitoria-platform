@@ -5,7 +5,8 @@ import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
 type Signer = { name: string; email?: string | null; status?: string; sign_url?: string | null; role?: string };
 type Contract = { id: string; title: string; status: "pendente" | "assinado" | "recusado" | "cancelado"; created_at: string; signed_at: string | null; signers: Signer[]; sign_url: string | null; zapsign_token: string | null };
-type Mode = "zapsign" | "link" | "arquivo";
+type Mode = "modelo" | "zapsign" | "link" | "arquivo";
+type Field = { variable: string; value: string };
 type SignerForm = { name: string; email: string; phone: string; role: string };
 
 const STATUS: Record<Contract["status"], { label: string; cls: string }> = {
@@ -21,7 +22,11 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
   const q = props.driverId ? `driver_id=${props.driverId}` : `client_id=${props.clientId}`;
   const [list, setList] = useState<Contract[]>([]);
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<Mode>("zapsign");
+  const [mode, setMode] = useState<Mode>("modelo");
+  const [templates, setTemplates] = useState<{ token: string; name: string }[] | null>(null);
+  const [templateId, setTemplateId] = useState("");
+  const [fields, setFields] = useState<Field[]>([]);
+  const [tplMsg, setTplMsg] = useState<string | null>(null);
   const [title, setTitle] = useState(props.driverId ? "Acordo de Motorista Parceiro" : "Contrato de Prestação de Serviços");
   const [file, setFile] = useState<File | null>(null);
   const [link, setLink] = useState("");
@@ -44,6 +49,34 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
     ]);
   }, [props.party.name, props.party.email, props.party.phone]);
 
+  useEffect(() => {
+    if (!open || mode !== "modelo" || templates) return;
+    void fetchWithSupabaseSession("/api/contracts/templates", {}, "admin")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.success) setTemplates(j.data);
+        else {
+          setTemplates([]);
+          setTplMsg(j?.error?.message ?? "Não consegui ler os modelos da ZapSign.");
+        }
+      })
+      .catch(() => setTemplates([]));
+  }, [open, mode, templates]);
+
+  async function pickTemplate(token: string) {
+    setTemplateId(token);
+    setFields([]);
+    setTplMsg(null);
+    if (!token) return;
+    const r = await fetchWithSupabaseSession(`/api/contracts/templates/${token}?${q}`, {}, "admin").catch(() => null);
+    const j = r ? await r.json().catch(() => ({})) : {};
+    if (!j?.success) return setTplMsg(j?.error?.message ?? "Não consegui abrir o modelo.");
+    setFields(j.data.fields as Field[]);
+    if (j.data.name) setTitle(`${j.data.name} — ${props.party.name}`);
+    const empty = (j.data.fields as Field[]).filter((f) => !f.value).length;
+    setTplMsg(empty ? `${empty} campo(s) em branco: preencha abaixo (testemunhas, dados que faltam no cadastro).` : "Todos os campos preenchidos com o cadastro. Confira antes de enviar.");
+  }
+
   async function upload(f: File): Promise<string | null> {
     const r = await fetchWithSupabaseSession("/api/contracts/upload-url", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file_name: f.name, size: f.size }) }, "admin");
     const j = await r.json().catch(() => ({}));
@@ -56,17 +89,18 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
   async function save() {
     if (busy) return;
     setMsg(null);
-    if (mode !== "link" && !file) return setMsg({ ok: false, text: "Escolha o PDF do contrato." });
+    if ((mode === "zapsign" || mode === "arquivo") && !file) return setMsg({ ok: false, text: "Escolha o PDF do contrato." });
+    if (mode === "modelo" && !templateId) return setMsg({ ok: false, text: "Escolha o modelo." });
     if (mode === "link" && !link.trim()) return setMsg({ ok: false, text: "Cole o link do documento na ZapSign." });
     const valid = signers.filter((s) => s.name.trim().length >= 2);
-    if (mode === "zapsign") {
+    if (mode === "zapsign" || mode === "modelo") {
       if (!valid.length) return setMsg({ ok: false, text: "Informe quem assina." });
       const noContact = valid.find((s) => !s.email.trim());
       if (noContact && !window.confirm(`${noContact.name} está sem e-mail: a ZapSign não vai mandar o link para ele. Você mesmo copia e envia o link depois. Continuar?`)) return;
     }
     setBusy(true);
     try {
-      const file_path = file && mode !== "link" ? await upload(file) : null;
+      const file_path = file && (mode === "zapsign" || mode === "arquivo") ? await upload(file) : null;
       const r = await fetchWithSupabaseSession(
         "/api/contracts",
         {
@@ -79,7 +113,9 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
             mode,
             file_path,
             link: mode === "link" ? link : null,
-            signers: mode === "zapsign" ? valid.map((s) => ({ name: s.name.trim(), email: s.email.trim() || null, phone: s.phone.trim() || null, role: s.role })) : undefined
+            template_id: mode === "modelo" ? templateId : null,
+            fields: mode === "modelo" ? fields : undefined,
+            signers: mode === "zapsign" || mode === "modelo" ? valid.map((s) => ({ name: s.name.trim(), email: s.email.trim() || null, phone: s.phone.trim() || null, role: s.role })) : undefined
           })
         },
         "admin"
@@ -89,7 +125,7 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
       setMsg({
         ok: true,
         text:
-          mode === "zapsign"
+          mode === "zapsign" || mode === "modelo"
             ? `Enviado para a ZapSign. Quem tem e-mail recebe o link de assinatura${props.driverId ? "; o motorista também vê no app" : "; o gestor também vê no portal"}.`
             : mode === "link"
               ? "Documento da ZapSign ligado. A situação atualiza sozinha."
@@ -142,7 +178,8 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
           <div className="flex flex-wrap gap-2 text-xs">
             {(
               [
-                ["zapsign", "Enviar para assinar (ZapSign)"],
+                ["modelo", "Usar meu modelo da ZapSign"],
+                ["zapsign", "Enviar um PDF para assinar"],
                 ["link", "Já está na ZapSign (colar link)"],
                 ["arquivo", "Já assinado (só guardar o PDF)"]
               ] as [Mode, string][]
@@ -156,7 +193,36 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
             Nome do documento
             <input className={input} value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
           </label>
-          {mode === "link" ? (
+          {mode === "modelo" ? (
+            <div className="grid gap-2">
+              <label className="grid gap-1 text-sm">
+                Modelo
+                <select className={input} value={templateId} onChange={(e) => void pickTemplate(e.target.value)}>
+                  <option value="">{templates === null ? "Carregando modelos…" : templates.length ? "Escolha o modelo" : "Nenhum modelo encontrado"}</option>
+                  {(templates ?? []).map((t) => (
+                    <option key={t.token} value={t.token}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {tplMsg ? <p className="text-xs text-amber-800">{tplMsg}</p> : null}
+              {fields.length ? (
+                <div className="grid max-h-80 gap-1.5 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
+                  {fields.map((f, i) => (
+                    <label key={f.variable} className="grid gap-0.5 text-xs sm:grid-cols-[200px_1fr] sm:items-center">
+                      <span className="font-mono text-slate-500">{f.variable}</span>
+                      <input
+                        className={`${input} ${f.value ? "" : "border-amber-400 bg-amber-50"}`}
+                        value={f.value}
+                        onChange={(e) => setFields((l) => l.map((x, k) => (k === i ? { ...x, value: e.target.value } : x)))}
+                      />
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : mode === "link" ? (
             <label className="grid gap-1 text-sm">
               Link do documento na ZapSign
               <input className={input} value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://app.zapsign.com.br/verificar/…" />
@@ -167,7 +233,7 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
               <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-sm" />
             </label>
           )}
-          {mode === "zapsign" ? (
+          {mode === "zapsign" || mode === "modelo" ? (
             <div className="grid gap-2">
               <p className="text-sm font-medium">Quem assina</p>
               {signers.map((s, i) => (
@@ -189,7 +255,7 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
             </div>
           ) : null}
           <button type="button" disabled={busy} onClick={() => void save()} className="rounded-lg bg-[#111] py-2.5 text-sm font-bold text-prime-gold disabled:opacity-50">
-            {busy ? "Enviando…" : mode === "zapsign" ? "Enviar para assinatura" : "Salvar"}
+            {busy ? "Enviando…" : mode === "zapsign" || mode === "modelo" ? "Enviar para assinatura" : "Salvar"}
           </button>
         </div>
       ) : null}

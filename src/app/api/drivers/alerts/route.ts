@@ -51,7 +51,7 @@ export async function GET() {
       if (!bd) missing.push("data de nascimento");
       if (!cnh) missing.push("validade da CNH");
       if (!mine.length) missing.push("veículo vinculado");
-      else if (!mine.some((v) => v.insurance_expires_at)) missing.push("validade do seguro");
+      // Seguro é opcional (nem todo parceiro tem): não conta como pendência.
       if (missing.length) incomplete.push({ driver_id: d.id as string, name, missing });
     }
     const order = { hoje: 0, ontem: 1 } as Record<string, number>;
