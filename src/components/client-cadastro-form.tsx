@@ -8,6 +8,7 @@ import { useCompany } from "@/lib/company/company-context";
 import { ClientCategoryPricesSection } from "@/components/client-category-prices-section";
 import { ClientTeamPortalSection } from "@/components/client-team-portal-section";
 import { ClientContractUploadSection } from "@/components/client-contract-upload-section";
+import { ContractsSection } from "@/components/contracts-section";
 import { CLIENT_SERVICE_TYPE_OPTIONS, type ClientServiceTypeId } from "@/lib/clients/client-service-types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
@@ -498,6 +499,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
             <div className="md:col-span-2" onSubmit={(e) => e.stopPropagation()}>
               <ClientTeamPortalSection clientId={clientId} canManage devFallbackRole="admin" />
             </div>
+            <ContractsSection clientId={clientId} party={{ name: form.trade_name.trim() || form.name.trim(), email: form.email.trim() || null, phone: form.whatsapp.trim() || form.phone.trim() || null }} />
             <ClientContractUploadSection clientId={clientId} disabled={busy} />
           </>
         ) : null}

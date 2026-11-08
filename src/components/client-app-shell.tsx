@@ -7,6 +7,7 @@ import { ClientRequestConsole } from "@/components/client-request-console";
 import { ClientTeamPortalSection } from "@/components/client-team-portal-section";
 import { ClientTripsPanel } from "@/components/client-trips-panel";
 import { ClientContractPortalButton } from "@/components/client-contract-portal-button";
+import { PartyContractsCard } from "@/components/party-contracts-card";
 import { ClientPortalReadonlyNotice } from "@/components/client-portal-readonly-notice";
 import { ClientMonthDashboard } from "@/components/client-month-dashboard";
 import { ClientInvoicesPortalPanel } from "@/components/client-invoices-portal-panel";
@@ -335,6 +336,7 @@ export function ClientAppShell({
                   <h1 className="font-prime-display text-2xl text-[#111]">Financeiro</h1>
                   <ClientContractPortalButton clientId={selectedClientId} devFallbackRole={devRole} />
                 </div>
+                {mode !== "admin" ? <PartyContractsCard audience="cliente" devFallbackRole={devRole === "admin" ? "admin" : "cliente"} /> : null}
                 <ClientMonthDashboard clientId={mode === "admin" ? selectedClientId : undefined} devFallbackRole={devRole} reloadKey={reloadKey} />
                 <ClientInvoicesPortalPanel devFallbackRole={devRole} />
               </>

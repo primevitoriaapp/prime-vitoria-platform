@@ -1,5 +1,6 @@
 "use client";
 
+import { ContractsSection } from "@/components/contracts-section";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { DriverUpfrontToggle } from "@/components/driver-upfront-toggle";
 import { BackButton } from "@/components/back-button";
@@ -1098,6 +1099,10 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
           {busy ? "Salvando…" : "Salvar ficha"}
         </button>
       </form>
+
+      <div className="mt-8">
+        <ContractsSection driverId={driverId} party={{ name: detail.profile_name?.trim() || "Motorista", email: detail.email ?? null, phone: detail.whatsapp ?? null }} />
+      </div>
 
       <div className="mt-8 border-t border-slate-200 pt-6">
         <h3 className="font-semibold text-slate-900">Veículos vinculados</h3>

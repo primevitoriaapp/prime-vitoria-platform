@@ -2,6 +2,7 @@
 
 import { DriverMessagePopup, DriverMessagesList } from "@/components/driver-messages-inbox";
 import { DriverGreetingAlerts } from "@/components/driver-greeting-alerts";
+import { PartyContractsCard } from "@/components/party-contracts-card";
 import { useDriverPresenceBeacon } from "@/hooks/use-driver-presence-beacon";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -247,6 +248,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
             {mode === "motorista" ? (
               <>
                 <DriverProfilePanel devFallbackRole={devRole} />
+                <PartyContractsCard audience="motorista" />
                 <DriverMessagesList />
                 <InstallAppCard />
                 <DriverAccountEditor />
