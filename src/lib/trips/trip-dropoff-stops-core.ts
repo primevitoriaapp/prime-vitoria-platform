@@ -8,6 +8,8 @@ export type DropoffStop = {
   lat?: number | null;
   lng?: number | null;
   dropped_at?: string | null;
+  /** Última pessoa: fica no destino final da corrida. */
+  final?: boolean | null;
 };
 
 export function nextPendingDropoffIndex(stops: DropoffStop[]): number | null {

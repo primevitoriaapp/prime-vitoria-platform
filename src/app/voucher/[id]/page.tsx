@@ -106,8 +106,14 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
       ? [...pickups.map((p) => ({ address: shortAddress(p.pickup_text), who: p.passenger_name })), { address: shortAddress(trip.destination_text as string | null) }]
       : [
           { address: shortAddress(trip.origin_text as string | null) },
-          ...dropoffs.map((x) => ({ address: shortAddress(x.address_text), who: [x.passenger_name, isDriver ? x.passenger_phone : null].filter(Boolean).join(" · ") || null })),
-          { address: shortAddress(trip.destination_text as string | null) }
+          ...dropoffs
+            .filter((x) => !x.final)
+            .map((x) => ({ address: shortAddress(x.address_text), who: [x.passenger_name, isDriver ? x.passenger_phone : null].filter(Boolean).join(" · ") || null })),
+          (() => {
+            const fin = dropoffs.find((x) => x.final);
+            const who = fin ? [fin.passenger_name, isDriver ? fin.passenger_phone : null].filter(Boolean).join(" · ") || null : null;
+            return { address: shortAddress(trip.destination_text as string | null), ...(who ? { who } : {}) };
+          })()
         ];
   const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 

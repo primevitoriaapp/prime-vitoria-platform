@@ -12,7 +12,8 @@ export const dropoffStopSchema = z.object({
   lat: z.coerce.number().nullable().optional(),
   lng: z.coerce.number().nullable().optional(),
   people: z.coerce.number().int().min(1).max(60).nullable().optional(),
-  dropped_at: z.string().nullable().optional()
+  dropped_at: z.string().nullable().optional(),
+  final: z.boolean().nullable().optional()
 });
 
 

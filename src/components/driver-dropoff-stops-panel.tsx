@@ -62,7 +62,9 @@ export function DriverDropoffStopsPanel({
               <div className="flex items-start justify-between gap-2">
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-[#111]">
-                    {i + 1}. {s.passenger_name || "Parada"}
+                    {s.final ? "🏁 " : `${i + 1}. `}
+                    {s.passenger_name || (s.final ? "Destino final" : "Parada")}
+                    {s.final && s.passenger_name ? <span className="ml-1 text-xs font-normal text-[#6B6F76]">(destino final)</span> : null}
                     {s.dropped_at ? <span className="ml-2 text-xs font-semibold text-emerald-700">✓ desceu</span> : null}
                   </span>
                   <span className="block text-xs text-[#6B6F76]">{s.address_text}</span>

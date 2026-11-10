@@ -9,7 +9,7 @@ import { AddressAutocompleteInput } from "@/components/address-autocomplete-inpu
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { TeamPassengerPicker } from "@/components/team-passenger-picker";
 import { BookingPaymentFields, bookingPaymentBody, emptyBookingPayment } from "@/components/booking-payment-form";
-import { DropoffStopsEditor, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
+import { DropoffStopsEditor, FinalStopPersonFields, emptyFinalPerson, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
 import { teamMissingAddress, teamTripShape, type TeamDirection, type TeamMember } from "@/lib/trips/team-trip";
 import { TypedDateTime } from "@/components/typed-date-time";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
@@ -92,6 +92,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [otherPax, setOtherPax] = useState<string[]>([]);
   const [manualStops, setManualStops] = useState<EditableStop[]>([]);
+  const [finalPerson, setFinalPerson] = useState(emptyFinalPerson());
   const [teamDir, setTeamDir] = useState<TeamDirection>("buscar");
   const teamShape = useMemo(() => teamTripShape(team, teamDir), [team, teamDir]);
 
@@ -364,7 +365,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       ...(teamShape?.dropoffStops
         ? { trip_dropoff_stops: teamShape.dropoffStops }
         : stopsForApi(manualStops).length
-          ? { trip_dropoff_stops: stopsForApi(manualStops) }
+          ? { trip_dropoff_stops: stopsForApi(manualStops, { person: finalPerson, dest }) }
           : {}),
       flight_number: normalizeFlightNumber(flight) ?? undefined,
       notes: notesFull || undefined,
@@ -931,6 +932,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 onCoordsClear={() => setDest((o) => ({ ...o, lat: null, lng: null }))}
                 devFallbackRole="admin"
               />
+              {manualStops.length && !team.length ? <FinalStopPersonFields value={finalPerson} onChange={setFinalPerson} /> : null}
             </div>
             <PassengerAutocompleteInput
               clientId={client.id}

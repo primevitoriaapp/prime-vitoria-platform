@@ -1,6 +1,6 @@
 "use client";
 
-import { DropoffStopsEditor, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
+import { DropoffStopsEditor, FinalStopPersonFields, emptyFinalPerson, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
@@ -176,6 +176,7 @@ export function ClientRequestConsole({
   const [teamDir, setTeamDir] = useState<TeamDirection>("buscar");
   const teamShape = useMemo(() => teamTripShape(team, teamDir), [team, teamDir]);
   const [stops, setStops] = useState<EditableStop[]>([]);
+  const [finalPerson, setFinalPerson] = useState(emptyFinalPerson());
 
   // Funcionário escolhido: endereço, nome, telefone e quantidade entram sozinhos.
   useEffect(() => {
@@ -425,7 +426,7 @@ export function ClientRequestConsole({
           ...(teamShape?.dropoffStops
             ? { trip_dropoff_stops: teamShape.dropoffStops }
             : stopsForApi(stops).length
-              ? { trip_dropoff_stops: stopsForApi(stops) }
+              ? { trip_dropoff_stops: stopsForApi(stops, { person: finalPerson, dest: { text: destination, lat: destinationLat, lng: destinationLng } }) }
               : {}),
           notes:
             [
@@ -812,6 +813,7 @@ export function ClientRequestConsole({
           }}
           devFallbackRole={devFallbackRole}
         />
+        {stops.length && !teamShape?.dropoffStops ? <FinalStopPersonFields value={finalPerson} onChange={setFinalPerson} /> : null}
         <label className={LABEL}>
           Número do voo <span className="font-normal text-prime-muted">(se for buscar no aeroporto)</span>
           <input
