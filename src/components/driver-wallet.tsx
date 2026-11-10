@@ -90,6 +90,11 @@ export function DriverWallet() {
   const next = groups[0];
   const heroAmount = s.liberado > 0 ? s.liberado : next?.total ?? 0;
   const heroSub = s.liberado > 0 ? "Liberado: o cliente já pagou" : next?.day ? `Previsto para ${payday(next.day)}` : "Nada a receber agora";
+  const nowMonth = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7);
+  const monthOf = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7) : "");
+  const pagosMes = pagos.filter((i) => monthOf(i.paid_at) === nowMonth);
+  const recebidoMes = pagosMes.reduce((n, i) => n + i.amount, 0);
+  const temAReceber = heroAmount > 0;
   const pixTail = w.pix_key ? String(w.pix_key).replace(/\s/g, "").slice(-4) : null;
   const lastPaid = pagos[0];
 
@@ -102,14 +107,23 @@ export function DriverWallet() {
         </svg>
         <div className="pl-5">
           <p className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>
-            Próximo recebimento
+            {temAReceber ? "Próximo recebimento" : "Já recebido este mês"}
           </p>
           <p className="mt-1 text-4xl font-bold tabular-nums" style={{ color: "#fff" }}>
-            {brl(heroAmount)}
+            {brl(temAReceber ? heroAmount : recebidoMes)}
           </p>
           <p className="mt-1 text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
-            {heroSub}
+            {temAReceber
+              ? heroSub
+              : recebidoMes > 0
+                ? `✓ Já está na sua conta · último em ${d(lastPaid?.paid_at ?? null)}`
+                : "Nada a receber agora"}
           </p>
+          {temAReceber && recebidoMes > 0 ? (
+            <p className="mt-1 text-xs" style={{ color: "#9FE0B5" }}>
+              ✓ {brl(recebidoMes)} já recebido este mês
+            </p>
+          ) : null}
           <p className="mt-2 text-sm font-semibold" style={{ color: pixTail ? "#E9D7A4" : "#FFD08A" }}>
             {pixTail ? `PIX final ${pixTail}` : "Cadastre seu PIX em Perfil"}
           </p>
@@ -118,8 +132,11 @@ export function DriverWallet() {
 
       <div className="grid grid-cols-2 gap-3">
         <div className={`${card} !p-4`}>
-          <p className="text-sm text-[#6B6F76]">Aguardando cliente</p>
-          <p className="mt-1 text-xl font-bold tabular-nums">{brl(s.aguardando_cliente)}</p>
+          <p className="text-sm text-[#6B6F76]">Já recebido no mês</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-emerald-700">{brl(recebidoMes)}</p>
+          <p className="text-xs text-[#6B6F76]">
+            {s.aguardando_cliente > 0 ? `${brl(s.aguardando_cliente)} aguardando cliente` : `${pagosMes.length} repasse(s) pago(s)`}
+          </p>
         </div>
         <div className={`${card} !p-4`}>
           <p className="text-sm text-[#6B6F76]">Ganhos no mês</p>
