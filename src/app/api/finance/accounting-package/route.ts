@@ -145,7 +145,7 @@ export async function GET(request: Request) {
     // ---------- Despesas: contas a pagar ----------
     const { data: pays } = await db
       .from("company_payables")
-      .select("id, description, category, supplier, amount, due_date, status, paid_at, paid_amount, issuer, notes")
+      .select("id, description, category, supplier, amount, due_date, status, paid_at, paid_amount, issuer, notes, payment_method")
       .eq("tenant_id", tenantId)
       .neq("status", "cancelada")
       .or(`and(due_date.gte.${first},due_date.lte.${last}),and(paid_at.gte.${first},paid_at.lte.${last}T23:59:59)`)
@@ -169,6 +169,7 @@ export async function GET(request: Request) {
         p.status,
         brDate(p.paid_at as string | null),
         money(p.paid_amount),
+        String(p.payment_method ?? ""),
         fs.map((f) => FINANCE_FILE_KINDS[f.kind as keyof typeof FINANCE_FILE_KINDS] ?? f.kind).join(", ") || "SEM ANEXO"
       ]);
       const base = `02_Despesas/${String(p.due_date)}_${safe(String(p.description))}`;
@@ -180,7 +181,7 @@ export async function GET(request: Request) {
     }
     csvs.push({
       path: "02_Despesas/contas_a_pagar.csv",
-      content: csv(["Vencimento", "Descrição", "Categoria", "Fornecedor", "Empresa", "Valor", "Situação", "Pago em", "Valor pago", "Anexos"], expRows)
+      content: csv(["Vencimento", "Descrição", "Categoria", "Fornecedor", "Empresa", "Valor", "Situação", "Pago em", "Valor pago", "Forma", "Anexos"], expRows)
     });
 
     // ---------- Repasses a motoristas parceiros ----------

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FinanceFilesChips } from "@/components/finance-files-chips";
+import { uploadFinanceFile } from "@/lib/finance/upload-finance-file";
 import type { FinanceFile } from "@/lib/finance/finance-files";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { BoletoReader } from "@/components/boleto-reader";
@@ -148,12 +149,60 @@ export function CompanyPayablesPanel() {
     void load();
   }
 
+  const [payRow, setPayRow] = useState<Row | null>(null);
+  const [pay, setPay] = useState({ amount: "", date: "", method: "pix", account: "", file: null as File | null });
+  const [accounts, setAccounts] = useState<{ id: string; label: string | null; bank: string | null }[]>([]);
+  useEffect(() => {
+    void fetchWithSupabaseSession("/api/finance/bank-accounts", {}, "admin")
+      .then((r) => r.json())
+      .then((j) => j?.success && setAccounts(((j.data ?? []) as { id: string; label: string | null; bank: string | null; active?: boolean }[]).filter((a) => a.active !== false)))
+      .catch(() => undefined);
+  }, []);
+
+  function openPay(r: Row) {
+    setPayRow(r);
+    setPay({ amount: String(r.amount).replace(".", ","), date: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()), method: "pix", account: accounts[0]?.id ?? "", file: null });
+  }
+
+  /** Dar baixa com comprovante: tudo numa tela, para o pacote do contador sair completo. */
+  async function confirmPay() {
+    if (!payRow) return;
+    if (!pay.file && !window.confirm("Sem comprovante? O pacote do contador vai sair sem ele. Pode anexar depois pelo botão “Anexar”. Continuar?")) return;
+    setBusy(true);
+    const res = await fetchWithSupabaseSession(
+      `/api/finance/company-payables/${payRow.id}`,
+      { method: "PATCH", body: JSON.stringify({ action: "pagar", paid_amount: pay.amount, paid_at: pay.date, payment_method: pay.method, bank_account_id: pay.account || null }) },
+      "admin"
+    );
+    const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { next?: { due_date: string } | null }; error?: { message?: string } };
+    if (!res.ok || !json.success) {
+      setBusy(false);
+      setMsg({ ok: false, text: json.error?.message ?? "Falhou." });
+      return;
+    }
+    let proofErr: string | null = null;
+    if (pay.file) {
+      try {
+        await uploadFinanceFile("company_payable", payRow.id, "comprovante", pay.file);
+      } catch (e) {
+        proofErr = e instanceof Error ? e.message : "erro";
+      }
+    }
+    setBusy(false);
+    setPayRow(null);
+    setMsg(
+      proofErr
+        ? { ok: false, text: `Conta paga, mas o comprovante não subiu (${proofErr}). Use “Anexar” na linha.` }
+        : { ok: true, text: `Conta paga${pay.file ? " com comprovante" : ""}.${json.data?.next ? ` A do mês que vem (${brDate(json.data.next.due_date)}) já foi lançada.` : ""}` }
+    );
+    void load();
+  }
+
   async function act(r: Row, action: "pagar" | "reabrir" | "cancelar") {
-    let body: Record<string, unknown> = { action };
+    const body: Record<string, unknown> = { action };
     if (action === "pagar") {
-      const v = window.prompt(`Valor pago de "${r.description}":`, String(r.amount).replace(".", ","));
-      if (v === null) return;
-      body = { action, paid_amount: v };
+      openPay(r);
+      return;
     }
     if (action === "cancelar" && !window.confirm(`Cancelar "${r.description}"?`)) return;
     setBusy(true);
@@ -182,6 +231,63 @@ export function CompanyPayablesPanel() {
 
   return (
     <section className="space-y-4">
+      {payRow ? (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-3 sm:items-center" role="dialog" aria-modal="true">
+          <div className="grid w-full max-w-md gap-3 rounded-2xl bg-white p-5 shadow-2xl" onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT" && e.preventDefault()}>
+            <p className="text-base font-semibold">Dar baixa: {payRow.description}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="grid gap-1 text-sm">
+                Valor pago
+                <input className="prime-input" inputMode="decimal" value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                Data do pagamento
+                <input type="date" className="prime-input" value={pay.date} onChange={(e) => setPay({ ...pay, date: e.target.value })} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                Forma
+                <select className="prime-input" value={pay.method} onChange={(e) => setPay({ ...pay, method: e.target.value })}>
+                  {[
+                    ["pix", "PIX"],
+                    ["boleto", "Boleto"],
+                    ["cartao", "Cartão"],
+                    ["transferencia", "Transferência"],
+                    ["debito_automatico", "Débito automático"],
+                    ["dinheiro", "Dinheiro"]
+                  ].map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm">
+                Saiu da conta
+                <select className="prime-input" value={pay.account} onChange={(e) => setPay({ ...pay, account: e.target.value })}>
+                  <option value="">—</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.label || a.bank}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label className={`grid cursor-pointer gap-1 rounded-xl border-2 border-dashed p-3 text-center text-sm font-semibold ${pay.file ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-amber-400 bg-amber-50 text-amber-900"}`}>
+              {pay.file ? `✓ ${pay.file.name}` : "⬆ Anexar comprovante (PDF ou foto)"}
+              <input type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => setPay({ ...pay, file: e.target.files?.[0] ?? null })} />
+            </label>
+            <div className="flex gap-2">
+              <button type="button" disabled={busy} onClick={() => void confirmPay()} className="flex-1 rounded-xl bg-[#111] py-2.5 text-sm font-bold text-prime-gold disabled:opacity-50">
+                {busy ? "Salvando…" : "Confirmar pagamento"}
+              </button>
+              <button type="button" onClick={() => setPayRow(null)} className="rounded-xl border border-prime-border px-4 text-sm">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {company !== "todas" ? (
         <p className="rounded-xl bg-[#111] px-4 py-2 text-sm text-[#fff]">
           Mostrando só <b className="text-prime-gold">{companyLabel(company)}</b>. Para ver o grupo inteiro, escolha “Todas as empresas” no topo.

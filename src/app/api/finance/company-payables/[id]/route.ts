@@ -13,7 +13,9 @@ const patchSchema = payableSchema
   .extend({
     action: z.enum(["pagar", "reabrir", "cancelar"]).optional(),
     paid_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    paid_amount: z.union([z.number(), z.string()]).optional()
+    paid_amount: z.union([z.number(), z.string()]).optional(),
+    payment_method: z.string().max(40).optional().nullable(),
+    bank_account_id: z.string().uuid().optional().nullable()
   });
 
 /** Editar, dar baixa (pagar), reabrir ou cancelar. Conta mensal paga gera a do mês seguinte. */
@@ -27,13 +29,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { data: row } = await db.from("company_payables").select("*").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
     if (!row) return fail("NOT_FOUND", "Conta não encontrada", 404);
 
-    const { action, paid_at, paid_amount, ...fields } = body;
+    const { action, paid_at, paid_amount, payment_method, bank_account_id, ...fields } = body;
     const update: Record<string, unknown> = { ...fields, updated_at: new Date().toISOString() };
     let created: unknown = null;
 
     if (action === "pagar") {
       const amt = paid_amount == null ? Number(row.amount) : Number(String(paid_amount).replace(/\./g, "").replace(",", "."));
       update.status = "paga";
+      if (payment_method !== undefined) update.payment_method = payment_method;
+      if (bank_account_id !== undefined) update.bank_account_id = bank_account_id;
       update.paid_at = paid_at ?? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
       update.paid_amount = Number.isFinite(amt) ? Math.round(amt * 100) / 100 : Number(row.amount);
       if (row.recurrence === "mensal" && row.status !== "paga") {
