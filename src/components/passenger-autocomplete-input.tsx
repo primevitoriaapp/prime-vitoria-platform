@@ -24,6 +24,8 @@ type Props = {
   className?: string;
   disabled?: boolean;
   devFallbackRole?: "admin" | "operador" | "cliente";
+  /** Quem já foi escolhido não aparece de novo na lista. */
+  excludeIds?: string[];
 };
 
 export function PassengerAutocompleteInput({
@@ -35,7 +37,8 @@ export function PassengerAutocompleteInput({
   required,
   className = "",
   disabled,
-  devFallbackRole = "admin"
+  devFallbackRole = "admin",
+  excludeIds
 }: Props) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -96,6 +99,8 @@ export function PassengerAutocompleteInput({
     };
   }, [clientId, value, fetchOptions]);
 
+  const shown = excludeIds?.length ? options.filter((o) => !excludeIds.includes(o.id)) : options;
+
   function pick(p: ClientPassengerOption) {
     onChange(p.name);
     onSelect?.(p);
@@ -126,13 +131,13 @@ export function PassengerAutocompleteInput({
             setOpen(true);
           }}
         />
-        {open && options.length > 0 ? (
+        {open && shown.length > 0 ? (
           <ul
             id={listId}
             role="listbox"
             className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-prime-border bg-white py-1 shadow-lg"
           >
-            {options.map((p) => (
+            {shown.map((p) => (
               <li key={p.id} role="option">
                 <button
                   type="button"
@@ -150,7 +155,7 @@ export function PassengerAutocompleteInput({
             ))}
           </ul>
         ) : null}
-        {open && !loading && !adding && clientId && value.trim().length >= 2 && options.length === 0 ? (
+        {open && !loading && !adding && clientId && value.trim().length >= 2 && shown.length === 0 ? (
           <div className="absolute z-20 mt-1 w-full rounded-lg border border-prime-border bg-white p-3 text-sm shadow-lg">
             <p className="text-prime-muted">Nenhum funcionário com esse nome nesta empresa.</p>
             <button

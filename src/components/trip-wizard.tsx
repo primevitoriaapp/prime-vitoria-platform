@@ -360,7 +360,12 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
         [paxName.trim(), ...(team.length ? [] : otherPax.slice(0, Math.max(0, passengers - 1)).map((x) => x.trim()))].filter(Boolean).join(", ") ||
         undefined,
       passenger_phone: paxPhone.trim() || undefined,
-      passenger_count: passengers,
+      passenger_count: team.length
+        ? Math.max(passengers, team.length +
+              stopsForApi(manualStops, { person: finalPerson, dest })
+                .filter((x) => x.passenger_name && !team.some((m) => m.name.trim().toLowerCase().startsWith(x.passenger_name.trim().toLowerCase().split(/\s+/)[0])))
+                .reduce((n, x) => n + (x.people ?? 1), 0))
+        : passengers,
       ...(teamShape?.pickupStops ? { trip_pickup_stops: teamShape.pickupStops } : {}),
       ...(teamShape?.dropoffStops
         ? { trip_dropoff_stops: teamShape.dropoffStops }
@@ -904,8 +909,9 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 onCoordsClear={() => setOrigin((o) => ({ ...o, lat: null, lng: null }))}
                 devFallbackRole="admin"
               />
-              {!team.length ? (
+              {!teamShape?.dropoffStops ? (
                 <div className="grid gap-2 border-l-2 border-dashed border-prime-gold pl-3">
+                  {team.length ? <p className="text-xs text-prime-muted">Paradas depois do embarque (pessoa não cadastrada ou outro endereço):</p> : null}
                   <DropoffStopsEditor stops={manualStops} onChange={setManualStops} />
                 </div>
               ) : null}
@@ -932,7 +938,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 onCoordsClear={() => setDest((o) => ({ ...o, lat: null, lng: null }))}
                 devFallbackRole="admin"
               />
-              {manualStops.length && !team.length ? <FinalStopPersonFields value={finalPerson} onChange={setFinalPerson} /> : null}
+              {manualStops.length && !teamShape?.dropoffStops ? <FinalStopPersonFields value={finalPerson} onChange={setFinalPerson} /> : null}
             </div>
             <PassengerAutocompleteInput
               clientId={client.id}

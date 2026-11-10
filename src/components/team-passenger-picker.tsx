@@ -59,7 +59,7 @@ export function TeamPassengerPicker({
 
       <PassengerAutocompleteInput
         clientId={clientId}
-        label={team.length ? "Adicionar outro passageiro" : "Digite o nome do funcionário"}
+        label={team.length ? "Adicionar outro funcionário (digite o nome — se não tiver cadastro, aparece a opção de cadastrar)" : "Digite o nome do funcionário"}
         value={query}
         onChange={setQuery}
         onSelect={(p) => {
@@ -68,6 +68,7 @@ export function TeamPassengerPicker({
           onTeamChange([...team, { id: p.id, name: p.name, phone: p.phone, address: p.address?.trim() ?? "" }]);
         }}
         devFallbackRole={devFallbackRole}
+        excludeIds={team.map((m) => m.id)}
       />
 
       {team.length ? (
@@ -124,8 +125,8 @@ export function TeamPassengerPicker({
           ? "Escolha quem vai e o endereço de cada um entra sozinho. Passageiro que não é funcionário: use os campos abaixo."
           : direction === "buscar"
             ? team.length > 1
-              ? `O motorista busca na ordem 1 → ${team.length} e leva todos ao destino.`
-              : "O embarque fica no endereço do funcionário. Informe só o destino."
+              ? `O motorista busca na ordem 1 → ${team.length}. Paradas para deixar pessoas: “＋ Adicionar parada” abaixo.`
+              : "O embarque fica no endereço do funcionário. Para deixar alguém no caminho, use “＋ Adicionar parada” logo abaixo."
             : team.length > 1
               ? `Saída do local de origem; o motorista deixa cada um em casa na ordem 1 → ${team.length}.`
               : "O destino fica no endereço do funcionário. Informe só o local de saída."}
