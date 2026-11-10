@@ -15,14 +15,20 @@ export const driverCadastroSchema = z.object({
   cnh_categories: z.array(z.string()).optional(),
   cnh_expiry: z.string().optional().nullable(),
   birth_date: z.string().optional().nullable(),
+  rg: z.string().max(30).optional().nullable(),
+  marital_status: z.string().max(30).optional().nullable(),
   phone: z.string().optional().nullable(),
   whatsapp: z.string().optional().nullable(),
-  email: z.union([z.string().email(), z.literal(""), z.null()]).optional(),
+  email: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().toLowerCase() : v),
+    z.union([z.string().email("E-mail inválido"), z.literal(""), z.null()])
+  ).optional(),
   postal_code: z.string().optional().nullable(),
   address_number: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
   district: z.string().optional().nullable(),
-  state: z.string().max(2).optional().nullable(),
+  // Aceita "ES" ou "Espírito Santo" (vira a sigla em normalizeDriverBody).
+  state: z.string().max(40).optional().nullable(),
   address: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   active: z.boolean().optional(),
@@ -51,6 +57,23 @@ export const driverCadastroSchema = z.object({
 
 export type DriverCadastroInput = z.infer<typeof driverCadastroSchema>;
 
+const UF: Record<string, string> = {
+  acre: "AC", alagoas: "AL", amapa: "AP", amazonas: "AM", bahia: "BA", ceara: "CE", "distrito federal": "DF",
+  "espirito santo": "ES", goias: "GO", maranhao: "MA", "mato grosso": "MT", "mato grosso do sul": "MS",
+  "minas gerais": "MG", para: "PA", paraiba: "PB", parana: "PR", pernambuco: "PE", piaui: "PI",
+  "rio de janeiro": "RJ", "rio grande do norte": "RN", "rio grande do sul": "RS", rondonia: "RO",
+  roraima: "RR", "santa catarina": "SC", "sao paulo": "SP", sergipe: "SE", tocantins: "TO"
+};
+
+/** "es", "ES", "Espírito Santo" → "ES". */
+export function toUf(v: string | null | undefined): string | null {
+  const t = String(v ?? "").trim();
+  if (!t) return null;
+  if (t.length === 2) return t.toUpperCase();
+  const k = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return UF[k] ?? t.slice(0, 2).toUpperCase();
+}
+
 const emptyToNull = (v: string | null | undefined) => {
   const t = v?.trim();
   return t ? t : null;
@@ -67,6 +90,8 @@ export function normalizeDriverBody(body: DriverCadastroInput) {
   if (body.birth_date !== undefined) {
     out.birth_date = normalizeDateFieldForStorage(body.birth_date ?? undefined);
   }
+  if (body.rg !== undefined) out.rg = emptyToNull(body.rg ?? undefined);
+  if (body.marital_status !== undefined) out.marital_status = emptyToNull(body.marital_status ?? undefined);
   if (body.phone !== undefined) out.phone = emptyToNull(body.phone ?? undefined);
   if (body.whatsapp !== undefined) out.whatsapp = emptyToNull(body.whatsapp ?? undefined);
   if (body.email !== undefined) out.email = emptyToNull(body.email ?? undefined);
@@ -74,7 +99,7 @@ export function normalizeDriverBody(body: DriverCadastroInput) {
   if (body.address_number !== undefined) out.address_number = emptyToNull(body.address_number ?? undefined);
   if (body.city !== undefined) out.city = emptyToNull(body.city ?? undefined);
   if (body.district !== undefined) out.district = emptyToNull(body.district ?? undefined);
-  if (body.state !== undefined) out.state = emptyToNull(body.state ?? undefined)?.toUpperCase() ?? null;
+  if (body.state !== undefined) out.state = toUf(body.state);
   if (body.address !== undefined) out.address = emptyToNull(body.address ?? undefined);
   if (body.notes !== undefined) out.notes = emptyToNull(body.notes ?? undefined);
   if (body.pix_key !== undefined) out.pix_key = emptyToNull(body.pix_key ?? undefined);

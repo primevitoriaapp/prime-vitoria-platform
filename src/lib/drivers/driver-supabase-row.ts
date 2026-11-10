@@ -44,7 +44,12 @@ export const DRIVERS_TABLE_COLUMNS = new Set([
   "employment_type",
   "vehicle_category_ids",
   "pin_hash",
-  "pin_set_at"
+  "pin_set_at",
+  "district",
+  "partner_id",
+  "paid_upfront",
+  "rg",
+  "marital_status"
 ]);
 
 /** Campo do normalizeDriverBody / formulário → coluna Postgres. */
@@ -52,8 +57,7 @@ const FORM_TO_DB_COLUMN: Record<string, string> = {
   cnh_expiry: "cnh_expires_at",
   address_number: "number",
   bank_branch: "bank_agency",
-  service_regions: "regions",
-  district: "complement"
+  service_regions: "regions"
 };
 
 /** Nunca persistir (perfil separado, GPS, legado ou coluna inexistente). */
@@ -125,8 +129,9 @@ export function driverRowToApiShape<T extends Record<string, unknown>>(row: T): 
       (typeof bank_agency === "string" ? bank_agency : null) ??
       null,
     service_regions: row.service_regions ?? regions ?? null,
+    // Bairro: coluna própria; registros antigos guardavam o bairro em "complement".
     district:
-      (typeof row.district === "string" ? row.district : null) ??
+      (typeof row.district === "string" && row.district ? row.district : null) ??
       (typeof complement === "string" ? complement : null) ??
       null
   };

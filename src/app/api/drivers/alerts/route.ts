@@ -54,10 +54,15 @@ export async function GET() {
       // Seguro é opcional (nem todo parceiro tem): não conta como pendência.
       if (missing.length) incomplete.push({ driver_id: d.id as string, name, missing });
     }
+    const { data: withContract } = ids.length
+      ? await db.from("contracts").select("driver_id").in("driver_id", ids).neq("status", "cancelado")
+      : { data: [] };
+    const has = new Set((withContract ?? []).map((c) => c.driver_id as string));
+    const without_contract = (drivers ?? []).filter((d) => !has.has(d.id as string)).map((d) => ({ driver_id: d.id as string, name: String(d.full_name ?? "Motorista") }));
     const order = { hoje: 0, ontem: 1 } as Record<string, number>;
     birthdays.sort((x, y) => (order[x.when] ?? 2) - (order[y.when] ?? 2) || x.when.localeCompare(y.when));
     documents.sort((x, y) => Math.min(...x.alerts.map((a) => a.days)) - Math.min(...y.alerts.map((a) => a.days)));
-    return ok({ birthdays, documents, incomplete, total: (drivers ?? []).length });
+    return ok({ birthdays, documents, incomplete, without_contract, total: (drivers ?? []).length });
   } catch (e) {
     return mapApiError(e);
   }

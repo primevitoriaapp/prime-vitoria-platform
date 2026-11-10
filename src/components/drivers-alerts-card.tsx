@@ -7,6 +7,7 @@ type Data = {
   birthdays: { driver_id: string; name: string; phone: string | null; when: string; age: number }[];
   documents: { driver_id: string; name: string; phone: string | null; alerts: { level: string; text: string }[] }[];
   incomplete: { driver_id: string; name: string; missing: string[] }[];
+  without_contract?: { driver_id: string; name: string }[];
   total: number;
 };
 
@@ -18,13 +19,14 @@ const first = (n: string) => n.split(" ")[0];
 export function DriversAlertsCard() {
   const [d, setD] = useState<Data | null>(null);
   const [showIncomplete, setShowIncomplete] = useState(false);
+  const [showContracts, setShowContracts] = useState(false);
   useEffect(() => {
     void fetchWithSupabaseSession("/api/drivers/alerts", {}, "admin")
       .then((r) => r.json())
       .then((j) => j?.success && setD(j.data as Data))
       .catch(() => undefined);
   }, []);
-  if (!d || (!d.birthdays.length && !d.documents.length && !d.incomplete.length)) return null;
+  if (!d || (!d.birthdays.length && !d.documents.length && !d.incomplete.length && !d.without_contract?.length)) return null;
   return (
     <section className="grid gap-3 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">Motoristas</p>
@@ -57,6 +59,25 @@ export function DriversAlertsCard() {
           ))}
         </div>
       ))}
+      {d.without_contract?.length ? (
+        <div className="text-sm">
+          <button type="button" className="text-left font-semibold text-[#5A4A1A]" onClick={() => setShowContracts((v) => !v)}>
+            ✍️ {d.without_contract.length} motorista(s) sem contrato {showContracts ? "▲" : "▼"}
+          </button>
+          {showContracts ? (
+            <ul className="mt-1 grid gap-1">
+              {d.without_contract.map((x) => (
+                <li key={x.driver_id} className="flex items-center justify-between gap-2 rounded-lg bg-prime-bg px-3 py-1.5 text-xs">
+                  <span>{x.name}</span>
+                  <a href={`/drivers?ficha=${x.driver_id}&contrato=1`} className="font-semibold text-prime-gold-ink">
+                    Gerar contrato →
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
       {d.incomplete.length ? (
         <div className="text-sm">
           <button type="button" className="text-left text-amber-800" onClick={() => setShowIncomplete((v) => !v)}>

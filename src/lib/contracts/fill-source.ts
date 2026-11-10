@@ -18,7 +18,7 @@ export async function fillSourceFor(tenantId: string, party: { driverId?: string
     const { data: d } = await db.from("drivers").select("*").eq("id", party.driverId).eq("tenant_id", tenantId).maybeSingle();
     if (!d) return { DATA: today };
     const { data: link } = await db.from("driver_vehicle_links").select("vehicle_id, is_default").eq("driver_id", party.driverId).eq("active", true).is("end_at", null).order("is_default", { ascending: false }).limit(1).maybeSingle();
-    const { data: v } = link ? await db.from("vehicles").select("brand, model, plate, model_year, color").eq("id", link.vehicle_id).maybeSingle() : { data: null };
+    const { data: v } = link ? await db.from("vehicles").select("brand, model, plate, model_year, color, renavam, chassis").eq("id", link.vehicle_id).maybeSingle() : { data: null };
     const { data: p } = d.partner_id ? await db.from("partners").select("document, type").eq("id", d.partner_id).maybeSingle() : { data: null };
     const street = [d.address_line, d.number, d.complement].filter(Boolean).join(", ");
     const endereco = [street || d.address, d.district, d.city && d.state ? `${d.city}/${d.state}` : d.city, d.postal_code ? `CEP ${d.postal_code}` : null].filter(Boolean).join(" - ");
@@ -26,6 +26,8 @@ export async function fillSourceFor(tenantId: string, party: { driverId?: string
     return {
       NOME: d.full_name,
       CPF: cpfFmt(d.cpf),
+      RG: d.rg,
+      ESTADO_CIVIL: d.marital_status,
       CNPJ: pdoc.length === 14 ? cnpjFmt(pdoc) : "",
       ENDERECO: endereco,
       CEP: d.postal_code,
@@ -41,6 +43,8 @@ export async function fillSourceFor(tenantId: string, party: { driverId?: string
       PLACA: v?.plate ?? "",
       ANO: v?.model_year ? String(v.model_year) : "",
       COR: v?.color ?? "",
+      RENAVAM: v?.renavam ?? "",
+      CHASSI: v?.chassis ?? "",
       DATA: today
     };
   }

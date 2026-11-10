@@ -7,6 +7,7 @@ import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { BackButton } from "@/components/back-button";
+import { BRIDAL_INCLUDED, BRIDAL_PACKAGES, bridalDescription } from "@/lib/quotes/bridal-packages";
 import { QUOTE_STATUS, effectiveQuoteStatus, formatQuoteNumber, isDiaria, itemHours, itemsMissingForTrips, priceKeyFor, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
 import { COMPANY_SCOPES, inCompany, useCompany } from "@/lib/company/company-context";
 import { formatBrDateTime, saoPauloDateAndTimeToUtcIso } from "@/lib/dates/br-date";
@@ -686,6 +687,35 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           <button type="button" className="w-full rounded-2xl border-2 border-dashed border-prime-border p-3 text-sm font-semibold text-prime-gold hover:border-prime-gold" onClick={() => setItems((l) => [...l, { ...EMPTY_ITEM(), date: l[l.length - 1]?.date ?? "" }])}>
             + Adicionar serviço
           </button>
+        ) : null}
+        {!locked ? (
+          <div className="grid gap-2 rounded-2xl border border-[#EADFC4] bg-[#FBF7EC] p-4">
+            <p className="text-sm font-semibold">👰 Veículos para noiva — R J Prime Transporte</p>
+            <p className="text-xs text-prime-muted">Toque no pacote para colocar no orçamento (a empresa emissora vira R J Prime). O valor fica em branco para você preencher; escolha o veículo e a data no serviço.</p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {BRIDAL_PACKAGES.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setIssuer("rj_prime");
+                    setItems((l) => {
+                      const novo: Item = { ...EMPTY_ITEM(), service_mode: "outro", description: bridalDescription(p), date: l[l.length - 1]?.date ?? "" };
+                      const onlyEmpty = l.length === 1 && !l[0].vehicle_category_id && !l[0].unit_price && !l[0].origin.text;
+                      return onlyEmpty ? [novo] : [...l, novo];
+                    });
+                  }}
+                  className="rounded-xl border border-[#E3D3A8] bg-white p-3 text-left hover:border-prime-gold"
+                >
+                  <span className="block text-sm font-bold">{p.name}</span>
+                  <span className="block text-xs text-prime-muted">
+                    {p.duration} · {p.destinations}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-prime-muted">Incluso em todos: {BRIDAL_INCLUDED}</p>
+          </div>
         ) : null}
       </section>
 

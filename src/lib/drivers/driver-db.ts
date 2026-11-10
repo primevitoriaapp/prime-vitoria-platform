@@ -1,6 +1,7 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { db } from "@/lib/server/db";
 import { isMissingColumnError } from "@/lib/server/supabase-errors";
+import { canonicalDriverPatchRow } from "@/lib/drivers/driver-supabase-row";
 
 /** Campos base (0001) + photo_url (0045). profile_id opcional (0048). */
 const CORE_DRIVER_KEYS = [
@@ -150,48 +151,20 @@ export async function updateDriverRow(
   }
 }
 
-function buildInsertCoreRow(fullRow: DriverRowInput, tenantId: string): DriverRowInput {
-  const coreRow = pickKeys(fullRow, CORE_DRIVER_KEYS);
-  coreRow.tenant_id = tenantId;
-  coreRow.active = fullRow.active ?? true;
-  if (coreRow.profile_id == null || coreRow.profile_id === "") {
-    delete coreRow.profile_id;
-  }
-  return coreRow;
-}
-
 export async function insertDriverRow(
   row: DriverRowInput,
   tenantId: string
 ): Promise<{ data: Record<string, unknown> | null; error: PostgrestError | null; partialSave?: boolean; warning?: string }> {
-  const fullRow: DriverRowInput = { ...row, tenant_id: tenantId, active: row.active ?? true };
-  const coreRow = buildInsertCoreRow(fullRow, tenantId);
-  const optionalRow: DriverRowInput = {};
-  for (const keySet of OPTIONAL_BATCHES) {
-    Object.assign(optionalRow, pickKeys(fullRow, keySet));
-  }
-
-  const inserted = await db.from("drivers").insert(coreRow).select("*").single();
-  if (inserted.error || !inserted.data) {
-    return { data: null, error: inserted.error };
-  }
-
-  const id = String((inserted.data as Record<string, unknown>).id);
-
-  try {
-    const extra = await applyOptionalFields(id, tenantId, optionalRow);
-    const { data: refreshed } = await db.from("drivers").select("*").eq("id", id).single();
-    return {
-      data: (refreshed ?? inserted.data) as Record<string, unknown>,
-      error: null,
-      partialSave: extra.partialSave,
-      warning: extra.warning
-    };
-  } catch (err) {
-    return {
-      data: inserted.data as Record<string, unknown>,
-      error: err as PostgrestError,
-      partialSave: true
-    };
-  }
+  // Tudo de uma vez, só com colunas que existem (antes, um campo inexistente no lote
+  // fazia o lote inteiro ser descartado: telefone, e-mail, CEP, nascimento… ficavam vazios).
+  const insertRow = canonicalDriverPatchRow({ ...row });
+  insertRow.tenant_id = tenantId;
+  insertRow.active = row.active ?? true;
+  if (row.cpf !== undefined) insertRow.cpf = row.cpf;
+  if (row.full_name !== undefined) insertRow.full_name = row.full_name;
+  if (row.profile_id) insertRow.profile_id = row.profile_id;
+  else delete insertRow.profile_id;
+  const inserted = await db.from("drivers").insert(insertRow).select("*").single();
+  if (inserted.error || !inserted.data) return { data: null, error: inserted.error };
+  return { data: inserted.data as Record<string, unknown>, error: null, partialSave: false };
 }

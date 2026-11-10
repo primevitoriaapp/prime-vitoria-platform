@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
 type Signer = { name: string; email?: string | null; status?: string; sign_url?: string | null; role?: string };
@@ -18,10 +18,17 @@ const STATUS: Record<Contract["status"], { label: string; cls: string }> = {
 const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—");
 
 /** Contratos de um motorista ou de um cliente: enviar para a ZapSign, acompanhar a situação, baixar. Sem <form> (fica dentro de outros formulários). */
-export function ContractsSection(props: { driverId?: string; clientId?: string; party: { name: string; email?: string | null; phone?: string | null } }) {
+export function ContractsSection(props: {
+  driverId?: string;
+  clientId?: string;
+  party: { name: string; email?: string | null; phone?: string | null };
+  /** Parte do nome do modelo para abrir já escolhido (ex.: "MOTORISTA"). */
+  autoTemplate?: string;
+}) {
   const q = props.driverId ? `driver_id=${props.driverId}` : `client_id=${props.clientId}`;
   const [list, setList] = useState<Contract[]>([]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(props.autoTemplate));
+  const boxRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>("modelo");
   const [templates, setTemplates] = useState<{ token: string; name: string }[] | null>(null);
   const [templateId, setTemplateId] = useState("");
@@ -62,6 +69,18 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
       })
       .catch(() => setTemplates([]));
   }, [open, mode, templates]);
+
+  // Link "Gerar contrato": escolhe o modelo sozinho e rola até o quadro.
+  const autoDone = useRef(false);
+  useEffect(() => {
+    if (!props.autoTemplate || autoDone.current || !templates?.length) return;
+    const t = templates.find((x) => x.name.toUpperCase().includes(props.autoTemplate!.toUpperCase()));
+    if (!t) return;
+    autoDone.current = true;
+    void pickTemplate(t.token);
+    window.setTimeout(() => boxRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templates, props.autoTemplate]);
 
   async function pickTemplate(token: string) {
     setTemplateId(token);
@@ -168,7 +187,8 @@ export function ContractsSection(props: { driverId?: string; clientId?: string; 
   const input = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm";
   return (
     <div
-      className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:col-span-2"
+      ref={boxRef}
+      className="grid scroll-mt-6 gap-3 rounded-xl border border-slate-200 bg-white p-4 md:col-span-2"
       onKeyDown={(e) => {
         if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") e.preventDefault();
       }}

@@ -32,6 +32,8 @@ type LinkedVehicle = {
   is_default?: boolean;
   insurance_expires_at?: string | null;
   licensing_expires_at?: string | null;
+  renavam?: string | null;
+  chassis?: string | null;
 };
 
 export type DriverDetail = {
@@ -43,6 +45,8 @@ export type DriverDetail = {
   cnh_categories?: string[] | null;
   cnh_expiry?: string | null;
   birth_date?: string | null;
+  rg?: string | null;
+  marital_status?: string | null;
   photo_url?: string | null;
   profile_name?: string | null;
   phone?: string | null;
@@ -149,10 +153,20 @@ type Props = {
   driverId: string;
   onClose: () => void;
   onSaved: () => void;
+  /** Abre direto o "novo contrato" com o modelo de motorista (link "Gerar contrato"). */
+  autoContract?: boolean;
 };
 
-export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
+export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: Props) {
   const fichaRef = useRef<HTMLElement>(null);
+  async function saveVehicleField(vehicleId: string, field: "renavam" | "chassis", value: string) {
+    const res = await fetchWithSupabaseSession(
+      `/api/vehicles/${vehicleId}`,
+      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value.trim().toUpperCase() || null }) },
+      "admin"
+    ).catch(() => null);
+    setFeedback(res?.ok ? { kind: "success", message: field === "renavam" ? "Renavam salvo." : "Chassi salvo." } : { kind: "error", message: "Não foi possível salvar o dado do veículo." });
+  }
   async function saveVehicleDate(vehicleId: string, field: "insurance_expires_at" | "licensing_expires_at", value: string) {
     if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
     const res = await fetchWithSupabaseSession(
@@ -420,6 +434,8 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
       whatsapp: trim(detail.whatsapp),
       email: trim(detail.email),
       birth_date: normalizeDateFieldForStorage(detail.birth_date),
+      rg: trim(detail.rg),
+      marital_status: trim(detail.marital_status),
       cnh_number: trim(detail.cnh_number),
       cnh_category: cnhCats.length ? cnhCats.join(",") : null,
       cnh_categories: cnhCats,
@@ -685,6 +701,21 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
               value={detail.birth_date}
               onChange={(iso) => patchDetail("birth_date", iso)}
             />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span>RG (vai no contrato)</span>
+            <input className={inputClass} value={detail.rg ?? ""} onChange={(e) => patchDetail("rg", e.target.value)} />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span>Estado civil (vai no contrato)</span>
+            <select className={inputClass} value={detail.marital_status ?? ""} onChange={(e) => patchDetail("marital_status", e.target.value)}>
+              <option value="">—</option>
+              {["solteiro(a)", "casado(a)", "divorciado(a)", "viúvo(a)", "união estável"].map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
           </label>
         </fieldset>
 
@@ -1109,10 +1140,12 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
         >
           {busy ? "Salvando…" : "Salvar ficha"}
         </button>
+        {/* O resultado aparece também aqui, colado no botão (antes só lá em cima, fora da vista). */}
+        <FeedbackBanner feedback={feedback} />
       </form>
 
       <div className="mt-8">
-        <ContractsSection driverId={driverId} party={{ name: detail.profile_name?.trim() || "Motorista", email: detail.email ?? null, phone: detail.whatsapp ?? null }} />
+        <ContractsSection driverId={driverId} autoTemplate={autoContract ? "MOTORISTA" : undefined} party={{ name: detail.profile_name?.trim() || "Motorista", email: detail.email ?? null, phone: detail.whatsapp ?? null }} />
       </div>
 
       <div className="mt-8 border-t border-slate-200 pt-6">
@@ -1141,6 +1174,22 @@ export function DriverFichaPanel({ driverId, onClose, onSaved }: Props) {
                       defaultValue={v.insurance_expires_at ?? ""}
                       className="rounded border border-slate-300 px-1.5 py-0.5"
                       onChange={(e) => void saveVehicleDate(v.id, "insurance_expires_at", e.target.value)}
+                    />
+                  </label>
+                  <label className="flex items-center gap-1">
+                    Renavam
+                    <input
+                      defaultValue={v.renavam ?? ""}
+                      className="w-32 rounded border border-slate-300 px-1.5 py-0.5"
+                      onBlur={(e) => e.target.value !== (v.renavam ?? "") && void saveVehicleField(v.id, "renavam", e.target.value)}
+                    />
+                  </label>
+                  <label className="flex items-center gap-1">
+                    Chassi
+                    <input
+                      defaultValue={v.chassis ?? ""}
+                      className="w-44 rounded border border-slate-300 px-1.5 py-0.5"
+                      onBlur={(e) => e.target.value !== (v.chassis ?? "") && void saveVehicleField(v.id, "chassis", e.target.value)}
                     />
                   </label>
                   <label className="flex items-center gap-1">

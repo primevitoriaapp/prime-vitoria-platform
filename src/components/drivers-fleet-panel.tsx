@@ -114,11 +114,14 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
   const router = useRouter();
   const [drivers, setDrivers] = useState(initialDrivers);
   const [fichaDriverId, setFichaDriverId] = useState<string | null>(null);
+  const [autoContract, setAutoContract] = useState(false);
   // Abre a ficha direto pelo link (?ficha=<id>), ex.: aviso de cadastro incompleto no início.
   useEffect(() => {
     try {
-      const f = new URLSearchParams(window.location.search).get("ficha");
+      const sp = new URLSearchParams(window.location.search);
+      const f = sp.get("ficha");
       if (f) setFichaDriverId(f);
+      if (sp.get("contrato") === "1") setAutoContract(true);
     } catch {
       /* ignora */
     }
@@ -240,6 +243,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
         <FeedbackBanner feedback={feedback} />
         <DriverFichaPanel
           driverId={fichaDriverId}
+          autoContract={autoContract}
           onClose={() => {
             setFichaDriverId(null);
             window.scrollTo({ top: 0 });

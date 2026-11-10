@@ -22,7 +22,9 @@ const patchSchema = z.object({
   insurer: z.string().max(80).nullable().optional(),
   insurance_expires_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   licensing_expires_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  inspection_expires_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional()
+  inspection_expires_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  renavam: z.string().trim().max(30).nullable().optional(),
+  chassis: z.string().trim().max(30).nullable().optional()
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

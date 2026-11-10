@@ -9,7 +9,7 @@ export type VehicleSummary = {
   is_default?: boolean;
 };
 
-export type LinkedVehicle = VehicleSummary & { link_id: string; insurance_expires_at?: string | null; licensing_expires_at?: string | null };
+export type LinkedVehicle = VehicleSummary & { link_id: string; insurance_expires_at?: string | null; licensing_expires_at?: string | null; renavam?: string | null; chassis?: string | null };
 
 async function fetchDefaultLink(driverId: string) {
   const { data: defaultLink } = await db
@@ -66,7 +66,7 @@ export async function listLinkedVehiclesForDriver(driverId: string): Promise<Lin
   const vehicleIds = links.map((l) => l.vehicle_id);
   const { data: vehicles } = await db
     .from("vehicles")
-    .select("id, model, plate, brand, category, active, insurance_expires_at, licensing_expires_at")
+    .select("id, model, plate, brand, category, active, insurance_expires_at, licensing_expires_at, renavam, chassis")
     .in("id", vehicleIds);
 
   const byId = new Map((vehicles ?? []).map((v) => [v.id, v]));
@@ -84,7 +84,9 @@ export async function listLinkedVehiclesForDriver(driverId: string): Promise<Lin
       category: v.category,
       is_default: Boolean(link.is_default),
       insurance_expires_at: (v as { insurance_expires_at?: string | null }).insurance_expires_at ?? null,
-      licensing_expires_at: (v as { licensing_expires_at?: string | null }).licensing_expires_at ?? null
+      licensing_expires_at: (v as { licensing_expires_at?: string | null }).licensing_expires_at ?? null,
+      renavam: (v as { renavam?: string | null }).renavam ?? null,
+      chassis: (v as { chassis?: string | null }).chassis ?? null
     });
   }
   return out;
