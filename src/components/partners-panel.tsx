@@ -44,6 +44,37 @@ export function PartnersPanel() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ ...EMPTY });
+  const [cnpjBusy, setCnpjBusy] = useState(false);
+  const [cnpjInfo, setCnpjInfo] = useState<string | null>(null);
+
+  /** Busca na Receita (Brasil API) e preenche razão social, nome fantasia, cidade, e-mail e telefone. */
+  async function lookupCnpj(raw: string) {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length !== 14 || cnpjBusy) return;
+    setCnpjBusy(true);
+    setCnpjInfo(null);
+    try {
+      const r = await fetch(`/api/integrations/cnpj-lookup?cnpj=${digits}`, { credentials: "include" });
+      const j = await r.json().catch(() => ({}));
+      const d = (j?.data ?? {}) as { legal_name?: string | null; trade_name?: string | null; city?: string | null; state?: string | null; phone?: string | null; email?: string | null; registry_status?: string | null };
+      if (!r.ok || !(d.legal_name || d.trade_name)) {
+        setCnpjInfo(j?.error?.message ?? "Não achei esse CNPJ. Preencha à mão.");
+      } else {
+        setForm((f) => ({
+          ...f,
+          name: d.legal_name || f.name,
+          trade_name: d.trade_name || f.trade_name,
+          city: d.city ? `${d.city}${d.state ? `/${d.state}` : ""}` : f.city,
+          email: f.email || (d.email ?? "").toLowerCase(),
+          whatsapp: f.whatsapp || (d.phone ?? "")
+        }));
+        setCnpjInfo(`✓ Dados da Receita preenchidos${d.registry_status ? ` · situação: ${d.registry_status}` : ""}. Confira.`);
+      }
+    } catch {
+      setCnpjInfo("Sem conexão com a consulta. Preencha à mão.");
+    }
+    setCnpjBusy(false);
+  }
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
@@ -120,7 +151,24 @@ export function PartnersPanel() {
           ) : null}
           <label className="grid gap-1 text-sm">
             <span>{form.type === "PJ" ? "CNPJ" : "CPF"}</span>
-            <input className={input} value={form.document} onChange={(e) => setForm({ ...form, document: e.target.value })} />
+            <span className="flex gap-2">
+              <input
+                className={input}
+                value={form.document}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setForm({ ...form, document: v });
+                  if (form.type === "PJ" && v.replace(/\D/g, "").length === 14) void lookupCnpj(v);
+                }}
+                placeholder={form.type === "PJ" ? "Digite o CNPJ: os dados vêm sozinhos" : ""}
+              />
+              {form.type === "PJ" ? (
+                <button type="button" disabled={cnpjBusy} onClick={() => void lookupCnpj(form.document)} className="shrink-0 rounded-lg border border-prime-border px-3 text-xs font-semibold">
+                  {cnpjBusy ? "Buscando…" : "Buscar"}
+                </button>
+              ) : null}
+            </span>
+            {cnpjInfo ? <span className="text-xs text-prime-muted">{cnpjInfo}</span> : null}
           </label>
           <label className="grid gap-1 text-sm">
             <span>WhatsApp</span>

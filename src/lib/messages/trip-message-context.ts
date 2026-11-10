@@ -1,3 +1,4 @@
+import { driverPayVisibility } from "@/lib/drivers/driver-pay-visibility";
 import { db } from "@/lib/server/db";
 import { OFFICIAL_URLS } from "@/lib/server/official-urls";
 import { formatBrDateTime } from "@/lib/dates/br-date";
@@ -84,7 +85,10 @@ export async function loadTripMessageContext(tenantId: string, tripId: string): 
     ]
       .filter(Boolean)
       .join(" · "),
-    linha_valor_parceiro: partnerValueLine(driver?.employment_type, trip.driver_amount as number | null)
+    linha_valor_parceiro: partnerValueLine(
+      trip.driver_id && (await driverPayVisibility(String(trip.driver_id))).hidden ? "funcionario" : driver?.employment_type,
+      trip.driver_amount as number | null
+    )
   };
 
   // Quem pediu: a pessoa do portal (gestor/funcionário); se a central criou, o contato da empresa.

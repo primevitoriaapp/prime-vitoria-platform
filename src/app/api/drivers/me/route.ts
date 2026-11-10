@@ -1,3 +1,4 @@
+import { driverPayVisibility } from "@/lib/drivers/driver-pay-visibility";
 import { db } from "@/lib/server/db";
 import { driverRowToApiShape } from "@/lib/drivers/driver-supabase-row";
 import { attachProfileNamesToDrivers, resolveDefaultVehicleForDriver } from "@/lib/vehicles/driver-default-vehicle";
@@ -49,7 +50,8 @@ export async function GET() {
       cpf: shaped.cpf,
       profile_name: shaped.profile_name ?? shaped.full_name ?? null,
       full_name: shaped.full_name ?? null,
-      employment_type: (driver.employment_type as string | null) === "funcionario" ? "funcionario" : "parceiro",
+      // "funcionario" = não vê valores (funcionário da Prime ou motorista de empresa parceira).
+      employment_type: (await driverPayVisibility(String(shaped.id))).hidden ? "funcionario" : "parceiro",
       photo_url,
       operational_status: (driver.operational_status as string | null) ?? "offline",
       vehicle: vehicle ? { ...vehicle, color: vehicleColor, category: categoryName } : null

@@ -1,3 +1,4 @@
+import { driverPayVisibility } from "@/lib/drivers/driver-pay-visibility";
 import { db } from "@/lib/server/db";
 import { OFFICIAL_URLS } from "@/lib/server/official-urls";
 import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
@@ -65,7 +66,7 @@ export async function emailDriverAssignment(
 
   // Parceiro vê quanto recebe e quando (estimativa); funcionário não.
   const amount = trip.driver_amount == null ? null : Number(trip.driver_amount);
-  const isPartner = driver.employment_type !== "funcionario";
+  const isPartner = !(await driverPayVisibility(driverId)).hidden;
   let pay: { amount: string; forecast: string | null } | null = null;
   if (isPartner && amount != null && Number.isFinite(amount) && amount > 0) {
     const fc = await driverPayoutDateForTrip(tripId).catch(() => null);

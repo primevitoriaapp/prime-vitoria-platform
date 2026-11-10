@@ -1,3 +1,4 @@
+import { driverPayVisibility } from "@/lib/drivers/driver-pay-visibility";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
@@ -12,7 +13,8 @@ export async function GET() {
     if (session.role !== "motorista" || !session.driverId) return fail("FORBIDDEN", "Apenas motoristas", 403);
     const tenantId = assertTenantScope(session);
     const { data: driver } = await db.from("drivers").select("employment_type").eq("id", session.driverId).maybeSingle();
-    if (driver?.employment_type === "funcionario") return fail("FORBIDDEN", "Motorista funcionário não vê valores", 403);
+    void driver;
+    if ((await driverPayVisibility(session.driverId)).hidden) return fail("FORBIDDEN", "Este motorista não vê valores", 403);
 
     const since = new Date(Date.now() - 62 * 86400_000).toISOString();
     const [{ data: trips }, { data: payables }] = await Promise.all([

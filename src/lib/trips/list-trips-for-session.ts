@@ -1,3 +1,4 @@
+import { driverPayVisibility } from "@/lib/drivers/driver-pay-visibility";
 import { db } from "@/lib/server/db";
 import type { SessionContext } from "@/lib/domain/types";
 import { AGENDA_OPERATIONAL_STATUSES } from "@/lib/operations/agenda-trip-statuses";
@@ -296,8 +297,7 @@ export async function listTripsForSession(
 async function shapeDriverPay<T extends Record<string, unknown>>(rows: T[], session: SessionContext): Promise<T[]> {
   const driverId = (session as { driverId?: string | null }).driverId;
   if (!driverId || !rows.length) return rows;
-  const { data: me } = await db.from("drivers").select("employment_type").eq("id", driverId).maybeSingle();
-  if (me?.employment_type === "funcionario") {
+  if ((await driverPayVisibility(driverId)).hidden) {
     return rows.map((r) => {
       const c: Record<string, unknown> = { ...r };
       delete c.driver_amount;

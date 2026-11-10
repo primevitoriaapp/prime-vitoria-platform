@@ -6,6 +6,7 @@ type Item = { id: string; amount: number; trip_at: string | null; route: string;
 type Rank = { month: string; trips: number; position: number | null; of: number; punctuality: number | null; categories?: string[] };
 type Wallet = {
   funcionario: boolean;
+  via_partner?: string | null;
   pix_key?: string | null;
   summary?: { hoje: number; mes: number; corridas_mes: number; previsto: number; liberado: number; aguardando_cliente: number; pago: number };
   items?: Item[];
@@ -72,7 +73,11 @@ export function DriverWallet() {
   if (w.funcionario)
     return (
       <div className="space-y-4">
-        <div className={`${card} text-sm text-[#6B6F76]`}>Você é motorista contratado da Prime: seu pagamento é o salário combinado, por isso os valores das corridas não aparecem aqui.</div>
+        <div className={`${card} text-sm text-[#6B6F76]`}>
+          {w.via_partner
+            ? `Você dirige pela ${w.via_partner}: o pagamento das corridas é feito pela ${w.via_partner}, por isso os valores não aparecem aqui.`
+            : "Você é motorista contratado da Prime: seu pagamento é o salário combinado, por isso os valores das corridas não aparecem aqui."}
+        </div>
         {rank ? <RankCard rank={rank} /> : null}
       </div>
     );

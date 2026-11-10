@@ -3,6 +3,7 @@ import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { withResolvedDriverId } from "@/lib/drivers/resolve-driver-for-session";
+import { driverPayVisibility } from "@/lib/drivers/driver-pay-visibility";
 import { summarizeDriverEarnings } from "@/lib/drivers/driver-earnings";
 
 /** Carteira do motorista parceiro: resumo + próximos recebimentos e o que já recebeu. */
@@ -12,7 +13,8 @@ export async function GET() {
     if (session.role !== "motorista" || !session.driverId) return fail("FORBIDDEN", "Apenas motoristas", 403);
     const tenantId = assertTenantScope(session);
     const { data: driver } = await db.from("drivers").select("employment_type, pix_key").eq("id", session.driverId).maybeSingle();
-    if (driver?.employment_type === "funcionario") return ok({ funcionario: true });
+    const vis = await driverPayVisibility(session.driverId);
+    if (vis.hidden) return ok({ funcionario: true, via_partner: vis.reason === "empresa_parceira" ? vis.partnerName : null });
 
     const since = new Date(Date.now() - 120 * 86400_000).toISOString();
     const [{ data: trips }, { data: payables }] = await Promise.all([
