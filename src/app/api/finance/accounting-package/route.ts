@@ -251,7 +251,7 @@ export async function GET(request: Request) {
     }
 
     // ---------- Resumo ----------
-    const missingExp = expRows.filter((r) => r[9] === "SEM ANEXO").length;
+    const missingExp = expRows.filter((r) => r[10] === "SEM ANEXO").length;
     const missingRep = repRows.filter((r) => r[8] === "NÃO").length;
     const summary = {
       month,

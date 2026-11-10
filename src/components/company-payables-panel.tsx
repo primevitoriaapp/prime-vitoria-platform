@@ -215,14 +215,7 @@ export function CompanyPayablesPanel() {
     }
     setMsg({
       ok: true,
-      text:
-        action === "pagar"
-          ? json.data?.next
-            ? `Paga. A do mês que vem (${brDate(json.data.next.due_date)}) já foi lançada.`
-            : "Conta paga."
-          : action === "reabrir"
-            ? "Conta reaberta."
-            : "Conta cancelada."
+      text: action === "reabrir" ? "Conta reaberta." : "Conta cancelada."
     });
     void load();
   }
