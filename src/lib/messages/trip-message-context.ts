@@ -66,7 +66,7 @@ export async function loadTripMessageContext(tenantId: string, tripId: string): 
       : { data: null };
   const drops = Array.isArray(trip.trip_dropoff_stops) ? (trip.trip_dropoff_stops as Record<string, unknown>[]) : [];
   const paradas = drops
-    .map((d, i) => `🔸 Parada ${i + 1}: ${String(d.address_text ?? d.address ?? "")}${d.passenger_name ? ` — ${String(d.passenger_name)}` : ""}${d.passenger_phone ? ` (${String(d.passenger_phone)})` : ""}`)
+    .map((d, i) => `🔸 Parada ${i + 1}: ${String(d.address_text ?? d.address ?? "")}${d.passenger_name ? ` — ${String(d.passenger_name)}` : ""}${d.passenger_phone ? ` (${String(d.passenger_phone)})` : ""}${Number(d.people) > 1 ? ` · ${Number(d.people)} pessoas` : ""}`)
     .filter((l) => l.length > 14)
     .join("\n");
   const pax = Number(trip.passenger_count ?? 1);

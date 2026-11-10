@@ -9,6 +9,8 @@ export type EditableStop = {
   lng: number | null;
   passenger_name: string;
   passenger_phone: string;
+  /** Quantas pessoas descem/ficam nesta parada (opcional). */
+  people?: number | null;
   dropped_at?: string | null;
 };
 
@@ -40,7 +42,7 @@ export function DropoffStopsEditor({
       {stops.map((s, i) => (
         <div key={i} className="grid gap-2 rounded-xl border border-prime-border bg-[#FBF8F1] p-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold">Parada {i + 1}</p>
+            <p className="text-sm font-semibold">📍 Parada {i + 1}</p>
             <span className="flex gap-1">
               <button type="button" aria-label="Subir" disabled={i === 0} onClick={() => move(i, -1)} className="h-7 w-7 rounded-lg bg-white ring-1 ring-prime-border disabled:opacity-30">
                 ↑
@@ -68,20 +70,34 @@ export function DropoffStopsEditor({
             onCoordsClear={() => set(i, { lat: null, lng: null })}
             devFallbackRole={devFallbackRole}
           />
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_110px]">
             <label className="grid gap-1 text-sm">
-              <span>Passageiro que desce aqui (opcional)</span>
+              <span>Quem fica nesta parada</span>
               <input className={PRIME_INPUT_CLASS} value={s.passenger_name} onChange={(e) => set(i, { passenger_name: e.target.value })} placeholder="Ex.: Rafael" />
             </label>
             <label className="grid gap-1 text-sm">
               <span>Telefone / WhatsApp (opcional)</span>
               <input className={PRIME_INPUT_CLASS} inputMode="tel" value={s.passenger_phone} onChange={(e) => set(i, { passenger_phone: e.target.value })} placeholder="(27) 99999-9999" />
             </label>
+            <label className="grid gap-1 text-sm">
+              <span>Pessoas</span>
+              <input
+                className={PRIME_INPUT_CLASS}
+                inputMode="numeric"
+                value={s.people ?? ""}
+                onChange={(e) => set(i, { people: e.target.value ? Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1) : null })}
+                placeholder="1"
+              />
+            </label>
           </div>
         </div>
       ))}
-      <button type="button" onClick={() => onChange([...stops, emptyStop()])} className="justify-self-start rounded-lg px-3 py-2 text-sm font-semibold ring-1 ring-prime-gold hover:bg-[#FBF8F1]">
-        + Adicionar parada antes do destino
+      <button
+        type="button"
+        onClick={() => onChange([...stops, emptyStop()])}
+        className="w-full rounded-xl border-2 border-dashed border-prime-gold bg-[#FBF8F1] px-3 py-3 text-sm font-bold text-[#7A5A12] hover:bg-[#F6EFDD]"
+      >
+        ＋ Adicionar parada{stops.length ? " (mais uma)" : " no caminho"}
       </button>
     </div>
   );
@@ -96,6 +112,7 @@ export function stopsForApi(stops: EditableStop[]) {
       address_text: s.address_text.trim(),
       lat: s.lat,
       lng: s.lng,
+      ...(s.people && s.people > 1 ? { people: s.people } : {}),
       dropped_at: s.dropped_at ?? null
     }));
 }

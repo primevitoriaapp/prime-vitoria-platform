@@ -903,6 +903,11 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 onCoordsClear={() => setOrigin((o) => ({ ...o, lat: null, lng: null }))}
                 devFallbackRole="admin"
               />
+              {!team.length ? (
+                <div className="grid gap-2 border-l-2 border-dashed border-prime-gold pl-3">
+                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} />
+                </div>
+              ) : null}
               <div className="flex justify-center">
                 <button
                   type="button"
@@ -916,7 +921,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 </button>
               </div>
               <AddressAutocompleteInput
-                label="Destino"
+                label={manualStops.length ? "Destino final" : "Destino"}
                 required
                 placeholder="Ex.: Hotel, empresa ou endereço"
                 value={dest.text}
@@ -927,17 +932,6 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 devFallbackRole="admin"
               />
             </div>
-            {!team.length ? (
-              <details className="rounded-xl border border-prime-border bg-white p-3 md:col-span-2" open={manualStops.length > 0}>
-                <summary className="cursor-pointer text-sm font-semibold">
-                  + Paradas no caminho {manualStops.length ? `(${manualStops.length})` : "(ex.: deixar cada passageiro em casa)"}
-                </summary>
-                <div className="mt-3">
-                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} />
-                  <p className="mt-2 text-xs text-prime-muted">O destino acima é a última parada. O motorista vê cada parada com o nome e o telefone para ligar.</p>
-                </div>
-              </details>
-            ) : null}
             <PassengerAutocompleteInput
               clientId={client.id}
               label="Passageiro principal"

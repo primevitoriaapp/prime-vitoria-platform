@@ -1,5 +1,6 @@
 "use client";
 
+import { DropoffStopsEditor, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
@@ -174,6 +175,7 @@ export function ClientRequestConsole({
   const [otherPax, setOtherPax] = useState<string[]>([]);
   const [teamDir, setTeamDir] = useState<TeamDirection>("buscar");
   const teamShape = useMemo(() => teamTripShape(team, teamDir), [team, teamDir]);
+  const [stops, setStops] = useState<EditableStop[]>([]);
 
   // Funcionário escolhido: endereço, nome, telefone e quantidade entram sozinhos.
   useEffect(() => {
@@ -420,7 +422,11 @@ export function ClientRequestConsole({
           passenger_phone: passengerPhone || undefined,
           passenger_count: passengerCount,
           ...(teamShape?.pickupStops ? { trip_pickup_stops: teamShape.pickupStops } : {}),
-          ...(teamShape?.dropoffStops ? { trip_dropoff_stops: teamShape.dropoffStops } : {}),
+          ...(teamShape?.dropoffStops
+            ? { trip_dropoff_stops: teamShape.dropoffStops }
+            : stopsForApi(stops).length
+              ? { trip_dropoff_stops: stopsForApi(stops) }
+              : {}),
           notes:
             [
               lead < MIN_LEAD_MINUTES
@@ -783,8 +789,13 @@ export function ClientRequestConsole({
           }}
           devFallbackRole={devFallbackRole}
         />
+        {!teamShape?.dropoffStops ? (
+          <div className="grid gap-2 border-l-2 border-dashed border-prime-gold pl-3">
+            <DropoffStopsEditor stops={stops} onChange={setStops} devFallbackRole={devFallbackRole === "admin" ? "admin" : "cliente"} />
+          </div>
+        ) : null}
         <AddressAutocompleteInput
-          label="Destino"
+          label={stops.length ? "Destino final" : "Destino"}
           required
           placeholder="Ex.: Hotel Golden Tulip, Enseada do Suá"
           value={destination}

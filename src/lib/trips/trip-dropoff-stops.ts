@@ -11,6 +11,7 @@ export const dropoffStopSchema = z.object({
   address_text: z.string().trim().min(3).max(300),
   lat: z.coerce.number().nullable().optional(),
   lng: z.coerce.number().nullable().optional(),
+  people: z.coerce.number().int().min(1).max(60).nullable().optional(),
   dropped_at: z.string().nullable().optional()
 });
 
