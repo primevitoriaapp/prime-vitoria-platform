@@ -53,7 +53,7 @@ test("canonicalDriverPatchRow usa só colunas reais do Supabase", () => {
 
   assert.equal(row.cnh_expires_at, "2030-12-31");
   assert.equal(row.number, "100");
-  assert.equal(row.complement, "Centro");
+  assert.equal(row.district, "Centro"); // bairro tem coluna própria desde nov/2026
   assert.deepEqual(row.regions, ["grande_vitoria"]);
   assert.equal(row.postal_code, "29050620");
   assert.equal(row.address, "Rua Exemplo");
