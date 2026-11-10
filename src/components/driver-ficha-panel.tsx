@@ -1,6 +1,7 @@
 "use client";
 
 import { ContractsSection } from "@/components/contracts-section";
+import { DriverDocumentsSection } from "@/components/driver-documents-section";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { DriverUpfrontToggle } from "@/components/driver-upfront-toggle";
 import { BackButton } from "@/components/back-button";
@@ -1143,6 +1144,10 @@ export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: P
         {/* O resultado aparece também aqui, colado no botão (antes só lá em cima, fora da vista). */}
         <FeedbackBanner feedback={feedback} />
       </form>
+
+      <div className="mt-8">
+        <DriverDocumentsSection driverId={driverId} vehicleId={detail.linked_vehicles.find((v) => v.is_default)?.id ?? detail.linked_vehicles[0]?.id ?? null} />
+      </div>
 
       <div className="mt-8">
         <ContractsSection driverId={driverId} autoTemplate={autoContract ? "MOTORISTA" : undefined} party={{ name: detail.profile_name?.trim() || "Motorista", email: detail.email ?? null, phone: detail.whatsapp ?? null }} />

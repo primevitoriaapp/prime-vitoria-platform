@@ -26,6 +26,10 @@ export async function GET() {
       : { data: [] };
     const vBy = new Map((vehicles ?? []).map((v) => [v.id as string, v]));
 
+    const { data: antec } = ids.length
+      ? await db.from("driver_documents").select("driver_id, valid_until").in("driver_id", ids).eq("kind", "antecedentes").is("replaced_at", null)
+      : { data: [] };
+    const antecBy = new Map((antec ?? []).map((a) => [a.driver_id as string, a.valid_until as string | null]));
     const birthdays: { driver_id: string; name: string; phone: string | null; when: string; age: number }[] = [];
     const documents: { driver_id: string; name: string; phone: string | null; alerts: (DocAlert & { text: string; plate?: string })[] }[] = [];
     const incomplete: { driver_id: string; name: string; missing: string[] }[] = [];
@@ -46,11 +50,14 @@ export async function GET() {
           if (x) alerts.push({ ...x, text: `${docAlertText(x)} · ${v.plate ?? v.model ?? "veículo"}`, plate: (v.plate as string | null) ?? undefined });
         }
       }
+      const ant = docAlert("Antecedentes", antecBy.get(d.id as string) ?? null);
+      if (ant) alerts.push({ ...ant, text: docAlertText(ant) });
       if (alerts.length) documents.push({ driver_id: d.id as string, name, phone, alerts });
       const missing: string[] = [];
       if (!bd) missing.push("data de nascimento");
       if (!cnh) missing.push("validade da CNH");
       if (!mine.length) missing.push("veículo vinculado");
+      if (!antecBy.has(d.id as string)) missing.push("certidão de antecedentes");
       // Seguro é opcional (nem todo parceiro tem): não conta como pendência.
       if (missing.length) incomplete.push({ driver_id: d.id as string, name, missing });
     }

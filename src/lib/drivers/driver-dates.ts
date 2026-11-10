@@ -39,7 +39,7 @@ export function daysUntil(dateLike: string | null | undefined, now = new Date())
   return Math.round((b - a) / 86400000);
 }
 
-export type DocAlert = { doc: "CNH" | "Seguro" | "Licenciamento"; days: number; date: string; level: "vencido" | "urgente" | "atencao" };
+export type DocAlert = { doc: "CNH" | "Seguro" | "Licenciamento" | "Antecedentes"; days: number; date: string; level: "vencido" | "urgente" | "atencao" };
 
 /** Avisa a partir de 30 dias antes; urgente com 7 dias ou menos. */
 export function docAlert(doc: DocAlert["doc"], date: string | null | undefined, now = new Date()): DocAlert | null {
@@ -49,6 +49,7 @@ export function docAlert(doc: DocAlert["doc"], date: string | null | undefined, 
 }
 
 export function docAlertText(a: DocAlert): string {
+  if (a.days < 0 && a.doc === "Antecedentes") return `Certidão de antecedentes VENCIDA há ${-a.days} dia(s)`;
   if (a.days < 0) return `${a.doc} VENCIDA há ${-a.days} dia(s)`;
   if (a.days === 0) return `${a.doc} vence HOJE`;
   return `${a.doc} vence em ${a.days} dia(s) (${a.date.split("-").reverse().join("/")})`;
