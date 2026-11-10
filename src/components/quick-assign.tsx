@@ -55,7 +55,7 @@ export function QuickAssign({
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const boxRef = useRef<HTMLDivElement | null>(null);
-  // Quem já tem corrida no horário desta (diária conta as horas todas): fica bloqueado na lista.
+  // Quem já tem corrida no horário desta (diária conta as horas todas): fica em vermelho; a central pode confirmar mesmo assim.
   const [busyMap, setBusyMap] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!open) return;
@@ -85,6 +85,10 @@ export function QuickAssign({
   if (!canAssign) return null;
 
   async function assign(d: AssignDriver) {
+    // Agenda apertada: a central decide (ex.: continuação do serviço, encaixe).
+    const reason = busyMap[d.id];
+    const force = Boolean(reason);
+    if (force && !window.confirm(`${d.name} já ${reason}.\n\nÉ continuação do serviço ou dá tempo de encaixar? Atribuir mesmo assim?`)) return;
     setBusy(d.id);
     setError(null);
     const vehicle = d.vehicle?.id;
@@ -92,7 +96,7 @@ export function QuickAssign({
     if (isSwap) {
       res = await fetchWithSupabaseSession(
         `/api/trips/${tripId}/reassign`,
-        { method: "POST", body: JSON.stringify({ new_driver_id: d.id, reason: "Troca pela agenda", ...(vehicle ? { vehicle_id: vehicle } : {}) }) },
+        { method: "POST", body: JSON.stringify({ new_driver_id: d.id, reason: "Troca pela agenda", force, ...(vehicle ? { vehicle_id: vehicle } : {}) }) },
         "admin"
       );
     } else {
@@ -107,7 +111,7 @@ export function QuickAssign({
       }
       res = await fetchWithSupabaseSession(
         `/api/trips/${tripId}/dispatch-directed`,
-        { method: "POST", body: JSON.stringify({ driver_id: d.id, ...(vehicle ? { vehicle_id: vehicle } : {}) }) },
+        { method: "POST", body: JSON.stringify({ driver_id: d.id, force, ...(vehicle ? { vehicle_id: vehicle } : {}) }) },
         "admin"
       );
     }
@@ -162,7 +166,7 @@ export function QuickAssign({
               const busyReason = busyMap[d.id];
               // O que vale é a agenda no horário desta corrida; o status ao vivo só importa para corrida de agora.
               const st = busyReason
-                ? { label: "Ocupado", cls: "text-red-700" }
+                ? { label: "Agenda cheia · atribuir mesmo assim", cls: "text-red-700" }
                 : d.status === "offline"
                   ? { label: "Livre · offline agora", cls: "text-emerald-700" }
                   : { label: "Livre no horário", cls: "text-emerald-700" };
@@ -170,10 +174,10 @@ export function QuickAssign({
                 <li key={d.id}>
                   <button
                     type="button"
-                    disabled={busy !== null || Boolean(busyReason)}
+                    disabled={busy !== null}
                     title={busyReason ? `${d.name} ${busyReason}` : undefined}
                     onClick={() => void assign(d)}
-                    className={`flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm disabled:cursor-not-allowed ${busyReason ? "bg-red-50/60 opacity-70" : "hover:bg-prime-bg disabled:opacity-50"}`}
+                    className={`flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm disabled:cursor-not-allowed ${busyReason ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-prime-bg disabled:opacity-50"}`}
                   >
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{d.name}</span>

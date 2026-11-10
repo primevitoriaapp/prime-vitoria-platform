@@ -15,7 +15,9 @@ import { isImmediateScheduledTrip, shouldBlockOfflineDriverForTrip } from "@/lib
 
 const bodySchema = z.object({
   driver_id: z.string().uuid(),
-  vehicle_id: z.string().uuid().optional()
+  vehicle_id: z.string().uuid().optional(),
+  /** A central confirmou que é continuação/encaixe: atribui mesmo com a agenda apertada. */
+  force: z.boolean().optional()
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -61,9 +63,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       scheduled_at: trip.scheduled_at as string,
       operational_status: "dispatched",
       service_mode: (trip.service_mode as string | null) ?? null,
-      planned_km: (trip.planned_km as number | null) ?? null
+      planned_km: (trip.planned_km as number | null) ?? null,
+      origin_text: (trip.origin_text as string | null) ?? null,
+      destination_text: (trip.destination_text as string | null) ?? null,
+      origin_lat: (trip.origin_lat as number | null) ?? null,
+      origin_lng: (trip.origin_lng as number | null) ?? null,
+      destination_lat: (trip.destination_lat as number | null) ?? null,
+      destination_lng: (trip.destination_lng as number | null) ?? null
     });
-    if (conflictMsg) return fail("DISPATCH_CONFLICT", conflictMsg, 409);
+    if (conflictMsg && !body.force) return fail("DISPATCH_CONFLICT", conflictMsg, 409);
 
     const { data, error } = await db
       .from("trips")

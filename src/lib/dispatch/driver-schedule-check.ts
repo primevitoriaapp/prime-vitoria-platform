@@ -1,7 +1,7 @@
 import { db } from "@/lib/server/db";
 import { conflictText, findScheduleConflict, type ScheduleTrip } from "@/lib/dispatch/schedule-window";
 
-const COLS = "id, scheduled_at, operational_status, service_mode, planned_km";
+const COLS = "id, scheduled_at, operational_status, service_mode, planned_km, origin_text, destination_text, origin_lat, origin_lng, destination_lat, destination_lng";
 
 /** Verifica se o motorista já tem corrida no horário da corrida-alvo. Devolve a mensagem para a central, ou null. */
 export async function driverScheduleConflictMessage(tenantId: string, driverId: string, driverName: string | null, target: ScheduleTrip): Promise<string | null> {
@@ -15,7 +15,7 @@ export async function driverScheduleConflictMessage(tenantId: string, driverId: 
   const others = [...(near ?? []), ...(live ?? [])].filter((t) => (seen.has(t.id as string) ? false : (seen.add(t.id as string), true))) as ScheduleTrip[];
   const c = findScheduleConflict(target, others);
   if (!c) return null;
-  return `${driverName?.trim() || "Este motorista"} ${conflictText(c)}. Escolha outro motorista ou mude o horário.`;
+  return `${driverName?.trim() || "Este motorista"} ${conflictText(c)}. Se for continuação do serviço, confirme para atribuir mesmo assim.`;
 }
 
 /** Para a lista de motoristas: quem está ocupado no horário desta corrida, com o motivo. */

@@ -8,7 +8,45 @@ export type ScheduleTrip = {
   operational_status: string;
   service_mode?: string | null;
   planned_km?: number | null;
+  origin_text?: string | null;
+  destination_text?: string | null;
+  origin_lat?: number | null;
+  origin_lng?: number | null;
+  destination_lat?: number | null;
+  destination_lng?: number | null;
 };
+
+const placeKey = (s: string | null | undefined) =>
+  String(s ?? "")
+    .split(/[,\-–|]/)[0]
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+function metersBetween(a: [number, number], b: [number, number]): number {
+  const r = 6371000;
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * r * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * "Continuação": a corrida B começa onde a A termina (ex.: aeroporto → hotel, depois hotel → restaurante).
+ * O motorista já está no lugar: não é conflito, mesmo com horários colados.
+ */
+export function isContinuation(first: ScheduleTrip, next: ScheduleTrip): boolean {
+  if (!(Date.parse(first.scheduled_at) < Date.parse(next.scheduled_at))) return false;
+  if (first.destination_lat != null && first.destination_lng != null && next.origin_lat != null && next.origin_lng != null) {
+    if (metersBetween([Number(first.destination_lat), Number(first.destination_lng)], [Number(next.origin_lat), Number(next.origin_lng)]) <= 500) return true;
+  }
+  const a = placeKey(first.destination_text);
+  const b = placeKey(next.origin_text);
+  return a.length >= 5 && a === b;
+}
 
 const BUSY = new Set(["dispatched", "accepted", "reassigned", "on_the_way", "arrived", "in_progress"]);
 const LIVE = new Set(["on_the_way", "arrived", "in_progress"]);
@@ -34,6 +72,8 @@ export function findScheduleConflict(target: ScheduleTrip, others: ScheduleTrip[
   const immediate = Date.parse(target.scheduled_at) - now < 2 * 3600000;
   for (const o of others) {
     if (o.id === target.id || !BUSY.has(o.operational_status)) continue;
+    // Uma termina onde a outra começa: o motorista emenda, não é conflito.
+    if (isContinuation(o, target) || isContinuation(target, o)) continue;
     if (immediate && LIVE.has(o.operational_status)) return o;
     const ow = tripWindow(o);
     if (ow.start < w.end && w.start < ow.end) return o;
