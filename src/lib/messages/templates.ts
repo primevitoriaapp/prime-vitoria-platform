@@ -3,7 +3,7 @@
  * Sem acesso a banco: usado no painel, na API e nos testes.
  */
 
-export type MessageAudience = "passageiro" | "solicitante" | "motorista" | "operador";
+export type MessageAudience = "passageiro" | "solicitante" | "motorista" | "parceiro" | "operador";
 
 export type MessageEventId =
   | "solicitacao_recebida"
@@ -27,6 +27,7 @@ export const AUDIENCE_LABEL: Record<MessageAudience, string> = {
   passageiro: "Passageiro",
   solicitante: "Quem pediu a corrida",
   motorista: "Motorista",
+  parceiro: "Empresa parceira (dono do carro)",
   operador: "Operador (você)"
 };
 
@@ -37,7 +38,9 @@ export const MESSAGE_EVENTS: readonly MessageEventDef[] = [
     when: "Quando a central define o motorista da corrida (vai também por e-mail, com convite de agenda).",
     defaults: {
       motorista:
-        "Olá, {nome}! 👋\nVocê foi indicado para o atendimento abaixo. Seguem as informações:\n\n*CORRIDA {numero}*\n📅 {data} às {horario}\n📍 Embarque: {origem}\n🏁 Destino: {destino}\n👤 Passageiro: {passageiro} {telefone_passageiro}\n✈️ {voo}\n📝 {observacoes}{linha_valor_parceiro}\n\n👉 Abrir a corrida no app: {link_corrida}\n\nQualquer dúvida, fale com a central Prime Vitória."
+        "Olá, {nome}! 👋\nVocê foi escalado(a) para o atendimento abaixo.\n\n*ORDEM DE SERVIÇO {numero}*\n📅 *{data} às {horario}*\n🚘 Veículo: {veiculo} {cor} · {placa}\n\n📍 *Embarque:* {origem}\n{paradas}\n🏁 *Destino:* {destino}\n\n👤 Passageiro: {passageiro} {telefone_passageiro}\n👥 {qtd_passageiros}\n✈️ {voo}\n📝 {observacoes}{linha_valor_parceiro}\n\n👉 Abra a corrida no app e use os botões (a caminho, cheguei, iniciar, finalizar): {link_corrida}\n\n✅ Responda *OK* para confirmar o recebimento.\nPadrão Prime: chegar 10 min antes, carro limpo e climatizado, traje social. Qualquer imprevisto, avise a central na hora.\nCentral Prime Vitória · (27) 2142-8307",
+      parceiro:
+        "Olá, {nome}! Nova ordem de serviço para o seu motorista.\n\n*O.S. {numero}*\n📅 {data} às {horario}\n🧑‍✈️ Motorista: {motorista}\n🚘 {veiculo} · {placa}\n📍 {origem}\n{paradas}\n🏁 {destino}\n💰 Valor do serviço para a sua empresa: {valor_parceiro}\n\nO motorista já recebeu a O.S. (sem valores). Pagamento conforme o combinado com a Prime Vitória."
     }
   },
   {
@@ -138,7 +141,10 @@ export const TEMPLATE_VARIABLES: ReadonlyArray<{ key: string; label: string }> =
   { key: "link_corrida", label: "Link da corrida no app do motorista" },
   { key: "servicos", label: "Marcações (placa, água…)" },
   { key: "observacoes", label: "Observações" },
-  { key: "linha_valor_parceiro", label: "Repasse (só parceiro)" }
+  { key: "linha_valor_parceiro", label: "Repasse (só parceiro autônomo)" },
+  { key: "paradas", label: "Paradas no caminho" },
+  { key: "qtd_passageiros", label: "Quantidade de passageiros" },
+  { key: "valor_parceiro", label: "Valor para a empresa parceira" }
 ];
 
 export type TemplateVars = Partial<Record<string, string | null | undefined>>;

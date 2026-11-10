@@ -30,7 +30,8 @@ export async function POST(request: Request) {
     const insertRow: Record<string, unknown> = {
       ...body,
       cpf: parsed.cpf.trim(),
-      full_name: displayName
+      full_name: displayName,
+      ...(parsed.partner_id ? { partner_id: parsed.partner_id } : {})
     };
 
     if (bodyProfileId) {

@@ -39,7 +39,7 @@ export async function loadTripMessageContext(tenantId: string, tripId: string): 
   const [clientRes, driverRes, vehicleRes, requesterRes, templates] = await Promise.all([
     db.from("clients").select("name, trade_name, whatsapp, phone").eq("id", trip.client_id).maybeSingle(),
     trip.driver_id
-      ? db.from("drivers").select("full_name, whatsapp, phone, employment_type").eq("id", trip.driver_id).maybeSingle()
+      ? db.from("drivers").select("full_name, whatsapp, phone, employment_type, partner_id").eq("id", trip.driver_id).maybeSingle()
       : Promise.resolve({ data: null }),
     trip.vehicle_id
       ? db.from("vehicles").select("brand, model, color, plate").eq("id", trip.vehicle_id).maybeSingle()
@@ -59,7 +59,22 @@ export async function loadTripMessageContext(tenantId: string, tripId: string): 
   const { data, horario } = splitDateTime(trip.scheduled_at as string);
   const empresa = client?.trade_name || client?.name || "";
 
+  const vis = trip.driver_id ? await driverPayVisibility(String(trip.driver_id)) : null;
+  const { data: partner } =
+    vis?.reason === "empresa_parceira" && driver?.partner_id
+      ? await db.from("partners").select("name, trade_name, whatsapp").eq("id", driver.partner_id).maybeSingle()
+      : { data: null };
+  const drops = Array.isArray(trip.trip_dropoff_stops) ? (trip.trip_dropoff_stops as Record<string, unknown>[]) : [];
+  const paradas = drops
+    .map((d, i) => `🔸 Parada ${i + 1}: ${String(d.address_text ?? d.address ?? "")}${d.passenger_name ? ` — ${String(d.passenger_name)}` : ""}${d.passenger_phone ? ` (${String(d.passenger_phone)})` : ""}`)
+    .filter((l) => l.length > 14)
+    .join("\n");
+  const pax = Number(trip.passenger_count ?? 1);
+  const amount = Number(trip.driver_amount ?? 0);
   const base: TemplateVars = {
+    paradas,
+    qtd_passageiros: pax > 1 ? `${pax} passageiros` : "",
+    valor_parceiro: amount > 0 ? amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "a combinar",
     passageiro: passengers,
     telefone_passageiro: stops.length ? "" : ((trip.passenger_phone as string) ?? ""),
     empresa,
@@ -85,10 +100,7 @@ export async function loadTripMessageContext(tenantId: string, tripId: string): 
     ]
       .filter(Boolean)
       .join(" · "),
-    linha_valor_parceiro: partnerValueLine(
-      trip.driver_id && (await driverPayVisibility(String(trip.driver_id))).hidden ? "funcionario" : driver?.employment_type,
-      trip.driver_amount as number | null
-    )
+    linha_valor_parceiro: partnerValueLine(vis?.hidden ? "funcionario" : driver?.employment_type, trip.driver_amount as number | null)
   };
 
   // Quem pediu: a pessoa do portal (gestor/funcionário); se a central criou, o contato da empresa.
@@ -104,6 +116,8 @@ export async function loadTripMessageContext(tenantId: string, tripId: string): 
       phone: (requesterIsClient ? requester?.phone : null) || client?.whatsapp || client?.phone || null
     },
     motorista: { name: firstName(driver?.full_name), phone: driver?.whatsapp || driver?.phone || null },
+    // Dono do carro (empresa parceira): só existe quando o motorista é de empresa parceira.
+    parceiro: { name: partner ? String(partner.trade_name || partner.name || "") : "", phone: partner ? ((partner.whatsapp as string | null) ?? null) : null },
     operador: { name: "", phone: null }
   };
 

@@ -24,6 +24,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     const messages = templates
       .filter((t) => t.audience !== "operador")
+      // Mensagem para a empresa parceira só quando o motorista é dela.
+      .filter((t) => t.audience !== "parceiro" || Boolean(recipients.parceiro?.name))
       .map((t) => {
         const r = recipients[t.audience];
         const text = renderTemplate(t.body, { ...base, nome: r.name });

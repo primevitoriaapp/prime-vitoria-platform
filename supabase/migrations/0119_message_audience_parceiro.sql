@@ -1,0 +1,1 @@
+alter table public.message_templates drop constraint if exists message_templates_audience_check; alter table public.message_templates add constraint message_templates_audience_check check (audience in ('passageiro','solicitante','motorista','parceiro','operador'));

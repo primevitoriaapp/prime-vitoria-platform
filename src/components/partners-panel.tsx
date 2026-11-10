@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { BackButton } from "@/components/back-button";
@@ -30,6 +29,7 @@ type Category = { id: string; name: string };
 type AnyDriver = { id: string; profile_name?: string | null; full_name?: string | null; cpf: string; partner_id?: string | null };
 
 const input = PRIME_INPUT_CLASS;
+const EMPTY_DRV = { full_name: "", cpf: "", whatsapp: "", email: "", cnh_number: "", cnh_expiry: "", pin: "", vehicle_id: "" };
 const EMPTY = { type: "PJ" as "PF" | "PJ", name: "", trade_name: "", document: "", whatsapp: "", email: "", pix_key: "", city: "", notes: "" };
 
 async function api<T>(url: string, init?: RequestInit) {
@@ -236,6 +236,7 @@ function PartnerDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const [allDrivers, setAllDrivers] = useState<AnyDriver[]>([]);
   const [veh, setVeh] = useState({ plate: "", model: "", brand: "", color: "", model_year: "", vehicle_category_id: "" });
   const [linkDriver, setLinkDriver] = useState("");
+  const [newDrv, setNewDrv] = useState<typeof EMPTY_DRV | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [edit, setEdit] = useState<Partner | null>(null);
@@ -267,6 +268,49 @@ function PartnerDetail({ id, onBack }: { id: string; onBack: () => void }) {
     setMsg(r.ok ? { ok: true, text: okText } : { ok: false, text: r.error ?? "Falhou." });
     if (r.ok) void load();
     return r.ok;
+  }
+
+  async function createDriver() {
+    if (!newDrv) return;
+    const cpf = newDrv.cpf.replace(/\D/g, "");
+    if (newDrv.full_name.trim().length < 3) return setMsg({ ok: false, text: "Digite o nome completo do motorista." });
+    if (cpf.length !== 11) return setMsg({ ok: false, text: "CPF precisa ter 11 números." });
+    if (!/^\d{4}$/.test(newDrv.pin)) return setMsg({ ok: false, text: "O PIN de acesso tem que ter 4 números." });
+    setBusy(true);
+    setMsg(null);
+    const c = await api<{ id: string }>("/api/drivers", {
+      method: "POST",
+      body: JSON.stringify({
+        full_name: newDrv.full_name.trim(),
+        cpf,
+        whatsapp: newDrv.whatsapp || null,
+        phone: newDrv.whatsapp || null,
+        email: newDrv.email.trim() || null,
+        cnh_number: newDrv.cnh_number || null,
+        cnh_expiry: newDrv.cnh_expiry || null,
+        employment_type: "parceiro",
+        partner_id: id
+      })
+    });
+    if (!c.ok || !c.data?.id) {
+      setBusy(false);
+      return setMsg({ ok: false, text: c.error ?? "Não foi possível cadastrar." });
+    }
+    const did = c.data.id;
+    const steps = await Promise.all([
+      api(`/api/partners/${id}/drivers`, { method: "POST", body: JSON.stringify({ driver_id: did }) }),
+      api(`/api/drivers/${did}/pin`, { method: "PUT", body: JSON.stringify({ pin: newDrv.pin }) }),
+      newDrv.vehicle_id ? api(`/api/drivers/${did}/vehicles`, { method: "POST", body: JSON.stringify({ vehicle_id: newDrv.vehicle_id, set_default: true }) }) : Promise.resolve({ ok: true })
+    ]);
+    setBusy(false);
+    const failed = steps.filter((x) => !x.ok).map((x) => (x as { error?: string }).error).filter(Boolean);
+    setMsg(
+      failed.length
+        ? { ok: false, text: `Motorista criado, mas: ${failed.join("; ")}. Confira na ficha dele.` }
+        : { ok: true, text: `${newDrv.full_name.split(" ")[0]} cadastrado. Acesso: motorista.primevitoria.com · CPF ${cpf} · PIN ${newDrv.pin}. Falta: documentos, fotos e contrato (botão “Ficha e documentos”).` }
+    );
+    setNewDrv(null);
+    void load();
   }
 
   return (
@@ -416,49 +460,119 @@ function PartnerDetail({ id, onBack }: { id: string; onBack: () => void }) {
       </section>
 
       <section className="rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
-        <h3 className="font-semibold">Motoristas deste parceiro</h3>
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {d.drivers.length === 0 ? <li className="text-sm text-prime-muted">Nenhum ainda.</li> : null}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-semibold">{d.type === "PJ" ? "Motoristas (funcionários desta empresa)" : "Motoristas deste parceiro"}</h3>
+            <p className="text-xs text-prime-muted">
+              {d.type === "PJ"
+                ? "Estes motoristas recebem a O.S. sem valores. O valor vai para a empresa (mensagem “Empresa parceira”)."
+                : "Parceiro pessoa física: o motorista vê o próprio repasse."}
+            </p>
+          </div>
+          <button type="button" className="rounded-xl bg-[#111] px-4 py-2 text-sm font-bold text-prime-gold" onClick={() => setNewDrv((v) => (v ? null : { ...EMPTY_DRV }))}>
+            {newDrv ? "Fechar" : "+ Cadastrar motorista"}
+          </button>
+        </div>
+
+        {newDrv ? (
+          <div className="mt-4 grid gap-3 rounded-2xl bg-prime-bg p-4 sm:grid-cols-2" onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT" && e.preventDefault()}>
+            {(
+              [
+                ["full_name", "Nome completo *", "text"],
+                ["cpf", "CPF *", "text"],
+                ["whatsapp", "WhatsApp", "tel"],
+                ["email", "E-mail", "email"],
+                ["cnh_number", "Nº da CNH", "text"],
+                ["cnh_expiry", "Validade da CNH", "date"],
+                ["pin", "PIN de acesso ao app (4 números) *", "text"]
+              ] as const
+            ).map(([k, label, type]) => (
+              <label key={k} className="grid gap-1 text-sm">
+                <span>{label}</span>
+                <input
+                  className={input}
+                  type={type}
+                  inputMode={k === "pin" || k === "cpf" ? "numeric" : undefined}
+                  maxLength={k === "pin" ? 4 : undefined}
+                  value={newDrv[k]}
+                  onChange={(e) => setNewDrv({ ...newDrv, [k]: e.target.value })}
+                />
+              </label>
+            ))}
+            <label className="grid gap-1 text-sm">
+              <span>Carro que ele usa</span>
+              <select className={input} value={newDrv.vehicle_id} onChange={(e) => setNewDrv({ ...newDrv, vehicle_id: e.target.value })}>
+                <option value="">{d.vehicles.length ? "Escolha da frota…" : "Inclua o carro na frota primeiro"}</option>
+                {d.vehicles.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.plate} · {v.model}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+              <button type="button" disabled={busy} className="rounded-xl bg-[#111] px-5 py-2.5 text-sm font-bold text-prime-gold disabled:opacity-50" onClick={() => void createDriver()}>
+                {busy ? "Salvando…" : "Salvar motorista"}
+              </button>
+              <span className="text-xs text-prime-muted">Depois: documentos, fotos e contrato na ficha dele.</span>
+            </div>
+          </div>
+        ) : null}
+
+        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+          {d.drivers.length === 0 ? <li className="text-sm text-prime-muted">Nenhum motorista ainda.</li> : null}
           {d.drivers.map((x) => (
-            <li key={x.id} className="flex items-center justify-between gap-3 rounded-xl bg-prime-bg p-3 text-sm">
+            <li key={x.id} className="grid gap-2 rounded-xl border border-prime-border bg-white p-3 text-sm">
               <span>
                 <b>{x.full_name ?? "Motorista"}</b>
-                <span className="block text-xs text-prime-muted">CPF {x.cpf}{x.whatsapp ? ` · ${x.whatsapp}` : ""}</span>
+                <span className="block text-xs text-prime-muted">
+                  CPF {x.cpf}
+                  {x.whatsapp ? ` · ${x.whatsapp}` : ""}
+                </span>
               </span>
-              <button
-                type="button"
-                className="text-xs text-red-700 hover:underline"
-                onClick={() => void run(api(`/api/partners/${id}/drivers?driver_id=${x.id}`, { method: "DELETE" }), "Motorista desvinculado.")}
-              >
-                Desvincular
-              </button>
+              <span className="flex flex-wrap gap-3 text-xs">
+                <a href={`/drivers?ficha=${x.id}`} className="font-semibold text-prime-gold-ink hover:underline">
+                  Ficha e documentos
+                </a>
+                <a href={`/drivers?ficha=${x.id}&contrato=1`} className="font-semibold text-prime-gold-ink hover:underline">
+                  Contrato
+                </a>
+                <button
+                  type="button"
+                  className="ml-auto text-red-700 hover:underline"
+                  onClick={() => window.confirm(`Desvincular ${x.full_name ?? "o motorista"} da ${d.trade_name || d.name}?`) && void run(api(`/api/partners/${id}/drivers?driver_id=${x.id}`, { method: "DELETE" }), "Motorista desvinculado.")}
+                >
+                  Desvincular
+                </button>
+              </span>
             </li>
           ))}
         </ul>
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-prime-border pt-4">
-          <select className={`${input} max-w-sm`} value={linkDriver} onChange={(e) => setLinkDriver(e.target.value)}>
-            <option value="">Escolha um motorista já cadastrado…</option>
-            {linkable.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.profile_name ?? x.full_name ?? "Motorista"} · CPF {x.cpf}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            disabled={busy || !linkDriver}
-            className="btn-primary disabled:opacity-40"
-            onClick={async () => {
-              const ok = await run(api(`/api/partners/${id}/drivers`, { method: "POST", body: JSON.stringify({ driver_id: linkDriver }) }), "Motorista vinculado.");
-              if (ok) setLinkDriver("");
-            }}
-          >
-            Vincular
-          </button>
-          <Link href="/drivers" className="text-sm text-prime-gold-ink hover:underline">
-            Cadastrar motorista novo →
-          </Link>
-        </div>
+
+        {linkable.length ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-prime-border pt-4 text-sm">
+            <span className="text-prime-muted">Já está cadastrado na Prime?</span>
+            <select className={`${input} max-w-xs`} value={linkDriver} onChange={(e) => setLinkDriver(e.target.value)}>
+              <option value="">Escolha o motorista…</option>
+              {linkable.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.profile_name ?? x.full_name ?? "Motorista"} · CPF {x.cpf}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={busy || !linkDriver}
+              className="rounded-xl border border-prime-border px-4 py-2 font-semibold disabled:opacity-40"
+              onClick={async () => {
+                const ok = await run(api(`/api/partners/${id}/drivers`, { method: "POST", body: JSON.stringify({ driver_id: linkDriver }) }), "Motorista vinculado.");
+                if (ok) setLinkDriver("");
+              }}
+            >
+              Vincular
+            </button>
+          </div>
+        ) : null}
       </section>
     </div>
   );

@@ -165,13 +165,12 @@ export function normalizeDriverBody(body: DriverCadastroInput) {
   return out;
 }
 
-export const driverCreateSchema = z
-  .object({
-    profile_id: z.string().uuid().optional().nullable(),
-    full_name: z.string().min(2).optional(),
-    profile_name: z.string().min(2).optional(),
+// Cadastro novo aceita TODOS os campos da ficha (antes só nome/CPF/CNH passavam e o resto era descartado).
+export const driverCreateSchema = driverCadastroSchema
+  .extend({
     cpf: z.string().min(11),
-    cnh_number: z.string().optional()
+    cnh_number: z.string().optional().nullable(),
+    partner_id: z.string().uuid().optional().nullable()
   })
   .refine((b) => Boolean(b.full_name?.trim()) || Boolean(b.profile_name?.trim()) || Boolean(b.profile_id), {
     message: "Informe o nome completo do motorista."
