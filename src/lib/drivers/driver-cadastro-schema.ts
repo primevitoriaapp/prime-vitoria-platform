@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { emailField } from "@/lib/validation/contact-fields";
 import { normalizeDateFieldForStorage } from "@/lib/dates/br-date";
 import {
   activeFlagsFromOperationalStatus,
@@ -19,10 +20,7 @@ export const driverCadastroSchema = z.object({
   marital_status: z.string().max(30).optional().nullable(),
   phone: z.string().optional().nullable(),
   whatsapp: z.string().optional().nullable(),
-  email: z.preprocess(
-    (v) => (typeof v === "string" ? v.trim().toLowerCase() : v),
-    z.union([z.string().email("E-mail inválido"), z.literal(""), z.null()])
-  ).optional(),
+  email: emailField,
   postal_code: z.string().optional().nullable(),
   address_number: z.string().optional().nullable(),
   city: z.string().optional().nullable(),

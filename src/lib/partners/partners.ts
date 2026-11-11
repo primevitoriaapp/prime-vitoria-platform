@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { emailField } from "@/lib/validation/contact-fields";
 export { PF_VEHICLE_LIMIT, vehicleLimitFor, cleanPartner } from "./partners-calc.ts";
 
 const opt = z.string().trim().max(200).nullable().optional();
@@ -10,7 +11,7 @@ export const partnerSchema = z.object({
   document: opt,
   phone: opt,
   whatsapp: opt,
-  email: z.union([z.string().trim().email(), z.literal(""), z.null()]).optional(),
+  email: emailField,
   pix_key: opt,
   city: opt,
   notes: z.string().trim().max(1000).nullable().optional(),

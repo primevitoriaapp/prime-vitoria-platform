@@ -322,6 +322,22 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
         });
         return;
       }
+      // Confere o que o banco devolveu: contato digitado e não gravado vira aviso na hora.
+      const row = (json.data ?? {}) as Record<string, unknown>;
+      const norm = (v: unknown) => String(v ?? "").replace(/\s+/g, "").toLowerCase();
+      const lost = (
+        [
+          ["e-mail", payload.email, row.email],
+          ["telefone", payload.phone, row.phone],
+          ["WhatsApp", payload.whatsapp, row.whatsapp]
+        ] as const
+      )
+        .filter(([, sent, got]) => norm(sent) && norm(sent) !== norm(got))
+        .map(([label]) => label);
+      if (lost.length) {
+        setFeedback({ kind: "error", message: `${successMsg} MAS o sistema não gravou: ${lost.join(", ")}. Tire um print desta tela e me envie.` });
+        return;
+      }
       setFeedback({
         kind: saved?._warning ? "info" : "success",
         message: saved?._warning ? `${successMsg} ${saved._warning}` : successMsg

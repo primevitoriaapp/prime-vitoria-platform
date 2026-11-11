@@ -1,17 +1,20 @@
 import { z } from "zod";
 import { normalizeServiceTypes } from "@/lib/clients/client-service-types";
+import { emailField } from "@/lib/validation/contact-fields";
+import { toUf } from "@/lib/drivers/driver-cadastro-schema";
 
 export const clientCadastroSchema = z.object({
   type: z.enum(["PF", "PJ"]),
   name: z.string().min(2),
   trade_name: z.string().optional().nullable(),
   document: z.string().optional().nullable(),
-  email: z.union([z.string().email(), z.literal(""), z.null()]).optional(),
+  email: emailField,
   phone: z.string().optional().nullable(),
   whatsapp: z.string().optional().nullable(),
   address_line: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
-  state: z.string().max(2).optional().nullable(),
+  // Aceita "ES" ou "Espírito Santo" (vira a sigla ao salvar).
+  state: z.string().max(40).optional().nullable(),
   postal_code: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   registry_status: z.string().optional().nullable(),
@@ -40,7 +43,7 @@ export function normalizeClientBody(body: ClientCadastroInput) {
     whatsapp: emptyToNull(body.whatsapp ?? undefined),
     address_line: emptyToNull(body.address_line ?? undefined),
     city: emptyToNull(body.city ?? undefined),
-    state: emptyToNull(body.state ?? undefined)?.toUpperCase() ?? null,
+    state: toUf(body.state),
     postal_code: emptyToNull(body.postal_code ?? undefined),
     notes: emptyToNull(body.notes ?? undefined),
     registry_status: emptyToNull(body.registry_status ?? undefined),
@@ -64,7 +67,7 @@ export function normalizeClientPatch(body: Partial<ClientCadastroInput>) {
   if (body.whatsapp !== undefined) out.whatsapp = emptyToNull(body.whatsapp ?? undefined);
   if (body.address_line !== undefined) out.address_line = emptyToNull(body.address_line ?? undefined);
   if (body.city !== undefined) out.city = emptyToNull(body.city ?? undefined);
-  if (body.state !== undefined) out.state = emptyToNull(body.state ?? undefined)?.toUpperCase() ?? null;
+  if (body.state !== undefined) out.state = toUf(body.state);
   if (body.postal_code !== undefined) out.postal_code = emptyToNull(body.postal_code ?? undefined);
   if (body.notes !== undefined) out.notes = emptyToNull(body.notes ?? undefined);
   if (body.registry_status !== undefined) {

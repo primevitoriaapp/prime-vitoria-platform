@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { emailField } from "@/lib/validation/contact-fields";
 import { canManageClientTeam } from "@/lib/clients/client-portal-team-access";
 import { createCostCenter, listCostCenters } from "@/lib/clients/client-cost-centers";
 import { fail, mapApiError, ok } from "@/lib/server/http";
@@ -11,7 +12,7 @@ const createSchema = z.object({
   name: z.string().min(2),
   code: z.string().optional().nullable(),
   responsible_name: z.string().optional().nullable(),
-  responsible_email: z.string().email().optional().nullable().or(z.literal("")),
+  responsible_email: emailField,
   active: z.boolean().optional()
 });
 

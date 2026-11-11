@@ -504,10 +504,26 @@ export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: P
         });
         return;
       }
-      setFeedback({
-        kind: "success",
-        message: "Ficha do motorista salva com sucesso."
-      });
+      // Confere o que o banco devolveu: se algum contato não ficou gravado, avisa na hora.
+      const saved = (json.data ?? {}) as Record<string, unknown>;
+      const norm = (v: unknown) => String(v ?? "").replace(/\s+/g, "").toLowerCase();
+      const lost = (
+        [
+          ["telefone", patchBody.profile_phone, saved.phone],
+          ["WhatsApp", patchBody.whatsapp, saved.whatsapp],
+          ["e-mail", patchBody.email, saved.email]
+        ] as const
+      )
+        .filter(([, sent, got]) => norm(sent) && norm(sent) !== norm(got))
+        .map(([label]) => label);
+      setFeedback(
+        lost.length
+          ? { kind: "error", message: `Atenção: o sistema não gravou ${lost.join(", ")}. Tire um print desta tela e me envie.` }
+          : {
+              kind: "success",
+              message: `Ficha salva ✓${saved.phone || saved.whatsapp ? ` · tel ${String(saved.whatsapp || saved.phone)}` : ""}${saved.email ? ` · ${String(saved.email)}` : ""}`
+            }
+      );
       await loadDetail();
       onSaved();
     } catch (error) {

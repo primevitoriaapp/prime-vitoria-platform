@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { emailField } from "@/lib/validation/contact-fields";
 import { updateCostCenter } from "@/lib/clients/client-cost-centers";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
@@ -10,7 +11,7 @@ const patchSchema = z.object({
   name: z.string().min(2).optional(),
   code: z.string().optional().nullable(),
   responsible_name: z.string().optional().nullable(),
-  responsible_email: z.string().email().optional().nullable().or(z.literal("")),
+  responsible_email: emailField,
   active: z.boolean().optional()
 });
 
