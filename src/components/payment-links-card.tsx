@@ -36,7 +36,7 @@ export function PaymentLinksCard({ quoteId, tripId, total }: { quoteId?: string;
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<Link["kind"]>("sinal");
   const [amount, setAmount] = useState("");
-  const [assured, setAssured] = useState(1);
+  const [assured, setAssured] = useState(0);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -217,19 +217,45 @@ export function PaymentLinksCard({ quoteId, tripId, total }: { quoteId?: string;
                 onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
               />
             </label>
-            <label className="grid gap-1 text-sm">
-              <span>Parcelas sem juros para o cliente</span>
-              <select className="rounded-xl border border-prime-border px-3 py-2" value={assured} onChange={(e) => setAssured(Number(e.target.value))}>
-                <option value={0}>Nenhuma — taxa sempre por conta do cliente</option>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n === 1 ? "Só à vista (parcelado: juros do cliente)" : `Até ${n}x sem juros (você paga a taxa)`}
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
-          <p className="text-xs text-prime-muted">O cliente pode pagar em PIX ou cartão em até 12x. Acima das parcelas sem juros, a taxa é repassada para ele.</p>
+          <div className="grid gap-2">
+            <p className="text-sm font-semibold">Quem paga a taxa do cartão?</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(
+                [
+                  [0, "Repassar ao cliente", "O cliente paga a taxa em qualquer parcela (1x a 12x). Você recebe o valor cheio."],
+                  [12, "A Prime paga", "Cliente parcela em até 12x sem juros. A taxa sai do seu valor."],
+                  [-1, "Parte e parte", "Até X vezes sem juros para o cliente; acima disso a taxa é dele."]
+                ] as const
+              ).map(([v, title, hint]) => {
+                const on = v === -1 ? assured > 0 && assured < 12 : assured === v;
+                return (
+                  <button
+                    key={title}
+                    type="button"
+                    onClick={() => setAssured(v === -1 ? 3 : v)}
+                    className={`rounded-xl p-3 text-left ring-1 ${on ? "bg-[#111] text-[#fff] ring-[#111]" : "bg-white ring-prime-border hover:ring-prime-gold"}`}
+                  >
+                    <span className="block text-sm font-semibold">{title}</span>
+                    <span className={`block text-[11px] ${on ? "text-[#C8C3B8]" : "text-prime-muted"}`}>{hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {assured > 0 && assured < 12 ? (
+              <label className="grid max-w-xs gap-1 text-sm">
+                <span>Sem juros para o cliente até</span>
+                <select className="rounded-xl border border-prime-border px-3 py-2" value={assured} onChange={(e) => setAssured(Number(e.target.value))}>
+                  {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n}x {n === 1 ? "(só à vista sem taxa)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+          <p className="text-xs text-prime-muted">O cliente escolhe PIX ou cartão (até 12x) na página da InfinitePay, que mostra o valor de cada parcela para ele.</p>
           <div className="flex gap-2">
             <button type="button" disabled={busy || !connected} onClick={() => void create()} className="rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-prime-gold disabled:opacity-50">
               {busy ? "Gerando…" : "Gerar link"}
