@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { saoPauloTodayYmd } from "@/lib/dates/br-date";
 import { paymentLabel, type PackageSummary } from "@/lib/finance/booking-payments-core";
+import { PaymentLinksCard } from "@/components/payment-links-card";
 import { BookingPaymentFields, bookingPaymentBody, emptyBookingPayment } from "@/components/booking-payment-form";
 
 type Data = PackageSummary & { trip_ids: string[]; allocated_here: number };
@@ -122,6 +123,11 @@ export function TripPaymentsCard({ tripId }: { tripId: string }) {
         </button>
       )}
       {msg ? <p className={`mt-2 text-sm ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p> : null}
+      {d.total > 0 ? (
+        <div className="mt-3">
+          <PaymentLinksCard tripId={tripId} total={d.total} />
+        </div>
+      ) : null}
     </section>
   );
 }

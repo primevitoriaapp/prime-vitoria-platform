@@ -1,4 +1,5 @@
 import { db } from "@/lib/server/db";
+import { bookPaidLinksForQuote } from "@/lib/finance/payment-links";
 import { formatQuoteNumber, isDiaria, itemHours, itemsMissingForTrips, serviceLabelForClient, tripAmountsFromQuote, tripServiceModeFor } from "@/lib/quotes/quote-calc";
 import { legacyServiceType, type CategoryKind, type ServiceMode } from "@/lib/pricing/category-catalog";
 
@@ -99,5 +100,8 @@ export async function approveQuote(tenantId: string, id: string, actorUserId: st
     if (tErr) return fail("TRIPS_FAILED", tErr.message, 500);
 
     await db.from("quotes").update({ status: "aprovado", approved_at: nowIso, client_id: clientId, updated_at: nowIso }).eq("id", id);
+    // Sinal já pago pelo link da InfinitePay: entra como pagamento das corridas criadas agora.
+    await db.from("payment_links").update({ client_id: clientId }).eq("quote_id", id).is("client_id", null);
+    await bookPaidLinksForQuote(tenantId, id).catch(() => undefined);
   return { ok: true, trips: trips?.length ?? 0, client_id: clientId as string };
 }

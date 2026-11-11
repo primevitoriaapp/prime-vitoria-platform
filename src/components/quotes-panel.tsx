@@ -1,5 +1,6 @@
 "use client";
 
+import { PaymentLinksCard } from "@/components/payment-links-card";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
@@ -756,6 +757,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           </div>
         </div>
       </section>
+
+      {id ? <PaymentLinksCard quoteId={id} total={totals.total} /> : null}
 
       {/* Barra de ações sempre visível no rodapé: não precisa rolar para aprovar. */}
       <div className="sticky bottom-0 z-30 -mx-4 border-t border-prime-border bg-white/95 px-4 py-3 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur lg:-mx-8 lg:px-8">
