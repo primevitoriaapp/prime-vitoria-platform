@@ -46,24 +46,28 @@ export function InfinitepayCard() {
           {st?.configured ? `Conectada · $${st.handle} · chave final ${st.key_tail}` : "Não conectada"}
         </span>
       </div>
-      <p className="text-sm text-prime-muted">
-        1) Sua <b>InfiniteTag</b> (o @ da conta, sem o $). 2) Na InfinitePay, crie uma <b>chave de API do Checkout</b> (começa com <b>inchk_</b>) e cole aqui. Ela fica guardada no
-        sistema e não aparece de novo.
-      </p>
-      <div className="grid gap-2 sm:grid-cols-[200px_1fr_auto]">
-        <input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="InfiniteTag" autoComplete="off" className="rounded-xl border border-prime-border px-3 py-2 text-sm" />
-        <input
-          type="password"
-          autoComplete="off"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          placeholder={st?.configured ? "Colar uma chave nova para trocar" : "Cole a chave da API (inchk_…)"}
-          className="rounded-xl border border-prime-border px-3 py-2 text-sm"
-        />
-        <button type="button" disabled={busy || handle.trim().length < 2} onClick={() => void save()} className="rounded-xl bg-[#111] px-4 py-2 text-sm font-bold text-prime-gold disabled:opacity-50">
-          {busy ? "Salvando…" : "Salvar"}
-        </button>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="grid gap-1 text-sm">
+          <span className="font-semibold">1. Sua InfiniteTag</span>
+          <span className="text-xs text-prime-muted">É o seu “@” na InfinitePay (aparece no app, no seu perfil, com $ na frente, ex.: $primevitoria). Digite sem o $. Não é o nome que você deu à chave.</span>
+          <input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="ex.: primevitoria" autoCapitalize="none" autoCorrect="off" autoComplete="off" className="rounded-xl border border-prime-border px-3 py-2 text-sm" />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="font-semibold">2. Chave da API do Checkout</span>
+          <span className="text-xs text-prime-muted">Começa com inchk_. Use o botão de copiar da InfinitePay e cole aqui. Ela fica guardada e não aparece de novo.</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder={st?.configured ? "Colar uma chave nova para trocar" : "inchk_…"}
+            className="rounded-xl border border-prime-border px-3 py-2 text-sm"
+          />
+        </label>
       </div>
+      <button type="button" disabled={busy || handle.trim().length < 2} onClick={() => void save()} className="rounded-xl bg-[#111] px-4 py-2.5 text-sm font-bold text-prime-gold disabled:opacity-50">
+        {busy ? "Salvando…" : "Salvar"}
+      </button>
       {msg ? <p className={`rounded-lg px-3 py-2 text-sm font-semibold text-[#fff] ${msg.ok ? "bg-emerald-600" : "bg-red-600"}`}>{msg.text}</p> : null}
     </section>
   );

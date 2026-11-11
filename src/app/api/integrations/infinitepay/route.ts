@@ -28,8 +28,13 @@ export async function PUT(request: Request) {
         api_key: z.string().trim().max(300).optional()
       })
       .parse(await request.json());
-    const handle = body.handle.replace(/^\$/, "").trim();
-    if (!/^[a-z0-9_.-]+$/i.test(handle)) return fail("HANDLE_INVALID", "A InfiniteTag tem só letras, números, ponto, traço ou _ (sem o $).", 400);
+    const handle = body.handle.replace(/^[$@]/, "").trim();
+    if (!/^[a-z0-9_.-]+$/i.test(handle))
+      return fail(
+        "HANDLE_INVALID",
+        `“${body.handle}” não é uma InfiniteTag. A InfiniteTag é o seu @ na InfinitePay (no app, no seu perfil, com $ na frente — ex.: $primevitoria), sem espaços. Não é o nome que você deu à chave.`,
+        400
+      );
     const { data: cur } = await db.from("app_secrets").select("value").eq("key", "infinitepay").maybeSingle();
     const old = (cur?.value ?? {}) as { api_key?: string };
     const api_key = body.api_key && body.api_key.length > 10 ? body.api_key : old.api_key;
