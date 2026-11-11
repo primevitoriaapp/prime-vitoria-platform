@@ -822,7 +822,13 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
         </div>
       </section>
 
-      {id ? <PaymentLinksCard quoteId={id} total={totals.total} /> : null}
+      {id ? (
+        <PaymentLinksCard quoteId={id} total={totals.total} />
+      ) : (
+        <section className="rounded-2xl border border-dashed border-prime-border bg-white p-4 text-sm text-prime-muted">
+          💳 <b>Link de pagamento (InfinitePay)</b>: salve o orçamento primeiro (botão “Salvar” lá embaixo) e o botão para gerar o link aparece aqui.
+        </section>
+      )}
 
       {/* Barra de ações sempre visível no rodapé: não precisa rolar para aprovar. */}
       <div className="sticky bottom-0 z-30 -mx-4 border-t border-prime-border bg-white/95 px-4 py-3 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur lg:-mx-8 lg:px-8">
