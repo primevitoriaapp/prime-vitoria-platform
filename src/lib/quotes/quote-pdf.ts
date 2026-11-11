@@ -121,6 +121,7 @@ export function buildQuotePdf(q: QuoteDoc, logo: Uint8Array | null, photos: Map<
       if (r.detail) for (const l of wrap(`Obs.: ${r.detail}`, "R", 8.5, svcW)) svc.push({ t: l, f: "R", c: GOLD_DARK, s: 8.5 });
       const rt: { t: string; c: RGB }[] = [];
       for (const l of wrap(r.diaria || !r.to ? r.from : `• ${r.from}`, "R", 8.5, routeW)) rt.push({ t: l, c: INK });
+      for (const v of r.via ?? []) for (const l of wrap(`↳ ${v}`, "R", 8.5, routeW)) rt.push({ t: l, c: INK });
       if (r.to) for (const l of wrap(r.diaria ? r.to : `» ${r.to}`, "R", 8.5, routeW)) rt.push({ t: l, c: r.diaria ? MUTED : INK });
       const rowH = Math.max(svc.length, rt.length, r.qty > 1 ? 2 : 1) * 11.5 + 12;
       if (y + rowH > pdf.H - footerSpace) newPage();

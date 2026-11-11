@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
-import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { BackButton } from "@/components/back-button";
-import { BRIDAL_INCLUDED, BRIDAL_PACKAGES, bridalDescription } from "@/lib/quotes/bridal-packages";
+import { BRIDAL_INCLUDED, BRIDAL_PACKAGES, bridalDescription, type BridalPackage } from "@/lib/quotes/bridal-packages";
+import { QuoteRouteEditor, emptyPoint, type RoutePoint } from "@/components/quote-route-editor";
 import { QUOTE_STATUS, effectiveQuoteStatus, formatQuoteNumber, isDiaria, itemHours, itemsMissingForTrips, priceKeyFor, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
 import { COMPANY_SCOPES, inCompany, useCompany } from "@/lib/company/company-context";
 import { formatBrDateTime, saoPauloDateAndTimeToUtcIso } from "@/lib/dates/br-date";
@@ -34,8 +34,10 @@ type Item = {
   description: string;
   date: string;
   time: string;
-  origin: { text: string; lat: number | null; lng: number | null };
-  dest: { text: string; lat: number | null; lng: number | null };
+  origin: RoutePoint;
+  dest: RoutePoint;
+  stops: RoutePoint[];
+  package_id: string;
   passenger_count: number;
   passenger_name: string;
   quantity: number;
@@ -55,6 +57,32 @@ const toNum = (s: string) => {
 };
 const money2 = (n: number | null | undefined) => (n == null ? "" : Number(n).toFixed(2).replace(".", ","));
 
+type QuoteKind = "casamento" | "transfer" | "diaria" | "van" | "turismo" | "evento";
+const KINDS: { id: QuoteKind; label: string; hint: string }[] = [
+  { id: "casamento", label: "👰 Casamento", hint: "Pacotes de noiva" },
+  { id: "transfer", label: "✈️ Transfer", hint: "Aeroporto, hotel, empresa" },
+  { id: "diaria", label: "⏱ Diária", hint: "Carro à disposição" },
+  { id: "van", label: "🚐 Van / grupo", hint: "Muitas pessoas" },
+  { id: "turismo", label: "🗺 Turismo", hint: "Passeio com roteiro" },
+  { id: "evento", label: "🎉 Evento", hint: "Vários carros e horários" }
+];
+
+/** Serviço a partir do pacote: roteiro com os pontos do pacote (endereços em branco). */
+function itemFromPackage(p: BridalPackage, date: string): Item {
+  const pts = p.route;
+  return {
+    ...EMPTY_ITEM(),
+    service_mode: p.hours ? "diaria" : "outro",
+    hours: p.hours ? String(p.hours) : "",
+    description: bridalDescription(p),
+    package_id: p.id,
+    date,
+    origin: emptyPoint(pts[0] ?? ""),
+    stops: pts.slice(1, -1).map((l) => emptyPoint(l)),
+    dest: emptyPoint(pts.length > 1 ? pts[pts.length - 1] : "")
+  };
+}
+
 const EMPTY_ITEM = (): Item => ({
   vehicle_category_id: "",
   service_mode: "transfer",
@@ -62,8 +90,10 @@ const EMPTY_ITEM = (): Item => ({
   description: "",
   date: "",
   time: "",
-  origin: { text: "", lat: null, lng: null },
-  dest: { text: "", lat: null, lng: null },
+  origin: emptyPoint(),
+  dest: emptyPoint(),
+  stops: [],
+  package_id: "",
   passenger_count: 1,
   passenger_name: "",
   quantity: 1,
@@ -205,6 +235,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   const [cats, setCats] = useState<Category[]>([]);
   const [prices, setPrices] = useState<PriceRow[]>([]);
   const [clientId, setClientId] = useState("");
+  const [who, setWho] = useState<"cadastrado" | "PJ" | "PF">("cadastrado");
+  const [kind, setKind] = useState<QuoteKind | "">("");
   const [contact, setContact] = useState({ type: "PJ" as "PF" | "PJ", name: "", document: "", phone: "", email: "" });
   const [issuer, setIssuer] = useState<string>(company === "todas" ? "rj_prime" : company);
   const [validUntil, setValidUntil] = useState(plusDays(today(), 7));
@@ -236,6 +268,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       setNumber(Number(q.number));
       setTripsCount(q.trips?.length ?? 0);
       setClientId((q.client_id as string) ?? "");
+      setWho(q.client_id ? "cadastrado" : ((q.contact_type as "PF" | "PJ") ?? "PJ"));
+      setKind(((q.kind as QuoteKind | null) ?? "") as QuoteKind | "");
       setContact({
         type: (q.contact_type as "PF" | "PJ") ?? "PJ",
         name: (q.contact_name as string) ?? "",
@@ -264,8 +298,12 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
             description: (it.description as string) ?? "",
             date: at ? `${g("year")}-${g("month")}-${g("day")}` : ((it.service_date as string) ?? ""),
             time: at ? `${g("hour") === "24" ? "00" : g("hour")}:${g("minute")}` : "",
-            origin: { text: (it.origin_text as string) ?? "", lat: (it.origin_lat as number) ?? null, lng: (it.origin_lng as number) ?? null },
-            dest: { text: (it.destination_text as string) ?? "", lat: (it.destination_lat as number) ?? null, lng: (it.destination_lng as number) ?? null },
+            origin: { label: (it.origin_label as string) ?? "", text: (it.origin_text as string) ?? "", lat: (it.origin_lat as number) ?? null, lng: (it.origin_lng as number) ?? null },
+            dest: { label: (it.destination_label as string) ?? "", text: (it.destination_text as string) ?? "", lat: (it.destination_lat as number) ?? null, lng: (it.destination_lng as number) ?? null },
+            stops: Array.isArray(it.stops)
+              ? (it.stops as Record<string, unknown>[]).map((x) => ({ label: String(x.label ?? ""), text: String(x.address_text ?? ""), lat: (x.lat as number) ?? null, lng: (x.lng as number) ?? null }))
+              : [],
+            package_id: (it.package_id as string) ?? "",
             passenger_count: Number(it.passenger_count) || 1,
             passenger_name: (it.passenger_name as string) ?? "",
             quantity: Number(it.quantity) || 1,
@@ -293,6 +331,34 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   const parsedItems = items.map((i) => ({ quantity: i.quantity, unit_price: toNum(i.unit_price), driver_amount: i.driver_amount ? toNum(i.driver_amount) : null }));
   const totals = quoteTotals(parsedItems, toNum(discount));
 
+  const vanCat = cats.find((c) => /van|micro|ônibus|onibus/i.test(c.name))?.id ?? "";
+
+  /** Serviço novo já no jeito do tipo escolhido (van já vem com a van, diária já vem com horas). */
+  function newItem(date: string, k: QuoteKind | "" = kind): Item {
+    const base = { ...EMPTY_ITEM(), date };
+    if (k === "diaria") return { ...base, service_mode: "diaria", hours: "12" };
+    if (k === "turismo") return { ...base, service_mode: "diaria", hours: "8" };
+    if (k === "van") return { ...base, vehicle_category_id: vanCat, passenger_count: 10 };
+    return base;
+  }
+
+  const isBlank = (it: Item) => !it.vehicle_category_id && !it.unit_price && !it.origin.text && !it.dest.text && !it.package_id && !it.stops.length;
+
+  function chooseKind(k: QuoteKind) {
+    setKind(k);
+    if (k === "casamento") setIssuer("rj_prime");
+    // Só troca o serviço se ainda está em branco (não apaga o que já foi digitado).
+    setItems((l) => (l.length === 1 && isBlank(l[0]) ? (k === "casamento" ? l : [newItem(l[0].date, k)]) : l));
+  }
+
+  function addPackage(p: BridalPackage) {
+    setIssuer("rj_prime");
+    setItems((l) => {
+      const novo = itemFromPackage(p, l[l.length - 1]?.date ?? "");
+      return l.length === 1 && isBlank(l[0]) ? [novo] : [...l, novo];
+    });
+  }
+
   function setItem(idx: number, patch: Partial<Item>) {
     setItems((list) =>
       list.map((it, i) => {
@@ -313,7 +379,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   function payload() {
     return {
       client_id: clientId || null,
-      contact_type: contact.type,
+      contact_type: who === "cadastrado" ? (clients.find((c) => c.id === clientId)?.type === "PF" ? "PF" : "PJ") : who,
+      kind: kind || null,
       contact_name: contact.name || null,
       contact_document: contact.document || null,
       contact_phone: contact.phone || null,
@@ -337,6 +404,10 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
         destination_text: i.dest.text || null,
         destination_lat: i.dest.lat,
         destination_lng: i.dest.lng,
+        origin_label: i.origin.label.trim() || null,
+        destination_label: i.dest.label.trim() || null,
+        stops: i.stops.filter((x) => x.text.trim().length >= 3 || x.label.trim()).map((x) => ({ label: x.label.trim() || null, address_text: x.text.trim(), lat: x.lat, lng: x.lng })),
+        package_id: i.package_id || null,
         passenger_count: i.passenger_count,
         passenger_name: i.passenger_name || null,
         quantity: i.quantity,
@@ -438,60 +509,100 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
         </div>
       ) : null}
 
-      <section className="grid gap-3 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card sm:grid-cols-4">
-        <label className="grid gap-1 text-sm sm:col-span-2">
-          <span>Cliente cadastrado</span>
-          <select className={input} value={clientId} disabled={locked} onChange={(e) => setClientId(e.target.value)}>
-            <option value="">— Cliente novo (preencher abaixo) —</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.trade_name || c.name}
-              </option>
+      <section className="grid gap-4 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
+        <div className="grid gap-2">
+          <p className="text-sm font-semibold">1. Para quem é o orçamento?</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["cadastrado", "🏢 Cliente já cadastrado"],
+                ["PJ", "🏢 Empresa nova"],
+                ["PF", "🙋 Pessoa física"]
+              ] as const
+            ).map(([w, label]) => (
+              <button
+                key={w}
+                type="button"
+                disabled={locked}
+                onClick={() => {
+                  setWho(w);
+                  if (w === "cadastrado") return;
+                  setClientId("");
+                  setContact((c) => ({ ...c, type: w }));
+                }}
+                className={`rounded-xl px-4 py-2 text-sm ring-1 ${who === w ? "bg-[#111] font-semibold text-[#fff] ring-[#111]" : "bg-white ring-prime-border hover:ring-prime-gold"}`}
+              >
+                {label}
+              </button>
             ))}
-          </select>
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span>Empresa que emite</span>
-          <select className={input} value={issuer} disabled={locked} onChange={(e) => setIssuer(e.target.value)}>
-            {COMPANY_SCOPES.filter((c) => c.id !== "todas").map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span>Válido até</span>
-          <input type="date" className={input} value={validUntil} disabled={locked} onChange={(e) => setValidUntil(e.target.value)} />
-        </label>
-        {!clientId ? (
-          <>
-            <div className="inline-flex w-fit rounded-lg border border-prime-border p-0.5 text-sm sm:col-span-4">
-              {(["PJ", "PF"] as const).map((t) => (
-                <button key={t} type="button" disabled={locked} onClick={() => setContact({ ...contact, type: t })} className={`rounded-md px-3 py-1 ${contact.type === t ? "bg-[#111] text-[#fff]" : "text-prime-muted"}`}>
-                  {t === "PJ" ? "Empresa" : "Pessoa física (noiva, turismo…)"}
-                </button>
+          </div>
+          {who === "cadastrado" ? (
+            <select className={input} value={clientId} disabled={locked} onChange={(e) => setClientId(e.target.value)}>
+              <option value="">Escolha o cliente…</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.trade_name || c.name}
+                  {c.type === "PF" ? " (pessoa física)" : ""}
+                </option>
               ))}
+            </select>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-4">
+              <label className="grid gap-1 text-sm sm:col-span-2">
+                <span>{who === "PF" ? "Nome completo *" : "Nome da empresa *"}</span>
+                <input className={input} disabled={locked} value={contact.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>{who === "PJ" ? "CNPJ" : "CPF"}</span>
+                <input className={input} disabled={locked} value={contact.document} onChange={(e) => setContact({ ...contact, document: e.target.value })} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>WhatsApp</span>
+                <input className={input} disabled={locked} value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} />
+              </label>
+              <label className="grid gap-1 text-sm sm:col-span-2">
+                <span>E-mail</span>
+                <input className={input} disabled={locked} value={contact.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} />
+              </label>
+              <p className="self-end text-xs text-prime-muted sm:col-span-2">Ao aprovar, o cliente é cadastrado sozinho.</p>
             </div>
-            <label className="grid gap-1 text-sm sm:col-span-2">
-              <span>Nome *</span>
-              <input className={input} disabled={locked} value={contact.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span>{contact.type === "PJ" ? "CNPJ" : "CPF"}</span>
-              <input className={input} disabled={locked} value={contact.document} onChange={(e) => setContact({ ...contact, document: e.target.value })} />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span>WhatsApp</span>
-              <input className={input} disabled={locked} value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} />
-            </label>
-            <label className="grid gap-1 text-sm sm:col-span-2">
-              <span>E-mail</span>
-              <input className={input} disabled={locked} value={contact.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} />
-            </label>
-            <p className="self-end text-xs text-prime-muted sm:col-span-2">Ao aprovar, o cliente é cadastrado sozinho.</p>
-          </>
-        ) : null}
+          )}
+        </div>
+
+        <div className="grid gap-2">
+          <p className="text-sm font-semibold">2. Que tipo de serviço?</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {KINDS.map((k) => (
+              <button
+                key={k.id}
+                type="button"
+                disabled={locked}
+                onClick={() => chooseKind(k.id)}
+                className={`rounded-xl px-3 py-2 text-left ring-1 ${kind === k.id ? "bg-[#111] text-[#fff] ring-[#111]" : "bg-white ring-prime-border hover:ring-prime-gold"}`}
+              >
+                <span className="block text-sm font-semibold">{k.label}</span>
+                <span className={`block text-[11px] ${kind === k.id ? "text-[#C8C3B8]" : "text-prime-muted"}`}>{k.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1 text-sm">
+            <span>Empresa que emite</span>
+            <select className={input} value={issuer} disabled={locked} onChange={(e) => setIssuer(e.target.value)}>
+              {COMPANY_SCOPES.filter((c) => c.id !== "todas").map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span>Válido até</span>
+            <input type="date" className={input} value={validUntil} disabled={locked} onChange={(e) => setValidUntil(e.target.value)} />
+          </label>
+        </div>
       </section>
 
       <section className="space-y-3">
@@ -499,6 +610,24 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           <h3 className="font-semibold">Serviços</h3>
           <span className="text-xs text-prime-muted">Ao salvar, os serviços ficam em ordem de data e hora.</span>
         </div>
+        {!locked && kind === "casamento" ? (
+          <div className="grid gap-2 rounded-2xl border border-[#EADFC4] bg-[#FBF7EC] p-4">
+            <p className="text-sm font-semibold">👰 Escolha o pacote — R J Prime Transporte</p>
+            <p className="text-xs text-prime-muted">O pacote entra com a descrição e o roteiro (salão, igreja, cerimonial…). Depois é só colocar os endereços, a data, o veículo e o valor.</p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {BRIDAL_PACKAGES.map((p) => (
+                <button key={p.id} type="button" onClick={() => addPackage(p)} className="rounded-xl border border-[#E3D3A8] bg-white p-3 text-left hover:border-prime-gold">
+                  <span className="block text-sm font-bold">{p.name}</span>
+                  <span className="block text-xs text-prime-muted">
+                    {p.duration} · {p.destinations}
+                  </span>
+                  <span className="mt-1 block text-[11px] text-[#7A5A12]">{p.route.join(" → ")}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-prime-muted">Incluso em todos: {BRIDAL_INCLUDED}</p>
+          </div>
+        ) : null}
         {items.map((it, idx) => {
           const diaria = isDiaria(it.service_mode);
           const label = serviceLabelForClient(it.service_mode, it.hours ? toNum(it.hours) : null);
@@ -513,7 +642,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                 {!locked ? (
                   <span className="flex flex-wrap gap-3 text-xs">
                     {!diaria ? (
-                      <button type="button" className="text-prime-gold-ink hover:underline" onClick={() => setItems((l) => [...l.slice(0, idx + 1), { ...it, origin: it.dest, dest: it.origin, time: "" }, ...l.slice(idx + 1)])}>
+                      <button type="button" className="text-prime-gold-ink hover:underline" onClick={() => setItems((l) => [...l.slice(0, idx + 1), { ...it, origin: it.dest, dest: it.origin, stops: [...it.stops].reverse(), time: "" }, ...l.slice(idx + 1)])}>
                         + Volta
                       </button>
                     ) : null}
@@ -603,54 +732,18 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                       />
                     </div>
                   </div>
-                  <div className="sm:col-span-3">
-                    <AddressAutocompleteInput
-                      label="Local de início (cidade ou endereço)"
-                      value={it.origin.text}
-                      hasCoords={it.origin.lat != null}
-                      onChange={(t) => setItem(idx, { origin: { text: t, lat: null, lng: null } })}
-                      onPlaceSelect={(p) => setItem(idx, { origin: { text: p.displayName, lat: p.lat, lng: p.lng } })}
-                      onCoordsClear={() => setItem(idx, { origin: { ...it.origin, lat: null, lng: null } })}
-                      devFallbackRole="admin"
-                    />
-                  </div>
-                  <label className="grid gap-1 text-sm sm:col-span-3">
-                    <span>Roteiro / região (opcional)</span>
-                    <input
-                      className={input}
-                      disabled={locked}
-                      placeholder="Ex.: Vitória e Vila Velha, roteiro a definir"
-                      value={it.dest.text}
-                      onChange={(e) => setItem(idx, { dest: { text: e.target.value, lat: null, lng: null } })}
-                    />
-                  </label>
                 </>
-              ) : (
-                <>
-                  <div className="sm:col-span-3">
-                    <AddressAutocompleteInput
-                      label="Embarque"
-                      value={it.origin.text}
-                      hasCoords={it.origin.lat != null}
-                      onChange={(t) => setItem(idx, { origin: { text: t, lat: null, lng: null } })}
-                      onPlaceSelect={(p) => setItem(idx, { origin: { text: p.displayName, lat: p.lat, lng: p.lng } })}
-                      onCoordsClear={() => setItem(idx, { origin: { ...it.origin, lat: null, lng: null } })}
-                      devFallbackRole="admin"
-                    />
-                  </div>
-                  <div className="sm:col-span-3">
-                    <AddressAutocompleteInput
-                      label="Destino"
-                      value={it.dest.text}
-                      hasCoords={it.dest.lat != null}
-                      onChange={(t) => setItem(idx, { dest: { text: t, lat: null, lng: null } })}
-                      onPlaceSelect={(p) => setItem(idx, { dest: { text: p.displayName, lat: p.lat, lng: p.lng } })}
-                      onCoordsClear={() => setItem(idx, { dest: { ...it.dest, lat: null, lng: null } })}
-                      devFallbackRole="admin"
-                    />
-                  </div>
-                </>
-              )}
+              ) : null}
+              <div className="sm:col-span-6">
+                <QuoteRouteEditor
+                  origin={it.origin}
+                  stops={it.stops}
+                  dest={it.dest}
+                  diaria={diaria && !it.package_id}
+                  locked={locked}
+                  onChange={(n) => setItem(idx, n)}
+                />
+              </div>
 
               <label className="grid gap-1 text-sm sm:col-span-2">
                 <span>Passageiros (aparece no orçamento)</span>
@@ -685,38 +778,9 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           );
         })}
         {!locked ? (
-          <button type="button" className="w-full rounded-2xl border-2 border-dashed border-prime-border p-3 text-sm font-semibold text-prime-gold hover:border-prime-gold" onClick={() => setItems((l) => [...l, { ...EMPTY_ITEM(), date: l[l.length - 1]?.date ?? "" }])}>
+          <button type="button" className="w-full rounded-2xl border-2 border-dashed border-prime-border p-3 text-sm font-semibold text-prime-gold hover:border-prime-gold" onClick={() => setItems((l) => [...l, newItem(l[l.length - 1]?.date ?? "")])}>
             + Adicionar serviço
           </button>
-        ) : null}
-        {!locked ? (
-          <div className="grid gap-2 rounded-2xl border border-[#EADFC4] bg-[#FBF7EC] p-4">
-            <p className="text-sm font-semibold">👰 Veículos para noiva — R J Prime Transporte</p>
-            <p className="text-xs text-prime-muted">Toque no pacote para colocar no orçamento (a empresa emissora vira R J Prime). O valor fica em branco para você preencher; escolha o veículo e a data no serviço.</p>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {BRIDAL_PACKAGES.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setIssuer("rj_prime");
-                    setItems((l) => {
-                      const novo: Item = { ...EMPTY_ITEM(), service_mode: "outro", description: bridalDescription(p), date: l[l.length - 1]?.date ?? "" };
-                      const onlyEmpty = l.length === 1 && !l[0].vehicle_category_id && !l[0].unit_price && !l[0].origin.text;
-                      return onlyEmpty ? [novo] : [...l, novo];
-                    });
-                  }}
-                  className="rounded-xl border border-[#E3D3A8] bg-white p-3 text-left hover:border-prime-gold"
-                >
-                  <span className="block text-sm font-bold">{p.name}</span>
-                  <span className="block text-xs text-prime-muted">
-                    {p.duration} · {p.destinations}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <p className="text-[11px] text-prime-muted">Incluso em todos: {BRIDAL_INCLUDED}</p>
-          </div>
         ) : null}
       </section>
 

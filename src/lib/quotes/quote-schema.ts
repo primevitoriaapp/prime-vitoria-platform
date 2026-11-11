@@ -7,6 +7,13 @@ const money = z.union([z.number(), z.string(), z.null()]).transform((v) => {
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
 });
 
+export const quoteStopSchema = z.object({
+  label: z.string().trim().max(60).nullable().optional(),
+  address_text: z.string().trim().max(300),
+  lat: z.number().nullable().optional(),
+  lng: z.number().nullable().optional()
+});
+
 export const quoteItemSchema = z.object({
   vehicle_category_id: z.string().uuid().nullable().optional(),
   service_mode: z.enum(["transfer", "diaria", "diaria_5h", "diaria_10h", "diaria_12h", "km", "outro"]).default("transfer"),
@@ -20,6 +27,10 @@ export const quoteItemSchema = z.object({
   destination_text: z.string().trim().max(300).nullable().optional(),
   destination_lat: z.number().nullable().optional(),
   destination_lng: z.number().nullable().optional(),
+  origin_label: z.string().trim().max(60).nullable().optional(),
+  destination_label: z.string().trim().max(60).nullable().optional(),
+  stops: z.array(quoteStopSchema).max(12).nullable().optional(),
+  package_id: z.string().trim().max(40).nullable().optional(),
   passenger_count: z.coerce.number().int().min(1).max(80).default(1),
   passenger_name: z.string().trim().max(200).nullable().optional(),
   quantity: z.coerce.number().int().min(1).max(50).default(1),
@@ -30,6 +41,7 @@ export const quoteItemSchema = z.object({
 export const quoteSchema = z.object({
   client_id: z.string().uuid().nullable().optional(),
   contact_type: z.enum(["PF", "PJ"]).default("PJ"),
+  kind: z.enum(["casamento", "transfer", "diaria", "van", "turismo", "evento"]).nullable().optional(),
   contact_name: z.string().trim().max(200).nullable().optional(),
   contact_document: z.string().trim().max(30).nullable().optional(),
   contact_phone: z.string().trim().max(40).nullable().optional(),

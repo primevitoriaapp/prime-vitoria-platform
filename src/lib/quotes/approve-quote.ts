@@ -3,6 +3,19 @@ import { bookPaidLinksForQuote } from "@/lib/finance/payment-links";
 import { formatQuoteNumber, isDiaria, itemHours, itemsMissingForTrips, serviceLabelForClient, tripAmountsFromQuote, tripServiceModeFor } from "@/lib/quotes/quote-calc";
 import { legacyServiceType, type CategoryKind, type ServiceMode } from "@/lib/pricing/category-catalog";
 
+/** Roteiro do orçamento (paradas com nome) vira a lista de paradas da corrida no app do motorista. */
+function quoteItemTripStops(it: Record<string, unknown>): Record<string, unknown> {
+  const stops = (Array.isArray(it.stops) ? (it.stops as Record<string, unknown>[]) : [])
+    .filter((x) => String(x.address_text ?? "").trim().length >= 3)
+    .map((x) => ({ passenger_name: String(x.label ?? "").trim(), passenger_phone: null, address_text: String(x.address_text).trim(), lat: x.lat ?? null, lng: x.lng ?? null, dropped_at: null }));
+  if (!stops.length) return {};
+  const destLabel = String(it.destination_label ?? "").trim();
+  const dest = String(it.destination_text ?? "").trim();
+  if (destLabel && dest.length >= 3)
+    stops.push({ passenger_name: destLabel, passenger_phone: null, address_text: dest, lat: it.destination_lat ?? null, lng: it.destination_lng ?? null, dropped_at: null, final: true } as never);
+  return { trip_dropoff_stops: stops };
+}
+
 export type ApproveResult = { ok: true; trips: number; client_id: string } | { ok: false; code: string; message: string; status: number };
 
 const fail = (code: string, message: string, status: number): ApproveResult => ({ ok: false, code, message, status });
@@ -82,6 +95,7 @@ export async function approveQuote(tenantId: string, id: string, actorUserId: st
           destination_text: it.destination_text || (diaria ? it.origin_text : null),
           destination_lat: it.destination_text ? (it.destination_lat ?? null) : diaria ? (it.origin_lat ?? null) : null,
           destination_lng: it.destination_text ? (it.destination_lng ?? null) : diaria ? (it.origin_lng ?? null) : null,
+          ...quoteItemTripStops(it as Record<string, unknown>),
           passenger_count: it.passenger_count ?? 1,
           passenger_name: it.passenger_name ?? null,
           client_amount: client,

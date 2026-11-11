@@ -3,6 +3,14 @@ import { billingIssuerById } from "@/lib/clients/billing-terms-calc";
 import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
 import { formatQuoteNumber, isDiaria, itemHours, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
 import { shortAddress } from "@/lib/client/short-address";
+import { bridalPackageById } from "@/lib/quotes/bridal-packages";
+
+/** "Igreja: Rua X" quando o ponto tem nome. */
+function withLabel(label: unknown, text: string | null): string {
+  const l = typeof label === "string" ? label.trim() : "";
+  if (!l) return text ?? "";
+  return text ? `${l}: ${text}` : l;
+}
 
 /** Tudo o que o orçamento mostra (página e PDF usam a mesma fonte). */
 export type QuoteDoc = {
@@ -16,7 +24,7 @@ export type QuoteDoc = {
   groups: {
     day: string;
     title: string;
-    rows: { time: string; vehicle: string; service: string; passengers: string | null; detail: string | null; note: string | null; from: string; to: string | null; diaria: boolean; qty: number; unit: number; total: number }[];
+    rows: { time: string; vehicle: string; service: string; via: string[]; passengers: string | null; detail: string | null; note: string | null; from: string; to: string | null; diaria: boolean; qty: number; unit: number; total: number }[];
   }[];
   totals: { subtotal: number; discount: number; total: number; trips: number };
   notes: string | null;
@@ -65,13 +73,16 @@ export async function loadQuoteDoc(quote: Record<string, unknown>): Promise<Quot
     g.rows.push({
       time: timeOf(i),
       vehicle: catName.get(i.vehicle_category_id as string) ?? "Veículo",
-      service: serviceLabelForClient(i.service_mode as string, itemHours(i.service_mode as string, i.hours == null ? null : Number(i.hours))),
+      service: bridalPackageById(i.package_id as string | null)?.name ?? serviceLabelForClient(i.service_mode as string, itemHours(i.service_mode as string, i.hours == null ? null : Number(i.hours))),
+      via: (Array.isArray(i.stops) ? (i.stops as Record<string, unknown>[]) : [])
+        .map((x) => [x.label ? String(x.label) : null, x.address_text ? shortAddress(String(x.address_text)) : null].filter(Boolean).join(": "))
+        .filter(Boolean),
       passengers: i.passenger_count ? `${i.passenger_count} pessoa(s)` : null,
       detail: (i.description as string | null) || null,
       note: (i.passenger_name as string | null) || null,
-      from: i.origin_text ? (diaria ? `À disposição a partir de ${shortAddress(i.origin_text as string)}` : shortAddress(i.origin_text as string)) : diaria ? "À disposição" : "A definir",
-      to: diaria ? ((i.destination_text as string | null) ?? null) : i.destination_text ? shortAddress(i.destination_text as string) : "A definir",
-      diaria,
+      from: withLabel(i.origin_label, i.origin_text ? (diaria && !i.package_id ? `À disposição a partir de ${shortAddress(i.origin_text as string)}` : shortAddress(i.origin_text as string)) : diaria ? "À disposição" : "A definir"),
+      to: diaria && !i.package_id ? ((i.destination_text as string | null) ?? null) : withLabel(i.destination_label, i.destination_text ? shortAddress(i.destination_text as string) : i.destination_label ? "" : "A definir"),
+      diaria: diaria && !i.package_id,
       qty,
       unit,
       total: unit * qty

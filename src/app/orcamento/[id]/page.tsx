@@ -154,10 +154,13 @@ export default async function OrcamentoPage({
                       {r.diaria || !r.to ? (
                         <>
                           {r.from}
+                          {(r.via ?? []).map((v, k) => (
+                            <div key={k}>↳ {v}</div>
+                          ))}
                           {r.to ? <div style={{ color: "#555" }}>{r.to}</div> : null}
                         </>
                       ) : (
-                        <DocRoute points={[{ address: r.from }, { address: r.to }]} />
+                        <DocRoute points={[{ address: r.from }, ...(r.via ?? []).map((v) => ({ address: v })), { address: r.to }]} />
                       )}
                     </td>
                     <td style={{ ...td, textAlign: "center" }}>{r.qty}</td>
