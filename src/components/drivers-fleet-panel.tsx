@@ -132,6 +132,8 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
   const [createName, setCreateName] = useState("");
   const [createCpf, setCreateCpf] = useState("");
   const [createCnh, setCreateCnh] = useState("");
+  const [createWhats, setCreateWhats] = useState("");
+  const [createEmail, setCreateEmail] = useState("");
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
@@ -163,8 +165,8 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
 
   async function createDriver(e: FormEvent) {
     e.preventDefault();
-    if (!createName.trim() || !createCpf.trim()) {
-      setFeedback({ kind: "error", message: "Informe nome completo e CPF." });
+    if (!createName.trim() || !createCpf.trim() || createWhats.replace(/\D/g, "").length < 10) {
+      setFeedback({ kind: "error", message: "Informe nome completo, CPF e WhatsApp com DDD (os avisos do plantão chegam por ele e pelo e-mail)." });
       return;
     }
     setCreating(true);
@@ -177,7 +179,10 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
           body: JSON.stringify({
             full_name: createName.trim(),
             cpf: createCpf.trim(),
-            cnh_number: createCnh.trim() || undefined
+            cnh_number: createCnh.trim() || undefined,
+            whatsapp: createWhats.trim(),
+            phone: createWhats.trim(),
+            email: createEmail.trim() || null
           })
         },
         "admin"
@@ -196,6 +201,8 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
       setCreateName("");
       setCreateCpf("");
       setCreateCnh("");
+      setCreateWhats("");
+      setCreateEmail("");
       await reloadDrivers();
       const created = json.data as DriverRow | undefined;
       if (created?.id) setFichaDriverId(created.id);
@@ -281,7 +288,7 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
         <section className="card mt-4">
           <h2 className="text-lg font-semibold">Novo motorista</h2>
           <p className="mt-1 text-sm text-prime-muted">
-            Comece com nome, CPF e CNH. A ficha completa abre em seguida para foto, contato, endereço, banco e veículo.
+            Comece com nome, CPF, CNH, WhatsApp e e-mail. A ficha completa abre em seguida para foto, endereço, banco e veículo.
           </p>
           <form className="mt-4 grid gap-3 md:grid-cols-3" noValidate onSubmit={(e) => void createDriver(e)}>
             <label className="grid gap-1 text-sm">
@@ -301,6 +308,14 @@ export function DriversFleetPanel({ initialDrivers }: Props) {
             <label className="grid gap-1 text-sm">
               <span>CNH</span>
               <input className={inputClass} value={createCnh} onChange={(e) => setCreateCnh(e.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span>WhatsApp (com DDD) *</span>
+              <input required className={inputClass} inputMode="tel" placeholder="(27) 99999-9999" value={createWhats} onChange={(e) => setCreateWhats(e.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm md:col-span-2">
+              <span>E-mail (recebe os avisos do plantão)</span>
+              <input className={inputClass} type="email" inputMode="email" placeholder="nome@gmail.com" value={createEmail} onChange={(e) => setCreateEmail(e.target.value)} />
             </label>
             <div className="md:col-span-3">
               <button type="submit" disabled={creating} className="btn-primary disabled:opacity-50">
