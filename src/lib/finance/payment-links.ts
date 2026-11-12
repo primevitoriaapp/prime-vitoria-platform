@@ -85,4 +85,9 @@ export async function markLinkPaid(
     }).catch(() => 0);
   }
   await bookLinkPayment(linkId).catch(() => false);
+  // Sinal pago + contrato assinado → orçamento confirmado sozinho (corridas na agenda).
+  if (l.quote_id) {
+    const { maybeAutoApproveQuote } = await import("@/lib/contracts/quote-contract");
+    await maybeAutoApproveQuote(l.tenant_id as string, l.quote_id as string).catch(() => null);
+  }
 }

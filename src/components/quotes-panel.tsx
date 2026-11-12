@@ -1,6 +1,7 @@
 "use client";
 
 import { PaymentLinksCard } from "@/components/payment-links-card";
+import { QuoteContractCard } from "@/components/quote-contract-card";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
@@ -823,7 +824,10 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       </section>
 
       {id ? (
-        <PaymentLinksCard quoteId={id} total={totals.total} />
+        <>
+          <PaymentLinksCard quoteId={id} total={totals.total} />
+          <QuoteContractCard quoteId={id} />
+        </>
       ) : (
         <section className="rounded-2xl border border-dashed border-prime-border bg-white p-4 text-sm text-prime-muted">
           💳 <b>Link de pagamento (InfinitePay)</b>: salve o orçamento primeiro (botão “Salvar” lá embaixo) e o botão para gerar o link aparece aqui.
