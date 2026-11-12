@@ -6,6 +6,7 @@ import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { loadInvoiceDetail } from "@/lib/finance/invoice-detail";
 import { InvoiceOverview } from "@/components/invoice-overview";
 import { InvoiceDetailActions } from "@/components/invoice-detail-actions";
+import { InvoiceServicesEditor } from "@/components/invoice-services-editor";
 import { formatInvoiceNumber } from "@/lib/finance/client-invoice-calc";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,7 @@ export default async function InvoiceDetailPage({ params, searchParams }: { para
           }}
         />
       ) : null}
+      {session.role === "admin" || session.role === "financeiro" ? <InvoiceServicesEditor invoiceId={inv.id} status={inv.status} /> : null}
     </div>
   );
 }

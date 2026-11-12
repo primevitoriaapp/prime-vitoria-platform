@@ -50,7 +50,8 @@ const ACTION_LABEL: Record<string, string> = {
   "invoice.status_enviada": "Marcada como enviada ao cliente",
   "invoice.status_paga": "Pagamento confirmado",
   "invoice.status_cancelada": "Fatura cancelada",
-  "invoice.due_change": "Vencimento alterado"
+  "invoice.due_change": "Vencimento alterado",
+  "invoice.amount_edit": "Valor de serviço corrigido"
 };
 
 export async function loadInvoiceDetail(tenantId: string, id: string, opts: { internal: boolean }): Promise<InvoiceDetail | null> {
