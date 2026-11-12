@@ -1,5 +1,7 @@
 "use client";
 
+import { ClientReportOverview } from "@/components/client-report-overview";
+import { ClientInvoicesMini } from "@/components/client-invoices-mini";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -241,17 +243,18 @@ export function ClientReportPanel() {
             <button type="button" className="rounded-lg px-3 py-2 text-sm ring-1 ring-prime-border hover:ring-prime-gold" onClick={() => window.print()}>
               Imprimir / PDF
             </button>
-            <Link href={"/finance" as Route} className="btn-primary">
-              Ir para faturas →
-            </Link>
+            <button type="button" className="rounded-lg px-3 py-2 text-sm ring-1 ring-prime-border hover:ring-prime-gold" onClick={() => setParams("", ym)}>
+              ← Todos os clientes
+            </button>
+            <a href="#faturas-cliente" className="btn-primary">
+              Faturas deste cliente ↓
+            </a>
           </div>
         ) : null}
       </div>
 
       {!clientId ? (
-        <p className="rounded-2xl border border-dashed border-prime-border bg-white p-10 text-center text-sm text-prime-muted">
-          Escolha um cliente para ver todas as corridas do mês.
-        </p>
+        <ClientReportOverview month={ym} onPick={(id) => setParams(id, ym)} />
       ) : (
         <>
           <div className="hidden print:block">
@@ -385,6 +388,9 @@ export function ClientReportPanel() {
                 </tfoot>
               ) : null}
             </table>
+          </div>
+          <div id="faturas-cliente" className="scroll-mt-6">
+            <ClientInvoicesMini clientId={clientId} />
           </div>
         </>
       )}

@@ -1,12 +1,10 @@
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { DriverPayablesPanel } from "@/components/driver-payables-panel";
 import { FinancialClosingsPanel } from "@/components/financial-closings-panel";
-import { FinanceConsole } from "@/components/finance-console";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { ReceivablesPanel } from "@/components/receivables-panel";
 import { ClientInvoicesAdminPanel } from "@/components/client-invoices-admin-panel";
 import { ErpWebhookInboxPanel } from "@/components/erp-webhook-inbox-panel";
-import { InAppNotificationsPanel } from "@/components/in-app-notifications-panel";
 import { ReconciliationIssuesPanel } from "@/components/reconciliation-issues-panel";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { getSessionContext } from "@/lib/server/session";
@@ -21,20 +19,10 @@ export default async function FinancePage() {
       <OperationalRealtimeBridge tenantId={realtimeTenantId} />
       <AdminPageHeader
         title="Financeiro"
-        subtitle="Faturamento corporativo · payouts · margem operacional"
+        subtitle="Faturas dos clientes, recebimentos e repasses aos motoristas"
       />
-      <div className="card mb-6 text-sm text-slate-400">
-        Contas a receber, contas a pagar, margem operacional e fechamento mensal.
-      </div>
       {session.role === "admin" || session.role === "financeiro" ? (
         <ClientInvoicesAdminPanel devFallbackRole={session.role === "financeiro" ? "financeiro" : "admin"} />
-      ) : null}
-      <FinanceConsole />
-      {session.role === "admin" || session.role === "financeiro" ? (
-        <InAppNotificationsPanel
-          tenantId={realtimeTenantId}
-          devFallbackRole={session.role === "financeiro" ? "financeiro" : "admin"}
-        />
       ) : null}
       <div id="recebiveis" className="scroll-mt-6" />
       <ReceivablesPanel
