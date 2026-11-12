@@ -188,6 +188,21 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     onChanged?.();
   }
 
+  async function cancelTrip(t: AccTrip, c: ClientAcc) {
+    const when = new Date(t.scheduled_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    if (!window.confirm(`Cancelar a corrida de ${when}${t.passenger ? ` (${t.passenger})` : ""} de ${c.client_name}?\n\nEla sai do fechamento e não é cobrada.`)) return;
+    setBusy(t.id);
+    const r = await fetchWithSupabaseSession(
+      `/api/trips/${t.id}/status`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to_status: "cancelled" }) },
+      "admin"
+    ).catch(() => null);
+    const j = r ? await r.json().catch(() => ({})) : {};
+    setBusy(null);
+    setMsg(r?.ok && j?.success ? { ok: true, text: `Corrida de ${when} cancelada.` } : { ok: false, text: j?.error?.message ?? "Não foi possível cancelar." });
+    await load();
+  }
+
   async function markPaid(v: Inv) {
     const when = window.prompt(`Marcar a fatura nº ${v.number} (${v.client_name ?? ""}) como PAGA?\n${brl(Number(v.total_amount))}\n\nData do pagamento (dd/mm/aaaa):`, br(todayYmd()));
     if (!when) return;
@@ -284,6 +299,24 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                         </a>
                       ) : null}
                       {c.upcoming_count ? <p className="text-xs text-prime-muted">{c.upcoming_count} agendada(s) · {brl(c.upcoming_total)}</p> : null}
+                      {(c.trips ?? [])
+                        .filter((t) => t.stage === "agendada" && new Date(t.scheduled_at).getTime() < Date.now() - 3 * 3600000)
+                        .map((t) => (
+                          <div key={t.id} className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1.5 text-xs">
+                            <p>
+                              ⚠ <b>{new Date(t.scheduled_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</b>
+                              {t.passenger ? ` · ${t.passenger}` : ""} — já passou e não foi concluída
+                            </p>
+                            <div className="mt-1 flex gap-2">
+                              <a href={`/agenda?trip=${t.id}`} className="rounded-md bg-white px-2 py-1 font-semibold ring-1 ring-prime-border">
+                                Abrir
+                              </a>
+                              <button type="button" disabled={busy === t.id} onClick={() => void cancelTrip(t, c)} className="rounded-md bg-white px-2 py-1 font-semibold text-red-700 ring-1 ring-red-200 disabled:opacity-50">
+                                {busy === t.id ? "Cancelando…" : "Foi cancelada"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   ))
                 : null}
