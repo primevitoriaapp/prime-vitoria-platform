@@ -249,7 +249,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     setMsg({ ok: false, text: "Os cards andam um passo por vez, da esquerda para a direita." });
   }
 
-  const card = "rounded-xl border border-prime-border bg-white p-3 shadow-sm";
+  const card = "min-w-0 overflow-hidden rounded-xl border border-prime-border bg-white p-3 shadow-sm";
   const dueTone = (ymd: string) => (ymd < todayYmd() ? "text-red-700" : ymd <= new Date(Date.now() + 3 * 86400000).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" }) ? "text-amber-700" : "text-prime-muted");
 
   return (
@@ -276,7 +276,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
               }}
               onDragLeave={() => setOver((o) => (o === col.id ? null : o))}
               onDrop={() => onDrop(col.id)}
-              className={`flex w-[82vw] max-w-[340px] shrink-0 snap-start flex-col gap-2 rounded-2xl p-2 transition xl:w-auto xl:max-w-none ${over === col.id ? "bg-prime-gold/20 ring-2 ring-prime-gold" : "bg-prime-bg"}`}
+              className={`flex min-w-0 w-[82vw] max-w-[340px] shrink-0 snap-start flex-col gap-2 rounded-2xl p-2 transition xl:w-auto xl:max-w-none ${over === col.id ? "bg-prime-gold/20 ring-2 ring-prime-gold" : "bg-prime-bg"}`}
             >
               <div className="px-1 pt-1">
                 <p className="flex items-center justify-between text-sm font-semibold">
@@ -336,12 +336,12 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                       </p>
                       <p className="text-[11px] text-prime-muted">{c.per_service ? "fecha por serviço (voucher)" : c.invoiced ? `paga em ${c.payment_term_days ?? 30} dias` : "não faturado (pagou antes)"}</p>
                       {picking === c.client_id ? (
-                        <div className="mt-2 grid gap-1.5">
+                        <div className="mt-2 grid min-w-0 grid-cols-1 gap-1.5">
                           <p className="text-xs font-semibold">Marque o que entra nesta fatura:</p>
                           {(c.trips ?? [])
                             .filter((t) => t.stage === "aprovada")
                             .map((t) => (
-                              <label key={t.id} className="flex cursor-pointer items-start gap-2 rounded-lg bg-prime-bg px-2 py-1.5 text-xs">
+                              <label key={t.id} className="flex min-w-0 cursor-pointer items-start gap-2 rounded-lg bg-prime-bg px-2 py-1.5 text-xs">
                                 <input
                                   type="checkbox"
                                   className="mt-0.5"
@@ -360,14 +360,14 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                                   {t.passenger ? ` · ${t.passenger}` : ""}
                                   <span className="block truncate text-prime-muted">{t.route}</span>
                                 </span>
-                                <span className="font-semibold tabular-nums">{brl(Number(t.client_amount ?? 0))}</span>
+                                <span className="shrink-0 font-semibold tabular-nums">{brl(Number(t.client_amount ?? 0))}</span>
                               </label>
                             ))}
                           <button
                             type="button"
                             disabled={busy === c.client_id || !picked.size}
                             onClick={() => void closePicked(c)}
-                            className="mt-1 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50"
+                            className="mt-1 w-full min-w-0 rounded-lg bg-[#111] px-2 py-2.5 text-xs font-bold text-prime-gold disabled:opacity-50"
                           >
                             {busy === c.client_id
                               ? "Fechando…"

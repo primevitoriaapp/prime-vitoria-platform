@@ -8,6 +8,7 @@ import { prepaidByTrip } from "@/lib/finance/booking-payments";
 import { loadLogoBytes } from "@/lib/quotes/quote-document";
 import { shortAddress } from "@/lib/client/short-address";
 import { buildInvoicePdf } from "@/lib/finance/invoice-pdf";
+import { invoicePixCharge } from "@/lib/finance/invoice-charge";
 
 const brDate = (ymd: string) => ymd.slice(0, 10).split("-").reverse().join("/");
 
@@ -57,6 +58,7 @@ export async function invoicePdfFor(tenantId: string, id: string): Promise<{ byt
     tripCount: rows.length,
     prepaid,
     boletoLine: invoice.boleto_line ?? null,
+    pixLine: (await invoicePixCharge(invoice))?.line ?? null,
     nfNumber: invoice.nf_number ?? null,
     logo,
     rows: rows.map((r) => ({

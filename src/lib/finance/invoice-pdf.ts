@@ -29,6 +29,7 @@ export type InvoicePdfData = {
   tripCount: number;
   prepaid?: number;
   boletoLine?: string | null;
+  pixLine?: string | null;
   nfNumber?: string | null;
   rows: InvoicePdfRow[];
   logo?: Uint8Array | null;
@@ -117,8 +118,8 @@ export function buildInvoicePdf(d: InvoicePdfData): Uint8Array {
   }
   y += Math.max(clientLines.length * 11.5 + 22, bh + 4, 74);
 
-  if (d.nfNumber || d.boletoLine) {
-    const lines = [d.nfNumber ? `Nota fiscal nº ${d.nfNumber}` : null, d.boletoLine ? `Linha digitável do boleto: ${d.boletoLine}` : null].filter(Boolean) as string[];
+  if (d.nfNumber || d.boletoLine || d.pixLine) {
+    const lines = [d.nfNumber ? `Nota fiscal nº ${d.nfNumber}` : null, d.pixLine ?? null, !d.pixLine && d.boletoLine ? `Linha digitável do boleto: ${d.boletoLine}` : null].filter(Boolean) as string[];
     pdf.roundRect(L, y, W, lines.length * 12 + 12, 6, [248, 245, 238], [234, 228, 214]);
     lines.forEach((l, i) => T(l, L + 10, y + 15 + i * 12, 8.5, { bold: i === 0 && Boolean(d.nfNumber) }));
     y += lines.length * 12 + 24;

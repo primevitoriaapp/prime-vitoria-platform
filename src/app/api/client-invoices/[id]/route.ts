@@ -13,7 +13,9 @@ const patchSchema = z.object({
   notes: z.string().max(1000).nullable().optional(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   paid_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  payment_method: z.enum(["boleto", "pix", "transferencia", "dinheiro", "outro"]).nullable().optional()
+  payment_method: z.enum(["boleto", "pix", "transferencia", "dinheiro", "outro"]).nullable().optional(),
+  charge_method: z.enum(["boleto", "pix"]).nullable().optional(),
+  charge_bank_account_id: z.string().uuid().nullable().optional()
 });
 
 /** Equipe Prime: marcar enviada/paga/cancelada e anexar boleto (link e linha digitável). */
@@ -38,7 +40,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           ? "invoice.nf_number"
           : body.boleto_line !== undefined
             ? "invoice.boleto_line"
-            : "invoice.edit";
+            : body.charge_method !== undefined
+              ? "invoice.charge_method"
+              : "invoice.edit";
     await insertAuditEvent({
       tenantId,
       actorUserId: session.userId,

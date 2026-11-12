@@ -48,7 +48,9 @@ export default async function InvoiceDetailPage({ params, searchParams }: { para
             boleto_line: inv.boleto_line,
             nf_path: inv.nf_path ?? null,
             nf_extra_paths: inv.nf_extra_paths ?? [],
-            voucher_path: inv.voucher_path ?? null
+            voucher_path: inv.voucher_path ?? null,
+            charge_method: inv.charge_method ?? null,
+            charge_bank_account_id: inv.charge_bank_account_id ?? null
           }}
         />
       ) : null}

@@ -34,6 +34,8 @@ export type ClientInvoiceRow = {
   nf_path?: string | null;
   nf_extra_paths?: string[] | null;
   payment_method?: string | null;
+  charge_method?: string | null;
+  charge_bank_account_id?: string | null;
   viewed_at?: string | null;
 };
 
@@ -223,10 +225,14 @@ export async function updateClientInvoiceStatus(
     /** Dia em que o dinheiro entrou (YYYY-MM-DD). Sem ele, hoje. */
     paid_on?: string;
     payment_method?: string | null;
+    charge_method?: string | null;
+    charge_bank_account_id?: string | null;
   }
 ) {
   const update: Record<string, unknown> = {};
   if (patch.payment_method !== undefined) update.payment_method = patch.payment_method;
+  if (patch.charge_method !== undefined) update.charge_method = patch.charge_method;
+  if (patch.charge_bank_account_id !== undefined) update.charge_bank_account_id = patch.charge_bank_account_id;
   if (patch.due_date) update.due_date = patch.due_date;
   if (patch.boleto_url !== undefined) update.boleto_url = patch.boleto_url;
   if (patch.boleto_line !== undefined) update.boleto_line = patch.boleto_line;

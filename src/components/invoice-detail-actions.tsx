@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { InvoiceEmailComposer } from "@/components/invoice-email-composer";
@@ -16,7 +16,11 @@ type Inv = {
   nf_path: string | null;
   nf_extra_paths?: string[] | null;
   voucher_path: string | null;
+  charge_method?: string | null;
+  charge_bank_account_id?: string | null;
 };
+
+type Bank = { id: string; label: string; bank: string; agency: string | null; account: string | null; pix_key: string | null };
 
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
@@ -35,6 +39,29 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [kind, setKind] = useState<"boleto" | "nf" | "nf_extra" | "voucher">("boleto");
   const live = inv.status !== "paga" && inv.status !== "cancelada";
+  const [banks, setBanks] = useState<Bank[]>([]);
+  const [pixKey, setPixKey] = useState("");
+  const isPix = inv.charge_method === "pix";
+  useEffect(() => {
+    if (!isPix) return;
+    void fetchWithSupabaseSession("/api/finance/bank-accounts", {}, "admin")
+      .then((r) => r.json())
+      .then((j) => (j?.success ? setBanks(j.data as Bank[]) : null))
+      .catch(() => undefined);
+  }, [isPix]);
+  const chosen = banks.find((b) => b.id === inv.charge_bank_account_id) ?? null;
+
+  async function savePixKey() {
+    if (!chosen || pixKey.trim().length < 3) return;
+    setBusy(true);
+    const r = await fetchWithSupabaseSession("/api/finance/bank-accounts/pix", { method: "PATCH", body: JSON.stringify({ id: chosen.id, pix_key: pixKey.trim() }) }, "admin").catch(() => null);
+    setBusy(false);
+    if (r?.ok) {
+      setBanks((l) => l.map((b) => (b.id === chosen.id ? { ...b, pix_key: pixKey.trim() } : b)));
+      setPixKey("");
+      setMsg({ ok: true, text: "Chave PIX salva nesta conta (vale para as próximas faturas também)." });
+    } else setMsg({ ok: false, text: "Não foi possível salvar a chave." });
+  }
 
   async function patch(body: Record<string, unknown>, okText: string) {
     setBusy(true);
@@ -92,6 +119,80 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
         />
       ) : null}
 
+      {live ? (
+        <div className="grid gap-3 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
+          <p className="text-sm font-semibold">Antes de enviar</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-2">
+              <p className="text-xs text-prime-muted">1. Nota fiscal</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={btn} onClick={() => pick("nf")} disabled={busy}>
+                  {inv.nf_path ? "✓ Nota anexada · trocar" : "⬆ Anexar nota fiscal"}
+                </button>
+                {inv.nf_path ? (
+                  <button type="button" className={btn} onClick={() => pick("nf_extra")} disabled={busy}>
+                    ＋ Outra nota
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <p className="text-xs text-prime-muted">2. Como o cliente vai pagar?</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void patch({ charge_method: "boleto" }, "Cobrança por boleto.")}
+                  className={`rounded-xl px-4 py-2 text-sm ring-1 ${!isPix ? "bg-[#111] font-semibold text-[#fff] ring-[#111]" : "bg-white ring-prime-border"}`}
+                >
+                  Boleto
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void patch({ charge_method: "pix" }, "Cobrança por PIX: escolha a conta.")}
+                  className={`rounded-xl px-4 py-2 text-sm ring-1 ${isPix ? "bg-[#111] font-semibold text-[#fff] ring-[#111]" : "bg-white ring-prime-border"}`}
+                >
+                  PIX / transferência
+                </button>
+              </div>
+              {isPix ? (
+                <div className="grid gap-2 rounded-xl bg-prime-bg p-3">
+                  <select
+                    className="rounded-lg border border-prime-border bg-white px-2 py-2 text-sm"
+                    value={inv.charge_bank_account_id ?? ""}
+                    onChange={(e) => void patch({ charge_bank_account_id: e.target.value || null }, "Conta escolhida.")}
+                  >
+                    <option value="">Escolha a conta que vai receber…</option>
+                    {banks.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.label}
+                        {b.pix_key ? ` · PIX ${b.pix_key}` : " · sem chave PIX"}
+                      </option>
+                    ))}
+                  </select>
+                  {chosen && !chosen.pix_key ? (
+                    <div className="flex flex-wrap gap-2">
+                      <input value={pixKey} onChange={(e) => setPixKey(e.target.value)} onKeyDown={(e) => e.key === "Enter" && e.preventDefault()} placeholder="Chave PIX desta conta (CNPJ, e-mail, celular…)" className="min-w-0 flex-1 rounded-lg border border-prime-border px-2 py-2 text-sm" />
+                      <button type="button" className={btn} disabled={busy} onClick={() => void savePixKey()}>
+                        Salvar chave
+                      </button>
+                    </div>
+                  ) : null}
+                  {chosen ? (
+                    <p className="text-xs text-prime-muted">
+                      Vai na fatura, no PDF e no e-mail: chave PIX, favorecido (CNPJ), banco, agência e conta. O boleto não é enviado.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-xs text-prime-muted">{inv.boleto_path ? "✓ Boleto anexado." : "Anexe o boleto no botão “Anexar boleto” abaixo."}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-3 rounded-2xl border border-prime-border bg-white p-3 shadow-prime-card lg:grid-cols-[minmax(220px,auto)_1fr] lg:items-center">
         <div className={`flex items-center gap-3 rounded-xl p-3 text-sm ${inv.sent_at ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>
           <span className="text-xl">✉</span>
@@ -108,7 +209,7 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
           <a href={`/api/client-invoices/${inv.id}/pdf`} target="_blank" rel="noopener noreferrer" className={btn}>
             ⬇ Fatura em PDF
           </a>
-          {inv.boleto_path ? (
+          {isPix ? null : inv.boleto_path ? (
             <a href={`/api/client-invoices/${inv.id}/files?kind=boleto`} target="_blank" rel="noopener noreferrer" className={btn}>
               ⬇ Baixar boleto
             </a>

@@ -9,6 +9,7 @@ import { formatInvoiceNumber } from "@/lib/finance/client-invoice-calc";
 import { sendOperationalEmail } from "@/lib/notifications/send-email";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { invoicePdfFor } from "@/lib/finance/invoice-pdf-data";
+import { invoicePixCharge } from "@/lib/finance/invoice-charge";
 
 const BUCKET = "invoice-files";
 const COPY_TO = "contato@primevitoria.com";
@@ -45,6 +46,12 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
     invoice.period_start === invoice.period_end ? brDate(invoice.period_start) : `${brDate(invoice.period_start)} a ${brDate(invoice.period_end)}`;
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
   const vencida = invoice.due_date < today;
+  const pix = await invoicePixCharge(inv);
+  const payLines = pix
+    ? ["Forma de pagamento: PIX ou transferência", ...pix.line.replace(/^Pagamento por PIX\/transferência — /, "").split(" · ")]
+    : invoice.boleto_line
+      ? [`Linha digitável: ${invoice.boleto_line}`]
+      : [];
   const reminder = [
     `Olá, equipe ${name}.`,
     "",
@@ -52,7 +59,7 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
       ? `Identificamos que a fatura ${num}${inv.client_ref ? ` (voucher ${inv.client_ref})` : ""}, no valor de ${brl(invoice.total_amount)}, venceu em ${brDate(invoice.due_date)} e ainda consta em aberto em nosso sistema.`
       : `Lembramos que a fatura ${num}${inv.client_ref ? ` (voucher ${inv.client_ref})` : ""}, no valor de ${brl(invoice.total_amount)}, vence em ${brDate(invoice.due_date)}.`,
     "",
-    invoice.boleto_line ? `Linha digitável: ${invoice.boleto_line}` : "A fatura detalhada e o boleto seguem novamente em anexo.",
+    ...(payLines.length ? payLines : ["A fatura detalhada e o boleto seguem novamente em anexo."]),
     "",
     vencida ? "Se o pagamento já foi feito, por favor desconsidere esta mensagem e, se possível, nos envie o comprovante." : "Se o pagamento já foi programado, por favor desconsidere esta mensagem.",
     "",
@@ -69,9 +76,9 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
     `Serviços: ${invoice.trip_count}`,
     `Valor total: ${brl(invoice.total_amount)}`,
     `Vencimento: ${brDate(invoice.due_date)}`,
-    invoice.boleto_line ? `Linha digitável: ${invoice.boleto_line}` : null,
+    ...(payLines.length ? ["", ...payLines] : []),
     "",
-    `Seguem em anexo a fatura detalhada (com todos os serviços)${(inv.nf_path ? 1 : 0) + (inv.nf_extra_paths?.length ?? 0) > 1 ? ", as notas fiscais" : ""} e o boleto. Qualquer dúvida, estamos à disposição.`,
+    `Seguem em anexo a fatura detalhada (com todos os serviços)${(inv.nf_path ? 1 : 0) + (inv.nf_extra_paths?.length ?? 0) > 1 ? ", as notas fiscais" : inv.nf_path ? " e a nota fiscal" : ""}${pix ? "" : " e o boleto"}. ${pix ? "Por favor, envie o comprovante após o pagamento. " : ""}Qualquer dúvida, estamos à disposição.`,
     "",
     "Atenciosamente,"
   ]
@@ -86,7 +93,7 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
         ? `${vencida ? "Fatura vencida" : "Lembrete de vencimento"}: ${num}${ref} — ${brDate(invoice.due_date)} — Prime Vitória`
         : `Fatura ${num}${ref} — ${name} — Prime Vitória`,
     message,
-    files: { fatura: true, boleto: Boolean(inv.boleto_path), nf: Boolean(inv.nf_path || inv.nf_extra_paths?.length), voucher: Boolean(inv.voucher_path) },
+    files: { fatura: true, boleto: !pix && Boolean(inv.boleto_path), nf: Boolean(inv.nf_path || inv.nf_extra_paths?.length), voucher: Boolean(inv.voucher_path) },
     link: `${OFFICIAL_URLS.empresa}/fatura/${invoice.id}`,
     copy_to: COPY_TO
   };
