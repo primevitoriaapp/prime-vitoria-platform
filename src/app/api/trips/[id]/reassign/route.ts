@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveDefaultVehicleIdForDriver } from "@/lib/dispatch/driver-availability";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
@@ -106,7 +107,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       reassign_reason: body.reason,
       operational_status: plan.steps[plan.steps.length - 1]
     };
-    if (body.vehicle_id) update.vehicle_id = body.vehicle_id;
+    // Troca o carro junto com o motorista; se o novo não tem carro vinculado, tira o antigo.
+    update.vehicle_id = body.vehicle_id ?? (await resolveDefaultVehicleIdForDriver(body.new_driver_id));
 
     const { data, error } = await db
       .from("trips")

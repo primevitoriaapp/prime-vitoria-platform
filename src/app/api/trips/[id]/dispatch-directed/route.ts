@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveDefaultVehicleIdForDriver } from "@/lib/dispatch/driver-availability";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { canTransition } from "@/lib/domain/status";
@@ -77,7 +78,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .from("trips")
       .update({
         driver_id: body.driver_id,
-        vehicle_id: body.vehicle_id,
+        // Carro do motorista escolhido (nunca fica o carro do motorista anterior).
+        vehicle_id: body.vehicle_id ?? (await resolveDefaultVehicleIdForDriver(body.driver_id)),
         operational_status: "dispatched"
       })
       .eq("id", id)
