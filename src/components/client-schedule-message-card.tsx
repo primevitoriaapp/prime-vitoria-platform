@@ -17,7 +17,7 @@ export function ClientScheduleMessageCard() {
   const [clients, setClients] = useState<ClientOpt[]>([]);
   const [query, setQuery] = useState("");
   const [clientId, setClientId] = useState("");
-  const [preset, setPreset] = useState<"hoje" | "amanha" | "7d" | "dia">("hoje");
+  const [preset, setPreset] = useState<"ontem" | "hoje" | "amanha" | "7d" | "dia">("hoje");
   const [day, setDay] = useState(spDate(0));
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<Result | null>(null);
@@ -33,6 +33,7 @@ export function ClientScheduleMessageCard() {
   }, []);
 
   const range = useMemo(() => {
+    if (preset === "ontem") return { from: spDate(-1), to: spDate(-1) };
     if (preset === "hoje") return { from: spDate(0), to: spDate(0) };
     if (preset === "amanha") return { from: spDate(1), to: spDate(1) };
     if (preset === "7d") return { from: spDate(0), to: spDate(6) };
@@ -131,6 +132,7 @@ export function ClientScheduleMessageCard() {
             <div className="flex flex-wrap gap-1">
               {(
                 [
+                  ["ontem", "Ontem"],
                   ["hoje", "Hoje"],
                   ["amanha", "Amanhã"],
                   ["7d", "Próx. 7 dias"],
@@ -155,7 +157,9 @@ export function ClientScheduleMessageCard() {
         {error ? <p className="text-sm text-red-700">{error}</p> : null}
         {res && !busy ? (
           res.count === 0 ? (
-            <p className="rounded-lg bg-prime-bg p-3 text-sm">Nenhuma corrida de {res.client_name} neste período.</p>
+            <p className="rounded-lg bg-prime-bg p-3 text-sm">
+              Nenhuma corrida de {res.client_name} neste período. Se você acabou de agendar, confira a <b>data</b> da corrida (use “Outro dia” para escolher o dia certo).
+            </p>
           ) : (
             <>
               {res.without_driver > 0 ? (

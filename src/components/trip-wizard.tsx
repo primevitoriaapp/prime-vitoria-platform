@@ -333,6 +333,11 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       setError(`Falta o endereço de: ${semEndereco.join(", ")}.`);
       return;
     }
+    // Data no passado sem marcar "já foi feita": quase sempre é data digitada errada.
+    if (isPast && !alreadyDone && !window.confirm(`Atenção: a data ${formatBrDateTime(String(scheduledIso))} JÁ PASSOU.\n\nSe é para hoje ou outro dia, clique em Cancelar e corrija a data.\nSe é uma corrida que já aconteceu, marque “Esta corrida já foi feita”.\n\nSalvar mesmo assim com essa data?`)) {
+      setStep(1);
+      return;
+    }
     setBusy(true);
     setError(null);
     const runDays = multiDay ? days : [date];
