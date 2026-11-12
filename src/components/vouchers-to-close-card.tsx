@@ -64,15 +64,13 @@ export function VouchersToCloseCard({ onClosed }: { onClosed?: () => void }) {
       { method: "POST", body: JSON.stringify({ trip_ids: g.trips.map((t) => t.id), due_date: due, ref: g.ref }) },
       "admin"
     );
-    const j = (await r.json().catch(() => ({}))) as { success?: boolean; data?: { number: number; trip_ids: string[]; total_amount: number }; error?: { message?: string } };
+    const j = (await r.json().catch(() => ({}))) as { success?: boolean; data?: { invoice_id: string; number: number; trip_ids: string[]; total_amount: number }; error?: { message?: string } };
     setBusy(false);
     if (!r.ok || !j.success || !j.data) return setMsg({ ok: false, text: j.error?.message ?? "Não foi possível fechar." });
-    setMsg({
-      ok: true,
-      text: `${g.ref} fechado: fatura ${String(j.data.number).padStart(5, "0")} · ${j.data.trip_ids.length} serviço(s) · ${brl(j.data.total_amount)}. Anexe o boleto na lista de faturas abaixo.`
-    });
+    window.dispatchEvent(new Event("invoices-changed"));
+    // Vai direto para a fatura: anexar nota/boleto e enviar.
+    window.location.href = `/finance/faturas/${j.data.invoice_id}?nova=1`;
     setOpen(null);
-    await load();
     onClosed?.();
   }
 

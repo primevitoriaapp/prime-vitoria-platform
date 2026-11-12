@@ -18,7 +18,9 @@ type ClientAcc = {
   to_approve_count: number;
   upcoming_total: number;
   upcoming_count: number;
+  trips?: AccTrip[];
 };
+type AccTrip = { id: string; scheduled_at: string; stage: "aprovada" | "aprovar" | "agendada"; ref: string | null; passenger: string | null; route: string; client_amount: number | null };
 type Inv = {
   id: string;
   number: number;
@@ -84,6 +86,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
         m.to_approve_count += c.to_approve_count;
         m.upcoming_total += c.upcoming_total;
         m.upcoming_count += c.upcoming_count;
+        m.trips = [...(m.trips ?? []), ...(c.trips ?? [])];
         if (c.approved_from && (!m.approved_from || c.approved_from < m.approved_from)) m.approved_from = c.approved_from;
         if (c.approved_to && (!m.approved_to || c.approved_to > m.approved_to)) m.approved_to = c.approved_to;
       }
@@ -94,7 +97,39 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
   }, []);
   useEffect(() => {
     void load();
+    const on = () => void load();
+    window.addEventListener("invoices-changed", on);
+    return () => window.removeEventListener("invoices-changed", on);
   }, [load]);
+
+  // Cliente que fecha por serviço: escolhe as corridas aprovadas e fecha uma fatura só com elas.
+  const [picking, setPicking] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+
+  function startPick(c: ClientAcc) {
+    const ok = (c.trips ?? []).filter((t) => t.stage === "aprovada");
+    setPicked(new Set(ok.map((t) => t.id)));
+    setPicking(c.client_id);
+    setMsg(null);
+  }
+
+  async function closePicked(c: ClientAcc) {
+    const trips = (c.trips ?? []).filter((t) => t.stage === "aprovada" && picked.has(t.id));
+    if (!trips.length) return setMsg({ ok: false, text: "Marque pelo menos uma corrida." });
+    const days = [...new Set(trips.map((t) => new Date(t.scheduled_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" })))];
+    const ref = `SERVIÇOS DE ${days.length > 3 ? `${days[0]} A ${days[days.length - 1]}` : days.join(", ")}`;
+    const due = new Date(Date.now() + (c.payment_term_days ?? 30) * 86400000).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+    setBusy(c.client_id);
+    const r = await fetchWithSupabaseSession(
+      "/api/client-invoices/vouchers",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_ids: trips.map((t) => t.id), due_date: due, ref }) },
+      "admin"
+    ).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; data?: { invoice_id: string }; error?: { message?: string } }) : {};
+    setBusy(null);
+    if (!r?.ok || !j.success || !j.data) return setMsg({ ok: false, text: j.error?.message ?? "Não foi possível fechar." });
+    window.location.href = `/finance/faturas/${j.data.invoice_id}?nova=1`;
+  }
 
   const cols = useMemo(() => {
     const execucao = accs.filter((c) => c.upcoming_count + c.to_approve_count > 0);
@@ -113,8 +148,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
 
   async function closeClient(c: ClientAcc) {
     if (c.per_service) {
-      document.getElementById("vouchers-a-fechar")?.scrollIntoView({ behavior: "smooth" });
-      setMsg({ ok: true, text: `${c.client_name} fecha por serviço/voucher: use o quadro “Vouchers a fechar” logo abaixo.` });
+      startPick(c);
       return;
     }
     if (!c.invoiced) {
@@ -142,7 +176,10 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
       const res = (j?.data?.results ?? [])[0] as { invoice_id?: string; skipped?: string; total_amount?: number } | undefined;
       if (!r.ok || !j.success) setMsg({ ok: false, text: j?.error?.message ?? "Não foi possível fechar." });
       else if (res?.skipped) setMsg({ ok: false, text: `${c.client_name}: ${res.skipped}` });
-      else setMsg({ ok: true, text: `Fatura de ${c.client_name} fechada: ${brl(Number(res?.total_amount ?? c.approved_total))}. Agora anexe a nota e o boleto e envie.` });
+      else if (res?.invoice_id) {
+        window.location.href = `/finance/faturas/${res.invoice_id}?nova=1`;
+        return;
+      } else setMsg({ ok: true, text: `Fatura de ${c.client_name} fechada: ${brl(Number(res?.total_amount ?? c.approved_total))}. Ela está na coluna “Faturado”.` });
     } catch {
       setMsg({ ok: false, text: "Sem conexão. Tente de novo." });
     }
@@ -265,9 +302,53 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                         {c.approved_count} corrida(s){c.approved_from ? ` · ${br(c.approved_from).slice(0, 5)} a ${br(c.approved_to ?? c.approved_from).slice(0, 5)}` : ""}
                       </p>
                       <p className="text-[11px] text-prime-muted">{c.per_service ? "fecha por serviço (voucher)" : c.invoiced ? `paga em ${c.payment_term_days ?? 30} dias` : "não faturado (pagou antes)"}</p>
-                      <button type="button" disabled={busy === c.client_id} onClick={() => void closeClient(c)} className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50">
-                        {busy === c.client_id ? "Fechando…" : c.per_service ? "Fechar por voucher ↓" : "Fechar fatura →"}
-                      </button>
+                      {picking === c.client_id ? (
+                        <div className="mt-2 grid gap-1.5">
+                          <p className="text-xs font-semibold">Marque o que entra nesta fatura:</p>
+                          {(c.trips ?? [])
+                            .filter((t) => t.stage === "aprovada")
+                            .map((t) => (
+                              <label key={t.id} className="flex cursor-pointer items-start gap-2 rounded-lg bg-prime-bg px-2 py-1.5 text-xs">
+                                <input
+                                  type="checkbox"
+                                  className="mt-0.5"
+                                  checked={picked.has(t.id)}
+                                  onChange={(e) =>
+                                    setPicked((p) => {
+                                      const n = new Set(p);
+                                      if (e.target.checked) n.add(t.id);
+                                      else n.delete(t.id);
+                                      return n;
+                                    })
+                                  }
+                                />
+                                <span className="min-w-0 flex-1">
+                                  <b>{new Date(t.scheduled_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</b>
+                                  {t.passenger ? ` · ${t.passenger}` : ""}
+                                  <span className="block truncate text-prime-muted">{t.route}</span>
+                                </span>
+                                <span className="font-semibold tabular-nums">{brl(Number(t.client_amount ?? 0))}</span>
+                              </label>
+                            ))}
+                          <button
+                            type="button"
+                            disabled={busy === c.client_id || !picked.size}
+                            onClick={() => void closePicked(c)}
+                            className="mt-1 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50"
+                          >
+                            {busy === c.client_id
+                              ? "Fechando…"
+                              : `Fechar fatura · ${brl((c.trips ?? []).filter((t) => picked.has(t.id)).reduce((s, t) => s + Number(t.client_amount ?? 0), 0))} →`}
+                          </button>
+                          <button type="button" onClick={() => setPicking(null)} className="text-xs text-prime-muted">
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" disabled={busy === c.client_id} onClick={() => void closeClient(c)} className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50">
+                          {busy === c.client_id ? "Fechando…" : c.per_service ? "Escolher corridas e fechar →" : "Fechar fatura →"}
+                        </button>
+                      )}
                     </div>
                   ))
                 : null}

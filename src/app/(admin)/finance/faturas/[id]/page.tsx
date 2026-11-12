@@ -11,8 +11,9 @@ import { formatInvoiceNumber } from "@/lib/finance/client-invoice-calc";
 export const dynamic = "force-dynamic";
 
 /** Fatura completa para a equipe Prime: etapas, serviços, histórico, motoristas, margem e ações. */
-export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function InvoiceDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ nova?: string }> }) {
   const { id } = await params;
+  const nova = (await searchParams).nova === "1";
   const session = await getSessionContext();
   const staff = session.role === "admin" || session.role === "financeiro" || session.role === "operador";
   if (!staff || !z.string().uuid().safeParse(id).success) {
@@ -27,6 +28,12 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       <Link href={"/finance" as Route} className="text-sm text-prime-muted hover:underline">
         ← Faturas e recebimentos
       </Link>
+      {nova ? (
+        <div className="rounded-2xl bg-emerald-600 p-4 text-[#fff]">
+          <p className="text-base font-bold">✓ Fatura {formatInvoiceNumber(inv.number)} fechada · {detail.client_name}</p>
+          <p className="mt-1 text-sm">Falta pouco: 1) anexe a nota fiscal · 2) anexe o boleto (se tiver) · 3) clique em “Enviar ao cliente”. Tudo aqui embaixo.</p>
+        </div>
+      ) : null}
       <InvoiceOverview detail={detail} />
       {session.role !== "operador" ? (
         <InvoiceDetailActions
