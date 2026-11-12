@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { resolveProfileNames } from "@/lib/profiles/resolve-profile-names";
 import { OperationsReportExport } from "@/components/operations-report-export";
 import { DashboardOverview } from "@/components/dashboard-overview";
+import { DashboardCashAhead } from "@/components/dashboard-cash-ahead";
 import { TripsToReviewAlert } from "@/components/trip-review-banner";
 import { DriversAlertsCard } from "@/components/drivers-alerts-card";
 import { can } from "@/lib/security/rbac";
@@ -54,6 +55,7 @@ export default async function DashboardPage() {
         <DriversAlertsCard />
       </div>
       <DashboardOverview tenantId={realtimeTenantId} showMoney={showMoney} />
+      {showMoney ? <DashboardCashAhead /> : null}
 
 
       {can(session, "report.read") ? (
