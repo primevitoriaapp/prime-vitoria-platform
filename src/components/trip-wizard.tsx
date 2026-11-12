@@ -438,8 +438,16 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       for (const c of created) {
         for (const id of [c.id, c.returnId].filter(Boolean) as string[]) {
           if (c.status === "requested") await fetchWithSupabaseSession(`/api/trips/${id}/approve`, { method: "POST" }, "admin");
-          const d = await fetchWithSupabaseSession(`/api/trips/${id}/dispatch-directed`, { method: "POST", body: JSON.stringify({ driver_id: driverId }) }, "admin");
-          const dj = (await d.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
+          let d = await fetchWithSupabaseSession(`/api/trips/${id}/dispatch-directed`, { method: "POST", body: JSON.stringify({ driver_id: driverId }) }, "admin");
+          let dj = (await d.json().catch(() => ({}))) as { success?: boolean; error?: { code?: string; message?: string } };
+          // Motorista com o app fechado ou agenda cheia: a central confirma e atribui mesmo assim.
+          if ((!d.ok || !dj.success) && (dj.error?.code === "DRIVER_OFFLINE" || dj.error?.code === "DISPATCH_CONFLICT")) {
+            const why = dj.error?.code === "DRIVER_OFFLINE" ? "O motorista está com o aplicativo fechado e a corrida é para agora." : (dj.error?.message ?? "O motorista já tem corrida nesse horário.");
+            if (window.confirm(`${why}\n\nAtribuir mesmo assim? (ex.: ele já está fazendo o serviço)`)) {
+              d = await fetchWithSupabaseSession(`/api/trips/${id}/dispatch-directed`, { method: "POST", body: JSON.stringify({ driver_id: driverId, force: true }) }, "admin");
+              dj = (await d.json().catch(() => ({}))) as { success?: boolean; error?: { code?: string; message?: string } };
+            }
+          }
           if (!d.ok || !dj.success) assignNote = dj.error?.message ?? "Não foi possível atribuir o motorista.";
         }
       }

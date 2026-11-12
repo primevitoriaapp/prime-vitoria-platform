@@ -18,7 +18,7 @@ function humanError(code: string | undefined, message: string | undefined): stri
     case "DISPATCH_CONFLICT":
       return message ?? "Esse motorista já tem corrida nesse horário.";
     case "DRIVER_OFFLINE":
-      return "Motorista offline e a corrida é para agora. Escolha alguém online.";
+      return "Motorista com o aplicativo fechado e a corrida é para agora. Confirme para atribuir mesmo assim.";
     case "DRIVER_NOT_AVAILABLE":
       return "Motorista desativado.";
     case "INVALID_STATUS_TRANSITION":
@@ -84,11 +84,11 @@ export function QuickAssign({
 
   if (!canAssign) return null;
 
-  async function assign(d: AssignDriver) {
+  async function assign(d: AssignDriver, forced = false) {
     // Agenda apertada: a central decide (ex.: continuação do serviço, encaixe).
     const reason = busyMap[d.id];
-    const force = Boolean(reason);
-    if (force && !window.confirm(`${d.name} já ${reason}.\n\nÉ continuação do serviço ou dá tempo de encaixar? Atribuir mesmo assim?`)) return;
+    const force = forced || Boolean(reason);
+    if (!forced && reason && !window.confirm(`${d.name} já ${reason}.\n\nÉ continuação do serviço ou dá tempo de encaixar? Atribuir mesmo assim?`)) return;
     setBusy(d.id);
     setError(null);
     const vehicle = d.vehicle?.id;
@@ -100,7 +100,7 @@ export function QuickAssign({
         "admin"
       );
     } else {
-      if (status === "requested") {
+      if (status === "requested" && !forced) {
         const ap = await fetchWithSupabaseSession(`/api/trips/${tripId}/approve`, { method: "POST" }, "admin");
         const apJson = (await ap.json().catch(() => ({}))) as { success?: boolean; data?: { operational_status?: string }; error?: { code?: string; message?: string } };
         if (!ap.ok || !apJson.success) {
@@ -118,6 +118,14 @@ export function QuickAssign({
     const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { code?: string; message?: string } };
     setBusy(null);
     if (!res.ok || !json.success) {
+      // Motorista sem o app aberto: a central confirma e atribui mesmo assim.
+      if (!forced && (json.error?.code === "DRIVER_OFFLINE" || json.error?.code === "DISPATCH_CONFLICT")) {
+        const why =
+          json.error?.code === "DRIVER_OFFLINE"
+            ? `${d.name} está com o aplicativo fechado (offline) e a corrida é para agora.`
+            : json.error?.message ?? `${d.name} já tem corrida nesse horário.`;
+        if (window.confirm(`${why}\n\nAtribuir mesmo assim? (ex.: ele já está fazendo o serviço)`)) return assign(d, true);
+      }
       setError(humanError(json.error?.code, json.error?.message));
       return;
     }

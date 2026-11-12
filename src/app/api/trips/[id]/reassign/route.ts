@@ -54,7 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (!driver?.active) return fail("DRIVER_NOT_AVAILABLE", "Motorista inativo ou fora do tenant", 409);
-    if (shouldBlockOfflineDriverForTrip(driver.operational_status, trip.scheduled_at)) {
+    if (!body.force && shouldBlockOfflineDriverForTrip(driver.operational_status, trip.scheduled_at)) {
       return fail(
         "DRIVER_OFFLINE",
         "Motorista está offline — reatribuição imediata exige parceiro online",

@@ -54,7 +54,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .maybeSingle();
     if (!driver?.active) return fail("DRIVER_NOT_AVAILABLE", "Motorista inativo ou fora do tenant", 409);
     // Offline só bloqueia corrida para daqui a menos de 30 min; corrida agendada pode ir para quem está offline.
-    if (shouldBlockOfflineDriverForTrip(driver.operational_status as string, trip.scheduled_at as string)) {
+    // A central pode confirmar mesmo assim (ex.: motorista já em serviço sem o app aberto).
+    if (!body.force && shouldBlockOfflineDriverForTrip(driver.operational_status as string, trip.scheduled_at as string)) {
       return fail("DRIVER_OFFLINE", "Motorista está offline e a corrida é para agora. Escolha alguém online.", 409);
     }
 
