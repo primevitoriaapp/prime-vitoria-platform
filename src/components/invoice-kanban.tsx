@@ -188,6 +188,42 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     onChanged?.();
   }
 
+  // "Cliente já pagou": fecha a fatura com as corridas aprovadas e já marca como paga (PIX na hora, pessoa física…).
+  const [paying, setPaying] = useState<string | null>(null);
+  const [payOn, setPayOn] = useState(todayYmd());
+  const [payHow, setPayHow] = useState<"pix" | "transferencia" | "dinheiro" | "boleto" | "outro">("pix");
+
+  async function closePaid(c: ClientAcc) {
+    const trips = (c.trips ?? []).filter((t) => t.stage === "aprovada");
+    if (!trips.length) return setMsg({ ok: false, text: "Nenhuma corrida aprovada para fechar." });
+    const days = [...new Set(trips.map((t) => new Date(t.scheduled_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" })))];
+    setBusy(c.client_id);
+    setMsg(null);
+    const r = await fetchWithSupabaseSession(
+      "/api/client-invoices/vouchers",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_ids: trips.map((t) => t.id), due_date: payOn, ref: `SERVIÇOS DE ${days.join(", ")}` }) },
+      "admin"
+    ).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; data?: { invoice_id: string }; error?: { message?: string } }) : {};
+    if (!r?.ok || !j.success || !j.data) {
+      setBusy(null);
+      return setMsg({ ok: false, text: j.error?.message ?? "Não foi possível fechar." });
+    }
+    const p = await fetchWithSupabaseSession(
+      `/api/client-invoices/${j.data.invoice_id}`,
+      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "paga", paid_on: payOn, payment_method: payHow }) },
+      "admin"
+    ).catch(() => null);
+    setBusy(null);
+    setPaying(null);
+    setMsg(
+      p?.ok
+        ? { ok: true, text: `${c.client_name}: ${brl(trips.reduce((s2, t) => s2 + Number(t.client_amount ?? 0), 0))} recebido e fechado ✓. Está em “Pagas”.` }
+        : { ok: false, text: "A fatura foi criada, mas não consegui marcar como paga: abra em “Faturado” e clique em “Marcar como paga”." }
+    );
+    await load();
+  }
+
   async function cancelTrip(t: AccTrip, c: ClientAcc) {
     const when = new Date(t.scheduled_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
     if (!window.confirm(`Cancelar a corrida de ${when}${t.passenger ? ` (${t.passenger})` : ""} de ${c.client_name}?\n\nEla sai do fechamento e não é cobrada.`)) return;
@@ -378,9 +414,49 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                           </button>
                         </div>
                       ) : (
-                        <button type="button" disabled={busy === c.client_id} onClick={() => void closeClient(c)} className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50">
-                          {busy === c.client_id ? "Fechando…" : c.per_service ? "Escolher corridas e fechar →" : "Fechar fatura →"}
-                        </button>
+                        <>
+                          {c.invoiced ? (
+                            <button type="button" disabled={busy === c.client_id} onClick={() => void closeClient(c)} className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50">
+                              {busy === c.client_id ? "Fechando…" : c.per_service ? "Escolher corridas e fechar →" : "Fechar fatura →"}
+                            </button>
+                          ) : null}
+                          {paying === c.client_id ? (
+                            <div className="mt-2 grid gap-1.5 rounded-lg bg-emerald-50 p-2 text-xs">
+                              <p className="font-semibold">Cliente já pagou {brl(c.approved_total)}</p>
+                              <label className="grid gap-0.5">
+                                <span>Pago em</span>
+                                <input type="date" value={payOn} onChange={(e) => setPayOn(e.target.value)} className="rounded-md border border-prime-border bg-white px-2 py-1" />
+                              </label>
+                              <label className="grid gap-0.5">
+                                <span>Forma</span>
+                                <select value={payHow} onChange={(e) => setPayHow(e.target.value as typeof payHow)} className="rounded-md border border-prime-border bg-white px-2 py-1">
+                                  <option value="pix">PIX / link de pagamento</option>
+                                  <option value="transferencia">Transferência</option>
+                                  <option value="dinheiro">Dinheiro</option>
+                                  <option value="boleto">Boleto</option>
+                                  <option value="outro">Outro</option>
+                                </select>
+                              </label>
+                              <button type="button" disabled={busy === c.client_id} onClick={() => void closePaid(c)} className="rounded-md bg-emerald-700 py-1.5 font-bold text-[#fff] disabled:opacity-50">
+                                {busy === c.client_id ? "Salvando…" : "Confirmar recebido ✓"}
+                              </button>
+                              <button type="button" onClick={() => setPaying(null)} className="text-prime-muted">
+                                Cancelar
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPaying(c.client_id);
+                                setPayOn(todayYmd());
+                              }}
+                              className={`mt-1.5 w-full rounded-lg py-2 text-xs font-bold ring-1 ${c.invoiced ? "text-emerald-800 ring-emerald-200" : "bg-emerald-700 text-[#fff] ring-emerald-700"}`}
+                            >
+                              ✓ Cliente já pagou
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   ))
