@@ -190,6 +190,26 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
               )}
             </div>
           </div>
+          {inv.status === "aberta" ? (
+            <div className="grid gap-2 border-t border-prime-border pt-3">
+              <p className="text-xs text-prime-muted">3. Enviar ao cliente</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="inline-flex items-center gap-2 rounded-xl bg-[#111] px-4 py-2.5 text-sm font-semibold text-prime-gold disabled:opacity-50" onClick={() => setComposer("fatura")} disabled={busy}>
+                  ✉ Enviar pelo sistema (e-mail)
+                </button>
+                <button
+                  type="button"
+                  className={btn}
+                  disabled={busy}
+                  onClick={() => {
+                    if (window.confirm("Marcar esta fatura como ENVIADA? (use quando você mandou por WhatsApp ou pelo seu e-mail)")) void patch({ status: "enviada" }, "Marcada como enviada ao cliente.");
+                  }}
+                >
+                  ✓ Já enviei por fora (WhatsApp / meu e-mail)
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
