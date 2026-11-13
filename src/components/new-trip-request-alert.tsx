@@ -262,7 +262,7 @@ export function NewTripRequestAlert({ tenantId }: Props) {
 
       {alerts.length ? (
         <div
-          className="fixed bottom-4 right-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2"
+          className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-[95] flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2 md:bottom-4"
           role="status"
           aria-live="polite"
         >
