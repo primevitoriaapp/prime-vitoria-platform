@@ -15,6 +15,7 @@ import { DriverPickupStopsPanel } from "@/components/driver-pickup-stops-panel";
 import { DriverDropoffStopsPanel } from "@/components/driver-dropoff-stops-panel";
 import { DriverPassengerLink } from "@/components/driver-passenger-link";
 import { linkPhones } from "@/lib/ui/link-phones";
+import { nextPendingDropoffIndex, parseDropoffStops } from "@/lib/trips/trip-dropoff-stops";
 import { tripContacts, tripPeopleLabel } from "@/lib/trips/trip-contacts";
 import { DriverTripExpenses } from "@/components/trip-expenses";
 import { ReceptiveSignButton, needsReceptiveSign } from "@/components/receptive-sign";
@@ -87,8 +88,14 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
   const stopIdx = multi ? nextIncompletePickupStopIndex(stops) : null;
   const pickupsDone = !multi || allPickupStopsCompleted(stops);
   const goingToDestination = s === "in_progress";
+  // Com paradas de desembarque, o "ir" leva sempre à próxima parada pendente (na ordem do cliente).
+  const drops = parseDropoffStops(trip.trip_dropoff_stops);
+  const nextDropIdx = drops.length ? nextPendingDropoffIndex(drops) : null;
+  const nextDrop = nextDropIdx != null && nextDropIdx >= 0 ? drops[nextDropIdx] : null;
   const target = goingToDestination
-    ? { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.destination_text }
+    ? nextDrop
+      ? { lat: nextDrop.lat ?? null, lng: nextDrop.lng ?? null, label: nextDrop.address_text }
+      : { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.destination_text }
     : multi && stopIdx != null
       ? pickupStopNavPoint(stops[stopIdx])
       : { lat: trip.origin_lat, lng: trip.origin_lng, label: trip.origin_text };
@@ -167,7 +174,7 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
           ) : null}
           <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-prime-gold">
-              {goingToDestination ? "Levar o passageiro para" : multi && stopIdx != null ? `Buscar na parada ${stopIdx + 1}` : "Buscar o passageiro em"}
+              {goingToDestination ? (nextDrop ? `${nextDrop.final ? "🏁 Destino final" : `Parada ${(nextDropIdx ?? 0) + 1}`}${nextDrop.passenger_name ? ` · deixar ${nextDrop.passenger_name.split(" ")[0]}` : ""}` : "Levar o passageiro para") : multi && stopIdx != null ? `Buscar na parada ${stopIdx + 1}` : "Buscar o passageiro em"}
             </p>
             <p className="mt-1 text-xl font-bold leading-snug text-[#111]">{targetText.split(",")[0]}</p>
             {targetText.includes(",") ? <p className="text-sm text-[#6B6F76]">{targetText.split(",").slice(1).join(",").trim()}</p> : null}

@@ -196,7 +196,12 @@ export function DriverFinishSheet({
             {busy ? "Processando…" : mode === "start" ? "Iniciar viagem" : "Finalizar corrida"}
           </button>
         </div>
-        {mode === "finish" && !sig ? <p className="mt-2 text-center text-xs text-[#AAAAAA]">Verificando assinatura…</p> : null}
+        {mode === "finish" && !sig ? <p className="mt-2 text-center text-xs text-[#AAAAAA]">Carregando…</p> : null}
+        {mode === "finish" && sig && !busy && (!kmOk || !sigOk) ? (
+          <p className="mt-2 text-center text-sm font-semibold text-amber-300">
+            Para finalizar falta: {[!kmOk ? (value == null ? "digitar o KM final do painel" : dist && !dist.ok ? dist.message : "conferir o KM final") : null, !sigOk ? "a assinatura (ou o motivo de não assinar)" : null].filter(Boolean).join(" e ")}
+          </p>
+        ) : null}
       </div>
     </div>
   );

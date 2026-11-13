@@ -27,6 +27,7 @@ import {
 } from "@/lib/trips/trip-pickup-stops";
 import { DriverPickupStopsPanel } from "@/components/driver-pickup-stops-panel";
 import { tripPeopleLabel } from "@/lib/trips/trip-contacts";
+import { nextPendingDropoffIndex, parseDropoffStops } from "@/lib/trips/trip-dropoff-stops";
 
 const STEPS: { label: string; match: TripOperationalStatus[] }[] = [
   { label: "Agendada", match: ["dispatched", "accepted", "reassigned", "approved"] },
@@ -69,7 +70,13 @@ export function DriverActiveTripHero({
   onWaitStart,
   onWaitStop
 }: Props) {
-  const dest = { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.destination_text };
+  // Com paradas de desembarque, o destino da navegação é a próxima parada pendente.
+  const drops = parseDropoffStops(trip.trip_dropoff_stops);
+  const nextDropIdx = drops.length ? nextPendingDropoffIndex(drops) : null;
+  const nextDrop = nextDropIdx != null && nextDropIdx >= 0 ? drops[nextDropIdx] : null;
+  const dest = nextDrop
+    ? { lat: nextDrop.lat ?? null, lng: nextDrop.lng ?? null, label: nextDrop.address_text }
+    : { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.destination_text };
   const pickupStops = parseTripPickupStops(trip.trip_pickup_stops);
   const multiPickup = pickupStops.length > 1;
   const pickupsDone = allPickupStopsCompleted(pickupStops);

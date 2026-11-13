@@ -202,8 +202,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!forced) return fail("ACTUAL_KM_REQUIRED", "Informe o KM percorrido para finalizar", 400);
         forcedNotes.push("finalizada sem KM (central precisa conferir)");
       }
-      const { data: client } = await db.from("clients").select("type").eq("id", trip.client_id).maybeSingle();
-      if (client?.type === "PJ") {
+      const { data: client } = await db.from("clients").select("requires_signature").eq("id", trip.client_id).maybeSingle();
+      if (client?.requires_signature === true) {
         const { data: sig } = await db.from("trip_signatures").select("id").eq("trip_id", id).maybeSingle();
         if (!sig) {
           if (!forced) return fail("SIGNATURE_REQUIRED", "Colha a assinatura do passageiro (ou informe por que não assinou)", 409);

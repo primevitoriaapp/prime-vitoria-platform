@@ -16,10 +16,11 @@ async function context(id: string) {
   const r = await loadTripForActor(id, "operational_status, passenger_name, odometer_start, odometer_end, actual_km, km_source");
   if (!r.ok) return r;
   const [{ data: client }, { data: sig }] = await Promise.all([
-    db.from("clients").select("type").eq("id", r.trip.client_id as string).maybeSingle(),
+    db.from("clients").select("requires_signature").eq("id", r.trip.client_id as string).maybeSingle(),
     db.from("trip_signatures").select("signer_name, image_data, skipped_reason, created_at").eq("trip_id", id).maybeSingle()
   ]);
-  return { ...r, required: client?.type === "PJ", signature: sig ?? null };
+  // Só empresas marcadas no cadastro exigem assinatura do passageiro no fim.
+  return { ...r, required: client?.requires_signature === true, signature: sig ?? null };
 }
 
 /** Assinatura do passageiro (corridas de empresa): documenta que o serviço foi feito. */
