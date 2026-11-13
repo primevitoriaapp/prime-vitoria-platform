@@ -13,13 +13,22 @@ export type PixCharge = {
 };
 
 /** Dados de pagamento por PIX/transferência quando a fatura é cobrada sem boleto. */
-export async function invoicePixCharge(inv: { charge_method?: string | null; charge_bank_account_id?: string | null }): Promise<PixCharge | null> {
-  if (inv.charge_method !== "pix" || !inv.charge_bank_account_id) return null;
-  const { data: a } = await db
-    .from("bank_accounts")
-    .select("issuer, bank, agency, account, pix_key, holder_name, holder_document")
-    .eq("id", inv.charge_bank_account_id)
-    .maybeSingle();
+export async function invoicePixCharge(inv: {
+  charge_method?: string | null;
+  charge_bank_account_id?: string | null;
+  boleto_path?: string | null;
+  billing_issuer?: string | null;
+  tenant_id?: string | null;
+}): Promise<PixCharge | null> {
+  const cols = "issuer, bank, agency, account, pix_key, holder_name, holder_document";
+  let a: Record<string, unknown> | null = null;
+  if (inv.charge_method === "pix" && inv.charge_bank_account_id) {
+    a = (await db.from("bank_accounts").select(cols).eq("id", inv.charge_bank_account_id).maybeSingle()).data as Record<string, unknown> | null;
+  } else if (inv.charge_method !== "boleto" && !inv.boleto_path && inv.tenant_id) {
+    // Sem forma de cobrança escolhida e sem boleto: usa a conta (com chave PIX) da empresa que emite a fatura.
+    const q = db.from("bank_accounts").select(cols).eq("tenant_id", inv.tenant_id).eq("active", true).not("pix_key", "is", null).order("created_at").limit(1);
+    a = ((await (inv.billing_issuer ? q.eq("issuer", inv.billing_issuer) : q)).data?.[0] as Record<string, unknown> | undefined) ?? null;
+  }
   if (!a) return null;
   const iss = billingIssuerById(a.issuer as string);
   const holder = String(a.holder_name || (iss as { legal_name?: string } | null)?.legal_name || iss?.label || "Prime Vitória");

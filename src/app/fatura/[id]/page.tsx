@@ -90,25 +90,6 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
       {overview ? (
         <div className="invoice-actions" style={{ maxWidth: 1000, margin: "0 auto 20px" }}>
           <InvoiceOverview detail={overview} />
-          {pix ? (
-            <div style={{ marginTop: 12, background: "#fff", border: "1px solid #E8E4DC", borderRadius: 14, padding: 16, fontFamily: "system-ui, sans-serif" }}>
-              <p style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>💠 Pagamento por PIX ou transferência</p>
-              {pix.pix_key ? (
-                <p style={{ margin: "8px 0 0", fontSize: 15 }}>
-                  Chave PIX: <b style={{ fontFamily: "monospace" }}>{pix.pix_key}</b>
-                </p>
-              ) : null}
-              <p style={{ margin: "6px 0 0", fontSize: 13, color: "#444" }}>
-                Favorecido: {pix.holder_name}
-                {pix.holder_document ? ` · CNPJ ${pix.holder_document}` : ""}
-              </p>
-              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#444" }}>
-                Banco {pix.bank}
-                {pix.agency ? ` · Agência ${pix.agency}` : ""}
-                {pix.account ? ` · Conta ${pix.account}` : ""}
-              </p>
-            </div>
-          ) : null}
           {overview.invoice.boleto_path || overview.invoice.boleto_line ? (
             <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
               {overview.invoice.boleto_path ? (
@@ -285,6 +266,33 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
               </tr>
             </tfoot>
           </table>
+          {pix ? (
+            <div style={{ marginTop: 18, border: "1px solid #E8E4DC", borderLeft: "4px solid #C9A84C", borderRadius: 8, padding: "12px 16px", fontSize: 13, lineHeight: 1.7 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", color: "#8A6D1F", marginBottom: 4 }}>Dados bancários para pagamento</div>
+              <div>
+                <b>Banco:</b> {pix.bank}
+              </div>
+              {pix.agency ? (
+                <div>
+                  <b>Agência:</b> {pix.agency}
+                </div>
+              ) : null}
+              {pix.account ? (
+                <div>
+                  <b>Conta:</b> {pix.account}
+                </div>
+              ) : null}
+              <div>
+                <b>Favorecido:</b> {pix.holder_name}
+                {pix.holder_document ? ` · CNPJ ${pix.holder_document}` : ""}
+              </div>
+              {pix.pix_key ? (
+                <div>
+                  <b>Chave PIX:</b> <span style={{ fontFamily: "monospace", fontSize: 14 }}>{pix.pix_key}</span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {staff && rows.some((r) => r.amount == null) ? (
             <p className="invoice-actions" style={{ color: "#B45309", fontSize: 12, marginTop: 8 }}>
               Atenção (só a equipe Prime vê): há corridas sem valor fechado nesta fatura.
