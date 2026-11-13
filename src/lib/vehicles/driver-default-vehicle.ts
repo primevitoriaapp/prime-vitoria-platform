@@ -6,6 +6,7 @@ export type VehicleSummary = {
   plate: string;
   brand?: string | null;
   category?: string | null;
+  color?: string | null;
   is_default?: boolean;
 };
 

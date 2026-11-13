@@ -11,7 +11,7 @@ export async function enrichTripItemsWithVehicles<T extends { vehicle_id?: strin
     return items.map((trip) => ({ ...trip, vehicle: null }));
   }
 
-  const { data: vehicles } = await db.from("vehicles").select("id, model, plate").in("id", vehicleIds);
+  const { data: vehicles } = await db.from("vehicles").select("id, model, plate, color").in("id", vehicleIds);
   const byId = new Map((vehicles ?? []).map((v) => [v.id, v]));
 
   return items.map((trip) => ({

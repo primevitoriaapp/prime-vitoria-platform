@@ -50,6 +50,8 @@ export async function GET() {
       cpf: shaped.cpf,
       profile_name: shaped.profile_name ?? shaped.full_name ?? null,
       full_name: shaped.full_name ?? null,
+      // Usado na mensagem de apresentação ao passageiro.
+      phone: ((driver.whatsapp as string | null) || (driver.phone as string | null) || null),
       // "funcionario" = não vê valores (funcionário da Prime ou motorista de empresa parceira).
       employment_type: (await driverPayVisibility(String(shaped.id))).hidden ? "funcionario" : "parceiro",
       photo_url,
