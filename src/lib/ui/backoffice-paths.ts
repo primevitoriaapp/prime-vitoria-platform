@@ -15,6 +15,7 @@ export const BACKOFFICE_PATH_PREFIXES = [
   "/conciliacao",
   "/conferencia",
   "/configuracoes",
+  "/minha-empresa",
   "/contabilidade",
   "/contas-a-pagar",
   "/dashboard",

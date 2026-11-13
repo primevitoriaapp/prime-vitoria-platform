@@ -5,6 +5,7 @@ import type { Trip } from "@/lib/domain/types";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { presentationAtIso } from "@/lib/trips/service-extras";
 import { linkPhones } from "@/lib/ui/link-phones";
+import { tripContacts } from "@/lib/trips/trip-contacts";
 
 let cachedName: string | null = null;
 
@@ -18,7 +19,7 @@ function firstName(s?: string | null) {
 }
 
 /** Texto de apresentação do motorista ao passageiro (ele ainda pode editar no WhatsApp antes de enviar). */
-export function driverIntroMessage(trip: Trip, driverName: string): string {
+export function driverIntroMessage(trip: Trip, driverName: string, personName?: string | null): string {
   const tz = "America/Sao_Paulo";
   const at = presentationAtIso(trip.scheduled_at, (trip as { presentation_minutes?: number | null }).presentation_minutes) ?? trip.scheduled_at;
   const d = new Date(String(trip.scheduled_at));
@@ -28,7 +29,7 @@ export function driverIntroMessage(trip: Trip, driverName: string): string {
   const dia = day === today ? "hoje" : day === tomorrow ? "amanhã" : `no dia ${d.toLocaleDateString("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit" })}`;
   const hora = new Date(String(at)).toLocaleTimeString("pt-BR", { timeZone: tz, hour: "2-digit", minute: "2-digit" });
   const local = String(trip.origin_text ?? "").split(",")[0].trim();
-  const pax = firstName(trip.passenger_name);
+  const pax = firstName(personName ?? trip.passenger_name);
   const lines = [
     `Olá${pax ? `, ${pax}` : ""}! Tudo bem?`,
     `Sou ${driverName || "o motorista"}, da Prime Vitória, e vou te atender ${dia} às ${hora}${local ? ` em ${local}` : ""}.`
@@ -45,7 +46,8 @@ export function driverIntroMessage(trip: Trip, driverName: string): string {
 export function DriverPassengerContact({ trip, devFallbackRole }: { trip: Trip; devFallbackRole: "motorista" | "admin" }) {
   const [name, setName] = useState<string>(cachedName ?? "");
   const [asked, setAsked] = useState<"idle" | "busy" | "done" | "error">("idle");
-  const phone = trip.passenger_phone?.trim() ?? "";
+  const people = tripContacts(trip);
+  const withPhone = people.filter((p) => p.phone);
 
   useEffect(() => {
     if (cachedName) return;
@@ -69,29 +71,40 @@ export function DriverPassengerContact({ trip, devFallbackRole }: { trip: Trip; 
 
   return (
     <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#6B6F76]">Falar com o passageiro</p>
-      <p className="mt-1 text-base font-semibold text-[#111]">
-        {trip.passenger_name?.trim() || "Passageiro sem nome"}
-        {trip.passenger_count && trip.passenger_count > 1 ? <span className="font-normal text-[#6B6F76]"> · {trip.passenger_count} pessoas</span> : null}
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#6B6F76]">
+        Falar com {people.length > 1 ? "os passageiros" : "o passageiro"}
+        {trip.passenger_count && trip.passenger_count > 1 ? ` · ${trip.passenger_count} pessoas` : ""}
       </p>
-      {phone ? (
-        <>
-          <p className="text-sm text-[#6B6F76]">{phone}</p>
-          <div className="mt-3 grid grid-cols-[auto_1fr] gap-2">
-            <a href={`tel:${phone}`} className="rounded-2xl border border-[#E5E1D8] px-4 py-3 text-center text-sm font-semibold text-[#111]">
-              📞 Ligar
-            </a>
-            <a
-              href={`https://wa.me/${waPhone(phone)}?text=${encodeURIComponent(driverIntroMessage(trip, name))}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-2xl bg-[#25D366] px-3 py-3 text-center text-sm font-bold text-[#111]"
-            >
-              💬 Me apresentar no WhatsApp
-            </a>
-          </div>
-          <p className="mt-1.5 text-xs text-[#6B6F76]">Abre o WhatsApp com uma mensagem pronta: seu nome, horário, local e pergunta do ponto de encontro. Dá para mudar antes de enviar.</p>
-        </>
+      {people.length ? (
+        <ul className="mt-2 divide-y divide-[#EFEBE2]">
+          {people.map((p) => (
+            <li key={`${p.role}-${p.name}`} className="py-3">
+              <p className="text-base font-semibold text-[#111]">
+                {p.name} <span className="text-xs font-normal text-[#6B6F76]">· {p.role}</span>
+              </p>
+              {p.phone ? (
+                <div className="mt-2 grid grid-cols-[auto_1fr] gap-2">
+                  <a href={`tel:${p.phone}`} className="rounded-2xl border border-[#E5E1D8] px-4 py-3 text-center text-sm font-semibold text-[#111]">
+                    📞 Ligar
+                  </a>
+                  <a
+                    href={`https://wa.me/${waPhone(p.phone)}?text=${encodeURIComponent(driverIntroMessage(trip, name, p.name === "Passageiro" ? null : p.name))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-2xl bg-[#25D366] px-3 py-3 text-center text-sm font-bold text-[#111]"
+                  >
+                    💬 Me apresentar no WhatsApp
+                  </a>
+                </div>
+              ) : (
+                <p className="text-sm text-[#6B6F76]">Sem telefone</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {withPhone.length ? (
+        <p className="mt-1 text-xs text-[#6B6F76]">O WhatsApp abre com uma mensagem pronta (seu nome, horário, local e ponto de encontro). Dá para mudar antes de enviar.</p>
       ) : (
         <div className="mt-2 rounded-2xl bg-amber-50 p-3">
           <p className="text-sm font-semibold text-amber-900">A central não colocou o telefone do passageiro nesta corrida.</p>

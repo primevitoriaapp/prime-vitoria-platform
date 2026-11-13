@@ -339,7 +339,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       return;
     }
     // Sem telefone do passageiro o motorista não consegue se apresentar nem combinar o ponto de encontro.
-    if (!alreadyDone && !paxPhone.trim() && !teamShape?.pickupStops && !window.confirm("Esta corrida está sem o telefone do passageiro.\n\nO motorista não vai conseguir falar com ele antes (apresentação, ponto de encontro, atraso de voo).\n\nSalvar mesmo assim?")) {
+    if (!alreadyDone && !paxPhone.trim() && !teamShape?.pickupStops && !manualStops.some((x) => x.passenger_phone.trim()) && !finalPerson.passenger_phone.trim() && !window.confirm("Esta corrida está sem o telefone do passageiro.\n\nO motorista não vai conseguir falar com ele antes (apresentação, ponto de encontro, atraso de voo).\n\nSalvar mesmo assim?")) {
       return;
     }
     setBusy(true);

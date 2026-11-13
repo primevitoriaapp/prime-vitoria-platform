@@ -210,8 +210,7 @@ ${banner}
     to: opsInbox,
     subject,
     text,
-    html,
-    from: resolveEmailFrom()
+    html
   });
 
   console.info("[portal.trip_request_email] resultado", {

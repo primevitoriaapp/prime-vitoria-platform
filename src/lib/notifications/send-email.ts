@@ -13,6 +13,29 @@ export function resolveEmailFrom(): string {
   return DEFAULT_OPERATIONAL_EMAIL_FROM;
 }
 
+/** Nome do remetente e e-mail de resposta vêm de "Minha empresa" (cache curto). */
+let senderCache: { at: number; name: string; replyTo: string } | null = null;
+async function senderSettings(): Promise<{ name: string; replyTo: string } | null> {
+  if (senderCache && Date.now() - senderCache.at < 5 * 60_000) return senderCache;
+  try {
+    const { getTenantCompanyProfile } = await import("@/lib/company/tenant-company-profile");
+    const { DEFAULT_TENANT_ID } = await import("@/lib/tenant/default-tenant");
+    const p = await getTenantCompanyProfile(DEFAULT_TENANT_ID);
+    senderCache = { at: Date.now(), name: p.email_sender_name, replyTo: p.email_reply_to };
+    return senderCache;
+  } catch {
+    return null;
+  }
+}
+
+/** Troca só o nome do remetente; o endereço continua o do domínio verificado no Resend. */
+export function withSenderName(from: string, name: string | null | undefined): string {
+  const clean = String(name ?? "").replace(/[<>"\r\n]/g, "").trim();
+  if (!clean) return from;
+  const addr = from.match(/<([^>]+)>/)?.[1] ?? from.trim();
+  return `${clean} <${addr}>`;
+}
+
 export type SendEmailInput = {
   to: string | string[];
   subject: string;
@@ -52,7 +75,8 @@ export async function sendOperationalEmail(input: SendEmailInput): Promise<SendE
     return { ok: false, reason: "RESEND_API_KEY nao configurado", skipped: true };
   }
 
-  const from = input.from?.trim() || resolveEmailFrom();
+  const sender = input.from?.trim() && input.replyTo ? null : await senderSettings();
+  const from = input.from?.trim() || withSenderName(resolveEmailFrom(), sender?.name);
 
   const to = Array.isArray(input.to) ? input.to : [input.to];
 
@@ -76,7 +100,7 @@ export async function sendOperationalEmail(input: SendEmailInput): Promise<SendE
       subject: input.subject,
       text: input.text,
       html: input.html ?? undefined,
-      reply_to: input.replyTo ?? DEFAULT_EMAIL_REPLY_TO,
+      reply_to: input.replyTo ?? sender?.replyTo ?? DEFAULT_EMAIL_REPLY_TO,
       cc: input.cc?.length ? input.cc : undefined,
       bcc: input.bcc?.length ? input.bcc : undefined,
       attachments: input.attachments?.length ? input.attachments : undefined

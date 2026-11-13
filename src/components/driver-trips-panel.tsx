@@ -13,6 +13,7 @@ import { pickDriverFocusTripId } from "@/lib/trips/driver-step-copy";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
 import { DriverActiveTripHero } from "@/components/driver-active-trip-hero";
 import { DriverPassengerContact } from "@/components/driver-passenger-contact";
+import { tripPeopleLabel } from "@/lib/trips/trip-contacts";
 import { DriverDeclineButton } from "@/components/driver-decline-sheet";
 import { DriverNewTripBanner } from "@/components/driver-new-trip-banner";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
@@ -586,7 +587,7 @@ export function DriverTripsPanel({
                       </span>
                       <span className="text-xs font-medium text-[#6B6F76]">Ver detalhes ›</span>
                     </div>
-                    <p className="mt-2 text-base font-semibold text-[#111]">{primaryTrip.passenger_name?.trim() || "Passageiro"}</p>
+                    <p className="mt-2 text-base font-semibold text-[#111]">{tripPeopleLabel(primaryTrip) || "Passageiro"}</p>
                     <div className="mt-2 grid grid-cols-[14px_1fr] gap-x-2 gap-y-1 text-sm">
                       <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-[#111]" aria-hidden />
                       <span className="truncate text-[#333]">{short(primaryTrip.origin_text)}</span>

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { db } from "@/lib/server/db";
-import { sendOperationalEmail, DEFAULT_EMAIL_REPLY_TO } from "@/lib/notifications/send-email";
+import { sendOperationalEmail } from "@/lib/notifications/send-email";
 import { buildPortalWelcomeEmail } from "@/lib/notifications/portal-welcome-email";
 import { OFFICIAL_URLS } from "@/lib/server/official-urls";
 import { createPortalInviteToken } from "@/lib/auth/portal-invite-token";
@@ -64,7 +64,7 @@ async function sendWelcome(opts: { email: string; name: string; clientId: string
   });
   // O convite leva um link pessoal de criar senha: vai SÓ para o funcionário.
   // A Prime recebe um aviso separado, sem o link (quem clicasse na cópia entraria na conta dele).
-  const r = await sendOperationalEmail({ to: opts.email, subject: mail.subject, text: mail.text, html: mail.html, replyTo: DEFAULT_EMAIL_REPLY_TO });
+  const r = await sendOperationalEmail({ to: opts.email, subject: mail.subject, text: mail.text, html: mail.html });
   if (r.ok) {
     const nivel = opts.access === "gestor" ? "gestor" : "solicitante";
     await sendOperationalEmail({

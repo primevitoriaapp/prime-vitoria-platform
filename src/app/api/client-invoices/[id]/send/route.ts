@@ -12,7 +12,11 @@ import { invoicePdfFor } from "@/lib/finance/invoice-pdf-data";
 import { invoicePixCharge } from "@/lib/finance/invoice-charge";
 
 const BUCKET = "invoice-files";
-const COPY_TO = "contato@primevitoria.com";
+/** E-mail do financeiro (Minha empresa): recebe cópia e as respostas do cliente. */
+async function financeEmail(tenantId: string): Promise<string> {
+  const { getTenantCompanyProfile } = await import("@/lib/company/tenant-company-profile");
+  return (await getTenantCompanyProfile(tenantId)).email_finance;
+}
 const brDate = (ymd: string) => ymd.split("-").reverse().join("/");
 const brl = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -97,7 +101,7 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
     message,
     files: { fatura: true, boleto: !pix && Boolean(inv.boleto_path), nf: Boolean(inv.nf_path || inv.nf_extra_paths?.length), voucher: Boolean(inv.voucher_path) },
     link: `${OFFICIAL_URLS.empresa}/fatura/${invoice.id}`,
-    copy_to: COPY_TO
+    copy_to: await financeEmail(tenantId)
   };
 }
 
@@ -151,6 +155,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const session = await getSessionContext();
     if (!staff(session.role)) return fail("FORBIDDEN", "Só admin ou financeiro enviam faturas", 403);
     const tenantId = assertTenantScope(session);
+    const COPY_TO = await financeEmail(tenantId);
     const { id } = await params;
     const raw = await request.text();
     const body = bodySchema.parse(raw ? JSON.parse(raw) : {});

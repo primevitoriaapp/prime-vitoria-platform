@@ -15,6 +15,7 @@ import { DriverPickupStopsPanel } from "@/components/driver-pickup-stops-panel";
 import { DriverDropoffStopsPanel } from "@/components/driver-dropoff-stops-panel";
 import { DriverPassengerLink } from "@/components/driver-passenger-link";
 import { linkPhones } from "@/lib/ui/link-phones";
+import { tripContacts, tripPeopleLabel } from "@/lib/trips/trip-contacts";
 import { DriverTripExpenses } from "@/components/trip-expenses";
 import { ReceptiveSignButton, needsReceptiveSign } from "@/components/receptive-sign";
 
@@ -97,7 +98,6 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
   const presentation = presentationAtIso(trip.scheduled_at, (trip as { presentation_minutes?: number | null }).presentation_minutes);
   const extras = (trip as { service_extras?: string[] | null }).service_extras ?? [];
   const blockStart = next === "in_progress" && !pickupsDone;
-  const phone = trip.passenger_phone?.trim();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 30_000);
@@ -233,7 +233,7 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
 
           <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
             <p className="text-xs font-semibold uppercase tracking-wide text-[#6B6F76]">Passageiro</p>
-            <p className="mt-1 text-lg font-semibold text-[#111]">{trip.passenger_name?.trim() || "Passageiro"}</p>
+            <p className="mt-1 text-lg font-semibold text-[#111]">{tripPeopleLabel(trip) || "Passageiro"}</p>
             <p className="text-sm text-[#6B6F76]">
               {trip.passenger_count ? `${trip.passenger_count} pessoa(s)` : ""}
               {trip.flight_number ? (
@@ -255,16 +255,25 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
               </div>
             ) : null}
             {trip.notes ? <p className="mt-2 rounded-xl bg-[#F8F7F3] px-3 py-2 text-sm text-[#333]">{linkPhones(trip.notes)}</p> : null}
-            {phone ? (
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <a href={`tel:${phone}`} className="rounded-2xl border border-[#E5E1D8] px-3 py-3 text-center text-sm font-semibold text-[#111]">
-                  📞 Ligar
-                </a>
-                <a href={`https://wa.me/${waPhone(phone)}`} target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-[#CFE9D9] bg-[#EFFBF3] px-3 py-3 text-center text-sm font-semibold text-[#111]">
-                  💬 WhatsApp
-                </a>
-              </div>
-            ) : null}
+            {tripContacts(trip)
+              .filter((c) => c.phone)
+              .map((c) => (
+                <div key={`${c.role}-${c.name}`} className="mt-3">
+                  {tripContacts(trip).length > 1 ? (
+                    <p className="mb-1 text-sm font-semibold text-[#111]">
+                      {c.name} <span className="text-xs font-normal text-[#6B6F76]">· {c.role}</span>
+                    </p>
+                  ) : null}
+                  <div className="grid grid-cols-2 gap-3">
+                    <a href={`tel:${c.phone}`} className="rounded-2xl border border-[#E5E1D8] px-3 py-3 text-center text-sm font-semibold text-[#111]">
+                      📞 Ligar
+                    </a>
+                    <a href={`https://wa.me/${waPhone(String(c.phone))}`} target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-[#CFE9D9] bg-[#EFFBF3] px-3 py-3 text-center text-sm font-semibold text-[#111]">
+                      💬 WhatsApp
+                    </a>
+                  </div>
+                </div>
+              ))}
           </section>
 
           {s === "on_the_way" ? <DriverPassengerLink tripId={trip.id} status={s} devFallbackRole={devFallbackRole} /> : null}

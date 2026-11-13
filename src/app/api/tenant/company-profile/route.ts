@@ -14,7 +14,14 @@ const patchSchema = z.object({
   cnpj: z.string().optional(),
   address_line: z.string().optional(),
   phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal(""))
+  email: z.string().email().optional().or(z.literal("")),
+  tagline: z.string().max(60).optional(),
+  whatsapp: z.string().max(40).optional(),
+  website: z.string().max(200).optional(),
+  instagram: z.string().max(80).optional(),
+  email_sender_name: z.string().trim().min(2).max(60).optional(),
+  email_reply_to: z.string().trim().email("E-mail de resposta inválido").optional(),
+  email_finance: z.string().trim().email("E-mail do financeiro inválido").optional()
 });
 
 export async function GET() {
@@ -33,6 +40,7 @@ export async function PATCH(request: Request) {
   try {
     const session = await getSessionContext();
     assertCapability(session, "client.write");
+    if (session.role !== "admin") return fail("FORBIDDEN", "Só o administrador altera os dados da empresa", 403);
     const tenantId = assertTenantScope(session);
     const body = patchSchema.parse(await request.json());
     const profile = await upsertTenantCompanyProfile(tenantId, {
@@ -42,7 +50,7 @@ export async function PATCH(request: Request) {
     return ok(profile);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return fail("INVALID_BODY", error.message, 400);
+      return fail("INVALID_BODY", error.issues[0]?.message ?? "Dados inválidos", 400);
     }
     return mapApiError(error);
   }

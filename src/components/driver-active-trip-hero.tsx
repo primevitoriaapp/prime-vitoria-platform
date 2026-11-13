@@ -26,6 +26,7 @@ import {
   pickupStopNavPoint
 } from "@/lib/trips/trip-pickup-stops";
 import { DriverPickupStopsPanel } from "@/components/driver-pickup-stops-panel";
+import { tripPeopleLabel } from "@/lib/trips/trip-contacts";
 
 const STEPS: { label: string; match: TripOperationalStatus[] }[] = [
   { label: "Agendada", match: ["dispatched", "accepted", "reassigned", "approved"] },
@@ -136,7 +137,7 @@ export function DriverActiveTripHero({
           👤
         </span>
         <div className="min-w-0">
-          <p className="truncate text-lg font-semibold text-[#111]">{trip.passenger_name?.trim() || "Passageiro"}</p>
+          <p className="truncate text-lg font-semibold text-[#111]">{tripPeopleLabel(trip) || "Passageiro"}</p>
           <p className="text-sm text-[#6B6F76]">
             {trip.passenger_count ? `${trip.passenger_count} passageiro(s)` : "Passageiro"}
             {trip.passenger_phone?.trim() ? (
