@@ -77,7 +77,7 @@ type Props = {
  * Modo corrida: depois de "A caminho", a tela mostra só o que importa agora
  * (para onde ir, navegar, passageiro e o próximo botão).
  */
-export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps, devFallbackRole, onStatus, onWaitStart, onWaitStop, onCompletePickupStop, onTripChanged, message }: Props) {
+export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, onCompletePickupStop, onTripChanged, message }: Props) {
   const s = trip.operational_status;
   const next = driverNextStatuses(s)[0];
   const others = driverNextStatuses(s).slice(1);
@@ -203,24 +203,7 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
             onChanged={() => onTripChanged?.()}
           />
 
-          {s === "arrived" ? (
-            <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-              {trip.wait_started_at ? (
-                <>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Aguardando o passageiro</p>
-                  <p className="mt-1 font-mono text-4xl font-bold tabular-nums text-[#111]">{waitElapsedLabel ?? "00:00"}</p>
-                  <button type="button" disabled={waitBusy} onClick={() => onWaitStop(trip.id)} className="mt-3 w-full rounded-2xl border border-[#DDD5C2] px-4 py-3 text-sm font-semibold">
-                    Passageiro chegou · parar contagem
-                  </button>
-                </>
-              ) : (
-                <button type="button" disabled={waitBusy} onClick={() => onWaitStart(trip.id)} className="w-full rounded-2xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-                  ⏱ Começar a contar espera
-                </button>
-              )}
-              <p className="mt-2 text-xs text-[#6B6F76]">A espera fica registrada para a central cobrar hora parada, quando houver.</p>
-            </section>
-          ) : null}
+          {s === "arrived" ? <DriverAutoWait scheduledAt={trip.scheduled_at} /> : null}
 
           {s === "in_progress" ? (
             <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
@@ -320,5 +303,32 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Espera automática: conta a partir do horário marcado; até 10 min é tolerância. */
+function DriverAutoWait({ scheduledAt }: { scheduledAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(t);
+  }, []);
+  const late = Math.max(0, Math.floor((now - new Date(scheduledAt).getTime()) / 60000));
+  const hora = new Date(scheduledAt).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+  const over = late > 10;
+  return (
+    <section className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+      <p className={`text-xs font-semibold uppercase tracking-wide ${over ? "text-amber-700" : "text-[#6B6F76]"}`}>⏱ Espera automática</p>
+      {late > 0 ? (
+        <p className={`mt-1 text-2xl font-bold ${over ? "text-amber-800" : "text-[#111]"}`}>
+          {late} min {over ? "· passou da tolerância" : "de tolerância"}
+        </p>
+      ) : (
+        <p className="mt-1 text-base font-semibold text-[#111]">Começa a contar às {hora}</p>
+      )}
+      <p className="mt-2 text-xs text-[#6B6F76]">
+        O sistema conta sozinho, do horário marcado ({hora}) até o passageiro embarcar. Os primeiros 10 min são tolerância; passou disso, a central é avisada e decide a cobrança. Você não precisa apertar nada.
+      </p>
+    </section>
   );
 }

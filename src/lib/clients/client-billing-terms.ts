@@ -26,7 +26,7 @@ export async function getClientBillingTerms(clientId: string, tenantId: string):
   if (error || !data) return emptyClientBillingTerms();
   const row = data as Record<string, unknown>;
   return {
-    wait_tolerance_minutes: num(row.wait_tolerance_minutes) ?? 15,
+    wait_tolerance_minutes: num(row.wait_tolerance_minutes) ?? 10,
     wait_client_price_per_hour: num(row.wait_client_price_per_hour),
     wait_driver_price_per_hour: num(row.wait_driver_price_per_hour),
     payment_term_days: num(row.payment_term_days),

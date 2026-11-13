@@ -49,3 +49,15 @@ test("vencimento usa o prazo do cliente e cai para 30 dias", () => {
   assert.equal(receivableDueDate(0, base), "2026-10-28");
   assert.equal(receivableDueDate(null, base), "2026-11-27");
 });
+
+test("hora parada: passou da tolerância cobra em blocos de 5 min", () => {
+  const r = calculateWaitCharge(22, { wait_tolerance_minutes: 10, wait_client_price_per_hour: 60, wait_driver_price_per_hour: 30 });
+  assert.equal(r.billable_minutes, 15);
+  assert.equal(r.client_amount, 15);
+});
+
+test("hora parada: central não cobra do cliente, motorista recebe", () => {
+  const r = calculateWaitCharge(30, { wait_tolerance_minutes: 10, wait_client_price_per_hour: 60, wait_driver_price_per_hour: 30 }, { clientWaived: true });
+  assert.equal(r.client_amount, 0);
+  assert.equal(r.driver_amount, 10);
+});

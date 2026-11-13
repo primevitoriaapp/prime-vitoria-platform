@@ -229,6 +229,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       statusUpdate.wait_minutes = waitFinalize.wait_minutes;
       statusUpdate.wait_started_at = waitFinalize.wait_started_at;
     }
+    // Espera automática: do "Cheguei" (ou do horário marcado, se chegou antes) até o embarque.
+    // Passou da tolerância do cliente → vai para a conferência e a central decide se cobra.
+    if (body.to_status === "in_progress") {
+      const { data: arr } = await db
+        .from("trip_status_history")
+        .select("changed_at")
+        .eq("trip_id", id)
+        .eq("to_status", "arrived")
+        .order("changed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (arr?.changed_at) {
+        const { autoWaitMinutes } = await import("@/lib/trips/auto-wait");
+        const auto = autoWaitMinutes(String(arr.changed_at), String(trip.scheduled_at), new Date());
+        // Com o "Cheguei" registrado, vale a conta automática (o cronômetro manual pode ter
+        // começado antes do horário marcado e não conta).
+        const total = auto;
+        statusUpdate.wait_minutes = total;
+        statusUpdate.wait_started_at = null;
+        const tol = await (async () => {
+          if (!trip.client_id) return 10;
+          const { data: cl } = await db.from("clients").select("wait_tolerance_minutes").eq("id", trip.client_id).maybeSingle();
+          return Number(cl?.wait_tolerance_minutes ?? 10);
+        })();
+        if (total > tol) {
+          const waitNote = `Espera: ${total} min (tolerância ${tol}) — decidir se cobra do cliente`;
+          statusUpdate.review_required = true;
+          statusUpdate.review_reason = [statusUpdate.review_reason ?? trip.review_reason, waitNote].filter(Boolean).join(" | ");
+        }
+      }
+    }
     if (body.to_status === "in_progress" && odoStart != null) statusUpdate.odometer_start = odoStart;
     if (body.to_status === "completed") {
       const drops = parseDropoffStops(trip.trip_dropoff_stops);

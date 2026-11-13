@@ -115,6 +115,8 @@ const bodySchema = z.object({
   wait_minutes: z.coerce.number().int().min(0).max(24 * 60).optional(),
   /** Recalcula pela tabela mesmo se a corrida tinha valor combinado (conferência na aprovação). */
   recalc: z.boolean().optional(),
+  /** true = não cobrar a espera do cliente (o motorista recebe mesmo assim). */
+  wait_client_waived: z.boolean().optional(),
   odometer_start: z.union([z.string(), z.number()]).optional().nullable(),
   odometer_end: z.union([z.string(), z.number()]).optional().nullable(),
   km: z.coerce.number().positive().max(3000).optional()
@@ -160,6 +162,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (body.choice !== "keep") Object.assign(update, { actual_km: km, km_updated_at: now });
     Object.assign(update, { reviewed_at: now, review_required: false });
     if (body.wait_minutes !== undefined) Object.assign(update, { wait_minutes: body.wait_minutes, wait_started_at: null });
+    if (body.wait_client_waived !== undefined) update.wait_client_waived = body.wait_client_waived;
     const { error } = await db.from("trips").update(update).eq("id", id).eq("tenant_id", tenantId);
     if (error) return fail("KM_UPDATE_FAILED", error.message, 500);
 
@@ -195,6 +198,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       metadata: {
         escolha: body.choice,
         ...(body.wait_minutes !== undefined ? { espera_antes: t.wait_minutes ?? 0, espera_depois: body.wait_minutes } : {}),
+        ...(body.wait_client_waived !== undefined ? { espera_cobrada_do_cliente: !body.wait_client_waived } : {}),
         km_antes: t.km_billable ?? t.actual_km,
         km_depois: km,
         cliente_antes: t.client_amount,

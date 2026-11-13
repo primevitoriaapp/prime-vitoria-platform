@@ -20,6 +20,9 @@ type Item = {
   planned_km: number | null;
   km_source: string | null;
   wait_minutes: number;
+  wait_tolerance: number;
+  wait_client_waived: boolean;
+  wait_charge: number;
   arrived_at: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -103,6 +106,24 @@ export function TripApprovalQueue() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edit, form.km, form.wait, manual]);
+
+  async function setWaiver(it: Item, waived: boolean) {
+    setBusy(it.id);
+    setMsg(null);
+    const r = await fetchWithSupabaseSession(
+      `/api/trips/${it.id}/km-review`,
+      { method: "POST", body: JSON.stringify({ choice: "keep", wait_client_waived: waived }) },
+      "admin"
+    ).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } }) : {};
+    setBusy(null);
+    if (!r?.ok || !j.success) {
+      setMsg({ ok: false, text: j.error?.message ?? "Não foi possível salvar a decisão da espera." });
+      return;
+    }
+    setMsg({ ok: true, text: waived ? "Espera não será cobrada do cliente." : "Espera será cobrada do cliente." });
+    await load();
+  }
 
   async function approve(id: string, silent = false) {
     setBusy(id);
@@ -259,6 +280,34 @@ export function TripApprovalQueue() {
                   <p className="mt-1 text-sm text-prime-muted">{it.by_km ? "Sem KM do painel" : "Corrida de valor fixo (não depende de KM)"}</p>
                 )}
                 {it.wait_minutes > 0 ? <p className="mt-1 text-sm">⏱ Espera: {it.wait_minutes} min</p> : null}
+                {it.wait_minutes > it.wait_tolerance ? (
+                  <div className="mt-2 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-200">
+                    <p className="font-semibold text-amber-900">
+                      Espera passou da tolerância ({it.wait_tolerance} min): {Math.ceil((it.wait_minutes - it.wait_tolerance) / 5) * 5} min a cobrar
+                    </p>
+                    <p className="text-xs text-amber-900">
+                      {it.wait_client_waived ? "Decisão: não cobrar do cliente (cortesia). O motorista recebe a espera." : it.wait_charge > 0 ? `Hoje está cobrando ${brl(it.wait_charge)} do cliente.` : "Sem valor de hora parada cadastrado para este cliente/veículo."}
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        disabled={busy === it.id || !it.wait_client_waived}
+                        onClick={() => void setWaiver(it, false)}
+                        className="rounded-lg bg-[#111] px-2 py-2 text-xs font-bold text-prime-gold disabled:opacity-40"
+                      >
+                        Cobrar do cliente
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy === it.id || it.wait_client_waived}
+                        onClick={() => void setWaiver(it, true)}
+                        className="rounded-lg bg-white px-2 py-2 text-xs font-semibold ring-1 ring-amber-300 disabled:opacity-40"
+                      >
+                        Não cobrar (cortesia)
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 {it.planned_km ? <p className="mt-1 text-xs text-prime-muted">Previsto no mapa: {km(it.planned_km)}</p> : null}
               </section>
               <section className="px-5 py-4">

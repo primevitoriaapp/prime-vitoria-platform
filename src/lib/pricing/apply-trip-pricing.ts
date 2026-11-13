@@ -69,7 +69,7 @@ export type CategoryPricingPreview = {
 export async function computeCategoryPricing(input: ApplyTripPricingInput): Promise<CategoryPricingPreview | null> {
   const { data: trip } = await db
     .from("trips")
-    .select("vehicle_category_id, service_mode, driver_id, scheduled_at, wait_minutes, client_amount, driver_amount, calculation_metadata")
+    .select("vehicle_category_id, service_mode, driver_id, scheduled_at, wait_minutes, wait_client_waived, client_amount, driver_amount, calculation_metadata")
     .eq("id", input.tripId)
     .eq("tenant_id", input.tenantId)
     .maybeSingle();
@@ -115,7 +115,7 @@ export async function computeCategoryPricing(input: ApplyTripPricingInput): Prom
     ...terms,
     wait_client_price_per_hour: hp?.client_price ?? terms.wait_client_price_per_hour,
     wait_driver_price_per_hour: hp?.partner_price ?? terms.wait_driver_price_per_hour
-  });
+  }, { clientWaived: trip.wait_client_waived === true });
   client = roundMoney(client + wait.client_amount);
   partner = partner == null ? null : roundMoney(partner + wait.driver_amount);
 
@@ -198,7 +198,7 @@ export async function applyTripPricingOnCompletion(
 
   const { data: tripRow } = await db
     .from("trips")
-    .select("driver_id, service_type, scheduled_at, wait_minutes, client_amount, driver_amount")
+    .select("driver_id, service_type, scheduled_at, wait_minutes, wait_client_waived, client_amount, driver_amount")
     .eq("id", input.tripId)
     .eq("tenant_id", input.tenantId)
     .maybeSingle();
@@ -274,7 +274,7 @@ export async function applyTripPricingOnCompletion(
 
   // Hora parada do cadastro do cliente: tolerância + valor proporcional ao tempo.
   const terms = await getClientBillingTerms(input.clientId, input.tenantId);
-  const wait = calculateWaitCharge(tripRow?.wait_minutes as number | null | undefined, terms);
+  const wait = calculateWaitCharge(tripRow?.wait_minutes as number | null | undefined, terms, { clientWaived: tripRow?.wait_client_waived === true });
   const hasDriver = Boolean(tripDriver.data?.driver_id);
   const result =
     wait.client_amount > 0 || wait.driver_amount > 0

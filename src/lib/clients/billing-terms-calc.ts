@@ -51,7 +51,9 @@ export type ClientBillingTerms = {
   requires_passenger_list?: boolean;
 };
 
-export const DEFAULT_WAIT_TOLERANCE_MINUTES = 15;
+export const DEFAULT_WAIT_TOLERANCE_MINUTES = 10;
+/** Depois da tolerância, a espera é cobrada em blocos de 5 minutos. */
+export const WAIT_BLOCK_MINUTES = 5;
 
 export function emptyClientBillingTerms(): ClientBillingTerms {
   return {
@@ -79,19 +81,23 @@ export type WaitCharge = {
   billable_minutes: number;
   client_amount: number;
   driver_amount: number;
+  /** A central decidiu não cobrar a espera do cliente (o motorista recebe mesmo assim). */
+  client_waived?: boolean;
 };
 
 /**
- * Hora parada: passados os minutos de tolerância, cobra só o que excede,
- * proporcional ao tempo (30 min = meia hora).
+ * Hora parada: passados os minutos de tolerância, cobra o que excede em blocos de 5 min
+ * (12 min além da tolerância = 15 min), proporcional ao valor da hora.
  */
 export function calculateWaitCharge(
   waitMinutes: number | null | undefined,
-  terms: Pick<ClientBillingTerms, "wait_tolerance_minutes" | "wait_client_price_per_hour" | "wait_driver_price_per_hour">
+  terms: Pick<ClientBillingTerms, "wait_tolerance_minutes" | "wait_client_price_per_hour" | "wait_driver_price_per_hour">,
+  opts?: { clientWaived?: boolean | null }
 ): WaitCharge {
   const wait = Math.max(0, Math.round(Number(waitMinutes) || 0));
   const tolerance = Math.max(0, Math.round(Number(terms.wait_tolerance_minutes ?? DEFAULT_WAIT_TOLERANCE_MINUTES)));
-  const billable = Math.max(0, wait - tolerance);
+  const over = Math.max(0, wait - tolerance);
+  const billable = Math.ceil(over / WAIT_BLOCK_MINUTES) * WAIT_BLOCK_MINUTES;
   const hours = billable / 60;
   const clientRate = Number(terms.wait_client_price_per_hour) || 0;
   const driverRate = Number(terms.wait_driver_price_per_hour) || 0;
@@ -99,8 +105,9 @@ export function calculateWaitCharge(
     wait_minutes: wait,
     tolerance_minutes: tolerance,
     billable_minutes: billable,
-    client_amount: roundMoney(hours * clientRate),
-    driver_amount: roundMoney(hours * driverRate)
+    client_amount: opts?.clientWaived ? 0 : roundMoney(hours * clientRate),
+    driver_amount: roundMoney(hours * driverRate),
+    ...(opts?.clientWaived ? { client_waived: true } : {})
   };
 }
 

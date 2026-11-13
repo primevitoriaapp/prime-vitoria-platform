@@ -14,7 +14,7 @@ export async function GET() {
     const { data, error } = await db
       .from("trips")
       .select(
-        "id, scheduled_at, client_id, driver_id, service_mode, passenger_name, origin_text, destination_text, odometer_start, odometer_end, actual_km, km_billable, km_source, planned_km, wait_minutes, client_amount, driver_amount, review_required, review_reason, notes, timeline_overrides"
+        "id, scheduled_at, client_id, driver_id, service_mode, passenger_name, origin_text, destination_text, odometer_start, odometer_end, actual_km, km_billable, km_source, planned_km, wait_minutes, wait_client_waived, calculation_metadata, client_amount, driver_amount, review_required, review_reason, notes, timeline_overrides"
       )
       .eq("tenant_id", tenantId)
       .eq("operational_status", "completed")
@@ -27,7 +27,7 @@ export async function GET() {
     const cIds = [...new Set(rows.map((r) => r.client_id as string))];
     const dIds = [...new Set(rows.map((r) => r.driver_id as string).filter(Boolean))];
     const [{ data: cs }, { data: ds }] = await Promise.all([
-      cIds.length ? db.from("clients").select("id, name, trade_name").in("id", cIds) : Promise.resolve({ data: [] as { id: string; name: string; trade_name: string | null }[] }),
+      cIds.length ? db.from("clients").select("id, name, trade_name, wait_tolerance_minutes").in("id", cIds) : Promise.resolve({ data: [] as { id: string; name: string; trade_name: string | null; wait_tolerance_minutes: number | null }[] }),
       dIds.length ? db.from("drivers").select("id, full_name").in("id", dIds) : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] })
     ]);
     // Horários reais (app do motorista ou corrigidos pela central).
@@ -43,6 +43,7 @@ export async function GET() {
     const timeOf = (r: { id: unknown; timeline_overrides?: unknown }, status: string, key: string) =>
       ((r.timeline_overrides as Record<string, string> | null)?.[key] ?? firstAt.get(`${r.id}|${status}`)) || null;
     const cName = new Map((cs ?? []).map((c) => [c.id as string, ((c.trade_name as string | null) || (c.name as string)).trim()]));
+    const cTol = new Map((cs ?? []).map((c) => [c.id as string, Number((c as { wait_tolerance_minutes?: number | null }).wait_tolerance_minutes ?? 10)]));
     const dName = new Map((ds ?? []).map((d) => [d.id as string, (d.full_name as string | null) ?? "Motorista"]));
     return ok(
       rows.map((r) => {
@@ -65,6 +66,9 @@ export async function GET() {
           planned_km: r.planned_km != null ? Number(r.planned_km) : null,
           km_source: r.km_source,
           wait_minutes: Number(r.wait_minutes ?? 0) || 0,
+          wait_tolerance: cTol.get(r.client_id as string) ?? 10,
+          wait_client_waived: r.wait_client_waived === true,
+          wait_charge: Number(((r.calculation_metadata as { wait?: { client_amount?: number } } | null)?.wait?.client_amount) ?? 0) || 0,
           arrived_at: timeOf(r, "arrived", "local"),
           started_at: timeOf(r, "in_progress", "iniciada"),
           completed_at: timeOf(r, "completed", "finalizada"),
