@@ -253,7 +253,7 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
                 ))}
               </div>
             ) : null}
-            {trip.notes ? <p className="mt-2 rounded-xl bg-[#F8F7F3] px-3 py-2 text-sm text-[#333]">{trip.notes}</p> : null}
+            {trip.notes ? <p className="mt-2 rounded-xl bg-[#F8F7F3] px-3 py-2 text-sm text-[#333]">{linkPhones(trip.notes)}</p> : null}
             {phone ? (
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <a href={`tel:${phone}`} className="rounded-2xl border border-[#E5E1D8] px-3 py-3 text-center text-sm font-semibold text-[#111]">
@@ -309,5 +309,19 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Telefones nas observações viram link (toque para ligar) — ex.: cerimonialista do casamento. */
+function linkPhones(text: string) {
+  const re = /(\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4})/g;
+  return text.split(re).map((part, i) =>
+    i % 2 === 1 ? (
+      <a key={i} href={`tel:${part.replace(/\D/g, "")}`} className="font-semibold text-[#8A6D1F] underline">
+        {part}
+      </a>
+    ) : (
+      part
+    )
   );
 }

@@ -238,6 +238,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   const [clientId, setClientId] = useState("");
   const [who, setWho] = useState<"cadastrado" | "PJ" | "PF">("cadastrado");
   const [kind, setKind] = useState<QuoteKind | "">("");
+  const [wedding, setWedding] = useState({ bride_name: "", bride_phone: "", planner_name: "", planner_phone: "" });
   const [contact, setContact] = useState({ type: "PJ" as "PF" | "PJ", name: "", document: "", phone: "", email: "" });
   const [issuer, setIssuer] = useState<string>(company === "todas" ? "rj_prime" : company);
   const [validUntil, setValidUntil] = useState(plusDays(today(), 7));
@@ -271,6 +272,12 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       setClientId((q.client_id as string) ?? "");
       setWho(q.client_id ? "cadastrado" : ((q.contact_type as "PF" | "PJ") ?? "PJ"));
       setKind(((q.kind as QuoteKind | null) ?? "") as QuoteKind | "");
+      setWedding({
+        bride_name: (q.bride_name as string) ?? "",
+        bride_phone: (q.bride_phone as string) ?? "",
+        planner_name: (q.planner_name as string) ?? "",
+        planner_phone: (q.planner_phone as string) ?? ""
+      });
       setContact({
         type: (q.contact_type as "PF" | "PJ") ?? "PJ",
         name: (q.contact_name as string) ?? "",
@@ -382,6 +389,10 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       client_id: clientId || null,
       contact_type: who === "cadastrado" ? (clients.find((c) => c.id === clientId)?.type === "PF" ? "PF" : "PJ") : who,
       kind: kind || null,
+      bride_name: wedding.bride_name.trim() || null,
+      bride_phone: wedding.bride_phone.trim() || null,
+      planner_name: wedding.planner_name.trim() || null,
+      planner_phone: wedding.planner_phone.trim() || null,
       contact_name: contact.name || null,
       contact_document: contact.document || null,
       contact_phone: contact.phone || null,
@@ -611,6 +622,34 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           <h3 className="font-semibold">Serviços</h3>
           <span className="text-xs text-prime-muted">Ao salvar, os serviços ficam em ordem de data e hora.</span>
         </div>
+        {kind === "casamento" || items.some((i) => i.package_id) ? (
+          <div className="grid gap-3 rounded-2xl border border-[#EADFC4] bg-white p-4">
+            <p className="text-sm font-semibold">📞 Contatos do casamento</p>
+            <p className="text-xs text-prime-muted">Vão para a corrida: o motorista vê e pode ligar para a noiva e para a cerimonialista.</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(
+                [
+                  ["bride_name", "Nome da noiva", "Ex.: Ana Paula"],
+                  ["bride_phone", "WhatsApp da noiva", "(27) 99999-9999"],
+                  ["planner_name", "Cerimonialista", "Nome / empresa"],
+                  ["planner_phone", "WhatsApp da cerimonialista", "(27) 99999-9999"]
+                ] as const
+              ).map(([k, l, ph]) => (
+                <label key={k} className="grid gap-1 text-sm">
+                  <span>{l}</span>
+                  <input
+                    className={input}
+                    disabled={locked}
+                    inputMode={k.endsWith("phone") ? "tel" : undefined}
+                    placeholder={ph}
+                    value={wedding[k]}
+                    onChange={(e) => setWedding((w) => ({ ...w, [k]: e.target.value }))}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {!locked && kind === "casamento" ? (
           <div className="grid gap-2 rounded-2xl border border-[#EADFC4] bg-[#FBF7EC] p-4">
             <p className="text-sm font-semibold">👰 Escolha o pacote — R J Prime Transporte</p>

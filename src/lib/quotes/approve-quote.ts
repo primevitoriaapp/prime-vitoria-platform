@@ -97,11 +97,20 @@ export async function approveQuote(tenantId: string, id: string, actorUserId: st
           destination_lng: it.destination_text ? (it.destination_lng ?? null) : diaria ? (it.origin_lng ?? null) : null,
           ...quoteItemTripStops(it as Record<string, unknown>),
           passenger_count: it.passenger_count ?? 1,
-          passenger_name: it.passenger_name ?? null,
+          passenger_name: it.passenger_name ?? (q.bride_name as string | null) ?? null,
+          passenger_phone: (q.bride_phone as string | null) || null,
           client_amount: client,
           driver_amount: driver,
           margin: driver == null ? client : Math.round((client - driver) * 100) / 100,
-          notes: [`${label}`, diaria ? serviceLabelForClient(it.service_mode as string, hours) : null, it.description].filter(Boolean).join(" · "),
+          notes: [
+            q.bride_name || q.bride_phone ? `👰 Noiva: ${[q.bride_name, q.bride_phone].filter(Boolean).join(" · ")}` : null,
+            q.planner_name || q.planner_phone ? `📋 Cerimonialista: ${[q.planner_name, q.planner_phone].filter(Boolean).join(" · ")}` : null,
+            `${label}`,
+            diaria ? serviceLabelForClient(it.service_mode as string, hours) : null,
+            it.description
+          ]
+            .filter(Boolean)
+            .join(" · "),
           operational_status: "approved",
           approved_by: actorUserId,
           approved_at: nowIso,
