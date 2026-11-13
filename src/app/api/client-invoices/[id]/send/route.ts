@@ -25,8 +25,10 @@ async function defaults(tenantId: string, id: string, tipo: "fatura" | "lembrete
   const invoice = await getClientInvoice(tenantId, id);
   if (!invoice || invoice.status === "cancelada") return null;
   const inv = invoice as typeof invoice & { client_ref?: string | null; voucher_path?: string | null; boleto_path?: string | null; nf_path?: string | null; nf_extra_paths?: string[] | null };
-  const { data: client } = await db.from("clients").select("name, trade_name, email").eq("id", invoice.client_id).maybeSingle();
+  const { data: client } = await db.from("clients").select("name, trade_name, email, invoice_emails").eq("id", invoice.client_id).maybeSingle();
   const to = new Set<string>();
+  // E-mails de cobrança do cliente (vários) têm prioridade; o e-mail do cadastro entra junto.
+  for (const e of ((client?.invoice_emails as string[] | null) ?? [])) if (e?.trim()) to.add(e.trim().toLowerCase());
   if (client?.email) to.add(String(client.email).trim().toLowerCase());
   const { data: gestores } = await db
     .from("profiles")
