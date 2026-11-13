@@ -1,6 +1,7 @@
 "use client";
 
 import { ClientInvoiceEmailsCard } from "@/components/client-invoice-emails-card";
+import { ClientNotifyPassengersToggle } from "@/components/client-notify-passengers-toggle";
 import { FormEvent, useRef, useState } from "react";
 import { isValidCnpj } from "@/lib/integrations/cnpj-public-lookup";
 import { ClientBillingTermsSection } from "@/components/client-billing-terms-section";
@@ -514,6 +515,7 @@ export function ClientCadastroForm({ title, initial, clientId, onSuccess, onCanc
             <ClientBillingTermsSection clientId={clientId} disabled={busy} />
             <div className="md:col-span-2">
               <ClientInvoiceEmailsCard clientId={clientId} />
+              <ClientNotifyPassengersToggle clientId={clientId} />
             </div>
             {/* Mesma tela de Equipe do portal: importar planilha, permissões, gestor e acesso ao portal. */}
             <div className="md:col-span-2" onSubmit={(e) => e.stopPropagation()}>

@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { CalendarFeedCard } from "@/components/calendar-feed-card";
 import { ZapsignTokenCard } from "@/components/zapsign-token-card";
 import { InfinitepayCard } from "@/components/infinitepay-card";
+import { WhatsappCloudCard } from "@/components/whatsapp-cloud-card";
 import { resolveEmailFrom } from "@/lib/notifications/send-email";
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { getSessionContext } from "@/lib/server/session";
@@ -155,6 +156,7 @@ export default async function IntegracoesPage() {
         <CalendarFeedCard />
         {session.role === "admin" ? <ZapsignTokenCard /> : null}
         {session.role === "admin" ? <InfinitepayCard /> : null}
+        {session.role === "admin" ? <WhatsappCloudCard /> : null}
         {groups.map((g) => (
           <section key={g.group}>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-prime-muted">{g.group}</h2>

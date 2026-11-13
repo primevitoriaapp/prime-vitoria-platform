@@ -292,7 +292,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     if (TRACK_END.includes(body.to_status)) {
       await runBestEffort("trip.track_token_expire", async () => {
-        await db.from("trip_public_track_tokens").update({ expires_at: new Date(Date.now() + 3 * 3600000).toISOString() }).eq("trip_id", id).gt("expires_at", new Date().toISOString());
+        // Finalizada: o link fica 3 dias para o passageiro avaliar; cancelada: 3 horas.
+        const hours = body.to_status === "completed" ? 72 : 3;
+        await db.from("trip_public_track_tokens").update({ expires_at: new Date(Date.now() + hours * 3600000).toISOString() }).eq("trip_id", id).gt("expires_at", new Date().toISOString());
+      });
+    }
+    // Avisos ao passageiro pelo WhatsApp oficial (só quando ligado em Integrações).
+    if (body.to_status === "on_the_way" || body.to_status === "completed") {
+      const kind = body.to_status === "on_the_way" ? "a_caminho" : "avaliacao";
+      await runBestEffort(`trip.passenger_notify_${kind}`, async () => {
+        const { notifyPassengers } = await import("@/lib/messages/passenger-notify");
+        await notifyPassengers(tenantId, id, kind);
       });
     }
 

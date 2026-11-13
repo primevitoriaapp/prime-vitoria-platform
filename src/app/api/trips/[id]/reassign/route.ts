@@ -145,6 +145,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     await runBestEffort("trip.reassign.whatsapp", async () => {
       const { dispatchTripMessages } = await import("@/lib/messages/dispatch-trip-messages");
+      await import("@/lib/messages/passenger-notify").then((m) => m.resetConfirmationNotice(id)).catch(() => undefined);
       await dispatchTripMessages(tenantId, id, "motorista_atribuido", ["solicitante", "passageiro"], { replace: true });
       await dispatchTripMessages(tenantId, id, "os_motorista", ["motorista"], { replace: true });
     });

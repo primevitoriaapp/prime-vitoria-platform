@@ -50,6 +50,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .eq("tenant_id", tenantId)
       .eq("driver_id", session.driverId);
     if (error) return fail("DECLINE_FAILED", error.message, 500);
+    await runBestEffort("trip.passenger_notice_reset", async () => {
+      const { resetConfirmationNotice } = await import("@/lib/messages/passenger-notify");
+      await resetConfirmationNotice(id);
+    });
 
     const when = new Date(String(trip.scheduled_at)).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
     await runBestEffort("trip.driver_decline_push", async () => {
