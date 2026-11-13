@@ -338,6 +338,10 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       setStep(1);
       return;
     }
+    // Sem telefone do passageiro o motorista não consegue se apresentar nem combinar o ponto de encontro.
+    if (!alreadyDone && !paxPhone.trim() && !teamShape?.pickupStops && !window.confirm("Esta corrida está sem o telefone do passageiro.\n\nO motorista não vai conseguir falar com ele antes (apresentação, ponto de encontro, atraso de voo).\n\nSalvar mesmo assim?")) {
+      return;
+    }
     setBusy(true);
     setError(null);
     const runDays = multiDay ? days : [date];

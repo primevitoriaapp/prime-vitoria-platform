@@ -12,6 +12,8 @@ import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
 import { pickDriverFocusTripId } from "@/lib/trips/driver-step-copy";
 import { DriverTripSkeleton } from "@/components/driver-trip-skeleton";
 import { DriverActiveTripHero } from "@/components/driver-active-trip-hero";
+import { DriverPassengerContact } from "@/components/driver-passenger-contact";
+import { DriverDeclineButton } from "@/components/driver-decline-sheet";
 import { DriverNewTripBanner } from "@/components/driver-new-trip-banner";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
@@ -604,6 +606,7 @@ export function DriverTripsPanel({
                         {busyTrip === primaryTrip.id ? "Confirmando…" : "✓ Confirmar que vou fazer"}
                       </button>
                       <p className="mt-1.5 text-center text-xs text-[#6B6F76]">Confirmar não avisa o passageiro. Na hora de sair, você toca em “Sair para buscar”.</p>
+                      <DriverDeclineButton tripId={primaryTrip.id} devFallbackRole={devFallbackRole} onDeclined={() => { setMessage("Corrida devolvida para a central."); void load(); }} />
                     </>
                   ) : ["accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? (
                     <>
@@ -617,6 +620,9 @@ export function DriverTripsPanel({
                         {busyTrip === primaryTrip.id ? "Abrindo…" : "🚗 Sair para buscar (a caminho)"}
                       </button>
                       <p className="mt-1.5 text-center text-xs text-[#6B6F76]">O passageiro é avisado que você saiu.</p>
+                      <button type="button" onClick={() => setDetailOpen(true)} className="mt-2 w-full rounded-2xl border border-[#CFE9D9] bg-[#EFFBF3] py-3 text-sm font-semibold text-[#111]">
+                        💬 Falar com o passageiro
+                      </button>
                     </>
                   ) : (
                     <button type="button" onClick={() => setDetailOpen(true)} className="mt-3 w-full rounded-2xl bg-[#111] py-4 text-base font-bold text-prime-gold">
@@ -658,6 +664,20 @@ export function DriverTripsPanel({
                     onWaitStart={(id) => void setWait(id, "start")}
                     onWaitStop={(id) => void setWait(id, "stop")}
                   />
+                  {["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? (
+                    <>
+                      <DriverPassengerContact trip={primaryTrip} devFallbackRole={devFallbackRole} />
+                      <DriverDeclineButton
+                        tripId={primaryTrip.id}
+                        devFallbackRole={devFallbackRole}
+                        onDeclined={() => {
+                          setDetailOpen(false);
+                          setMessage("Corrida devolvida para a central.");
+                          void load();
+                        }}
+                      />
+                    </>
+                  ) : null}
                   <DriverPassengerLink tripId={primaryTrip.id} status={primaryTrip.operational_status} devFallbackRole={devFallbackRole} />
                   {["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) ? (
                     <DriverTripExpenses tripId={primaryTrip.id} devFallbackRole={devFallbackRole} />

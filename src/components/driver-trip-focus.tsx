@@ -14,6 +14,7 @@ import { allPickupStopsCompleted, nextIncompletePickupStopIndex, parseTripPickup
 import { DriverPickupStopsPanel } from "@/components/driver-pickup-stops-panel";
 import { DriverDropoffStopsPanel } from "@/components/driver-dropoff-stops-panel";
 import { DriverPassengerLink } from "@/components/driver-passenger-link";
+import { linkPhones } from "@/lib/ui/link-phones";
 import { DriverTripExpenses } from "@/components/trip-expenses";
 import { ReceptiveSignButton, needsReceptiveSign } from "@/components/receptive-sign";
 
@@ -309,19 +310,5 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
         </div>
       ) : null}
     </div>
-  );
-}
-
-/** Telefones nas observações viram link (toque para ligar) — ex.: cerimonialista do casamento. */
-function linkPhones(text: string) {
-  const re = /(\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4})/g;
-  return text.split(re).map((part, i) =>
-    i % 2 === 1 ? (
-      <a key={i} href={`tel:${part.replace(/\D/g, "")}`} className="font-semibold text-[#8A6D1F] underline">
-        {part}
-      </a>
-    ) : (
-      part
-    )
   );
 }
