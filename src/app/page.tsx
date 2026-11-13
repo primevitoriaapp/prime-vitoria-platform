@@ -1,9 +1,11 @@
-import type { Route } from "next";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { PrimeLogoMark } from "@/components/prime-logo-mark";
 import { StandaloneAppRouter } from "@/components/standalone-app-router";
+import { SiteHome } from "@/components/site/site-home";
+import { metadata as siteMetadata } from "@/app/site/page";
 
 const ENTRADAS = [
   {
@@ -37,10 +39,23 @@ const AREA_BY_SUBDOMAIN: Record<string, string> = {
   painel: "/dashboard"
 };
 
-/** Página inicial: escolhe por onde entrar (empresa, motorista ou central). */
+async function hostInfo() {
+  const h = await headers();
+  const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "").toLowerCase().split(":")[0];
+  const own = host.endsWith("primevitoria.com");
+  const sub = own ? host.replace(/\.?primevitoria\.com$/, "") : "";
+  return { sub, isSite: own && (sub === "" || sub === "www") };
+}
+
+/** No domínio principal (primevitoria.com / www) a página inicial é o site. */
+export async function generateMetadata(): Promise<Metadata> {
+  return (await hostInfo()).isSite ? siteMetadata : {};
+}
+
+/** Página inicial: no domínio principal mostra o site; nos outros, escolhe por onde entrar. */
 export default async function HomePage() {
-  const host = ((await headers()).get("x-forwarded-host") ?? (await headers()).get("host") ?? "").toLowerCase().split(":")[0];
-  const sub = host.endsWith("primevitoria.com") ? host.replace(/\.?primevitoria\.com$/, "") : "";
+  const { sub, isSite } = await hostInfo();
+  if (isSite) return <SiteHome lang="pt" />;
   if (AREA_BY_SUBDOMAIN[sub]) redirect(AREA_BY_SUBDOMAIN[sub] as Route);
   return (
     <div className="flex min-h-screen flex-col bg-[#111] px-5 py-10 text-[#fff]">
