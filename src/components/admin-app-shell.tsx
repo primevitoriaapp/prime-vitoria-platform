@@ -238,7 +238,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-4 md:pb-8 md:pt-7 lg:px-10 lg:py-9 print:overflow-visible">
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-4 md:pb-8 md:pt-7 lg:px-10 lg:py-9 print:overflow-visible">
             <div className="mx-auto w-full max-w-[1440px]">
             {session && !showFullNav && !isFinanceiro ? (
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
@@ -255,6 +255,8 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             ) : null}
             {children}
             </div>
+            {/* Espaço real no fim (celular): a barra de baixo + a área do gesto do iPhone nunca cobrem o último botão. */}
+            <div aria-hidden className="md:hidden print:hidden" style={{ height: "calc(8.5rem + env(safe-area-inset-bottom, 0px))" }} />
           </main>
         </div>
       </div>
