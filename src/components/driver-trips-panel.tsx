@@ -15,6 +15,7 @@ import { DriverActiveTripHero } from "@/components/driver-active-trip-hero";
 import { DriverPassengerContact } from "@/components/driver-passenger-contact";
 import { tripPeopleLabel } from "@/lib/trips/trip-contacts";
 import { DriverDeclineButton } from "@/components/driver-decline-sheet";
+import { SwipeToConfirm } from "@/components/swipe-to-confirm";
 import { DriverNewTripBanner } from "@/components/driver-new-trip-banner";
 import { useDriverPushRefresh } from "@/hooks/use-driver-push-refresh";
 import { useDocumentVisible } from "@/hooks/use-document-visible";
@@ -409,7 +410,7 @@ export function DriverTripsPanel({
     .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
     .slice(0, 30);
 
-  const card = "rounded-3xl border border-[#ECE7DB] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.05)]";
+  const card = "rounded-[24px] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]";
   const hm = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).replace(":", "h");
   const short = (a?: string | null) => String(a ?? "—").split(",")[0];
 
@@ -578,55 +579,51 @@ export function DriverTripsPanel({
                   </div>
                 </div>
               ) : (
-                <div className={`rounded-[28px] bg-white p-4 ${["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? "pv-glow" : "shadow-[0_18px_40px_rgba(0,0,0,0.18)]"}`}>
-                  <button type="button" onClick={() => setDetailOpen(true)} className="block w-full text-left">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="rounded-2xl bg-[#111] px-3 py-1.5 font-bold text-[#fff]">
-                        <span className="text-xs uppercase tracking-wide text-prime-gold">{groupByDay([primaryTrip])[0]?.label}</span>{" "}
-                        <span className="text-2xl tabular-nums">{hm(primaryTrip.scheduled_at)}</span>
-                      </span>
-                      <span className="text-xs font-medium text-[#6B6F76]">Ver detalhes ›</span>
+                <div className={`rounded-[28px] bg-white px-5 pb-4 pt-2.5 ${["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? "pv-glow" : "shadow-[0_18px_40px_rgba(0,0,0,0.18)]"}`}>
+                  <div className="mx-auto h-1.5 w-10 rounded-full bg-[#DDD8CC]" />
+                  <button type="button" onClick={() => setDetailOpen(true)} className="mt-3 block w-full text-left">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase tracking-[0.1em] text-[#8A6A1F]">
+                          {primaryTrip.operational_status === "dispatched" ? "Nova corrida para você" : ["accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? "Próxima corrida · confirmada" : "Corrida em andamento"} · {groupByDay([primaryTrip])[0]?.label}
+                        </p>
+                        <p className="mt-0.5 text-[30px] font-extrabold leading-none tabular-nums text-[#111]">{hm(primaryTrip.scheduled_at)}</p>
+                      </div>
+                      <span className="mt-1 shrink-0 rounded-full bg-[#F3F1EC] px-3 py-1.5 text-xs font-semibold text-[#3B3E44]">Detalhes ›</span>
                     </div>
-                    <p className="mt-2 text-base font-semibold text-[#111]">{tripPeopleLabel(primaryTrip) || "Passageiro"}</p>
-                    <div className="mt-2 grid grid-cols-[14px_1fr] gap-x-2 gap-y-1 text-sm">
+                    <p className="mt-2 truncate text-lg font-bold text-[#111]">{tripPeopleLabel(primaryTrip) || "Passageiro"}</p>
+                    <div className="mt-2 grid grid-cols-[14px_1fr] gap-x-2.5 gap-y-1.5 text-sm">
                       <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-[#111]" aria-hidden />
                       <span className="truncate text-[#333]">{short(primaryTrip.origin_text)}</span>
                       <span className="mt-1.5 h-2.5 w-2.5 rounded-sm bg-prime-gold" aria-hidden />
-                      <span className="truncate text-[#6B6F76]">{short(primaryTrip.destination_text)}</span>
+                      <span className="truncate text-[#5C6067]">{short(primaryTrip.destination_text)}</span>
                     </div>
                     <DriverPayLine trip={primaryTrip} />
                   </button>
                   {primaryTrip.operational_status === "dispatched" ? (
                     <>
-                      <button
-                        type="button"
-                        disabled={busyTrip === primaryTrip.id}
-                        onClick={() => void setStatus(primaryTrip.id, "accepted")}
-                        className="mt-3 w-full rounded-2xl bg-[#111] py-4 text-base font-bold text-prime-gold disabled:opacity-60"
-                      >
-                        {busyTrip === primaryTrip.id ? "Confirmando…" : "✓ Confirmar que vou fazer"}
-                      </button>
-                      <p className="mt-1.5 text-center text-xs text-[#6B6F76]">Confirmar não avisa o passageiro. Na hora de sair, você toca em “Sair para buscar”.</p>
+                      <div className="mt-3">
+                        <SwipeToConfirm label="Deslize para confirmar" busy={busyTrip === primaryTrip.id} onConfirm={() => void setStatus(primaryTrip.id, "accepted")} />
+                      </div>
+                      <p className="mt-1.5 text-center text-xs text-[#5C6067]">Confirmar não avisa o passageiro.</p>
                       <DriverDeclineButton tripId={primaryTrip.id} devFallbackRole={devFallbackRole} onDeclined={() => { setMessage("Corrida devolvida para a central."); void load(); }} />
                     </>
                   ) : ["accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? (
                     <>
-                      <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-center text-sm font-semibold text-emerald-800">✓ Corrida confirmada</p>
-                      <button
-                        type="button"
-                        disabled={busyTrip === primaryTrip.id}
-                        onClick={() => void setStatus(primaryTrip.id, "on_the_way")}
-                        className="mt-2 w-full rounded-2xl bg-[#111] py-4 text-base font-bold text-prime-gold disabled:opacity-60"
-                      >
-                        {busyTrip === primaryTrip.id ? "Abrindo…" : "🚗 Sair para buscar (a caminho)"}
-                      </button>
-                      <p className="mt-1.5 text-center text-xs text-[#6B6F76]">O passageiro é avisado que você saiu.</p>
-                      <button type="button" onClick={() => setDetailOpen(true)} className="mt-2 w-full rounded-2xl border border-[#CFE9D9] bg-[#EFFBF3] py-3 text-sm font-semibold text-[#111]">
-                        💬 Falar com o passageiro
-                      </button>
+                      <div className="mt-3 grid grid-cols-2 gap-2.5">
+                        <button type="button" onClick={() => setDetailOpen(true)} className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#E5E0D4] text-sm font-semibold text-[#111]">
+                          <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                          Passageiros
+                        </button>
+                        <span className="flex h-12 items-center justify-center gap-1.5 rounded-2xl bg-emerald-50 text-sm font-semibold text-emerald-800">✓ Confirmada</span>
+                      </div>
+                      <div className="mt-2.5">
+                        <SwipeToConfirm label="Deslize para sair (a caminho)" busy={busyTrip === primaryTrip.id} onConfirm={() => void setStatus(primaryTrip.id, "on_the_way")} />
+                      </div>
+                      <p className="mt-1.5 text-center text-xs text-[#5C6067]">O passageiro é avisado que você saiu.</p>
                     </>
                   ) : (
-                    <button type="button" onClick={() => setDetailOpen(true)} className="mt-3 w-full rounded-2xl bg-[#111] py-4 text-base font-bold text-prime-gold">
+                    <button type="button" onClick={() => setDetailOpen(true)} className="mt-3 h-14 w-full rounded-2xl bg-[#111] text-base font-bold text-prime-gold">
                       Continuar corrida
                     </button>
                   )}
@@ -695,7 +692,7 @@ export function DriverTripsPanel({
 
       {view === "agenda" ? (
         <section className="space-y-3">
-          <h2 className="px-1 text-lg font-semibold text-[#111]">Minha agenda</h2>
+
           {loading ? (
             <DriverTripSkeleton />
           ) : active.length === 0 ? (
@@ -703,7 +700,7 @@ export function DriverTripsPanel({
           ) : (
             groupByDay(active).map((g) => (
               <div key={g.key} className={card}>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-prime-gold">{g.label}</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-[0.1em] text-[#8A6A1F]">{g.label}</p>
                 <ul className="divide-y divide-[#F0ECE3]">
                   {g.trips.map((t) => (
                     <li key={t.id} className="py-3">
