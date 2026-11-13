@@ -213,11 +213,20 @@ export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: P
     })();
   }, []);
 
+  // Edição não salva: se o usuário mexer em foto, documento ou carro antes de clicar em "Salvar ficha",
+  // a ficha é salva primeiro — antes, o recarregamento apagava o que tinha sido digitado.
+  const fromServer = useRef(false);
+  const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
+
   const loadDetail = useCallback(async () => {
     setLoading(true);
     const res = await fetchWithSupabaseSession(`/api/drivers/${driverId}`, {}, "admin");
     const json = await parseApiResponse(res);
     if (res.ok && json.success && json.data) {
+      fromServer.current = true;
+      dirtyRef.current = false;
+      setDirty(false);
       setDetail(driverApiRowToDetail(json.data as DriverDetail));
     } else {
       setFeedback({
@@ -232,6 +241,31 @@ export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: P
   useEffect(() => {
     void loadDetail();
   }, [loadDetail]);
+
+  useEffect(() => {
+    if (!detail) return;
+    if (fromServer.current) {
+      fromServer.current = false;
+      return;
+    }
+    dirtyRef.current = true;
+    setDirty(true);
+  }, [detail]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  /** Depois de foto/documento/carro: salva a ficha se tiver algo digitado; senão só recarrega. */
+  async function reloadKeepingEdits() {
+    if (dirtyRef.current) await saveDetail();
+    else await loadDetail();
+  }
 
   useEffect(() => {
     void (async () => {
@@ -388,7 +422,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: P
         kind: data._warning ? "info" : "success",
         message: data._warning ?? "Foto atualizada."
       });
-      await loadDetail();
+      await reloadKeepingEdits();
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -399,8 +433,8 @@ export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: P
     }
   }
 
-  async function saveDetail(e: FormEvent) {
-    e.preventDefault();
+  async function saveDetail(e?: FormEvent) {
+    e?.preventDefault();
     if (!detail) return;
     if (!detail.profile_name?.trim()) {
       setFeedback({ kind: "error", message: "Informe o nome completo." });
@@ -554,7 +588,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: P
       const json = await parseApiResponse(res);
       if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha ao vincular");
       setLinkVehicleId("");
-      await loadDetail();
+      await reloadKeepingEdits();
       onSaved();
       setFeedback({ kind: "success", message: "Veículo vinculado." });
     } catch (error) {
@@ -597,7 +631,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: P
       if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha ao cadastrar o carro");
       setPv({ plate: "", brand: "", model: "", color: "", model_year: "", vehicle_category_id: "" });
       setPvServes([]);
-      await loadDetail();
+      await reloadKeepingEdits();
       onSaved();
       setFeedback({ kind: "success", message: "Carro do parceiro cadastrado e vinculado como padrão." });
     } catch (error) {
@@ -621,7 +655,7 @@ export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: P
       );
       const json = await parseApiResponse(res);
       if (!res.ok || !json.success) throw new Error(json.error?.message ?? "Falha");
-      await loadDetail();
+      await reloadKeepingEdits();
       onSaved();
       setFeedback({ kind: "success", message: "Veículo padrão atualizado." });
     } catch (error) {
@@ -1155,10 +1189,18 @@ export function DriverFichaPanel({ driverId, onClose, onSaved, autoContract }: P
           disabled={busy}
           className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          {busy ? "Salvando…" : "Salvar ficha"}
+          {busy ? "Salvando…" : dirty ? "Salvar ficha •" : "Salvar ficha"}
         </button>
         {/* O resultado aparece também aqui, colado no botão (antes só lá em cima, fora da vista). */}
         <FeedbackBanner feedback={feedback} />
+        {dirty && !busy ? (
+          <div className="sticky bottom-2 z-20 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#111] px-4 py-3 text-sm text-[#fff] shadow-lg md:bottom-4">
+            <span>⚠ Alterações ainda não salvas</span>
+            <button type="submit" className="rounded-lg bg-prime-gold px-4 py-1.5 font-bold text-[#111]">
+              Salvar ficha agora
+            </button>
+          </div>
+        ) : null}
       </form>
 
       <div className="mt-8">
