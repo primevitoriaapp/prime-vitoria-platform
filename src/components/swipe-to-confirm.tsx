@@ -62,15 +62,15 @@ export function SwipeToConfirm({
   return (
     <div
       ref={track}
-      className={`relative flex h-16 w-full select-none items-center justify-center overflow-hidden rounded-full ${dark ? "border border-[#3A3D44] bg-[#26282D]" : "bg-[#111]"} ${off ? "opacity-60" : ""}`}
+      className={`relative flex h-16 w-full select-none items-center justify-center overflow-hidden rounded-full ${dark ? "border border-[#3A3D44] bg-[#26282D]" : "bg-prime-gold"} ${off ? "opacity-60" : ""}`}
       style={{ touchAction: "none" }}
     >
       <span
         aria-hidden
-        className="absolute inset-y-0 left-0 rounded-full bg-prime-gold/25"
+        className={`absolute inset-y-0 left-0 rounded-full ${dark ? "bg-prime-gold/25" : "bg-[#111]/10"}`}
         style={{ width: dx + KNOB + 4, transition: dragging ? "none" : "width 200ms ease" }}
       />
-      <span className="relative pl-12 pr-4 text-center text-[15px] font-bold text-[#fff]" style={{ opacity: 1 - progress * 0.8 }}>
+      <span className={`relative pl-12 pr-4 text-center text-[15px] font-bold ${dark ? "text-[#fff]" : "text-[#111]"}`} style={{ opacity: 1 - progress * 0.8 }}>
         {busy ? "Processando…" : label}
       </span>
       <button
@@ -82,10 +82,10 @@ export function SwipeToConfirm({
         onPointerUp={up}
         onPointerCancel={up}
         onKeyDown={key}
-        className="absolute left-1 top-1 flex h-14 w-14 items-center justify-center rounded-full bg-prime-gold shadow-md"
+        className={`absolute left-1 top-1 flex h-14 w-14 items-center justify-center rounded-full shadow-md ${dark ? "bg-prime-gold" : "bg-[#111]"}`}
         style={{ transform: `translateX(${dx}px)`, transition: dragging ? "none" : "transform 200ms ease", touchAction: "none" }}
       >
-        <svg aria-hidden width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+        <svg aria-hidden width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={dark ? "#111" : "#C9A84C"} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
           <path d="M5 12h14M13 6l6 6-6 6" />
         </svg>
       </button>

@@ -623,7 +623,7 @@ export function DriverTripsPanel({
                       <p className="mt-1.5 text-center text-xs text-[#5C6067]">O passageiro é avisado que você saiu.</p>
                     </>
                   ) : (
-                    <button type="button" onClick={() => setDetailOpen(true)} className="mt-3 h-14 w-full rounded-2xl bg-[#111] text-base font-bold text-prime-gold">
+                    <button type="button" onClick={() => setDetailOpen(true)} className="mt-3 h-14 w-full rounded-2xl bg-prime-gold text-base font-bold text-[#111]">
                       Continuar corrida
                     </button>
                   )}

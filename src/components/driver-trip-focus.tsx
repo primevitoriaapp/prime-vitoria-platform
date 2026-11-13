@@ -215,7 +215,7 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
   // Cores (dia / noite).
   const c = night
     ? { sheet: "bg-[#17181B]", text: "text-[#FFFFFF]", sub: "text-[#B4B8BF]", eyebrow: "text-[#E2C673]", chip: "bg-[#3B331C] text-[#F3DFA2]", chip2: "bg-[#26282D] text-[#D6D9DE]", btn: "border-[#34373D] bg-[#1F2125] text-[#F5F3EE]", line: "border-[#2A2C31]", primary: "bg-prime-gold text-[#111]", todo: "border-[#4A4E56] text-[#B4B8BF]", bar: "bg-[#3A3D44]", sheetBg: "bg-[#1F2125] text-[#F5F3EE]" }
-    : { sheet: "bg-white", text: "text-[#111]", sub: "text-[#5C6067]", eyebrow: "text-[#8A6A1F]", chip: "bg-[#FBF5E6] text-[#5E4812]", chip2: "bg-[#F3F1EC] text-[#3B3E44]", btn: "border-[#E5E0D4] bg-white text-[#111]", line: "border-[#EFEBE2]", primary: "bg-[#111] text-prime-gold", todo: "border-[#D5CFC0] text-[#6B6F76]", bar: "bg-[#E5E0D4]", sheetBg: "bg-white text-[#111]" };
+    : { sheet: "bg-white", text: "text-[#111]", sub: "text-[#5C6067]", eyebrow: "text-[#8A6A1F]", chip: "bg-[#FBF5E6] text-[#5E4812]", chip2: "bg-[#F3F1EC] text-[#3B3E44]", btn: "border-[#E5E0D4] bg-white text-[#111]", line: "border-[#EFEBE2]", primary: "bg-prime-gold text-[#111]", todo: "border-[#D5CFC0] text-[#6B6F76]", bar: "bg-[#E5E0D4]", sheetBg: "bg-white text-[#111]" };
   const mapPoint = target.lat != null && target.lng != null ? { lat: Number(target.lat), lng: Number(target.lng) } : null;
 
   return (
@@ -229,8 +229,8 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
 
       {/* Cabeçalho flutuante */}
       <div className="relative z-10 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <div className="mx-auto flex max-w-lg items-center justify-between rounded-full bg-[#111] py-2.5 pl-5 pr-2.5 shadow-[0_6px_20px_rgba(0,0,0,0.25)]">
-          <p className="text-sm font-extrabold tracking-[0.12em]" style={{ color: "#fff" }}>
+        <div className={`mx-auto flex max-w-lg items-center justify-between rounded-full py-2.5 pl-5 pr-2.5 shadow-[0_6px_20px_rgba(0,0,0,0.18)] ${night ? "bg-[#17181B]" : "bg-white/95 backdrop-blur"}`}>
+          <p className={`text-sm font-extrabold tracking-[0.12em] ${night ? "text-[#fff]" : "text-[#111]"}`}>
             PRIME <span className="text-prime-gold">VITÓRIA</span>
           </p>
           <span className="rounded-full bg-prime-gold px-3 py-1.5 text-xs font-bold text-[#111]">{s === "on_the_way" ? "A caminho" : s === "arrived" ? "No local" : "Em viagem"}</span>

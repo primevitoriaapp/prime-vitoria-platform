@@ -142,7 +142,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
             </MapSafe>
           </div>
           <div className="pointer-events-none fixed inset-x-0 top-0 z-30 px-4 pt-[max(0.9rem,env(safe-area-inset-top))]">
-            <div className="pointer-events-auto mx-auto flex max-w-lg items-center justify-between gap-3 rounded-full bg-[#111] py-2 pl-2 pr-3 shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
+            <div className="pointer-events-auto mx-auto flex max-w-lg items-center justify-between gap-3 rounded-full bg-white/95 py-2 pl-2 pr-3 shadow-[0_8px_24px_rgba(0,0,0,0.15)] backdrop-blur">
               <div className="flex min-w-0 items-center gap-3">
                 {me?.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -151,11 +151,11 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-prime-gold bg-[#111] text-lg font-semibold text-prime-gold">{name.charAt(0).toUpperCase()}</span>
                 )}
                 <div className="min-w-0 leading-tight">
-                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.65)" }}>{greeting()},</p>
-                  <p className="truncate text-[15px] font-semibold" style={{ color: "#fff" }}>{name}</p>
+                  <p className="text-xs text-[#5C6067]">{greeting()},</p>
+                  <p className="truncate text-[15px] font-semibold text-[#111]">{name}</p>
                 </div>
               </div>
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#1E2A22] px-3 py-1.5 text-xs font-semibold text-emerald-300">
+              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
@@ -180,10 +180,10 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           </div>
         </>
       ) : (
-      <header className="rounded-b-[28px] bg-[#111] px-5 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] text-[#fff] shadow-[0_8px_24px_rgba(0,0,0,0.15)]">
+      <header className="rounded-b-[28px] bg-white px-5 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-[#111] shadow-[0_6px_20px_rgba(0,0,0,0.06)]">
           <div className="mx-auto max-w-lg">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-extrabold tracking-[0.12em]" style={{ color: "#fff" }}>
+              <p className="text-sm font-extrabold tracking-[0.12em] text-[#111]">
                 PRIME <span className="text-prime-gold">VITÓRIA</span>
               </p>
               {me?.photo_url ? (
@@ -195,20 +195,20 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
                 </span>
               )}
             </div>
-            <p className="mt-4 text-xs font-bold uppercase tracking-[0.12em] text-prime-gold">{TAB_TITLE[tab]}</p>
-            <p className="mt-0.5 text-2xl font-extrabold leading-tight" style={{ color: "#fff" }}>
+            <p className="mt-4 text-xs font-bold uppercase tracking-[0.12em] text-[#8A6A1F]">{TAB_TITLE[tab]}</p>
+            <p className="mt-0.5 text-2xl font-extrabold leading-tight text-[#111]">
               {greeting()}, {name.split(" ")[0]}
             </p>
             {mode === "motorista" ? (
-              <p className="mt-2 flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
+              <p className="mt-2 flex items-center gap-2 text-sm text-[#3B3E44]">
                 <span className="h-3 w-3 rounded-full bg-emerald-400" />
                 Disponível para os serviços
               </p>
             ) : (
-              <label className="mt-3 block text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
+              <label className="mt-3 block text-xs text-[#5C6067]">
                 Vendo o app como:
                 <select
-                  className="mt-1 w-full rounded-xl border border-white/20 bg-[#1d1d1d] px-3 py-2 text-sm text-[#fff]"
+                  className="mt-1 w-full rounded-xl border border-[#E5E0D4] bg-white px-3 py-2 text-sm text-[#111]"
                   value={selectedDriverId ?? ""}
                   onChange={(e) => router.replace(`/driver?driver_id=${e.target.value}`, { scroll: false })}
                 >
@@ -272,7 +272,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         ) : null}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 bg-[#111] pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_rgba(0,0,0,0.18)]" aria-label="Navegação do motorista">
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#ECE7DB] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur" aria-label="Navegação do motorista">
         <ul className="mx-auto grid max-w-lg grid-cols-5">
           {TABS.map((t) => (
             <li key={t.id}>
@@ -280,9 +280,9 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
                 type="button"
                 onClick={() => go(t.id)}
                 aria-current={tab === t.id ? "page" : undefined}
-                className={`flex w-full flex-col items-center gap-1 py-2.5 text-xs ${tab === t.id ? "font-bold text-prime-gold" : "text-[#A8ACB3]"}`}
+                className={`flex w-full flex-col items-center gap-1 py-2.5 text-xs ${tab === t.id ? "font-bold text-[#111]" : "text-[#6B6F76]"}`}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={tab === t.id ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={tab === t.id ? "#B08D35" : "currentColor"} strokeWidth={tab === t.id ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d={ICONS[t.id]} />
                 </svg>
                 {t.label}
