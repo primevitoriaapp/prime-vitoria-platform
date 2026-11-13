@@ -238,7 +238,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-5 md:pb-8 md:pt-7 lg:px-10 lg:py-9 print:overflow-visible">
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-4 md:pb-8 md:pt-7 lg:px-10 lg:py-9 print:overflow-visible">
             <div className="mx-auto w-full max-w-[1440px]">
             {session && !showFullNav && !isFinanceiro ? (
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">

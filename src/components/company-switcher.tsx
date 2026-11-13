@@ -7,7 +7,7 @@ export function CompanySwitcher() {
   const { company, setCompany } = useCompany();
   return (
     <label className="flex items-center gap-2 text-xs" title="Filtra o financeiro pela empresa">
-      <span className="font-semibold uppercase tracking-wide text-prime-muted">Empresa</span>
+      <span className="hidden font-semibold uppercase tracking-wide text-prime-muted sm:inline">Empresa</span>
       <select
         value={company}
         onChange={(e) => setCompany(e.target.value as CompanyScope)}

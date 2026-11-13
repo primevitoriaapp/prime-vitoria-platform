@@ -256,7 +256,8 @@ export function NewTripRequestAlert({ tenantId }: Props) {
         title={soundOn ? "Som de corrida nova ligado. Clique para desligar." : "Som de corrida nova desligado. Clique para ligar."}
         aria-pressed={soundOn}
       >
-        {soundOn ? "🔔 Som ligado" : "🔕 Som desligado"}
+        {soundOn ? "🔔" : "🔕"}
+        <span className="hidden sm:inline">{soundOn ? " Som ligado" : " Som desligado"}</span>
       </button>
 
       {alerts.length ? (
