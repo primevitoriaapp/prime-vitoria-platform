@@ -198,6 +198,7 @@ export function DriverTripFocus({ trip, isBusy, waitElapsedLabel, waitBusy, gps,
             tripId={trip.id}
             raw={trip.trip_dropoff_stops}
             active={s === "in_progress"}
+            start={{ lat: trip.origin_lat ?? null, lng: trip.origin_lng ?? null }}
             devFallbackRole={devFallbackRole}
             onChanged={() => onTripChanged?.()}
           />
