@@ -3,7 +3,7 @@ import { SiteHome } from "@/components/site/site-home";
 import { SITE_TEXT } from "@/components/site/site-i18n";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://primevitoria.com"),
+  metadataBase: new URL("https://www.primevitoria.com"),
   title: SITE_TEXT.en.meta.title,
   description: SITE_TEXT.en.meta.description,
   alternates: { canonical: "/en", languages: { "pt-BR": "/", en: "/en", es: "/es" } },

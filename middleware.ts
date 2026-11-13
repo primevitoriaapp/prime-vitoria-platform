@@ -45,14 +45,9 @@ function routeByHost(request: NextRequest): NextResponse | null {
   const sub = host.replace(/\.?primevitoria\.com$/, "");
   const { pathname } = request.nextUrl;
   const url = request.nextUrl.clone();
-  if (sub === "www") {
-    // Um endereço só para o Google: www vai para primevitoria.com.
-    url.host = "primevitoria.com";
-    url.port = "";
-    url.protocol = "https:";
-    return NextResponse.redirect(url, 308);
-  }
-  if (sub === "") {
+  // O Vercel deixa www.primevitoria.com como endereço principal (primevitoria.com → www).
+  // Os dois mostram o site; nada de redirecionar daqui, para não dar vai-e-volta.
+  if (sub === "" || sub === "www") {
     const SITE_PATHS: Record<string, string> = { "/": "/site", "/en": "/site/en", "/es": "/site/es" };
     if (SITE_PATHS[pathname]) {
       url.pathname = SITE_PATHS[pathname];

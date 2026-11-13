@@ -10,6 +10,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/api/", "/dashboard", "/agenda", "/driver", "/client", "/login", "/voucher", "/fatura", "/orcamento", "/r/", "/pedir", "/p1-homologacao", "/staging-status", "/redefinir-senha"]
       }
     ],
-    sitemap: "https://primevitoria.com/sitemap.xml"
+    sitemap: "https://www.primevitoria.com/sitemap.xml"
   };
 }
