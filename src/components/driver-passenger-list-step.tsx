@@ -62,12 +62,20 @@ export function DriverPassengerListStep({
     return <p className="mt-4 text-sm text-[#AAAAAA]">{err ?? "Carregando a lista de passageiros…"}</p>;
   }
 
+  // O destino final da corrida fica sempre por último: quem é marcado entra antes dele.
+  const norm = (t: string | null | undefined) => String(t ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24);
+  const insertBeforeFinal = (cur: Stop[], item: Stop) => {
+    const dest = norm(data.default_destination);
+    const idx = dest ? cur.findIndex((s) => norm(s.address_text) === dest) : -1;
+    if (idx < 0) return [...cur, item];
+    return [...cur.slice(0, idx), item, ...cur.slice(idx)];
+  };
   const isPicked = (p: RosterItem) => picked.some((s) => s.passenger_id === p.id);
   const toggle = (p: RosterItem) =>
     setPicked((cur) =>
       isPicked(p)
         ? cur.filter((s) => s.passenger_id !== p.id)
-        : [...cur, { passenger_id: p.id, passenger_name: p.name, address_text: p.address ?? "", lat: null, lng: null }]
+        : insertBeforeFinal(cur, { passenger_id: p.id, passenger_name: p.name, address_text: p.address ?? "", lat: null, lng: null })
     );
   const move = (i: number, dir: -1 | 1) =>
     setPicked((cur) => {
@@ -163,7 +171,7 @@ export function DriverPassengerListStep({
               type="button"
               disabled={newName.trim().length < 2 || newAddr.text.trim().length < 3}
               onClick={() => {
-                setPicked((cur) => [...cur, { passenger_id: null, passenger_name: newName.trim(), address_text: newAddr.text.trim(), lat: newAddr.lat, lng: newAddr.lng }]);
+                setPicked((cur) => insertBeforeFinal(cur, { passenger_id: null, passenger_name: newName.trim(), address_text: newAddr.text.trim(), lat: newAddr.lat, lng: newAddr.lng }));
                 setNewName("");
                 setNewAddr({ text: "", lat: null, lng: null });
                 setAdding(false);

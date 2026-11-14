@@ -241,8 +241,8 @@ export function DriverActiveTripHero({
       {primaryNav ? (
         <a
           href={primaryNav.href}
-          target={primaryNav.id === "waze" ? undefined : "_blank"}
-          rel={primaryNav.id === "waze" ? undefined : "noopener noreferrer"}
+          target="_blank"
+          rel="noopener noreferrer"
           className="mt-4 flex min-h-[3.25rem] w-full items-center justify-center gap-2 rounded-xl border-2 border-prime-gold/40 bg-prime-gold/10 px-4 py-3 text-lg font-bold text-prime-text hover:border-prime-gold/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-prime-gold"
         >
           <span aria-hidden>🧭</span>

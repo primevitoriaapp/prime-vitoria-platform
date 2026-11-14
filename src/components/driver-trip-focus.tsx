@@ -97,6 +97,18 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
     return () => window.clearInterval(t);
   }, []);
   const [sheet, setSheet] = useState<Sheet>(null);
+  // Ao sair para o Waze/Maps e voltar, a tela volta limpa (sem a janela de escolha aberta por cima).
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden") setSheet(null);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onVis);
+    };
+  }, []);
   const [details, setDetails] = useState(false);
   const [dropBusy, setDropBusy] = useState(false);
   const [dropErr, setDropErr] = useState<string | null>(null);
@@ -158,7 +170,7 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
     const links = buildNavigationLinksToPoint(target);
     setSheet({
       title: `Navegar até ${title}`,
-      items: links.map((l) => ({ key: l.id, label: l.label, href: l.href, external: l.id !== "waze" }))
+      items: links.map((l) => ({ key: l.id, label: l.label, href: l.href, external: true }))
     });
   }
   function openCall() {
