@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatBrDateTime } from "@/lib/dates/br-date";
 import { clearDriverTabAlertBadge, notifyDriverNewAssignment } from "@/lib/client/driver-alert-notify";
 import { installSoundUnlock, playError, playSuccess } from "@/lib/client/sounds";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
@@ -25,6 +24,8 @@ import { DriverFinishSheet } from "@/components/driver-finish-sheet";
 import { DriverTripFocus } from "@/components/driver-trip-focus";
 import { DriverPassengerLink } from "@/components/driver-passenger-link";
 import { DriverTripExpenses } from "@/components/trip-expenses";
+import { fmtRating, tripTags, type DriverSummary } from "@/components/driver-app-home";
+import type { ReactNode } from "react";
 
 const ACTIVE: TripOperationalStatus[] = [
   "dispatched",
@@ -66,6 +67,10 @@ type Props = {
   onGoHome?: () => void;
   /** Avisa qual é a próxima corrida (para o mapa do início). */
   onPrimaryTrip?: (trip: Trip | null) => void;
+  /** Resumo do motorista (histórico do mês e notas). */
+  summary?: DriverSummary | null;
+  /** Início sem corrida (disponível, resumo, atalhos). */
+  idleHome?: ReactNode;
 };
 
 export function DriverTripsPanel({
@@ -76,7 +81,9 @@ export function DriverTripsPanel({
   onSeeAll,
   hidden = false,
   onGoHome,
-  onPrimaryTrip
+  onPrimaryTrip,
+  summary = null,
+  idleHome
 }: Props) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +99,8 @@ export function DriverTripsPanel({
   const [geoReason, setGeoReason] = useState("");
   const [floatDismissed, setFloatDismissed] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [agendaFilter, setAgendaFilter] = useState<"hoje" | "amanha" | "semana">("semana");
+  const [histMonth, setHistMonth] = useState<string>(() => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()).slice(0, 7));
   const [payByTrip, setPayByTrip] = useState<Record<string, { stage: string; amount: number; paid_at: string | null }>>({});
   useEffect(() => installSoundUnlock(), []);
 
@@ -408,9 +417,8 @@ export function DriverTripsPanel({
   const recentHistory = trips
     .filter((t) => HISTORY.includes(t.operational_status))
     .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
-    .slice(0, 30);
+    .slice(0, 200);
 
-  const card = "rounded-[24px] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]";
   const hm = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).replace(":", "h");
   const short = (a?: string | null) => String(a ?? "—").split(",")[0];
 
@@ -563,21 +571,13 @@ export function DriverTripsPanel({
       {view === "inicio" && !hidden ? (
         <>
           {/* Pop-up da corrida em cima do mapa */}
-          <div className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-40 px-3">
+          <div className={`fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-40 ${!loading && !primaryTrip && idleHome ? "" : "px-3 pb-3"}`}>
             <div className="mx-auto max-w-lg">
               {message && !sheet ? <p className="mb-2 rounded-2xl bg-white/95 px-4 py-3 text-sm text-[#8A5A00] shadow">{message}</p> : null}
               {loading ? (
                 <div className="h-24 animate-pulse rounded-[28px] bg-white/90 shadow" />
               ) : !primaryTrip ? (
-                <div className="flex items-center gap-3 rounded-[28px] bg-white/95 p-4 shadow-[0_18px_40px_rgba(0,0,0,0.15)] backdrop-blur">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F4F1EA] text-xl" aria-hidden>
-                    🚘
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[#111]">Nenhuma corrida agora</p>
-                    <p className="text-xs text-[#6B6F76]">Quando a central te passar uma corrida, ela aparece aqui e o celular avisa.</p>
-                  </div>
-                </div>
+                idleHome ?? null
               ) : (
                 <div className={`rounded-[28px] bg-white px-5 pb-4 pt-2.5 ${["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? "pv-glow" : "shadow-[0_18px_40px_rgba(0,0,0,0.18)]"}`}>
                   <div className="mx-auto h-1.5 w-10 rounded-full bg-[#DDD8CC]" />
@@ -691,34 +691,19 @@ export function DriverTripsPanel({
       ) : null}
 
       {view === "agenda" ? (
-        <section className="space-y-3">
-
-          {loading ? (
-            <DriverTripSkeleton />
-          ) : active.length === 0 ? (
-            <div className={`${card} text-center text-sm text-[#6B6F76]`}>Nenhuma corrida agendada para você.</div>
-          ) : (
-            groupByDay(active).map((g) => (
-              <div key={g.key} className={card}>
-                <p className="mb-2 text-xs font-bold uppercase tracking-[0.1em] text-[#8A6A1F]">{g.label}</p>
-                <ul className="divide-y divide-[#F0ECE3]">
-                  {g.trips.map((t) => (
-                    <li key={t.id} className="py-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-lg font-bold text-[#111]">{hm(t.scheduled_at)}</span>
-                        <StatusBadge status={t.operational_status} />
-                      </div>
-                      <p className="mt-0.5 text-sm font-medium text-[#111]">{t.passenger_name?.trim() || "Passageiro"}</p>
-                      <p className="text-sm text-[#6B6F76]">
-                        {short(t.origin_text)} → {short(t.destination_text)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))
-          )}
-        </section>
+        <DriverAgenda
+          loading={loading}
+          trips={active}
+          filter={agendaFilter}
+          onFilter={setAgendaFilter}
+          onOpen={(t) => {
+            if (t.id === primaryTrip?.id) {
+              onGoHome?.();
+              setDetailOpen(true);
+            }
+          }}
+          primaryId={primaryTrip?.id ?? null}
+        />
       ) : null}
 
       {sheet && !geoBlock && trips.find((t) => t.id === sheet.tripId) ? (
@@ -737,42 +722,7 @@ export function DriverTripsPanel({
       ) : null}
 
       {view === "historico" ? (
-        <section className="space-y-3">
-          <h2 className="px-1 text-lg font-semibold text-[#111]">Corridas realizadas</h2>
-          {recentHistory.length === 0 ? (
-            <div className={`${card} text-center text-sm text-[#6B6F76]`}>Nenhuma corrida finalizada ainda.</div>
-          ) : (
-            <ul className={`${card} divide-y divide-[#F0ECE3] !py-2`}>
-              {recentHistory.map((trip) => (
-                <li key={trip.id} className="py-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-[#111]">{formatBrDateTime(trip.scheduled_at)}</span>
-                    <StatusBadge status={trip.operational_status} />
-                  </div>
-                  <p className="mt-0.5 truncate text-sm text-[#6B6F76]">
-                    {short(trip.origin_text)} → {short(trip.destination_text)}
-                  </p>
-                  {payByTrip[trip.id] ? (
-                    <p className="mt-1 flex items-center justify-between text-xs">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 font-semibold ${
-                          payByTrip[trip.id].stage === "pago" ? "bg-[#EAF6EF] text-[#1F7A4C]" : payByTrip[trip.id].stage === "liberado" ? "bg-[#FBF3E0] text-[#8A5A00]" : "bg-[#F1EFEA] text-[#6F6A60]"
-                        }`}
-                      >
-                        {payByTrip[trip.id].stage === "pago"
-                          ? `✓ Pago${payByTrip[trip.id].paid_at ? ` em ${new Date(payByTrip[trip.id].paid_at as string).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}` : ""}`
-                          : payByTrip[trip.id].stage === "liberado"
-                            ? "Liberado · no próximo repasse"
-                            : "A receber"}
-                      </span>
-                      <span className="font-semibold text-[#111]">{payByTrip[trip.id].amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-                    </p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <DriverHistory trips={recentHistory} month={histMonth} onMonth={setHistMonth} summary={summary} payByTrip={payByTrip} />
       ) : null}
     </div>
     </>
@@ -826,5 +776,225 @@ function DriverPayLine({ trip }: { trip: Trip }) {
       </span>
       <span className="font-bold text-[#111]">{amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
     </p>
+  );
+}
+
+const ymdSp = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(iso));
+const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+const firstPart = (a?: string | null) => String(a ?? "—").split(",")[0];
+
+/** Agenda: filtros por dia, "a confirmar" no topo e linha do tempo. */
+function DriverAgenda({
+  loading,
+  trips,
+  filter,
+  onFilter,
+  onOpen,
+  primaryId
+}: {
+  loading: boolean;
+  trips: Trip[];
+  filter: "hoje" | "amanha" | "semana";
+  onFilter: (f: "hoje" | "amanha" | "semana") => void;
+  onOpen: (t: Trip) => void;
+  primaryId: string | null;
+}) {
+  const today = ymdSp(new Date().toISOString());
+  const tomorrow = ymdSp(new Date(Date.now() + 86400000).toISOString());
+  const weekEnd = ymdSp(new Date(Date.now() + 7 * 86400000).toISOString());
+  const inFilter = (t: Trip, f: typeof filter) => {
+    const d = t.scheduled_at ? ymdSp(t.scheduled_at) : "";
+    return f === "hoje" ? d <= today : f === "amanha" ? d === tomorrow : d <= weekEnd;
+  };
+  const counts = { hoje: trips.filter((t) => inFilter(t, "hoje")).length, amanha: trips.filter((t) => inFilter(t, "amanha")).length, semana: trips.filter((t) => inFilter(t, "semana")).length };
+  const toConfirm = trips.filter((t) => t.operational_status === "dispatched");
+  const list = trips.filter((t) => inFilter(t, filter) && t.operational_status !== "dispatched");
+  const chips: { id: typeof filter; label: string }[] = [
+    { id: "hoje", label: "Hoje" },
+    { id: "amanha", label: "Amanhã" },
+    { id: "semana", label: "Semana" }
+  ];
+  return (
+    <section className="space-y-3">
+      <div className="flex gap-2">
+        {chips.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onFilter(c.id)}
+            className={`rounded-full px-3.5 py-2 text-[13px] font-bold ${filter === c.id ? "bg-[#111] text-white" : "border border-[#E5E0D4] bg-white text-[#111]"}`}
+          >
+            {c.label} · {counts[c.id]}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <DriverTripSkeleton />
+      ) : (
+        <>
+          {toConfirm.map((t) => (
+            <button key={t.id} type="button" onClick={() => onOpen(t)} className="block w-full rounded-[20px] border border-[#EBD9A6] bg-[#FBF5E6] px-4 py-3.5 text-left">
+              <span className="flex items-center justify-between text-[11px] font-bold tracking-[0.1em] text-[#8A6A1F]">
+                <span>A CONFIRMAR</span>
+                {t.id === primaryId ? <span className="font-semibold tracking-normal">toque para abrir</span> : null}
+              </span>
+              <span className="mt-1 block text-[17px] font-extrabold text-[#111]">
+                {groupByDay([t])[0]?.label} · {hhmm(t.scheduled_at)} · {firstPart(t.destination_text)}
+              </span>
+              <span className="block truncate text-[13px] text-[#5C6067]">
+                {tripPeopleLabel(t) || "Passageiro"}
+                {t.flight_number ? ` · Voo ${t.flight_number}` : ""}
+              </span>
+            </button>
+          ))}
+
+          {list.length === 0 && toConfirm.length === 0 ? (
+            <div className="rounded-[20px] bg-white p-6 text-center text-sm text-[#6B6F76]">Nenhuma corrida {filter === "hoje" ? "hoje" : filter === "amanha" ? "amanhã" : "nos próximos dias"}.</div>
+          ) : null}
+
+          {groupByDay(list).map((g) => (
+            <div key={g.key}>
+              {filter === "semana" ? <p className="mb-2 mt-1 px-1 text-xs font-bold uppercase tracking-[0.1em] text-[#8A6A1F]">{g.label}</p> : null}
+              <ol className="space-y-2.5">
+                {g.trips.map((t) => {
+                  const confirmed = ["accepted", "approved", "reassigned"].includes(t.operational_status);
+                  const live = ["on_the_way", "arrived", "in_progress"].includes(t.operational_status);
+                  return (
+                    <li key={t.id} className="grid grid-cols-[52px_1fr] gap-2">
+                      <span className="pt-3 text-[15px] font-extrabold tabular-nums text-[#111]">{hhmm(t.scheduled_at)}</span>
+                      <button type="button" onClick={() => onOpen(t)} className="min-w-0 rounded-[18px] bg-white px-4 py-3 text-left shadow-[0_4px_16px_rgba(0,0,0,0.05)]">
+                        <span className="flex flex-wrap gap-1.5">
+                          {tripTags(t).map((tag) => (
+                            <span key={tag} className="rounded-full bg-[#EEF2F7] px-2 py-0.5 text-[11px] font-bold text-[#1B4E7A]">
+                              {tag}
+                            </span>
+                          ))}
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${live ? "bg-[#FBF5E6] text-[#8A5A00]" : confirmed ? "bg-[#E7F6EC] text-[#11461F]" : "bg-[#F1EFEA] text-[#6F6A60]"}`}>
+                            {live ? "Em andamento" : confirmed ? "Confirmada" : STATUS_CORRIDA_PT[t.operational_status]}
+                          </span>
+                        </span>
+                        <span className="mt-1.5 block truncate text-[15px] font-extrabold text-[#111]">{tripPeopleLabel(t) || "Passageiro"}</span>
+                        <span className="block truncate text-[13px] text-[#5C6067]">
+                          {firstPart(t.origin_text)} → {firstPart(t.destination_text)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          ))}
+        </>
+      )}
+    </section>
+  );
+}
+
+const MONTH_PT = (ym: string) => new Date(`${ym}-15T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", timeZone: "UTC" });
+
+/** Histórico: filtro por mês, resumo do mês e cartões com a nota do passageiro. */
+function DriverHistory({
+  trips,
+  month,
+  onMonth,
+  summary,
+  payByTrip
+}: {
+  trips: Trip[];
+  month: string;
+  onMonth: (m: string) => void;
+  summary: DriverSummary | null;
+  payByTrip: Record<string, { stage: string; amount: number; paid_at: string | null }>;
+}) {
+  const months = Array.from({ length: 4 }, (_, i) => {
+    const d = new Date();
+    d.setUTCDate(15);
+    d.setUTCMonth(d.getUTCMonth() - i);
+    return d.toISOString().slice(0, 7);
+  });
+  const list = trips.filter((t) => t.scheduled_at && ymdSp(t.scheduled_at).slice(0, 7) === month);
+  const m = summary?.months[month];
+  const kmLocal = Math.round(list.reduce((n, t) => n + (Number(t.actual_km ?? t.planned_km ?? 0) || 0), 0));
+  const done = list.filter((t) => t.operational_status === "completed").length;
+  const groups = groupByDay([...list].sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()));
+  return (
+    <section className="space-y-3">
+      <div className="-mt-1 flex justify-end">
+        <label className="relative">
+          <span className="sr-only">Mês</span>
+          <select
+            value={month}
+            onChange={(e) => onMonth(e.target.value)}
+            className="appearance-none rounded-full border border-[#E5E0D4] bg-white py-2 pl-3.5 pr-8 text-[13px] font-bold capitalize text-[#111]"
+          >
+            {months.map((x) => (
+              <option key={x} value={x}>
+                {MONTH_PT(x)}
+              </option>
+            ))}
+          </select>
+          <svg aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2.4" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg>
+        </label>
+      </div>
+      <div className="grid grid-cols-3 gap-2.5">
+        {[
+          { l: "Corridas", v: String(m?.trips ?? done) },
+          { l: "KM rodados", v: (m?.km ?? kmLocal).toLocaleString("pt-BR") },
+          { l: "Nota média", v: fmtRating(summary?.month_rating[month] ?? null) }
+        ].map((x) => (
+          <div key={x.l} className="rounded-[18px] bg-white px-3.5 py-3">
+            <p className="text-xs font-semibold text-[#5C6067]">{x.l}</p>
+            <p className="mt-0.5 text-[22px] font-extrabold text-[#111]">{x.v}</p>
+          </div>
+        ))}
+      </div>
+
+      {list.length === 0 ? <div className="rounded-[20px] bg-white p-6 text-center text-sm text-[#6B6F76]">Nenhuma corrida neste mês.</div> : null}
+
+      {groups.map((g) => (
+        <div key={g.key} className="space-y-2.5">
+          <p className="mt-1 px-1 text-xs font-bold uppercase tracking-[0.1em] text-[#8A6A1F]">{g.label.startsWith("Atrasadas") ? new Date(`${g.key}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone: "UTC" }) : g.label}</p>
+          {g.trips.map((t) => {
+            const r = summary?.ratings_by_trip[t.id];
+            const pay = payByTrip[t.id];
+            const km = Number(t.actual_km ?? t.planned_km ?? 0) || 0;
+            return (
+              <div key={t.id} className="rounded-[18px] bg-white px-4 py-3.5 shadow-[0_4px_16px_rgba(0,0,0,0.05)]">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="min-w-0 truncate text-[15px] font-extrabold text-[#111]">
+                    {hhmm(t.scheduled_at)} · {tripPeopleLabel(t) || "Passageiro"}
+                  </span>
+                  {t.operational_status !== "completed" ? (
+                    <StatusBadge status={t.operational_status} />
+                  ) : r ? (
+                    <span className="shrink-0 text-[13px] font-bold text-[#8A6A1F]">★ {r.stars}</span>
+                  ) : (
+                    <span className="shrink-0 text-[13px] font-semibold text-[#5C6067]">sem nota</span>
+                  )}
+                </div>
+                <p className="mt-1 truncate text-sm text-[#5C6067]">
+                  {firstPart(t.origin_text)} → {firstPart(t.destination_text)}
+                  {km > 0 ? ` · ${km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km` : ""}
+                </p>
+                {r?.comment ? <p className="mt-2 text-[13px] italic text-[#3B3E44]">“{r.comment}”</p> : null}
+                {pay ? (
+                  <p className="mt-2 flex items-center justify-between text-xs">
+                    <span className={`rounded-full px-2.5 py-0.5 font-semibold ${pay.stage === "pago" ? "bg-[#EAF6EF] text-[#1F7A4C]" : pay.stage === "liberado" ? "bg-[#FBF3E0] text-[#8A5A00]" : "bg-[#F1EFEA] text-[#6F6A60]"}`}>
+                      {pay.stage === "pago"
+                        ? `✓ Pago${pay.paid_at ? ` em ${new Date(pay.paid_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}` : ""}`
+                        : pay.stage === "liberado"
+                          ? "Liberado · no próximo repasse"
+                          : "A receber"}
+                    </span>
+                    <span className="font-semibold text-[#111]">{pay.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                  </p>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </section>
   );
 }

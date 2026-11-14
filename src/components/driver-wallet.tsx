@@ -31,9 +31,7 @@ function groupByPayday(items: Item[]) {
   return [...map.values()].sort((a, b) => String(a.day ?? "9999").localeCompare(String(b.day ?? "9999")));
 }
 
-const card = "rounded-3xl border border-[#ECE7DB] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.05)]";
-
-const NAVY = "#14244A";
+const card = "rounded-[20px] bg-white p-5 shadow-[0_4px_16px_rgba(0,0,0,0.05)]";
 
 function Chevron({ open }: { open: boolean }) {
   return (
@@ -100,49 +98,33 @@ export function DriverWallet() {
 
   return (
     <div className="space-y-3">
-      <section className="relative overflow-hidden rounded-3xl p-5 shadow-[0_12px_30px_rgba(20,36,74,0.35)]" style={{ background: `linear-gradient(135deg, ${NAVY} 0%, #1E3466 100%)` }}>
-        <span className="absolute bottom-5 left-5 top-5 w-1 rounded-full bg-prime-gold" aria-hidden />
-        <svg className="absolute right-5 top-5 opacity-30" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M3 7a2 2 0 0 1 2-2h13v4M3 7v10a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2zM16 14h2" />
-        </svg>
-        <div className="pl-5">
-          <p className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>
-            {temAReceber ? "Próximo recebimento" : "Já recebido este mês"}
-          </p>
-          <p className="mt-1 text-4xl font-bold tabular-nums" style={{ color: "#fff" }}>
-            {brl(temAReceber ? heroAmount : recebidoMes)}
-          </p>
-          <p className="mt-1 text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
-            {temAReceber
-              ? heroSub
-              : recebidoMes > 0
-                ? `✓ Já está na sua conta · último em ${d(lastPaid?.paid_at ?? null)}`
-                : "Nada a receber agora"}
-          </p>
-          {temAReceber && recebidoMes > 0 ? (
-            <p className="mt-1 text-xs" style={{ color: "#9FE0B5" }}>
-              ✓ {brl(recebidoMes)} já recebido este mês
-            </p>
-          ) : null}
-          <p className="mt-2 text-sm font-semibold" style={{ color: pixTail ? "#E9D7A4" : "#FFD08A" }}>
-            {pixTail ? `PIX final ${pixTail}` : "Cadastre seu PIX em Perfil"}
-          </p>
+      <section className="rounded-[24px] bg-white p-5 shadow-[0_6px_20px_rgba(0,0,0,0.06)]">
+        <p className="text-[13px] font-semibold text-[#5C6067]">{temAReceber ? (s.liberado > 0 ? "Liberado para receber" : "A receber") : "Já recebido este mês"}</p>
+        <p className="mt-1 text-[40px] font-extrabold leading-none tracking-[-0.02em] tabular-nums text-[#111]">{brl(temAReceber ? heroAmount : recebidoMes)}</p>
+        <div className={`mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-bold ${temAReceber ? "bg-[#E7F6EC] text-[#11461F]" : "bg-[#F1EFEA] text-[#5C6067]"}`}>
+          <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M4 7h16v13H4zM4 11h16M9 3v4M15 3v4" /></svg>
+          {temAReceber ? (next?.day && s.liberado <= 0 ? `Próximo PIX: ${payday(next.day)}` : heroSub) : recebidoMes > 0 ? `Último em ${d(lastPaid?.paid_at ?? null)}` : "Nada a receber agora"}
         </div>
+        <div className="mt-4 grid grid-cols-2 gap-2.5 border-t border-[#EFEBE2] pt-3.5">
+          <div>
+            <p className="text-xs font-semibold text-[#5C6067]">Já recebido no mês</p>
+            <p className="mt-0.5 text-lg font-extrabold tabular-nums">{brl(recebidoMes)}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-[#5C6067]">Corridas no mês</p>
+            <p className="mt-0.5 text-lg font-extrabold tabular-nums">{s.corridas_mes}</p>
+          </div>
+        </div>
+        {s.aguardando_cliente > 0 ? <p className="mt-2 text-xs font-semibold text-[#8A5A00]">{brl(s.aguardando_cliente)} aguardando o cliente pagar a Prime</p> : null}
       </section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className={`${card} !p-4`}>
-          <p className="text-sm text-[#6B6F76]">Já recebido no mês</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-emerald-700">{brl(recebidoMes)}</p>
-          <p className="text-xs text-[#6B6F76]">
-            {s.aguardando_cliente > 0 ? `${brl(s.aguardando_cliente)} aguardando cliente` : `${pagosMes.length} repasse(s) pago(s)`}
-          </p>
-        </div>
-        <div className={`${card} !p-4`}>
-          <p className="text-sm text-[#6B6F76]">Ganhos no mês</p>
-          <p className="mt-1 text-xl font-bold tabular-nums">{brl(s.mes)}</p>
-          <p className="text-xs text-[#6B6F76]">{s.corridas_mes} corrida(s)</p>
-        </div>
+      <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3.5">
+        <span className="text-sm">
+          <span className="text-[#5C6067]">Recebo no PIX</span>
+          <br />
+          <b>{pixTail ? `Chave final ${pixTail}` : "Nenhuma chave cadastrada"}</b>
+        </span>
+        <span className="text-[13px] font-semibold text-[#8A6A1F]">{pixTail ? "Trocar em Perfil" : "Cadastre em Perfil"}</span>
       </div>
 
       {rank ? <RankCard rank={rank} /> : null}

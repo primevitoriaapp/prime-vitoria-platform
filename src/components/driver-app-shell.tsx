@@ -1,8 +1,7 @@
 "use client";
 
-import { DriverMessagePopup, DriverMessagesList } from "@/components/driver-messages-inbox";
+import { DriverMessagePopup } from "@/components/driver-messages-inbox";
 import { DriverGreetingAlerts } from "@/components/driver-greeting-alerts";
-import { PartyContractsCard } from "@/components/party-contracts-card";
 import { useDriverPresenceBeacon } from "@/hooks/use-driver-presence-beacon";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,12 +9,10 @@ import { DriverWallet } from "@/components/driver-wallet";
 import { DriverTripDeepLink } from "@/components/driver-trip-deep-link";
 import { DriverTripsPanel } from "@/components/driver-trips-panel";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
-import { DriverProfilePanel } from "@/components/driver-profile-panel";
-import { PushSetup } from "@/components/push-setup";
-import { InstallAppCard } from "@/components/install-app-card";
 import { DriverHomeMap, MapSafe } from "@/components/driver-home-map";
-import { DriverAccountEditor } from "@/components/driver-account-editor";
 import type { Trip } from "@/lib/domain/types";
+import { DriverHomeStatsStrip, DriverIdleHome, readPaused, useDriverSummary } from "@/components/driver-app-home";
+import { DriverProfileMenu } from "@/components/driver-profile-menu";
 
 type DriverOption = { id: string; cpf: string; profile_name?: string | null };
 type Me = {
@@ -48,7 +45,17 @@ function isNight() {
   return h >= 18 || h < 6;
 }
 
-const TAB_TITLE: Record<Tab, string> = { inicio: "Início", agenda: "Minha agenda", carteira: "Minha carteira", corridas: "Histórico", perfil: "Meu perfil" };
+const TAB_TITLE: Record<Tab, string> = { inicio: "Início", agenda: "Agenda", carteira: "Carteira", corridas: "Histórico", perfil: "Perfil" };
+
+const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+function nextTripLabel(t: Trip | null) {
+  if (!t?.scheduled_at) return null;
+  const ymd = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
+  const day = ymd(new Date(t.scheduled_at));
+  if (day === ymd(new Date())) return hhmm(t.scheduled_at);
+  if (day === ymd(new Date(Date.now() + 86400000))) return `amanhã ${hhmm(t.scheduled_at)}`;
+  return new Date(t.scheduled_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+}
 
 const ICONS: Record<Tab, string> = {
   inicio: "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -76,6 +83,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   const [tab, setTab] = useState<Tab>("inicio");
   const [withTrips, setWithTrips] = useState<Record<string, number>>({});
   const [nextTrip, setNextTrip] = useState<Trip | null>(null);
+  const summary = useDriverSummary(mode === "motorista");
   useEffect(() => {
     const a = searchParams.get("aba");
     if (a && TABS.some((t) => t.id === a)) setTab(a as Tab);
@@ -87,8 +95,8 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
     const r = await fetch("/api/drivers/me", { credentials: "include" }).then((x) => x.json()).catch(() => null);
     if (r?.success) {
       setMe(r.data as Me);
-      // O motorista fica sempre disponível: se estava offline, liga sozinho ao abrir o app.
-      if ((r.data as Me).operational_status === "offline")
+      // Fica disponível ao abrir o app, a não ser que ele mesmo tenha pausado (intervalo).
+      if ((r.data as Me).operational_status === "offline" && !readPaused())
         void fetch("/api/drivers/operational-status", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "online" }) }).catch(() => undefined);
     }
   }, [mode]);
@@ -128,7 +136,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   }
 
   return (
-    <div className="min-h-dvh bg-[#F1F0EC] pb-28 text-[#111]">
+    <div className={`min-h-dvh pb-28 text-[#111] ${tab === "perfil" ? "bg-white" : "bg-[#F6F4EF]"}`}>
       <OperationalRealtimeBridge tenantId={tenantId} />
       {mode === "motorista" ? <DriverMessagePopup /> : null}
       {mode === "motorista" ? <DriverGreetingAlerts /> : null}
@@ -163,6 +171,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
                 {mode === "admin" ? "Prévia" : "Disponível"}
               </span>
             </div>
+            {nextTrip ? <DriverHomeStatsStrip summary={summary} nextLabel={nextTripLabel(nextTrip)} /> : null}
             {mode === "admin" ? (
               <select
                 className="pointer-events-auto mx-auto mt-2 block w-full max-w-lg rounded-xl border border-[#DDD5C2] bg-white px-3 py-2 text-sm shadow"
@@ -180,31 +189,13 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           </div>
         </>
       ) : (
-      <header className="rounded-b-[28px] bg-white px-5 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-[#111] shadow-[0_6px_20px_rgba(0,0,0,0.06)]">
+      <header className={`px-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-[#111] ${tab === "perfil" ? "bg-white" : ""}`}>
           <div className="mx-auto max-w-lg">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-extrabold tracking-[0.12em] text-[#111]">
-                PRIME <span className="text-prime-gold">VITÓRIA</span>
-              </p>
-              {me?.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={me.photo_url} alt="" className="h-12 w-12 rounded-full border-2 border-prime-gold object-cover" />
-              ) : (
-                <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-prime-gold bg-[#1d1d1d] text-xl font-semibold text-prime-gold">
-                  {name.charAt(0).toUpperCase()}
-                </span>
-              )}
-            </div>
-            <p className="mt-4 text-xs font-bold uppercase tracking-[0.12em] text-[#8A6A1F]">{TAB_TITLE[tab]}</p>
-            <p className="mt-0.5 text-2xl font-extrabold leading-tight text-[#111]">
-              {greeting()}, {name.split(" ")[0]}
+            <p className="text-[13px] font-extrabold tracking-[0.12em] text-[#111]">
+              PRIME <span className="text-[#8A6A1F]">VITÓRIA</span>
             </p>
-            {mode === "motorista" ? (
-              <p className="mt-2 flex items-center gap-2 text-sm text-[#3B3E44]">
-                <span className="h-3 w-3 rounded-full bg-emerald-400" />
-                Disponível para os serviços
-              </p>
-            ) : (
+            {tab !== "perfil" ? <h1 className="mt-3 text-[28px] font-extrabold leading-tight">{TAB_TITLE[tab]}</h1> : null}
+            {mode === "admin" ? (
               <label className="mt-3 block text-xs text-[#5C6067]">
                 Vendo o app como:
                 <select
@@ -220,12 +211,12 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
                   ))}
                 </select>
               </label>
-            )}
+            ) : null}
           </div>
         </header>
       )}
 
-      <main className={`relative mx-auto max-w-lg space-y-5 px-4 pt-5 ${tab === "inicio" ? "h-0 overflow-visible !pt-0" : ""}`}>
+      <main className={`relative mx-auto max-w-lg space-y-5 px-4 pt-4 ${tab === "inicio" ? "h-0 overflow-visible !pt-0" : ""}`}>
         <DriverTripsPanel
           key={`trips-${selectedDriverId ?? "none"}`}
           tenantId={tenantId}
@@ -235,6 +226,8 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           onSeeAll={() => go("agenda")}
           onGoHome={() => setTab("inicio")}
           onPrimaryTrip={setNextTrip}
+          summary={summary}
+          idleHome={<DriverIdleHome summary={summary} nextLabel={null} preview={mode === "admin"} onAgenda={() => go("agenda")} />}
           hidden={tab === "perfil" || tab === "carteira"}
         />
 
@@ -249,26 +242,11 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
         ) : null}
 
         {tab === "perfil" ? (
-          <section className="space-y-4">
-            {mode === "motorista" ? (
-              <>
-                <DriverProfilePanel devFallbackRole={devRole} />
-                <PartyContractsCard audience="motorista" />
-                <DriverMessagesList />
-                <InstallAppCard />
-                <DriverAccountEditor />
-                <ChangePinCard />
-                <PushSetup audience="motorista" />
-              </>
-            ) : (
-              <p className="rounded-3xl bg-white p-4 text-sm text-[#6B6F76]">O perfil aparece quando o próprio motorista entra com CPF e PIN.</p>
-            )}
-            <p className="text-center text-xs text-[#6B6F76]">
-              <a href="/privacidade" className="underline">
-                Termos de uso e privacidade
-              </a>
-            </p>
-          </section>
+          mode === "motorista" ? (
+            <DriverProfileMenu me={me} summary={summary} devRole={devRole} pinCard={<ChangePinCard />} />
+          ) : (
+            <p className="rounded-3xl bg-[#F6F4EF] p-4 text-sm text-[#6B6F76]">O perfil aparece quando o próprio motorista entra com CPF e PIN.</p>
+          )
         ) : null}
       </main>
 
