@@ -12,6 +12,7 @@ export type PassengerListTrip = {
   passenger_name: string | null;
   destination_text: string | null;
   trip_dropoff_stops: unknown;
+  boarded_passengers: unknown;
 };
 
 /** Motorista da própria corrida, ou admin/operador do tenant. */
@@ -23,7 +24,7 @@ export async function loadTripForPassengerList(tripId: string): Promise<
   const tenantId = assertTenantScope(session);
   const { data } = await db
     .from("trips")
-    .select("id, tenant_id, client_id, driver_id, operational_status, passenger_name, destination_text, trip_dropoff_stops")
+    .select("id, tenant_id, client_id, driver_id, operational_status, passenger_name, destination_text, trip_dropoff_stops, boarded_passengers")
     .eq("id", tripId)
     .eq("tenant_id", tenantId)
     .maybeSingle();

@@ -181,7 +181,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // Empresa que exige lista de passageiros: o motorista informa quem embarcou antes de iniciar.
     if (body.to_status === "in_progress" && session.role === "motorista") {
       const { data: cl } = await db.from("clients").select("requires_passenger_list").eq("id", trip.client_id).maybeSingle();
-      if (cl?.requires_passenger_list === true && parseDropoffStops(trip.trip_dropoff_stops).length === 0) {
+      const boarded = Array.isArray((trip as { boarded_passengers?: unknown }).boarded_passengers) ? ((trip as { boarded_passengers?: unknown[] }).boarded_passengers ?? []) : [];
+      if (cl?.requires_passenger_list === true && boarded.length === 0) {
         if (!forced) return fail("PASSENGER_LIST_REQUIRED", "Marque quem embarcou antes de iniciar a viagem", 400);
         forcedNotes.push("iniciada sem lista de passageiros");
       }
