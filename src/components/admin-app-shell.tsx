@@ -66,7 +66,8 @@ const ICONS: Record<string, string> = {
   "/arquivo": "M3 7h18v13H3zM3 7l2-3h14l2 3M9 12h6",
   "/contabilidade": "M6 3h12v18H6zM9 8h6M9 12h6M9 16h3",
   "/clients/relatorio": "M6 3h9l4 4v14H6zM9 17v-3M12 17v-6M15 17v-4",
-  "/minha-empresa": "M4 21V5l8-3 8 3v16M9 21v-5h6v5M8 9h2M14 9h2M8 13h2M14 13h2"
+  "/minha-empresa": "M4 21V5l8-3 8 3v16M9 21v-5h6v5M8 9h2M14 9h2M8 13h2M14 13h2",
+  "/cadastros-site": "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8v6M22 11h-6"
 };
 
 function NavIcon({ href, active }: { href: string; active: boolean }) {
@@ -80,6 +81,7 @@ function NavIcon({ href, active }: { href: string; active: boolean }) {
 }
 
 const ADMIN_EXTRA = [
+  { href: "/cadastros-site", label: "Cadastros do site" },
   { href: "/minha-empresa", label: "Minha empresa" },
   { href: "/configuracoes", label: "Configurações" },
   { href: "/integracoes", label: "Integrações" },

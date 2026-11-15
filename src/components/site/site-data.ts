@@ -29,9 +29,9 @@ export const SITE = {
     write: "https://search.google.com/local/writereview?placeid=ChIJNUgr8GYXuAAR894bMX1AjEM"
   },
   /** Formulário de cadastro de motorista parceiro (Google Forms). Vazio = usa o WhatsApp. */
-  parceiroForm: "https://docs.google.com/forms/d/e/1FAIpQLScuort2h6K96AeWCMIoUoV3ocEjZjFN4FJXLuMCsrONpuLvPQ/viewform",
+  parceiroForm: "/seja-motorista",
   /** Formulário de cadastro de empresa. Vazio = usa o WhatsApp. */
-  empresaForm: "",
+  empresaForm: "/para-empresas",
   /** Fotos reais da frota em operação (preencher quando chegarem). A seção só aparece com fotos. */
   operacao: [] as { src: string; alt: string }[],
   /** Logos de clientes (só com autorização). A faixa só aparece com logos. */

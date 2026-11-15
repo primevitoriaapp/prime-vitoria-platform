@@ -78,6 +78,8 @@ export function SiteHeader() {
     pathname.startsWith("/fatura") ||
     pathname.startsWith("/r/") ||
     pathname.startsWith("/privacidade") ||
+    pathname.startsWith("/seja-motorista") ||
+    pathname.startsWith("/para-empresas") ||
     pathname.startsWith("/pedir") ||
     pathname.startsWith("/orcamento") ||
     pathname.startsWith("/driver") ||

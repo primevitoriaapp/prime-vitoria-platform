@@ -10,6 +10,7 @@ export const BACKOFFICE_PATH_PREFIXES = [
   "/ao-vivo",
   "/arquivo",
   "/audit",
+  "/cadastros-site",
   "/categorias",
   "/clients",
   "/conciliacao",

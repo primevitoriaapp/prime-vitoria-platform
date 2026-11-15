@@ -201,7 +201,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
               ))}
             </ul>
             <div className="mt-8">
-              <a href={empresaCadastro} target="_blank" rel="noopener noreferrer" className="inline-block w-full rounded-full bg-[#111] px-7 py-4 text-center font-semibold text-[#D9BC6A] sm:w-auto">
+              <a href={empresaCadastro} className="inline-block w-full rounded-full bg-[#111] px-7 py-4 text-center font-semibold text-[#D9BC6A] sm:w-auto">
                 {T.empresas.cadastrar}
               </a>
             </div>
@@ -369,7 +369,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
               {T.parceiro.sub}
             </p>
           </div>
-          <a href={parceiroHref} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-full bg-[#D9BC6A] px-7 py-4 text-center font-semibold text-[#111]">
+          <a href={parceiroHref} className="shrink-0 rounded-full bg-[#D9BC6A] px-7 py-4 text-center font-semibold text-[#111]">
             {T.parceiro.cta}
           </a>
         </div>
@@ -438,7 +438,7 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
             <Link href={SITE.links.motorista as Route} className="mt-1 block text-[#6F6A60]">
               {T.nav.motorista}
             </Link>
-            <a href={parceiroHref} target="_blank" rel="noopener noreferrer" className="mt-1 block text-[#6F6A60]">
+            <a href={parceiroHref} className="mt-1 block text-[#6F6A60]">
               {T.parceiro.cta}
             </a>
             <a href={SITE.google.reviews} target="_blank" rel="noopener noreferrer" className="mt-1 block text-[#6F6A60]">

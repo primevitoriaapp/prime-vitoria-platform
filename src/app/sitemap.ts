@@ -6,6 +6,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: `${base}/`, changeFrequency: "monthly", priority: 1, alternates: { languages } },
     { url: `${base}/en`, changeFrequency: "monthly", priority: 0.7, alternates: { languages } },
-    { url: `${base}/es`, changeFrequency: "monthly", priority: 0.7, alternates: { languages } }
+    { url: `${base}/es`, changeFrequency: "monthly", priority: 0.7, alternates: { languages } },
+    { url: `${base}/para-empresas`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${base}/seja-motorista`, changeFrequency: "monthly", priority: 0.6 }
   ];
 }
