@@ -61,7 +61,14 @@ export async function GET() {
       (trips ?? []) as { scheduled_at: string; driver_amount: number | null; operational_status: string }[],
       (payables ?? []).map((p) => ({ amount: p.amount as number, status: p.status as string, receivable_status: recByTrip.get(p.trip_id as string) ?? null }))
     );
-    return ok({ funcionario: false, pix_key: driver?.pix_key ?? null, summary, items });
+    // Corridas feitas que ainda não têm valor lançado (a central confere): aparecem sem valor.
+    const withPay = new Set(tripIds);
+    const conferindo = (trips ?? [])
+      .filter((t) => t.operational_status === "completed" && !withPay.has(t.id as string))
+      .sort((a, b) => String(b.scheduled_at).localeCompare(String(a.scheduled_at)))
+      .slice(0, 30)
+      .map((t) => ({ id: t.id as string, trip_at: t.scheduled_at as string, route: `${short(t.origin_text)} → ${short(t.destination_text)}` }));
+    return ok({ funcionario: false, pix_key: driver?.pix_key ?? null, summary, items, conferindo });
   } catch (error) {
     return mapApiError(error);
   }

@@ -10,6 +10,7 @@ type Wallet = {
   pix_key?: string | null;
   summary?: { hoje: number; mes: number; corridas_mes: number; previsto: number; liberado: number; aguardando_cliente: number; pago: number };
   items?: Item[];
+  conferindo?: { id: string; trip_at: string; route: string }[];
 };
 
 const brl = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -82,6 +83,7 @@ export function DriverWallet() {
 
   const s = w.summary!;
   const items = w.items ?? [];
+  const conferindo = w.conferindo ?? [];
   const proximos = items.filter((i) => i.stage !== "pago").sort((a, b) => (a.stage === b.stage ? String(a.trip_at).localeCompare(String(b.trip_at)) : a.stage === "liberado" ? -1 : 1));
   const pagos = items.filter((i) => i.stage === "pago").sort((a, b) => String(b.paid_at).localeCompare(String(a.paid_at)));
   const groups = groupByPayday(proximos);
@@ -135,13 +137,36 @@ export function DriverWallet() {
           <span className="min-w-0 flex-1">
             <span className="block text-base font-semibold">Próximos recebimentos</span>
             <span className="block truncate text-sm text-[#6B6F76]">
-              {proximos.length ? `${proximos.length} corrida(s) · ${brl(proximos.reduce((t, i) => t + i.amount, 0))}` : "Nada pendente agora."}
+              {proximos.length
+                ? `${proximos.length} corrida(s) · ${brl(proximos.reduce((t, i) => t + i.amount, 0))}`
+                : conferindo.length
+                  ? `${conferindo.length} corrida(s) em conferência pela central`
+                  : "Nada pendente agora. Toque para ver."}
             </span>
           </span>
           <Chevron open={open === "proximos"} />
         </button>
-        {open === "proximos" && proximos.length ? (
+        {open === "proximos" ? (
           <div className="space-y-3 px-4 pb-4">
+            {!proximos.length && !conferindo.length ? (
+              <p className="rounded-2xl bg-[#F6F4EF] px-3 py-3 text-sm text-[#5C6067]">Nenhuma corrida a receber agora. Quando você concluir uma corrida e a central lançar o valor, ela aparece aqui com a data prevista do PIX.</p>
+            ) : null}
+            {conferindo.length ? (
+              <div className="rounded-2xl border border-[#F0ECE3]">
+                <p className="rounded-t-2xl bg-[#F6F4EF] px-3 py-2.5 text-sm font-semibold">Em conferência pela central</p>
+                <p className="px-3 pt-2 text-xs text-[#6B6F76]">Corridas feitas que ainda estão sem valor lançado. O valor aparece aqui assim que a central conferir.</p>
+                <ul className="divide-y divide-[#F0ECE3] px-3">
+                  {conferindo.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
+                      <span className="min-w-0 truncate text-sm">
+                        {d(c.trip_at)} · {c.route}
+                      </span>
+                      <span className="shrink-0 text-xs font-semibold text-[#8A5A00]">conferindo</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {groups.map((g) => {
               const late = g.day != null && g.day < todaySp() && g.items.some((i) => i.stage === "aguardando");
               return (
@@ -190,6 +215,9 @@ export function DriverWallet() {
           </span>
           <Chevron open={open === "pagos"} />
         </button>
+        {open === "pagos" && !pagos.length ? (
+          <p className="mx-4 mb-4 rounded-2xl bg-[#F6F4EF] px-3 py-3 text-sm text-[#5C6067]">Nenhum repasse pago ainda. Cada PIX que a Prime fizer aparece aqui, com o comprovante.</p>
+        ) : null}
         {open === "pagos" && pagos.length ? (
           <ul className="divide-y divide-[#F0ECE3] px-4 pb-3">
             {pagos.slice(0, 40).map((i) => (
