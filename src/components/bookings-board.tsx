@@ -10,6 +10,7 @@ import { shortAddress } from "@/lib/client/short-address";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { QuickAssign, type AssignDriver } from "@/components/quick-assign";
 import { FlightBadge } from "@/components/flight-badge";
+import { clientRefFromNotes } from "@/lib/trips/client-ref";
 import { SERVICE_EXTRAS } from "@/lib/trips/service-extras";
 import { AgendaMonthCalendar } from "@/components/agenda-month-calendar";
 import {
@@ -45,6 +46,7 @@ type Trip = {
   vehicle_category_id?: string | null;
   service_mode?: string | null;
   service_extras?: string[] | null;
+  notes?: string | null;
 };
 
 type Props = { tenantId: string | null; createHref?: string | null; initialPeriod?: string; initialGroup?: string; showCalendar?: boolean };
@@ -274,6 +276,11 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
                   <div>
                     <p className="text-2xl font-semibold leading-none">{formatBrTime(t.scheduled_at)}</p>
                     <p className="mt-1 text-xs text-prime-muted">Nº {t.id.slice(0, 6).toUpperCase()}</p>
+                    {clientRefFromNotes(t.notes) ? (
+                      <p className="mt-1 inline-block rounded-md bg-[#111] px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-[#D9BC6A]" title="O.S. / referência do cliente">
+                        {clientRefFromNotes(t.notes)}
+                      </p>
+                    ) : null}
                     {t.presentation_minutes ? (
                       <p className="mt-1 text-xs font-medium text-amber-800">chegar {t.presentation_minutes} min antes</p>
                     ) : null}

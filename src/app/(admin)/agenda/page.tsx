@@ -92,6 +92,7 @@ export default async function AgendaPage({
             clientAmount={focusTrip?.client_amount}
             driverAmount={focusTrip?.driver_amount}
             margin={focusTrip?.margin}
+            notes={(focusTrip as unknown as { notes?: string | null } | null)?.notes ?? null}
           />
           {showClaimBar ? <TripReviewBanner tripId={focusTripId} /> : null}
           {showClaimBar ? <TripKmReviewCard tripId={focusTripId} /> : null}

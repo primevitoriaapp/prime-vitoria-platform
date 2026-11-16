@@ -5,6 +5,7 @@ import { TripVoucherButton } from "@/components/trip-voucher-button";
 import type { TripOperationalStatus } from "@/lib/domain/types";
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { primeServiceTypeLabel } from "@/lib/pricing/prime-service-types";
+import { clientRefFromNotes } from "@/lib/trips/client-ref";
 
 type Props = {
   tripId: string;
@@ -18,6 +19,7 @@ type Props = {
   clientAmount?: number | null;
   driverAmount?: number | null;
   margin?: number | null;
+  notes?: string | null;
 };
 
 function fmtMoney(n: number | null | undefined) {
@@ -36,8 +38,10 @@ export function TripFocusHeader({
   requester,
   clientAmount,
   driverAmount,
-  margin
+  margin,
+  notes
 }: Props) {
+  const clientRef = clientRefFromNotes(notes);
   const hasFinance =
     clientAmount != null || driverAmount != null || margin != null;
   const serviceLabel = serviceType
@@ -50,6 +54,15 @@ export function TripFocusHeader({
       aria-label="Resumo da viagem selecionada"
     >
       <StatusBadge status={operationalStatus} />
+      <span className="text-sm">
+        <span className="text-prime-muted">Nº </span>
+        <b>{tripId.slice(0, 6).toUpperCase()}</b>
+      </span>
+      {clientRef ? (
+        <span className="rounded-md bg-[#111] px-2 py-0.5 text-xs font-bold tracking-wide text-[#D9BC6A]" title="O.S. / referência do cliente">
+          O.S. cliente: {clientRef}
+        </span>
+      ) : null}
       {scheduledAt ? (
         <span className="text-sm text-prime-text">
           <span className="text-prime-muted">Horário: </span>
