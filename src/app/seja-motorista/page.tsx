@@ -59,7 +59,7 @@ export default function SejaMotoristaPage() {
     <div lang="pt-BR" className="min-h-screen bg-[#F7F5F0] text-[#111]">
       <LandingNav cta="Cadastrar" ctaHref="#cadastro" />
       <Hero
-        img="/site/frota-sedan-1.webp"
+        img="/site/real-evento-hotel.webp"
         kicker="Motorista parceiro"
         title={
           <>

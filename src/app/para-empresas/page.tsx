@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LeadForm } from "@/components/site/lead-form";
-import { Cards, CheckList, Faq, H2, Hero, Kicker, LandingFooter, LandingNav, Steps } from "@/components/site/landing";
+import { Cards, CheckList, Faq, Fleet, H2, Hero, Kicker, LandingFooter, LandingNav, Steps } from "@/components/site/landing";
 import { SITE } from "@/components/site/site-data";
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     locale: "pt_BR",
     title: "Prime Vitória para Empresas",
     description: "Transporte executivo corporativo com faturamento mensal e portal da empresa.",
-    images: [{ url: "/site/op-porto.webp", width: 1200, height: 630, alt: "Prime Vitória para Empresas" }]
+    images: [{ url: "/site/real-grupo-corollas.webp", width: 1200, height: 630, alt: "Prime Vitória para Empresas" }]
   },
   robots: { index: true, follow: true }
 };
@@ -27,12 +27,21 @@ const NUMEROS = [
 ];
 
 const SOLUCOES = [
-  { icon: "M2 16l20-6-3-2-6 2-6-6-2 1 4 6-5 2-2-1-1 1z", t: "Transfer de aeroporto", d: "Recepção de executivos e visitantes com acompanhamento do voo e placa de identificação." },
-  { icon: "M3 7h14l4 5v5h-2M3 7v10h2M9 17h6M3 12h18", t: "Rotas de funcionários", d: "Turnos, rotas fixas e lista de passageiros conferida pelo motorista a cada embarque." },
-  { icon: "M4 19l5-14 6 9 2-4 3 9", t: "Eventos e convenções", d: "Logística de grupos com vans e ônibus, escala de horários e coordenação no dia." },
+  { icon: "M2 16l20-6-3-2-6 2-6-6-2 1 4 6-5 2-2-1-1 1z", t: "Transfer executivo e aeroporto", d: "Recepção de executivos e visitantes com acompanhamento do voo e placa de identificação." },
   { icon: "M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", t: "Carro à disposição", d: "Motorista e veículo por diária ou por hora para agendas cheias de compromissos." },
+  { icon: "M3 7h14l4 5v5h-2M3 7v10h2M9 17h6M3 12h18", t: "Transporte de funcionários", d: "Rotas fixas, turnos e horas extras, com lista de passageiros conferida pelo motorista a cada embarque." },
+  { icon: "M4 19l5-14 6 9 2-4 3 9", t: "Eventos e grupos", d: "Vários carros, vans e ônibus coordenados pela central, com escala de horários e acompanhamento no dia." },
   { icon: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z", t: "Veículos blindados", d: "Segurança extra para diretoria, visitantes e deslocamentos sensíveis." },
-  { icon: "M5 4h14a2 2 0 0 1 2 2v11H3V6a2 2 0 0 1 2-2zM3 11h18M7 17v2M17 17v2", t: "Viagens intermunicipais", d: "Deslocamentos pelo estado e para outras capitais com o mesmo padrão." }
+  { icon: "M2 20c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1 2-1 4-1M4 16l2-6h12l2 6M9 10V6h6v4", t: "Offshore e portos", d: "Embarque e desembarque de equipes offshore nos portos, nos horários que a operação exige." }
+];
+
+const FROTA = [
+  { img: "/site/real-grupo-corollas.webp", t: "Executivo", tag: "Nosso padrão", d: "Sedãs executivos com motorista de traje social, inclusive vários carros juntos para comitivas e grupos." },
+  { img: "/site/real-a-disposicao.webp", t: "Carro à disposição", d: "Veículo e motorista exclusivos por diária ou por hora, com atendimento personalizado do início ao fim." },
+  { img: "/site/real-blindado-range.webp", t: "Blindado", d: "Land Rover blindada para diretoria, autoridades e deslocamentos que pedem segurança extra." },
+  { img: "/site/real-evento-hotel.webp", t: "Eventos e hotéis", d: "Vários veículos coordenados pela central para convenções, eventos e hóspedes corporativos." },
+  { img: "/site/real-offshore-onix.webp", t: "Offshore e dia a dia", tag: "Prime Essencial", d: "Carro mais simples para embarques offshore e portos, rotas de funcionários e horas extras, com cobrança por km." },
+  { img: "/site/frota-van-luxo-1.webp", t: "Vans e ônibus", d: "Vans executivas de 15 e 20 lugares e ônibus para equipes, eventos e fretamento." }
 ];
 
 const DIFERENCIAIS = [
@@ -106,6 +115,17 @@ export default function ParaEmpresasPage() {
       </section>
 
       <section className="bg-white py-20 sm:py-28">
+        <div className="mx-auto max-w-6xl px-5">
+          <Kicker>Frota</Kicker>
+          <H2>Do executivo ao ônibus, sempre no padrão Prime</H2>
+          <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#6F6A60]">
+            Nosso padrão é o transporte executivo. Para o dia a dia da empresa, como rotas de funcionários e horas extras, também temos uma categoria mais econômica com o mesmo cuidado.
+          </p>
+          <Fleet items={FROTA} />
+        </div>
+      </section>
+
+      <section className="py-20 sm:py-28">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 lg:grid-cols-2">
           <div>
             <Kicker>Gestão simples</Kicker>
@@ -113,7 +133,7 @@ export default function ParaEmpresasPage() {
             <p className="mt-5 text-base leading-relaxed text-[#6F6A60]">Seu time pede, nós executamos, e no fim do mês chega tudo organizado em uma única fatura.</p>
             <CheckList items={DIFERENCIAIS} />
           </div>
-          <img src="/site/equipe.webp" alt="Equipe de motoristas Prime Vitória" loading="lazy" className="aspect-[4/5] w-full rounded-[28px] object-cover shadow-[0_20px_60px_rgba(0,0,0,0.15)]" />
+          <img src="/site/real-rubens-corolla-pb.webp" alt="Atendimento executivo Prime Vitória" loading="lazy" className="aspect-[4/5] w-full rounded-[28px] object-cover shadow-[0_20px_60px_rgba(0,0,0,0.15)] lg:max-h-[640px]" />
         </div>
       </section>
 

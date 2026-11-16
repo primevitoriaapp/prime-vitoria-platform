@@ -27,18 +27,25 @@ export function Kicker({ children, light }: { children: ReactNode; light?: boole
 }
 
 export function H2({ children, light }: { children: ReactNode; light?: boolean }) {
-  return <h2 className={`mt-3 font-prime-serif text-[30px] leading-[1.15] sm:text-[40px] ${light ? "text-white" : "text-[#111]"}`}>{children}</h2>;
+  // A cor vai no style: o tema geral pinta todo título de preto e venceria a classe.
+  return (
+    <h2 className="mt-3 font-prime-serif text-[30px] leading-[1.15] sm:text-[40px]" style={{ color: light ? "#fff" : "#111" }}>
+      {children}
+    </h2>
+  );
 }
 
 export function Hero({ img, kicker, title, sub, cta, ctaHref, note }: { img: string; kicker: string; title: ReactNode; sub: string; cta: string; ctaHref: string; note?: string }) {
   return (
     <section className="relative flex min-h-[88svh] items-end overflow-hidden pt-24 sm:items-center">
       <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" fetchPriority="high" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/35" aria-hidden />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/40 sm:bg-gradient-to-r sm:from-black/90 sm:via-black/65 sm:to-black/15" aria-hidden />
       <div className="relative mx-auto w-full max-w-6xl px-5 pb-14 sm:pb-0">
         <div className="max-w-2xl">
           <Kicker light>{kicker}</Kicker>
-          <h1 className="mt-4 font-prime-serif text-[40px] leading-[1.05] text-white sm:text-[64px]">{title}</h1>
+          <h1 className="mt-4 font-prime-serif text-[40px] leading-[1.05] sm:text-[64px]" style={{ color: "#fff", textShadow: "0 2px 18px rgba(0,0,0,0.45)" }}>
+            {title}
+          </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">{sub}</p>
           <a href={ctaHref} className="mt-8 inline-block w-full rounded-full bg-[#D9BC6A] px-8 py-4 text-center text-base font-semibold text-[#111] shadow-lg sm:w-auto">
             {cta}
@@ -60,7 +67,7 @@ export function Cards({ items }: { items: { icon: string; t: string; d: string }
               <path d={s.icon} />
             </svg>
           </span>
-          <h3 className="text-lg font-semibold text-[#111]">{s.t}</h3>
+          <h3 className="text-lg font-semibold" style={{ color: "#111" }}>{s.t}</h3>
           <p className="mt-1.5 text-sm leading-relaxed text-[#6F6A60]">{s.d}</p>
         </article>
       ))}
@@ -74,7 +81,7 @@ export function Steps({ items }: { items: { t: string; d: string }[] }) {
       {items.map((p, i) => (
         <li key={p.t}>
           <span className="mb-3 block font-prime-serif text-5xl text-[#D9BC6A]">{i + 1}</span>
-          <h3 className="text-lg font-semibold text-[#111]">{p.t}</h3>
+          <h3 className="text-lg font-semibold" style={{ color: "#111" }}>{p.t}</h3>
           <p className="mt-1.5 text-sm leading-relaxed text-[#6F6A60]">{p.d}</p>
         </li>
       ))}
@@ -127,5 +134,26 @@ export function LandingFooter() {
         </div>
       </div>
     </footer>
+  );
+}
+
+export function Fleet({ items }: { items: { img: string; t: string; tag?: string; d: string }[] }) {
+  return (
+    <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map((f) => (
+        <article key={f.t} className="overflow-hidden rounded-[26px] border border-[#ECE7DB] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+          <img src={f.img} alt={f.t} loading="lazy" className="aspect-[4/3] w-full object-cover object-[center_60%]" />
+          <div className="p-5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-lg font-semibold" style={{ color: "#111" }}>
+                {f.t}
+              </h3>
+              {f.tag ? <span className="shrink-0 rounded-full bg-[#111] px-2.5 py-1 text-[11px] font-semibold text-[#D9BC6A]">{f.tag}</span> : null}
+            </div>
+            <p className="mt-1.5 text-sm leading-relaxed text-[#6F6A60]">{f.d}</p>
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }
