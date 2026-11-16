@@ -22,21 +22,21 @@ export const metadata: Metadata = {
 
 const NUMEROS = [
   { n: "10 anos", t: "de operação no Espírito Santo" },
-  { n: "Sedã ao ônibus", t: "frota para cada tipo de demanda" },
+  { n: "Do sedan ao ônibus", t: "frota para cada tipo de demanda" },
   { n: "Todas as capitais", t: "atendidas com rede de parceiros" }
 ];
 
 const SOLUCOES = [
   { icon: "M2 16l20-6-3-2-6 2-6-6-2 1 4 6-5 2-2-1-1 1z", t: "Transfer executivo e aeroporto", d: "Recepção de executivos e visitantes com acompanhamento do voo e placa de identificação." },
-  { icon: "M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", t: "Carro à disposição", d: "Motorista e veículo por diária ou por hora para agendas cheias de compromissos." },
+  { icon: "M5 17h14M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0M3 17v-4l2-5a2 2 0 0 1 1.9-1.4h10.2A2 2 0 0 1 19 8l2 5v4M3 13h18", t: "Carro à disposição", d: "Motorista e veículo por diária ou por hora para agendas cheias de compromissos." },
   { icon: "M3 7h14l4 5v5h-2M3 7v10h2M9 17h6M3 12h18", t: "Transporte de funcionários", d: "Rotas fixas, turnos e horas extras, com lista de passageiros conferida pelo motorista a cada embarque." },
-  { icon: "M4 19l5-14 6 9 2-4 3 9", t: "Eventos e grupos", d: "Vários carros, vans e ônibus coordenados pela central, com escala de horários e acompanhamento no dia." },
+  { icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8", t: "Eventos e grupos", d: "Vários carros, vans e ônibus coordenados pela central, com escala de horários e acompanhamento no dia." },
   { icon: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z", t: "Veículos blindados", d: "Segurança extra para diretoria, visitantes e deslocamentos sensíveis." },
   { icon: "M2 20c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1 2-1 4-1M4 16l2-6h12l2 6M9 10V6h6v4", t: "Offshore e portos", d: "Embarque e desembarque de equipes offshore nos portos, nos horários que a operação exige." }
 ];
 
 const FROTA = [
-  { img: "/site/real-grupo-corollas.webp", t: "Executivo", tag: "Nosso padrão", d: "Sedãs executivos com motorista de traje social, inclusive vários carros juntos para comitivas e grupos." },
+  { img: "/site/real-grupo-corollas.webp", t: "Executivo", tag: "Nosso padrão", d: "Sedans executivos com motorista de traje social, inclusive vários carros juntos para comitivas e grupos." },
   { img: "/site/real-a-disposicao.webp", t: "Carro à disposição", d: "Veículo e motorista exclusivos por diária ou por hora, com atendimento personalizado do início ao fim." },
   { img: "/site/real-blindado-range.webp", t: "Blindado", d: "Land Rover blindada para diretoria, autoridades e deslocamentos que pedem segurança extra." },
   { img: "/site/real-evento-hotel.webp", t: "Eventos e hotéis", d: "Vários veículos coordenados pela central para convenções, eventos e hóspedes corporativos." },

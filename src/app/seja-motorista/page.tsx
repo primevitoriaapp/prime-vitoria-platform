@@ -37,7 +37,7 @@ const PASSOS = [
 
 const REQUISITOS = [
   "CNH definitiva com a observação EAR (exerce atividade remunerada)",
-  "Carro de 4 portas, sedã ou SUV, em ótimo estado e com ar-condicionado",
+  "Carro de 4 portas, sedan ou SUV, em ótimo estado e com ar-condicionado",
   "Veículo de 2018 em diante (outros casos analisamos na conversa)",
   "Documento do carro (CRLV) em dia",
   "Certidão de antecedentes criminais sem pendências",
