@@ -2,6 +2,8 @@
 
 import { PaymentLinksCard } from "@/components/payment-links-card";
 import { QuoteContractCard } from "@/components/quote-contract-card";
+import { QuotePaymentCard, QuotePrepayFields } from "@/components/quote-payment-card";
+import { bookingPaymentBody, emptyBookingPayment, type BookingPaymentDraft } from "@/components/booking-payment-form";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
@@ -232,6 +234,9 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   const [status, setStatus] = useState("rascunho");
   const [number, setNumber] = useState<number | null>(null);
   const [tripsCount, setTripsCount] = useState(0);
+  const [tripIds, setTripIds] = useState<string[]>([]);
+  const [prepaid, setPrepaid] = useState(false);
+  const [prepay, setPrepay] = useState<BookingPaymentDraft>(() => emptyBookingPayment(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())));
   const [clients, setClients] = useState<Client[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
   const [prices, setPrices] = useState<PriceRow[]>([]);
@@ -269,6 +274,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       setClientResponse((q.client_response as string) ?? null);
       setNumber(Number(q.number));
       setTripsCount(q.trips?.length ?? 0);
+      setTripIds(((q.trips ?? []) as { id: string }[]).map((t) => t.id));
       setClientId((q.client_id as string) ?? "");
       setWho(q.client_id ? "cadastrado" : ((q.contact_type as "PF" | "PJ") ?? "PJ"));
       setKind(((q.kind as QuoteKind | null) ?? "") as QuoteKind | "");
@@ -489,7 +495,17 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
     }
     setStatus("aprovado");
     setTripsCount(r.data?.trips ?? 0);
-    setMsg({ ok: true, text: `Aprovado! ${r.data?.trips ?? 0} corrida(s) já estão na Agenda.` });
+    // Corridas criadas: busca os números para registrar o pagamento e mostrar o cartão de pagamento.
+    const q = await api<{ trips: { id: string }[] }>(`/api/quotes/${saved}`);
+    const ids = (q.data?.trips ?? []).map((t) => t.id);
+    setTripIds(ids);
+    let payNote = "";
+    const body = prepaid ? bookingPaymentBody(prepay, ids) : null;
+    if (body && ids[0]) {
+      const pr = await api(`/api/trips/${ids[0]}/payments`, { method: "POST", body: JSON.stringify(body) });
+      payNote = pr.ok ? " Pagamento do cliente registrado." : ` Atenção: o pagamento não foi registrado (${pr.error ?? "erro"}). Registre no cartão “Pagamento do cliente”.`;
+    }
+    setMsg({ ok: true, text: `Aprovado! ${r.data?.trips ?? 0} corrida(s) já estão na Agenda.${payNote}` });
   }
 
   if (!loaded) return <div className="h-40 animate-pulse rounded-2xl border border-prime-border bg-white" />;
@@ -520,6 +536,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           </button>
         </div>
       ) : null}
+      {locked && tripIds.length ? <QuotePaymentCard key={tripIds.join(",")} tripIds={tripIds} /> : null}
 
       <section className="grid gap-4 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
         <div className="grid gap-2">
@@ -872,6 +889,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           💳 <b>Link de pagamento (InfinitePay)</b>: salve o orçamento primeiro (botão “Salvar” lá embaixo) e o botão para gerar o link aparece aqui.
         </section>
       )}
+
+      {!locked ? <QuotePrepayFields prepaid={prepaid} onPrepaid={setPrepaid} value={prepay} onChange={setPrepay} total={totals.total} /> : null}
 
       {/* Barra de ações sempre visível no rodapé: não precisa rolar para aprovar. */}
       <div className="sticky bottom-0 z-30 -mx-4 border-t border-prime-border bg-white/95 px-4 py-3 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur lg:-mx-8 lg:px-8">
