@@ -9,6 +9,11 @@ import { SITE_LANGS, SITE_TEXT, type SiteLang } from "@/components/site/site-i18
 /** Topo do site: transparente sobre a foto da ponte, branco ao rolar. */
 export function SiteNav({ lang }: { lang: SiteLang }) {
   const T = SITE_TEXT[lang].nav;
+  const JOIN = {
+    pt: { empresa: "Cadastrar minha empresa", motorista: "Seja motorista parceiro" },
+    en: { empresa: "Register my company", motorista: "Become a partner driver" },
+    es: { empresa: "Registrar mi empresa", motorista: "Sea conductor socio" }
+  }[lang as "pt" | "en" | "es"] ?? { empresa: "Cadastrar minha empresa", motorista: "Seja motorista parceiro" };
   const LINKS = [
     ["#servicos", T.servicos],
     ["#empresas", T.empresas],
@@ -82,6 +87,13 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
                 <Link href={SITE.links.motorista as Route} className="block px-4 py-2.5 text-sm text-[#111] hover:bg-[#F7F5F0]">
                   {T.motorista}
                 </Link>
+                <div className="my-1.5 border-t border-[#F2EEE6]" />
+                <a href={SITE.empresaForm || "/para-empresas"} className="block px-4 py-2.5 text-sm font-semibold text-[#8A6A1F] hover:bg-[#F7F5F0]">
+                  {JOIN.empresa}
+                </a>
+                <a href={SITE.parceiroForm || "/seja-motorista"} className="block px-4 py-2.5 text-sm font-semibold text-[#8A6A1F] hover:bg-[#F7F5F0]">
+                  {JOIN.motorista}
+                </a>
               </div>
             ) : null}
           </div>
@@ -134,6 +146,12 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
               <Link href={SITE.links.motorista as Route} className="rounded-2xl py-3.5 text-center text-sm font-medium text-[#111] ring-1 ring-[#E2DCCD]">
                 {T.motorista}
               </Link>
+              <a href={SITE.empresaForm || "/para-empresas"} className="rounded-2xl bg-[#F7F2E6] py-3.5 text-center text-sm font-semibold text-[#8A6A1F]">
+                {JOIN.empresa}
+              </a>
+              <a href={SITE.parceiroForm || "/seja-motorista"} className="rounded-2xl bg-[#F7F2E6] py-3.5 text-center text-sm font-semibold text-[#8A6A1F]">
+                {JOIN.motorista}
+              </a>
             </div>
           </div>
         </div>

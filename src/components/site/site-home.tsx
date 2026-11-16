@@ -441,6 +441,9 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
             <a href={parceiroHref} className="mt-1 block text-[#6F6A60]">
               {T.parceiro.cta}
             </a>
+            <a href={empresaCadastro} className="mt-1 block text-[#6F6A60]">
+              {T.empresas.cadastrar}
+            </a>
             <a href={SITE.google.reviews} target="_blank" rel="noopener noreferrer" className="mt-1 block text-[#6F6A60]">
               Google
             </a>

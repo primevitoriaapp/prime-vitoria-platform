@@ -158,6 +158,13 @@ export default function ParaEmpresasPage() {
               </a>{" "}
               ou ligue {SITE.phone}.
             </p>
+            <p className="mt-3 text-sm text-white/60">
+              Já é cliente?{" "}
+              <a href={SITE.links.empresa} className="font-semibold text-[#D9BC6A] underline">
+                Entre no portal da empresa
+              </a>{" "}
+              para pedir corridas e ver relatórios.
+            </p>
           </div>
           <LeadForm kind="empresa" />
         </div>
