@@ -27,12 +27,16 @@ export const emptyStop = (): EditableStop => ({ address_text: "", lat: null, lng
 export function DropoffStopsEditor({
   stops,
   onChange,
-  devFallbackRole = "admin"
+  devFallbackRole = "admin",
+  kind
 }: {
   stops: EditableStop[];
   onChange: (s: EditableStop[]) => void;
   devFallbackRole?: "admin" | "operador" | "cliente";
+  /** "deixar": a última parada é o destino final. "buscar": cada parada é um embarque. Sem: paradas no caminho (modo antigo). */
+  kind?: "deixar" | "buscar";
 }) {
+  const word = kind === "buscar" ? "Embarque" : "Parada";
   const set = (i: number, patch: Partial<EditableStop>) => onChange(stops.map((s, k) => (k === i ? { ...s, ...patch } : s)));
   const move = (i: number, d: -1 | 1) => {
     const j = i + d;
@@ -47,7 +51,8 @@ export function DropoffStopsEditor({
         <div key={i} className="grid gap-2 rounded-xl border border-prime-border bg-[#FBF8F1] p-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold">
-              📍 Parada {i + 1}
+              {kind === "buscar" ? "🟢" : kind === "deixar" && i === stops.length - 1 && stops.length > 1 ? "🏁" : "📍"} {word} {i + 1}
+              {kind === "deixar" && i === stops.length - 1 && stops.length > 1 ? <span className="font-normal text-prime-muted"> (destino final)</span> : null}
               {s.passenger_name.trim() ? <span className="font-normal text-prime-muted"> · {s.passenger_name.trim()}</span> : null}
             </p>
             <span className="flex gap-1">
@@ -69,11 +74,13 @@ export function DropoffStopsEditor({
             </span>
           </div>
           <label className="grid gap-1 text-sm">
-            <span>1. Quem fica nesta parada? <span className="text-prime-muted">(deixe em branco se não tiver nome)</span></span>
+            <span>
+              1. {kind === "buscar" ? "Quem embarca aqui?" : "Quem desce nesta parada?"} <span className="text-prime-muted">(deixe em branco se não tiver nome)</span>
+            </span>
             <input className={PRIME_INPUT_CLASS} value={s.passenger_name} onChange={(e) => set(i, { passenger_name: e.target.value })} placeholder="Ex.: Vanusa" />
           </label>
           <AddressAutocompleteInput
-            label={s.passenger_name.trim() ? `2. Endereço de ${s.passenger_name.trim().split(/\s+/)[0]}` : "2. Endereço da parada"}
+            label={s.passenger_name.trim() ? `2. ${kind === "buscar" ? "Onde buscar" : "Endereço de"} ${s.passenger_name.trim().split(/\s+/)[0]}` : kind === "buscar" ? "2. Endereço do embarque" : "2. Endereço da parada"}
             value={s.address_text}
             hasCoords={s.lat != null}
             onChange={(t) => set(i, { address_text: t, lat: null, lng: null })}
@@ -104,7 +111,7 @@ export function DropoffStopsEditor({
         onClick={() => onChange([...stops, emptyStop()])}
         className="w-full rounded-xl border-2 border-dashed border-prime-gold bg-[#FBF8F1] px-3 py-3 text-sm font-bold text-[#7A5A12] hover:bg-[#F6EFDD]"
       >
-        ＋ Adicionar parada{stops.length ? " (mais uma)" : " no caminho"}
+        ＋ {kind === "buscar" ? "Adicionar embarque" : kind === "deixar" ? "Adicionar parada" : `Adicionar parada${stops.length ? " (mais uma)" : " no caminho"}`}
       </button>
     </div>
   );

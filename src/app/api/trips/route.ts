@@ -112,6 +112,12 @@ export async function POST(request: Request) {
       }
     }
     const body = createTripSchema.parse(raw);
+    // Ano digitado errado (ex.: 2926): a corrida some da agenda. Bloqueia datas a mais de 2 anos.
+    {
+      const y = new Date(body.scheduled_at).getFullYear();
+      const now = new Date().getFullYear();
+      if (!Number.isFinite(y) || y < now - 2 || y > now + 2) return fail("VALIDATION_ERROR", "Confira o ano da data da corrida.", 400);
+    }
     // Ida e volta também é um pacote (o pagamento na reserva cobre as duas).
     const bookingGroupId = body.booking_group_id ?? (body.round_trip && body.return_scheduled_at ? crypto.randomUUID() : null);
     const sessionTenantId = assertTenantScope(session);

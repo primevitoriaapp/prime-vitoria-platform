@@ -9,7 +9,7 @@ import { AddressAutocompleteInput } from "@/components/address-autocomplete-inpu
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { TeamPassengerPicker } from "@/components/team-passenger-picker";
 import { BookingPaymentFields, bookingPaymentBody, emptyBookingPayment } from "@/components/booking-payment-form";
-import { DropoffStopsEditor, FinalStopPersonFields, emptyFinalPerson, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
+import { DropoffStopsEditor, emptyStop, FinalStopPersonFields, emptyFinalPerson, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
 import { teamMissingAddress, teamTripShape, type TeamDirection, type TeamMember } from "@/lib/trips/team-trip";
 import { TypedDateTime } from "@/components/typed-date-time";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
@@ -60,6 +60,10 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [lastDate, setLastDate] = useState("");
   const [endTime, setEndTime] = useState("");
   const [skipDays, setSkipDays] = useState<string[]>([]);
+  // Repetir a mesma corrida em dias da semana (ex.: rota diária seg–sex). Cada dia vira uma corrida com o valor cheio.
+  const [repeat, setRepeat] = useState(false);
+  const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [repeatUntil, setRepeatUntil] = useState("");
   // Pagamento na reserva (sinal / antecipado).
   const [prepaid, setPrepaid] = useState(false);
   // Pacote de vários dias: o valor digitado é o total do pacote (divide pelos dias) ou o de cada dia.
@@ -93,6 +97,20 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [otherPax, setOtherPax] = useState<string[]>([]);
   const [manualStops, setManualStops] = useState<EditableStop[]>([]);
   const [finalPerson, setFinalPerson] = useState(emptyFinalPerson());
+  /** Como é o trajeto sem funcionários cadastrados: direto, deixar várias pessoas (última parada = destino) ou buscar várias pessoas. */
+  const [routeKind, setRouteKind] = useState<"direto" | "deixar" | "buscar">("direto");
+  const validStops = manualStops.filter((x) => x.address_text.trim().length >= 3);
+  // Deixar: o destino é a última parada. Buscar: a saída é o primeiro embarque.
+  useEffect(() => {
+    if (routeKind === "deixar") {
+      const last = validStops[validStops.length - 1];
+      if (last && last.address_text !== dest.text) setDest({ text: last.address_text, lat: last.lat, lng: last.lng });
+    } else if (routeKind === "buscar") {
+      const first = validStops[0];
+      if (first && first.address_text !== origin.text) setOrigin({ text: first.address_text, lat: first.lat, lng: first.lng });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKind, manualStops]);
   const [teamDir, setTeamDir] = useState<TeamDirection>("buscar");
   const teamShape = useMemo(() => teamTripShape(team, teamDir), [team, teamDir]);
 
@@ -221,6 +239,13 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   /** Dias do pacote (de date até lastDate), menos os que foram desmarcados. Máx. 31. */
   const allDays = useMemo(() => (multiDay ? daysBetween(date, lastDate) : []), [multiDay, date, lastDate]);
   const days = useMemo(() => allDays.filter((d) => !skipDays.includes(d)), [allDays, skipDays]);
+  /** Dias em que a corrida se repete: o dia escolhido + os dias da semana marcados até a data final (máx. 60). */
+  const repeatDays = useMemo(() => {
+    if (!repeat || multiDay || !date || !repeatUntil) return [];
+    const wd = (d: string) => new Date(`${d}T12:00:00Z`).getUTCDay();
+    return daysBetween(date, repeatUntil).filter((d, i) => i === 0 || repeatWeekdays.includes(wd(d))).slice(0, 60);
+  }, [repeat, multiDay, date, repeatUntil, repeatWeekdays]);
+  const repeating = repeat && !multiDay && repeatDays.length > 1;
   const windowHours = useMemo(() => hoursBetween(time, endTime), [time, endTime]);
   const nDays = multiDay ? Math.max(1, days.length) : 1;
   const isPast = !multiDay && Boolean(scheduledIso) && new Date(String(scheduledIso)).getTime() < Date.now() - 10 * 60_000;
@@ -244,6 +269,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     if (s === 0 && !clientId) m.push("escolher o cliente");
     if (s === 1) {
       if (!scheduledIso) m.push(multiDay ? "primeiro dia e horário de início" : "data e horário");
+      else if (Math.abs(new Date(String(scheduledIso)).getFullYear() - new Date().getFullYear()) > 1) m.push("confira o ano da data");
       if (multiDay) {
         if (!lastDate || (date && lastDate <= date)) m.push("último dia (depois do primeiro)");
         else if (allDays.length > 31) m.push("no máximo 31 dias");
@@ -261,8 +287,10 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       if (!/^\d{2}:\d{2}$/.test(doneEnd)) m.push("horário em que terminou");
     }
     if (s === 3) {
-      if (origin.text.trim().length < 3) m.push("local de embarque");
-      if (dest.text.trim().length < 3) m.push("destino");
+      if (!team.length && routeKind === "deixar" && validStops.length < 2) m.push("pelo menos 2 paradas com endereço");
+      if (!team.length && routeKind === "buscar" && validStops.length < 2) m.push("pelo menos 2 embarques com endereço");
+      if (origin.text.trim().length < 3) m.push(routeKind === "buscar" && !team.length ? "endereço do 1º embarque" : "local de embarque");
+      if (dest.text.trim().length < 3) m.push(routeKind === "deixar" && !team.length ? "endereço da última parada" : "destino");
       if (category && passengers > category.passengers) m.push(`no máximo ${category.passengers} passageiros`);
     }
     return m;
@@ -344,11 +372,14 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     }
     setBusy(true);
     setError(null);
-    const runDays = multiDay ? days : [date];
+    const runDays = multiDay ? days : repeating ? repeatDays : [date];
     const groupId = multiDay && days.length > 1 ? crypto.randomUUID() : undefined;
     const buildBody = (day: string, i: number) => {
     const at = saoPauloDateAndTimeToUtcIso(day, time) ?? scheduledIso;
-    const ref = osRef.trim() ? (multiDay ? `${osRef.trim()}-D${i + 1}` : osRef.trim()) : "";
+    const ref = osRef.trim() ? (multiDay ? `${osRef.trim()}-D${i + 1}` : repeating ? `${osRef.trim()}-${day.slice(8, 10)}${day.slice(5, 7)}` : osRef.trim()) : "";
+    // Volta no mesmo intervalo da ida em cada dia repetido.
+    const dayShift = repeating && date ? Math.round((new Date(`${day}T12:00:00Z`).getTime() - new Date(`${date}T12:00:00Z`).getTime()) / 86_400_000) : 0;
+    const retIso = returnIso && dayShift ? new Date(new Date(String(returnIso)).getTime() + dayShift * 86_400_000).toISOString() : returnIso;
     const pkg = multiDay
       ? `Carro à disposição: dia ${i + 1} de ${runDays.length} (${runDays.map(brDay).join(", ")}) · das ${time} às ${endTime}`
       : "";
@@ -367,6 +398,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       destination_lng: dest.lng ?? undefined,
       passenger_name:
         [paxName.trim(), ...(team.length ? [] : otherPax.slice(0, Math.max(0, passengers - 1)).map((x) => x.trim()))].filter(Boolean).join(", ") ||
+        (!team.length && routeKind !== "direto" ? validStops.map((x) => x.passenger_name.trim()).filter(Boolean).join(", ") : "") ||
         undefined,
       passenger_phone: paxPhone.trim() || undefined,
       passenger_count: team.length
@@ -376,11 +408,26 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 .reduce((n, x) => n + (x.people ?? 1), 0))
         : passengers,
       ...(teamShape?.pickupStops ? { trip_pickup_stops: teamShape.pickupStops } : {}),
+      ...(!team.length && routeKind === "buscar"
+        ? {
+            trip_pickup_stops: validStops.map((x, k) => ({
+              pickup_text: x.address_text.trim(),
+              pickup_lat: x.lat,
+              pickup_lng: x.lng,
+              passenger_name: x.passenger_name.trim() || `Passageiro ${k + 1}`,
+              passenger_phone: x.passenger_phone.trim() || null
+            }))
+          }
+        : {}),
       ...(teamShape?.dropoffStops
         ? { trip_dropoff_stops: teamShape.dropoffStops }
-        : stopsForApi(manualStops).length
-          ? { trip_dropoff_stops: stopsForApi(manualStops, { person: finalPerson, dest }) }
-          : {}),
+        : !team.length && routeKind === "deixar"
+          ? { trip_dropoff_stops: stopsForApi(validStops).map((x, k, arr) => (k === arr.length - 1 ? { ...x, final: true } : x)) }
+          : !team.length && routeKind === "buscar"
+            ? {}
+            : stopsForApi(manualStops).length
+              ? { trip_dropoff_stops: stopsForApi(manualStops, { person: finalPerson, dest }) }
+              : {}),
       flight_number: normalizeFlightNumber(flight) ?? undefined,
       notes: notesFull || undefined,
       ...(groupId ? { booking_group_id: groupId } : {}),
@@ -389,7 +436,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
       dispatch_mode: "directed" as const,
       presentation_minutes: presentation,
       service_extras: extras,
-      ...(!multiDay && roundTrip && returnIso ? { round_trip: true, return_scheduled_at: returnIso } : {})
+      ...(!multiDay && roundTrip && retIso ? { round_trip: true, return_scheduled_at: retIso } : {})
     };
     };
     const created: { id: string; status?: string; returnId?: string | null }[] = [];
@@ -465,7 +512,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
     onDone?.();
     if (payNote) window.alert(payNote);
     if (assignNote) window.alert(`Corrida(s) criada(s), mas o motorista não foi atribuído em todas: ${assignNote}`);
-    else if (created.length > 1) window.alert(`${created.length} diárias criadas (${runDays.map(brDay).join(", ")}).`);
+    else if (created.length > 1) window.alert(`${created.length} ${repeating ? "corridas" : "diárias"} criadas (${runDays.map(brDay).join(", ")}).`);
     router.push(`/agenda?trip=${created[0].id}#trip-detail` as Route);
     router.refresh();
   }
@@ -915,6 +962,68 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               {client.type === "PJ" ? (
                 <TeamPassengerPicker clientId={client.id} team={team} onTeamChange={setTeam} direction={teamDir} onDirectionChange={setTeamDir} devFallbackRole="admin" />
               ) : null}
+              {!team.length ? (
+                <div className="grid gap-2">
+                  <p className="text-sm font-semibold">Como é o trajeto?</p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {(
+                      [
+                        { k: "direto", t: "Direto", d: "Uma saída e um destino" },
+                        { k: "deixar", t: "Deixar várias pessoas", d: "Ex.: volta do trabalho — a última parada é o destino" },
+                        { k: "buscar", t: "Buscar várias pessoas", d: "Ex.: ida ao trabalho — busca cada um e leva todos" }
+                      ] as const
+                    ).map((o) => (
+                      <button
+                        key={o.k}
+                        type="button"
+                        onClick={() => {
+                          setRouteKind(o.k);
+                          if (o.k !== "direto" && manualStops.length < 2) setManualStops((xs) => [...xs, ...Array.from({ length: 2 - xs.length }, () => emptyStop())]);
+                          if (o.k === "direto") setManualStops([]);
+                        }}
+                        className={`rounded-xl p-3 text-left ring-1 ${routeKind === o.k ? "bg-[#111] text-white ring-[#111]" : "bg-white ring-prime-border"}`}
+                      >
+                        <span className="block text-sm font-semibold">{o.t}</span>
+                        <span className={`block text-xs ${routeKind === o.k ? "text-white/70" : "text-prime-muted"}`}>{o.d}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {!team.length && routeKind === "deixar" ? (
+                <>
+                  <AddressAutocompleteInput
+                    label="Saída (de onde todos saem)"
+                    required
+                    placeholder="Ex.: Tribunal Regional do Trabalho"
+                    value={origin.text}
+                    hasCoords={origin.lat != null}
+                    onChange={(t) => setOrigin({ text: t, lat: null, lng: null })}
+                    onPlaceSelect={(p) => setOrigin({ text: p.displayName, lat: p.lat, lng: p.lng })}
+                    onCoordsClear={() => setOrigin((o) => ({ ...o, lat: null, lng: null }))}
+                    devFallbackRole="admin"
+                  />
+                  <p className="text-xs text-prime-muted">Coloque as paradas na ordem em que o motorista deve deixar cada pessoa. A última é o destino final.</p>
+                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} kind="deixar" />
+                </>
+              ) : !team.length && routeKind === "buscar" ? (
+                <>
+                  <p className="text-xs text-prime-muted">Coloque os embarques na ordem em que o motorista deve buscar cada pessoa. Depois, o destino de todos.</p>
+                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} kind="buscar" />
+                  <AddressAutocompleteInput
+                    label="Destino de todos"
+                    required
+                    placeholder="Ex.: Tribunal Regional do Trabalho"
+                    value={dest.text}
+                    hasCoords={dest.lat != null}
+                    onChange={(t) => setDest({ text: t, lat: null, lng: null })}
+                    onPlaceSelect={(p) => setDest({ text: p.displayName, lat: p.lat, lng: p.lng })}
+                    onCoordsClear={() => setDest((o) => ({ ...o, lat: null, lng: null }))}
+                    devFallbackRole="admin"
+                  />
+                </>
+              ) : (
+                <>
               <AddressAutocompleteInput
                 label="Local de embarque"
                 required
@@ -926,7 +1035,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 onCoordsClear={() => setOrigin((o) => ({ ...o, lat: null, lng: null }))}
                 devFallbackRole="admin"
               />
-              {!teamShape?.dropoffStops ? (
+              {team.length && !teamShape?.dropoffStops ? (
                 <div className="grid gap-2 border-l-2 border-dashed border-prime-gold pl-3">
                   {team.length ? <p className="text-xs text-prime-muted">Paradas depois do embarque (pessoa não cadastrada ou outro endereço):</p> : null}
                   <DropoffStopsEditor stops={manualStops} onChange={setManualStops} />
@@ -956,6 +1065,8 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 devFallbackRole="admin"
               />
               {manualStops.length && !teamShape?.dropoffStops ? <FinalStopPersonFields value={finalPerson} onChange={setFinalPerson} /> : null}
+                </>
+              )}
             </div>
             <PassengerAutocompleteInput
               clientId={client.id}
@@ -1152,6 +1263,62 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 </div>
               </div>
             </dl>
+            {!multiDay && !doneMode ? (
+              <div className={`rounded-2xl border p-4 text-sm ${repeat ? "border-prime-gold bg-[#FBF7EC]" : "border-prime-border"}`}>
+                <label className="flex items-center gap-2 font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={repeat}
+                    onChange={(e) => {
+                      setRepeat(e.target.checked);
+                      if (e.target.checked && !repeatUntil && date) {
+                        const d = new Date(`${date}T12:00:00Z`);
+                        d.setUTCDate(d.getUTCDate() + 27);
+                        setRepeatUntil(d.toISOString().slice(0, 10));
+                      }
+                    }}
+                  />
+                  Repetir esta corrida em outros dias (rota fixa)
+                </label>
+                {repeat ? (
+                  <div className="mt-3 grid gap-3">
+                    <div>
+                      <p className="mb-1.5 text-xs text-prime-muted">Dias da semana</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["dom", "seg", "ter", "qua", "qui", "sex", "sáb"].map((l, n) => {
+                          const on = repeatWeekdays.includes(n);
+                          return (
+                            <button
+                              key={l}
+                              type="button"
+                              onClick={() => setRepeatWeekdays((xs) => (on ? xs.filter((x) => x !== n) : [...xs, n]))}
+                              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ${on ? "bg-[#111] text-[#fff] ring-[#111]" : "text-prime-muted ring-prime-border"}`}
+                            >
+                              {l}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <label className="grid gap-1 sm:max-w-xs">
+                      <span className="text-xs text-prime-muted">Repetir até o dia</span>
+                      <input type="date" className={input} min={date} value={repeatUntil} onChange={(e) => setRepeatUntil(e.target.value)} />
+                    </label>
+                    {repeatDays.length > 1 ? (
+                      <p className="text-sm font-medium text-emerald-800">
+                        {repeatDays.length} corridas, às {time}
+                        {roundTrip ? " (cada uma com volta)" : ""}: {repeatDays.map((d) => `${weekday(d)} ${brDay(d)}`).join(", ")}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-prime-muted">Escolha os dias da semana e até quando repetir.</p>
+                    )}
+                    <p className="text-xs text-prime-muted">
+                      Cada dia vira uma corrida separada, com o mesmo trajeto, paradas, passageiros, veículo e valores{driverId ? " e o mesmo motorista" : ""}. Dá para editar ou cancelar cada uma depois.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <div className="rounded-2xl border border-prime-border bg-white p-4 md:col-span-2">
               <label className="flex items-center gap-2 text-base font-semibold">
                 <input type="checkbox" checked={prepaid} onChange={(e) => setPrepaid(e.target.checked)} />
@@ -1264,7 +1431,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                   ? driverId
                     ? "Registrar corrida já feita"
                     : "Escolha o motorista que fez a corrida"
-                  : `${multiDay && days.length > 1 ? `Criar ${days.length} diárias` : roundTrip ? "Criar ida e volta" : "Criar corrida"}${driverId ? " e enviar ao motorista" : ""}`}
+                  : `${multiDay && days.length > 1 ? `Criar ${days.length} diárias` : repeating ? `Criar ${repeatDays.length} corridas${roundTrip ? " (ida e volta)" : ""}` : roundTrip ? "Criar ida e volta" : "Criar corrida"}${driverId ? " e enviar ao motorista" : ""}`}
             </button>
           )}
         </div>

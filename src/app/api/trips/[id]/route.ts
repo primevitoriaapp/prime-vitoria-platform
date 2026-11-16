@@ -48,7 +48,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 const LOCKED_STATUSES = new Set(["completed", "cancelled", "rejected", "no_show"]);
 
 const patchSchema = z.object({
-  scheduled_at: z.string().datetime({ offset: true }).optional(),
+  scheduled_at: z
+    .string()
+    .datetime({ offset: true })
+    .refine((v) => Math.abs(new Date(v).getFullYear() - new Date().getFullYear()) <= 2, "Confira o ano da data da corrida")
+    .optional(),
   origin_text: z.string().min(3).optional(),
   origin_lat: z.number().nullable().optional(),
   origin_lng: z.number().nullable().optional(),
