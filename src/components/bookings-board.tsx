@@ -71,6 +71,7 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
     BOOKING_GROUPS.some((g) => g.id === initialGroup) ? (initialGroup as BookingGroup) : "todas"
   );
   const [search, setSearch] = useState("");
+  const [calOpen, setCalOpen] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -187,17 +188,25 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
       </div>
 
       {showCalendar ? (
+        <button type="button" onClick={() => setCalOpen((v) => !v)} className="w-full rounded-xl border border-prime-border bg-white px-3 py-2 text-left text-sm font-semibold md:hidden">
+          📅 {calOpen ? "Esconder calendário" : "Escolher dia no calendário"}
+        </button>
+      ) : null}
+      {showCalendar ? (
+        <div className={calOpen ? "" : "hidden md:block"}>
         <AgendaMonthCalendar
           tenantId={tenantId}
           selectedDay={day}
           onPickDay={(d) => {
             setDay(d);
             setGroup("todas");
+            setCalOpen(false);
           }}
         />
+        </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:grid md:grid-cols-3 md:gap-3 md:px-0 lg:grid-cols-5 [&::-webkit-scrollbar]:hidden">
         {BOOKING_GROUPS.map((g) => {
           const active = group === g.id;
           return (
@@ -205,14 +214,14 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
               key={g.id}
               type="button"
               onClick={() => setGroup(active ? "todas" : g.id)}
-              className={`rounded-2xl border bg-white p-4 text-left shadow-prime-card transition ${active ? "ring-2" : "hover:border-prime-gold"}`}
+              className={`flex shrink-0 items-center gap-2 rounded-2xl border bg-white px-3 py-2 text-left shadow-prime-card transition md:block md:p-4 ${active ? "ring-2" : "hover:border-prime-gold"}`}
               style={{ borderColor: active ? g.color : undefined, ["--tw-ring-color" as string]: g.color }}
             >
-              <span className="flex items-center gap-2 text-sm text-prime-muted">
+              <span className="flex items-center gap-2 whitespace-nowrap text-[13px] text-prime-muted md:text-sm">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: g.color }} />
                 {g.label}
               </span>
-              <span className="mt-1 block text-3xl font-semibold" style={{ color: g.color }}>
+              <span className="block text-lg font-semibold md:mt-1 md:text-3xl" style={{ color: g.color }}>
                 {counts[g.id]}
               </span>
             </button>
@@ -269,9 +278,52 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
                   className="rounded-2xl border border-prime-border bg-white shadow-prime-card transition hover:border-prime-gold"
                   style={{ borderLeft: `5px solid ${g.color}` }}
                 >
+                {/* Celular: cartão compacto (cabem 3 a 4 por tela). */}
+                <Link href={`/agenda?trip=${t.id}#trip-detail` as Route} className="block px-3.5 py-3 md:hidden">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-semibold leading-none">{formatBrTime(t.scheduled_at)}</span>
+                    <span className="text-[11px] text-prime-muted">Nº {t.id.slice(0, 6).toUpperCase()}</span>
+                    {clientRefFromNotes(t.notes) ? (
+                      <span className="truncate rounded-md bg-[#111] px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-[#D9BC6A]">{clientRefFromNotes(t.notes)}</span>
+                    ) : null}
+                    <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ color: g.color, background: g.bg }}>
+                      {STATUS_LABEL[t.operational_status] ?? t.operational_status}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 truncate text-[14px] font-semibold">
+                    {t.client_name ?? "Cliente"}
+                    <span className="font-normal text-prime-muted">
+                      {" · "}
+                      {t.passenger_name?.trim() || "passageiro a definir"}
+                      {t.passenger_count && t.passenger_count > 1 ? ` (+${t.passenger_count - 1})` : ""}
+                    </span>
+                  </p>
+                  {t.flight_eta || t.flight_status ? (
+                    <p className="mt-0.5 text-[12px]">
+                      <FlightBadge t={t} />
+                    </p>
+                  ) : t.flight_number ? (
+                    <p className="mt-0.5 text-[12px] text-prime-muted">✈ voo {t.flight_number}</p>
+                  ) : null}
+                  <p className="mt-1 flex items-center gap-1.5 text-[13px]">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-prime-gold" />
+                    <span className="truncate">{shortAddress(t.origin_text)}</span>
+                  </p>
+                  <p className="flex items-center gap-1.5 text-[13px]">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full border-[1.5px] border-[#111]" />
+                    <span className="truncate">{shortAddress(t.destination_text)}</span>
+                  </p>
+                  <div className="mt-1.5 flex items-center justify-between gap-2 text-[13px]">
+                    <span className="min-w-0 truncate">{t.driver_name ?? <span className="font-semibold text-red-700">Sem motorista</span>}</span>
+                    <span className="shrink-0 font-semibold">
+                      {value ?? (t.service_mode === "km" && g.id !== "finalizada" ? "Por km" : <span className="text-amber-700">Sem valor</span>)}
+                      {payout ? <span className="ml-1 font-normal text-prime-muted">· mot. {payout}</span> : null}
+                    </span>
+                  </div>
+                </Link>
                 <Link
                   href={`/agenda?trip=${t.id}#trip-detail` as Route}
-                  className="grid gap-3 p-4 md:grid-cols-[90px_1fr_220px_150px] md:items-center"
+                  className="hidden gap-3 p-4 md:grid md:grid-cols-[90px_1fr_220px_150px] md:items-center"
                 >
                   <div>
                     <p className="text-2xl font-semibold leading-none">{formatBrTime(t.scheduled_at)}</p>
@@ -347,10 +399,10 @@ export function BookingsBoard({ tenantId, createHref = "/agenda?nova=1", initial
                   </div>
                 </Link>
                 {g.id === "agendada" || g.id === "atribuida" ? (
-                  <div className="flex items-center justify-end gap-2 border-t border-prime-border px-4 py-2">
+                  <div className="flex items-center justify-end gap-2 border-t border-prime-border px-3.5 py-1.5 md:px-4 md:py-2">
                     <Link
                       href={`/agenda?trip=${t.id}&editar=1#editar-corrida` as Route}
-                      className="mr-auto inline-flex items-center gap-1.5 rounded-xl border border-prime-border bg-white px-3 py-1.5 text-sm font-semibold hover:border-prime-gold"
+                      className="mr-auto inline-flex items-center gap-1.5 rounded-xl border border-prime-border bg-white px-3 py-1 text-[13px] font-semibold hover:border-prime-gold md:py-1.5 md:text-sm"
                     >
                       ✎ Editar
                     </Link>

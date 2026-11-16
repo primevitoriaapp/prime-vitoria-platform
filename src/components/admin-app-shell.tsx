@@ -197,7 +197,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <header className="z-40 shrink-0 border-b border-prime-border bg-prime-card/95 backdrop-blur print:hidden">
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 lg:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 md:py-3 lg:px-8">
               <div className="flex min-w-0 items-center gap-2 md:hidden">
                 <button
                   type="button"
@@ -212,10 +212,15 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
                 </Link>
               </div>
               {/* No celular, empresa e alertas descem para uma segunda linha (renderizados uma vez só). */}
-              <div className="order-3 flex w-full flex-wrap items-center gap-2 empty:hidden md:order-none md:w-auto md:flex-1 md:justify-end sm:gap-3">
-                {isAdmin || isFinanceiro ? <CompanySwitcher /> : null}
-                {isAdmin || isFinanceiro ? <ReceivablesAlertPill /> : null}
-                {isAdmin || isFinanceiro ? <PayablesAlertPill /> : null}
+              {/* No celular: só os avisos da operação, numa linha que rola de lado. Empresa e financeiro ficam no Menu. */}
+              <div className="order-3 -mx-4 flex w-[calc(100%+2rem)] items-center gap-2 overflow-x-auto px-4 empty:hidden md:order-none md:mx-0 md:w-auto md:flex-1 md:flex-wrap md:justify-end md:overflow-visible md:px-0 sm:gap-3 [&::-webkit-scrollbar]:hidden">
+                {isAdmin || isFinanceiro ? (
+                  <span className="hidden md:contents">
+                    <CompanySwitcher />
+                    <ReceivablesAlertPill />
+                    <PayablesAlertPill />
+                  </span>
+                ) : null}
                 {showFullNav ? <PendingRequestsPill tenantId={session?.tenantId ?? null} /> : null}
                 {showFullNav ? <DriverRequestsAlert /> : null}
                 {showFullNav ? <FlightSweeper /> : null}
@@ -311,6 +316,15 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             >
               ×
             </button>
+            {isAdmin || isFinanceiro ? (
+              <div className="grid gap-2 border-b border-[#ECE7DB] px-4 pb-3 pt-14">
+                <CompanySwitcher />
+                <div className="flex flex-wrap gap-2">
+                  <ReceivablesAlertPill />
+                  <PayablesAlertPill />
+                </div>
+              </div>
+            ) : null}
             {sidebarBody}
           </aside>
         </div>

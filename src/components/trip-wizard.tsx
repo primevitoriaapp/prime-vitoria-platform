@@ -530,7 +530,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 type="button"
                 disabled={i > step && missing(step).length > 0}
                 onClick={() => (i <= step || STEPS.slice(0, i).every((_, k) => missing(k).length === 0)) && setStep(i)}
-                className={`flex w-full flex-col items-center gap-1 px-1 py-3 text-xs sm:flex-row sm:justify-center sm:gap-2 sm:text-sm ${
+                className={`flex w-full flex-col items-center gap-0.5 px-0.5 py-2 text-[11px] sm:flex-row sm:justify-center sm:gap-2 sm:py-3 sm:text-sm ${
                   active ? "font-semibold text-prime-text" : done ? "text-prime-text" : "text-prime-muted"
                 }`}
               >
@@ -1405,14 +1405,14 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
         {error ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}
 
         {/* Navegação */}
-        <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-prime-border pt-4">
+        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 -mx-4 mt-6 flex flex-wrap items-center gap-2 border-t border-prime-border bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 md:static md:mx-0 md:gap-3 md:bg-transparent md:px-0 md:pb-0 md:pt-4 md:backdrop-blur-none">
           {step > 0 ? (
             <button type="button" className="rounded-lg px-4 py-2 text-sm ring-1 ring-prime-border" onClick={() => setStep((s) => s - 1)}>
               ← Voltar
             </button>
           ) : null}
           {currentMissing.length > 0 && step < 4 ? (
-            <span className="text-sm text-amber-800">Falta: {currentMissing.join(", ")}</span>
+            <span className="order-first w-full text-xs text-amber-800 md:order-none md:w-auto md:text-sm">Falta: {currentMissing.join(", ")}</span>
           ) : null}
           {step < 4 ? (
             <button

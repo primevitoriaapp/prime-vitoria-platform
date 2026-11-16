@@ -137,9 +137,9 @@ export default async function AgendaPage({
       />
       {focusRaw ? <p className="mb-4 text-sm text-red-700">Identificador de corrida inválido no endereço.</p> : null}
       {showClaimBar ? (
-        <details open={sp.nova === "1"} className="mb-6 rounded-2xl border-2 border-prime-gold bg-white shadow-prime-card">
-          <summary className="flex cursor-pointer list-none justify-center p-4 [&::-webkit-details-marker]:hidden">
-            <span className="inline-flex items-center gap-3 rounded-2xl bg-prime-gold px-8 py-4 text-lg font-bold text-[#111] shadow-lg transition hover:brightness-105">
+        <details open={sp.nova === "1"} className="mb-4 rounded-2xl md:mb-6 border-2 border-prime-gold bg-white shadow-prime-card">
+          <summary className="flex cursor-pointer list-none justify-center p-2.5 md:p-4 [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-prime-gold px-6 py-3 text-base font-bold text-[#111] shadow-lg transition hover:brightness-105 md:w-auto md:px-8 md:py-4 md:text-lg">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#111] text-xl text-prime-gold">+</span>
               Agendar corrida
             </span>
