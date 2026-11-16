@@ -157,3 +157,27 @@ export function Fleet({ items }: { items: { img: string; t: string; tag?: string
     </div>
   );
 }
+
+/** Abertura em duas colunas: texto à esquerda em fundo escuro, foto real à direita (sem esticar a foto). */
+export function SplitHero({ img, kicker, title, sub, cta, ctaHref, note }: { img: string; kicker: string; title: ReactNode; sub: string; cta: string; ctaHref: string; note?: string }) {
+  return (
+    <section className="bg-[#111] pt-[calc(4.5rem+env(safe-area-inset-top))]">
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-12 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
+        <div>
+          <Kicker light>{kicker}</Kicker>
+          <h1 className="mt-4 font-prime-serif text-[38px] leading-[1.06] sm:text-[56px]" style={{ color: "#fff" }}>
+            {title}
+          </h1>
+          <p className="mt-5 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: "rgba(255,255,255,0.82)" }}>
+            {sub}
+          </p>
+          <a href={ctaHref} className="mt-8 inline-block w-full rounded-full bg-[#D9BC6A] px-8 py-4 text-center text-base font-semibold text-[#111] shadow-lg sm:w-auto">
+            {cta}
+          </a>
+          {note ? <p className="mt-3 text-sm text-white/60">{note}</p> : null}
+        </div>
+        <img src={img} alt="" fetchPriority="high" className="mx-auto aspect-[4/5] w-full max-w-md rounded-[28px] object-cover object-top shadow-[0_30px_80px_rgba(0,0,0,0.5)] lg:max-w-none" />
+      </div>
+    </section>
+  );
+}

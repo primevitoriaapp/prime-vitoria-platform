@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { LeadForm } from "@/components/site/lead-form";
-import { Cards, CheckList, Faq, H2, Hero, Kicker, LandingFooter, LandingNav, Steps } from "@/components/site/landing";
+import { LeadFormReveal } from "@/components/site/lead-form-reveal";
+import { Cards, CheckList, Faq, H2, Kicker, LandingFooter, LandingNav, SplitHero, Steps } from "@/components/site/landing";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.primevitoria.com"),
   title: "Seja motorista parceiro · Prime Vitória",
-  description: "Dirija com a Prime Vitória: corridas agendadas para empresas, aeroporto e eventos no Espírito Santo. Agenda no app, repasse por PIX e suporte da central.",
+  description: "Dirija com a Prime Vitória: corridas agendadas para empresas, aeroporto, offshore e eventos no Espírito Santo. 100% do valor é seu, sem taxa de cadastro.",
   alternates: { canonical: "/seja-motorista" },
   openGraph: {
     type: "website",
@@ -14,18 +14,18 @@ export const metadata: Metadata = {
     locale: "pt_BR",
     title: "Seja motorista parceiro da Prime Vitória",
     description: "Corridas agendadas para empresas, aeroporto e eventos. Cadastre-se.",
-    images: [{ url: "/site/frota-sedan-1.webp", width: 1200, height: 630, alt: "Motorista parceiro Prime Vitória" }]
+    images: [{ url: "/site/real-a-disposicao.webp", width: 1200, height: 630, alt: "Motorista parceiro Prime Vitória" }]
   },
   robots: { index: true, follow: true }
 };
 
 const BENEFICIOS = [
   { icon: "M4 6h16v14H4zM4 10h16M9 3v5M15 3v5", t: "Corridas agendadas", d: "Você recebe as corridas com antecedência e monta sua agenda. Nada de ficar rodando à espera de chamada." },
-  { icon: "M4 21V5l8-3 8 3v16M9 21v-5h6v5M8 9h2M14 9h2M8 13h2M14 13h2", t: "Clientes corporativos", d: "Empresas, executivos, aeroporto, eventos e casamentos. Passageiros que valorizam um bom serviço." },
-  { icon: "M3 7h18v12H3zM3 7l3-3h12l3 3M16 13h2", t: "Repasse por PIX", d: "Cada corrida aparece na sua carteira do app com o valor e a data prevista do pagamento." },
-  { icon: "M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2", t: "App próprio do motorista", d: "Agenda, rota no Waze ou Google Maps, contato com o passageiro e histórico, tudo no celular." },
-  { icon: "M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z", t: "Central de verdade", d: "Gente do nosso time acompanha cada corrida e resolve com você qualquer imprevisto." },
-  { icon: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z", t: "Sem taxa de cadastro", d: "Cadastrar-se é gratuito e você não precisa ter exclusividade com a Prime." }
+  { icon: "M4 21V5l8-3 8 3v16M9 21v-5h6v5M8 9h2M14 9h2M8 13h2M14 13h2", t: "Clientes corporativos", d: "Empresas, executivos, aeroporto, offshore, eventos e casamentos. Passageiros que valorizam um bom serviço." },
+  { icon: "M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", t: "100% do valor é seu", d: "Sem taxa de cadastro e sem desconto na corrida. O valor informado a você é exatamente o que você recebe: os custos da empresa já estão incluídos." },
+  { icon: "M3 7h18v12H3zM3 7l3-3h12l3 3M16 13h2", t: "Repasses diversificados", d: "Há atendimentos com pagamento à vista e outros em 15 ou 30 dias, conforme o cliente. Você sabe o prazo antes de aceitar." },
+  { icon: "M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2", t: "App próprio do motorista", d: "Agenda, rota no Waze ou Google Maps, contato com o passageiro e carteira com a previsão de cada repasse." },
+  { icon: "M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z", t: "Central de verdade", d: "Gente do nosso time acompanha cada corrida e resolve com você qualquer imprevisto." }
 ];
 
 const PASSOS = [
@@ -49,7 +49,8 @@ const REQUISITOS = [
 const FAQ = [
   { q: "Preciso ter carro próprio?", a: "Para começar, sim: o carro pode ser seu ou alugado no seu nome. Se você tem van ou ônibus, também queremos conversar." },
   { q: "Quanto eu ganho por corrida?", a: "Depende da categoria do seu veículo e do tipo de serviço (transfer, diária, evento). Explicamos os valores na conversa com a central, antes de você aceitar qualquer corrida." },
-  { q: "Como e quando eu recebo?", a: "Por PIX. Cada corrida aparece na carteira do app com a data prevista. O repasse segue o prazo de pagamento de cada empresa cliente." },
+  { q: "Como e quando eu recebo?", a: "Depende do atendimento: alguns são pagos à vista, outros em 15 ou 30 dias, conforme o cliente. O prazo é informado antes de você aceitar a corrida, e cada repasse aparece na carteira do app com a data prevista." },
+  { q: "A Prime desconta alguma taxa da corrida?", a: "Não. O valor que aparece no app ou que a central informa é 100% seu. Os custos da empresa já estão incluídos nesse valor." },
   { q: "Preciso trabalhar só para a Prime?", a: "Não. Não pedimos exclusividade. Você confirma no app só as corridas que pode fazer." },
   { q: "Atendem fora da Grande Vitória?", a: "Nossa base é a Grande Vitória, mas temos corridas para todo o Espírito Santo e uma rede de parceiros em outras capitais." }
 ];
@@ -58,18 +59,18 @@ export default function SejaMotoristaPage() {
   return (
     <div lang="pt-BR" className="min-h-screen bg-[#F7F5F0] text-[#111]">
       <LandingNav cta="Cadastrar" ctaHref="#cadastro" />
-      <Hero
-        img="/site/frota-sedan-1.webp"
+      <SplitHero
+        img="/site/real-a-disposicao.webp"
         kicker="Motorista parceiro"
         title={
           <>
             Dirija para quem <span className="text-[#D9BC6A]">valoriza</span> um bom serviço
           </>
         }
-        sub="Corridas agendadas para empresas, aeroporto e eventos no Espírito Santo. Você sabe a sua agenda com antecedência e recebe por PIX."
+        sub="Corridas agendadas para empresas, aeroporto, offshore e eventos no Espírito Santo. Você conhece sua agenda com antecedência e recebe 100% do valor combinado."
         cta="Quero ser parceiro"
         ctaHref="#cadastro"
-        note="Cadastro gratuito · leva menos de 2 minutos"
+        note="Cadastro gratuito · sem desconto na corrida"
       />
 
       <section className="mx-auto max-w-6xl px-5 py-20 sm:py-28">
@@ -101,7 +102,7 @@ export default function SejaMotoristaPage() {
               Preencha seus dados. Nossa central analisa o cadastro e chama você no WhatsApp para os próximos passos.
             </p>
           </div>
-          <LeadForm kind="motorista" />
+          <LeadFormReveal kind="motorista" label="Gostaria de fazer parte?" />
         </div>
       </section>
 
