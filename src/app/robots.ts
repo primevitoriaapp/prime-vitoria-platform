@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/en", "/es", "/seja-motorista", "/para-empresas"],
-        disallow: ["/api/", "/dashboard", "/agenda", "/driver", "/client", "/login", "/voucher", "/fatura", "/orcamento", "/r/", "/pedir", "/p1-homologacao", "/staging-status", "/redefinir-senha"]
+        disallow: ["/api/", "/cadastro-motorista", "/dashboard", "/agenda", "/driver", "/client", "/login", "/voucher", "/fatura", "/orcamento", "/r/", "/pedir", "/p1-homologacao", "/staging-status", "/redefinir-senha"]
       }
     ],
     sitemap: "https://www.primevitoria.com/sitemap.xml"

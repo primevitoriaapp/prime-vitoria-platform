@@ -79,6 +79,7 @@ export function SiteHeader() {
     pathname.startsWith("/r/") ||
     pathname.startsWith("/privacidade") ||
     pathname.startsWith("/seja-motorista") ||
+    pathname.startsWith("/cadastro-motorista") ||
     pathname.startsWith("/para-empresas") ||
     pathname.startsWith("/pedir") ||
     pathname.startsWith("/orcamento") ||

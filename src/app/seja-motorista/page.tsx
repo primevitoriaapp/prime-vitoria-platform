@@ -30,7 +30,7 @@ const BENEFICIOS = [
 
 const PASSOS = [
   { t: "Faça o cadastro", d: "Preencha o formulário abaixo. Leva menos de 2 minutos." },
-  { t: "Conversa com a central", d: "Chamamos você no WhatsApp para conhecer seu perfil e pedir os documentos." },
+  { t: "Cadastro completo", d: "Chamamos você no WhatsApp e enviamos o link para completar os dados, os documentos e as fotos do veículo." },
   { t: "Vistoria do carro", d: "Conferimos o veículo e explicamos o nosso padrão de atendimento." },
   { t: "Comece a rodar", d: "Você recebe o acesso ao app e as primeiras corridas na sua agenda." }
 ];
@@ -41,6 +41,7 @@ const REQUISITOS = [
   "Veículo de 2018 em diante (outros casos analisamos na conversa)",
   "Documento do carro (CRLV) em dia",
   "Certidão de antecedentes criminais sem pendências",
+  "Seguro do veículo, de preferência com cobertura APP e RCF-V",
   "Smartphone Android ou iPhone com internet",
   "Boa apresentação: traje social e postura executiva",
   "MEI ou CNPJ (desejável: ajudamos você a abrir)"
@@ -99,7 +100,7 @@ export default function SejaMotoristaPage() {
             <Kicker light>Cadastro</Kicker>
             <H2 light>Faça parte da equipe Prime Vitória</H2>
             <p className="mt-5 max-w-md text-base leading-relaxed text-white/75">
-              Preencha seus dados. Nossa central analisa o cadastro e chama você no WhatsApp para os próximos passos.
+              Primeiro, um pré-cadastro rápido. Depois a central chama você no WhatsApp e envia o link do cadastro completo, com documentos e fotos do veículo.
             </p>
           </div>
           <LeadFormReveal kind="motorista" label="Gostaria de fazer parte?" />

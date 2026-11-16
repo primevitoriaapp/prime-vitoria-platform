@@ -18,7 +18,60 @@ type Lead = {
   status: "novo" | "em_contato" | "aprovado" | "descartado";
   notes: string | null;
   created_at: string;
+  complete_sent_at?: string | null;
+  completed_at?: string | null;
 };
+
+type Complete = { data: Record<string, unknown> | null; completed_at: string | null; files: { kind: string; label: string; url: string | null }[] };
+
+const C_LABEL: [string, string][] = [
+  ["full_name", "Nome"], ["cpf", "CPF"], ["rg", "RG"], ["birth_date", "Nascimento"], ["phone", "Celular"], ["email", "E-mail"],
+  ["street", "Rua"], ["number", "Número"], ["complement", "Complemento"], ["district", "Bairro"], ["city", "Cidade"], ["uf", "UF"], ["cep", "CEP"],
+  ["cnh_number", "CNH nº"], ["cnh_category", "Categoria"], ["cnh_expires_at", "Validade CNH"], ["cnh_first_date", "1ª habilitação"], ["cnh_ear", "EAR"],
+  ["bond", "Vínculo"], ["company_name", "Razão social"], ["cnpj", "CNPJ"], ["issues_invoice", "Emite NF"], ["states", "Estados"], ["regions", "Regiões"],
+  ["exec_experience", "Experiência executivo"], ["experience_time", "Tempo de experiência"], ["languages", "Idiomas"], ["languages_other", "Outro idioma"],
+  ["formal_attire", "Traje social"], ["services", "Serviços de interesse"],
+  ["vehicle_model", "Veículo"], ["vehicle_plate", "Placa"], ["vehicle_year", "Ano"], ["vehicle_color", "Cor"], ["insured", "Seguro"], ["insurance_app", "APP"], ["insurance_rcfv", "RCF-V"], ["other_vehicle", "Outro veículo"],
+  ["criminal_record_date", "Emissão antecedentes"],
+  ["pix_type", "Tipo PIX"], ["pix_key", "Chave PIX"], ["bank_account", "Banco/Ag/Conta"], ["account_holder", "Titular"],
+  ["emergency_name", "Contato emergência"], ["emergency_phone", "Tel. emergência"], ["emergency_cpf", "CPF emergência"], ["emergency_email", "E-mail emergência"], ["emergency_relation", "Parentesco"], ["witness_ok", "Aceita ser testemunha"]
+];
+const fmtVal = (x: unknown) => (Array.isArray(x) ? x.join(", ") : x === "sim" ? "Sim" : x === "nao" ? "Não" : x === "autonomo" ? "Autônomo" : x === "mei" ? "MEI" : x === "pj" ? "Pessoa jurídica" : String(x));
+
+function CompleteView({ id }: { id: string }) {
+  const [c, setC] = useState<Complete | null>(null);
+  useEffect(() => {
+    void fetch(`/api/leads/${id}/complete`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((j: { data?: Complete }) => setC(j.data ?? null))
+      .catch(() => undefined);
+  }, [id]);
+  if (!c) return <p className="text-sm text-prime-muted">Carregando cadastro completo…</p>;
+  if (!c.data) return null;
+  return (
+    <div className="rounded-xl border border-[#BFE3CC] bg-[#F1FAF4] p-3">
+      <p className="text-sm font-semibold text-[#1F7A4C]">✓ Cadastro completo enviado em {c.completed_at ? when(c.completed_at) : "—"}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {c.files.map((f) =>
+          f.url ? (
+            <a key={f.kind} href={f.url} target="_blank" rel="noreferrer" className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#111] ring-1 ring-[#BFE3CC]">
+              📎 {f.label}
+            </a>
+          ) : null
+        )}
+      </div>
+      <dl className="mt-3 grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
+        {C_LABEL.filter(([k]) => c.data![k] !== undefined && c.data![k] !== "" && !(Array.isArray(c.data![k]) && !(c.data![k] as unknown[]).length)).map(([k, l]) => (
+          <div key={k}>
+            <dt className="text-xs text-prime-muted">{l}</dt>
+            <dd>{fmtVal(c.data![k])}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-xs text-prime-muted">Os links dos documentos valem 15 minutos. Feche e abra de novo para gerar outros.</p>
+    </div>
+  );
+}
 
 const STATUS: Record<Lead["status"], { label: string; cls: string }> = {
   novo: { label: "Novo", cls: "bg-[#FBF3E0] text-[#8A5A00]" },
@@ -66,6 +119,19 @@ export function SiteLeadsBoard() {
       .then((j: { data?: Lead[] }) => setList(j.data ?? []))
       .catch(() => setList([]));
   }, [kind]);
+
+  async function sendComplete(l: Lead) {
+    const r = await fetch(`/api/leads/${l.id}/complete-link`, { method: "POST", credentials: "include" }).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { data?: { url: string } }) : {};
+    if (!j.data?.url) {
+      alert("Não foi possível gerar o link agora.");
+      return;
+    }
+    const digits = l.phone.replace(/\D/g, "");
+    const msg = `Olá ${l.name.split(" ")[0]}, aqui é da Prime Vitória! Para seguir com seu cadastro de motorista parceiro, complete seus dados e envie os documentos por este link (leva uns 10 minutos):\n\n${j.data.url}\n\nTenha em mãos CNH, CRLV, comprovante de residência e a certidão de antecedentes criminais.`;
+    setList((cur) => (cur ?? []).map((x) => (x.id === l.id ? { ...x, complete_sent_at: new Date().toISOString(), status: "em_contato" } : x)));
+    window.open(`https://wa.me/${digits.startsWith("55") ? digits : `55${digits}`}?text=${encodeURIComponent(msg)}`, "_blank");
+  }
 
   async function save(id: string, patch: Partial<Pick<Lead, "status" | "notes">>) {
     setList((cur) => (cur ?? []).map((l) => (l.id === id ? { ...l, ...patch } : l)));
@@ -119,6 +185,7 @@ export function SiteLeadsBoard() {
                     {l.kind === "empresa" && l.segment ? ` · ${l.segment}` : ""}
                   </span>
                 </span>
+                {l.completed_at ? <span className="shrink-0 rounded-full bg-[#EAF6EF] px-2.5 py-1 text-xs font-semibold text-[#1F7A4C]">📋 Completo</span> : null}
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS[l.status].cls}`}>{STATUS[l.status].label}</span>
               </button>
               {isOpen ? (
@@ -130,12 +197,19 @@ export function SiteLeadsBoard() {
                     <a href={`tel:${l.phone}`} className="rounded-full border border-prime-border px-4 py-2 font-semibold">
                       Ligar {l.phone}
                     </a>
+                    {l.kind === "motorista" && !l.completed_at ? (
+                      <button type="button" onClick={() => void sendComplete(l)} className="rounded-full bg-[#111] px-4 py-2 font-semibold text-[#D9BC6A]">
+                        {l.complete_sent_at ? "Reenviar link do cadastro completo" : "Enviar cadastro completo"}
+                      </button>
+                    ) : null}
                     {l.email ? (
                       <a href={`mailto:${l.email}`} className="rounded-full border border-prime-border px-4 py-2 font-semibold">
                         {l.email}
                       </a>
                     ) : null}
                   </div>
+                  {l.complete_sent_at && !l.completed_at ? <p className="text-xs text-prime-muted">Link do cadastro completo enviado em {when(l.complete_sent_at)}. Aguardando o motorista.</p> : null}
+                  {l.completed_at ? <CompleteView id={l.id} /> : null}
                   <dl className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
                     {l.kind === "empresa" && l.company_size ? (
                       <div>
