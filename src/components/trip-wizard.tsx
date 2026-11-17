@@ -9,6 +9,7 @@ import { AddressAutocompleteInput } from "@/components/address-autocomplete-inpu
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { TeamPassengerPicker } from "@/components/team-passenger-picker";
 import { BookingPaymentFields, bookingPaymentBody, emptyBookingPayment } from "@/components/booking-payment-form";
+import type { KnownPerson } from "@/lib/clients/known-people";
 import { DropoffStopsEditor, emptyStop, FinalStopPersonFields, emptyFinalPerson, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
 import { teamMissingAddress, teamTripShape, type TeamDirection, type TeamMember } from "@/lib/trips/team-trip";
 import { TypedDateTime } from "@/components/typed-date-time";
@@ -99,6 +100,22 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [finalPerson, setFinalPerson] = useState(emptyFinalPerson());
   /** Como é o trajeto sem funcionários cadastrados: direto, deixar várias pessoas (última parada = destino) ou buscar várias pessoas. */
   const [routeKind, setRouteKind] = useState<"direto" | "deixar" | "buscar">("direto");
+  // Quem já viajou por este cliente: o nome digitado na parada puxa endereço e telefone.
+  const [knownPeople, setKnownPeople] = useState<KnownPerson[]>([]);
+  useEffect(() => {
+    if (!clientId) {
+      setKnownPeople([]);
+      return;
+    }
+    let off = false;
+    void fetchWithSupabaseSession(`/api/clients/${clientId}/known-people`, {}, "admin")
+      .then((r) => r.json())
+      .then((j: { data?: KnownPerson[] }) => !off && setKnownPeople(j.data ?? []))
+      .catch(() => undefined);
+    return () => {
+      off = true;
+    };
+  }, [clientId]);
   const validStops = manualStops.filter((x) => x.address_text.trim().length >= 3);
   // Deixar: o destino é a última parada. Buscar: a saída é o primeiro embarque.
   useEffect(() => {
@@ -780,6 +797,62 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                   <p className="text-xs text-prime-muted">A volta vira uma segunda corrida, com o trajeto invertido.</p>
                 </>
               ) : null}
+            {!multiDay && !doneMode ? (
+              <div className={`rounded-2xl border p-4 text-sm ${repeat ? "border-prime-gold bg-[#FBF7EC]" : "border-prime-border"}`}>
+                <label className="flex items-center gap-2 font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={repeat}
+                    onChange={(e) => {
+                      setRepeat(e.target.checked);
+                      if (e.target.checked && !repeatUntil && date) {
+                        const d = new Date(`${date}T12:00:00Z`);
+                        d.setUTCDate(d.getUTCDate() + 27);
+                        setRepeatUntil(d.toISOString().slice(0, 10));
+                      }
+                    }}
+                  />
+                  🔁 Repetir esta corrida em outros dias (rota fixa: ex. segunda a sexta)
+                </label>
+                {repeat ? (
+                  <div className="mt-3 grid gap-3">
+                    <div>
+                      <p className="mb-1.5 text-xs text-prime-muted">Dias da semana</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["dom", "seg", "ter", "qua", "qui", "sex", "sáb"].map((l, n) => {
+                          const on = repeatWeekdays.includes(n);
+                          return (
+                            <button
+                              key={l}
+                              type="button"
+                              onClick={() => setRepeatWeekdays((xs) => (on ? xs.filter((x) => x !== n) : [...xs, n]))}
+                              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ${on ? "bg-[#111] text-[#fff] ring-[#111]" : "text-prime-muted ring-prime-border"}`}
+                            >
+                              {l}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <label className="grid gap-1 sm:max-w-xs">
+                      <span className="text-xs text-prime-muted">Repetir até o dia</span>
+                      <input type="date" className={input} min={date} value={repeatUntil} onChange={(e) => setRepeatUntil(e.target.value)} />
+                    </label>
+                    {repeatDays.length > 1 ? (
+                      <p className="text-sm font-medium text-emerald-800">
+                        {repeatDays.length} corridas, às {time}
+                        {roundTrip ? " (cada uma com volta)" : ""}: {repeatDays.map((d) => `${weekday(d)} ${brDay(d)}`).join(", ")}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-prime-muted">Escolha os dias da semana e até quando repetir.</p>
+                    )}
+                    <p className="text-xs text-prime-muted">
+                      Cada dia vira uma corrida separada, com o mesmo trajeto, paradas, passageiros, veículo e valores{driverId ? " e o mesmo motorista" : ""}. Dá para editar ou cancelar cada uma depois.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             </div>
           </div>
         ) : null}
@@ -1004,12 +1077,12 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                     devFallbackRole="admin"
                   />
                   <p className="text-xs text-prime-muted">Coloque as paradas na ordem em que o motorista deve deixar cada pessoa. A última é o destino final.</p>
-                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} kind="deixar" />
+                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} kind="deixar" people={knownPeople} />
                 </>
               ) : !team.length && routeKind === "buscar" ? (
                 <>
                   <p className="text-xs text-prime-muted">Coloque os embarques na ordem em que o motorista deve buscar cada pessoa. Depois, o destino de todos.</p>
-                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} kind="buscar" />
+                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} kind="buscar" people={knownPeople} />
                   <AddressAutocompleteInput
                     label="Destino de todos"
                     required
@@ -1038,7 +1111,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               {team.length && !teamShape?.dropoffStops ? (
                 <div className="grid gap-2 border-l-2 border-dashed border-prime-gold pl-3">
                   {team.length ? <p className="text-xs text-prime-muted">Paradas depois do embarque (pessoa não cadastrada ou outro endereço):</p> : null}
-                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} />
+                  <DropoffStopsEditor stops={manualStops} onChange={setManualStops} people={knownPeople} />
                 </div>
               ) : null}
               <div className="flex justify-center">
@@ -1263,61 +1336,14 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 </div>
               </div>
             </dl>
-            {!multiDay && !doneMode ? (
-              <div className={`rounded-2xl border p-4 text-sm ${repeat ? "border-prime-gold bg-[#FBF7EC]" : "border-prime-border"}`}>
-                <label className="flex items-center gap-2 font-semibold">
-                  <input
-                    type="checkbox"
-                    checked={repeat}
-                    onChange={(e) => {
-                      setRepeat(e.target.checked);
-                      if (e.target.checked && !repeatUntil && date) {
-                        const d = new Date(`${date}T12:00:00Z`);
-                        d.setUTCDate(d.getUTCDate() + 27);
-                        setRepeatUntil(d.toISOString().slice(0, 10));
-                      }
-                    }}
-                  />
-                  Repetir esta corrida em outros dias (rota fixa)
-                </label>
-                {repeat ? (
-                  <div className="mt-3 grid gap-3">
-                    <div>
-                      <p className="mb-1.5 text-xs text-prime-muted">Dias da semana</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {["dom", "seg", "ter", "qua", "qui", "sex", "sáb"].map((l, n) => {
-                          const on = repeatWeekdays.includes(n);
-                          return (
-                            <button
-                              key={l}
-                              type="button"
-                              onClick={() => setRepeatWeekdays((xs) => (on ? xs.filter((x) => x !== n) : [...xs, n]))}
-                              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ${on ? "bg-[#111] text-[#fff] ring-[#111]" : "text-prime-muted ring-prime-border"}`}
-                            >
-                              {l}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <label className="grid gap-1 sm:max-w-xs">
-                      <span className="text-xs text-prime-muted">Repetir até o dia</span>
-                      <input type="date" className={input} min={date} value={repeatUntil} onChange={(e) => setRepeatUntil(e.target.value)} />
-                    </label>
-                    {repeatDays.length > 1 ? (
-                      <p className="text-sm font-medium text-emerald-800">
-                        {repeatDays.length} corridas, às {time}
-                        {roundTrip ? " (cada uma com volta)" : ""}: {repeatDays.map((d) => `${weekday(d)} ${brDay(d)}`).join(", ")}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-prime-muted">Escolha os dias da semana e até quando repetir.</p>
-                    )}
-                    <p className="text-xs text-prime-muted">
-                      Cada dia vira uma corrida separada, com o mesmo trajeto, paradas, passageiros, veículo e valores{driverId ? " e o mesmo motorista" : ""}. Dá para editar ou cancelar cada uma depois.
-                    </p>
-                  </div>
-                ) : null}
-              </div>
+            {repeating ? (
+              <p className="rounded-2xl border border-prime-gold bg-[#FBF7EC] p-4 text-sm">
+                🔁 <b>Rota fixa:</b> {repeatDays.length} corridas às {time}
+                {roundTrip ? " (cada uma com volta)" : ""} — {repeatDays.map((d) => `${weekday(d)} ${brDay(d)}`).join(", ")}.{" "}
+                <button type="button" className="font-semibold underline" onClick={() => setStep(1)}>
+                  Alterar dias
+                </button>
+              </p>
             ) : null}
             <div className="rounded-2xl border border-prime-border bg-white p-4 md:col-span-2">
               <label className="flex items-center gap-2 text-base font-semibold">

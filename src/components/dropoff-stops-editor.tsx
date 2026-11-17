@@ -2,6 +2,8 @@
 
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
+import { useId } from "react";
+import { findKnownPerson, type KnownPerson } from "@/lib/clients/known-people";
 
 export type EditableStop = {
   address_text: string;
@@ -12,6 +14,8 @@ export type EditableStop = {
   /** Quantas pessoas descem/ficam nesta parada (opcional). */
   people?: number | null;
   dropped_at?: string | null;
+  /** Endereço/telefone vieram das corridas anteriores (some se a pessoa trocar o endereço). */
+  autofilled?: boolean;
 };
 
 /** Quem fica no destino final (a última pessoa). Opcional. */
@@ -35,7 +39,17 @@ export function DropoffStopsEditor({
   devFallbackRole?: "admin" | "operador" | "cliente";
   /** "deixar": a última parada é o destino final. "buscar": cada parada é um embarque. Sem: paradas no caminho (modo antigo). */
   kind?: "deixar" | "buscar";
+  /** Pessoas já conhecidas do cliente: ao digitar o nome, endereço e telefone vêm sozinhos. */
+  people?: KnownPerson[];
 }) {
+  const listId = useId();
+  const pickName = (i: number, name: string) => {
+    const cur = stops[i];
+    const p = people?.length ? findKnownPerson(people, name) : null;
+    if (p && cur && (!cur.address_text.trim() || cur.autofilled)) {
+      set(i, { passenger_name: name, address_text: p.address, lat: p.lat, lng: p.lng, passenger_phone: cur.passenger_phone.trim() && !cur.autofilled ? cur.passenger_phone : (p.phone ?? ""), autofilled: true });
+    } else set(i, { passenger_name: name });
+  };
   const word = kind === "buscar" ? "Embarque" : "Parada";
   const set = (i: number, patch: Partial<EditableStop>) => onChange(stops.map((s, k) => (k === i ? { ...s, ...patch } : s)));
   const move = (i: number, d: -1 | 1) => {
@@ -77,14 +91,22 @@ export function DropoffStopsEditor({
             <span>
               1. {kind === "buscar" ? "Quem embarca aqui?" : "Quem desce nesta parada?"} <span className="text-prime-muted">(deixe em branco se não tiver nome)</span>
             </span>
-            <input className={PRIME_INPUT_CLASS} value={s.passenger_name} onChange={(e) => set(i, { passenger_name: e.target.value })} placeholder="Ex.: Vanusa" />
+            <input
+              className={PRIME_INPUT_CLASS}
+              value={s.passenger_name}
+              list={people?.length ? listId : undefined}
+              autoComplete="off"
+              onChange={(e) => pickName(i, e.target.value)}
+              placeholder={people?.length ? "Digite o nome — endereço e telefone vêm sozinhos" : "Ex.: Vanusa"}
+            />
+            {s.autofilled && s.address_text ? <span className="text-xs text-emerald-700">✓ Endereço e telefone das corridas anteriores — confira.</span> : null}
           </label>
           <AddressAutocompleteInput
             label={s.passenger_name.trim() ? `2. ${kind === "buscar" ? "Onde buscar" : "Endereço de"} ${s.passenger_name.trim().split(/\s+/)[0]}` : kind === "buscar" ? "2. Endereço do embarque" : "2. Endereço da parada"}
             value={s.address_text}
             hasCoords={s.lat != null}
-            onChange={(t) => set(i, { address_text: t, lat: null, lng: null })}
-            onPlaceSelect={(p) => set(i, { address_text: p.displayName, lat: p.lat, lng: p.lng })}
+            onChange={(t) => set(i, { address_text: t, lat: null, lng: null, autofilled: false })}
+            onPlaceSelect={(p) => set(i, { address_text: p.displayName, lat: p.lat, lng: p.lng, autofilled: false })}
             onCoordsClear={() => set(i, { lat: null, lng: null })}
             devFallbackRole={devFallbackRole}
           />
@@ -106,6 +128,15 @@ export function DropoffStopsEditor({
           </div>
         </div>
       ))}
+      {people?.length ? (
+        <datalist id={listId}>
+          {people.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.address}
+            </option>
+          ))}
+        </datalist>
+      ) : null}
       <button
         type="button"
         onClick={() => onChange([...stops, emptyStop()])}
