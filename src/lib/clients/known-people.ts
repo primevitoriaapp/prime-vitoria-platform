@@ -22,7 +22,8 @@ export function knownPeopleFromTrips(
   avoidAddresses: string[] = []
 ): KnownPerson[] {
   const avoid = new Set(avoidAddresses.map(addrKey));
-  const byName = new Map<string, { name: string; phone: string | null; addrs: Map<string, { n: number; first: number; a: RawStop }> }>();
+  type Entry = { name: string; phone: string | null; addrs: Map<string, { n: number; first: number; a: RawStop }> };
+  const byName = new Map<string, Entry>();
   let order = 0;
   for (const t of trips) {
     const stops = [...(Array.isArray(t.trip_dropoff_stops) ? t.trip_dropoff_stops : []), ...(Array.isArray(t.trip_pickup_stops) ? t.trip_pickup_stops : [])] as RawStop[];
@@ -31,7 +32,7 @@ export function knownPeopleFromTrips(
       const address = String(s.address_text ?? s.pickup_text ?? "").trim();
       if (name.length < 2 || address.length < 3 || /^passageiro \d+$/i.test(name)) continue;
       const k = key(name);
-      const e = byName.get(k) ?? { name, phone: null, addrs: new Map() };
+      const e: Entry = byName.get(k) ?? { name, phone: null, addrs: new Map() };
       if (!e.phone && s.passenger_phone) e.phone = String(s.passenger_phone);
       const ak = addrKey(address);
       const cur = e.addrs.get(ak);

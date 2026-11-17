@@ -99,6 +99,8 @@ export function DriverTripsPanel({
   const [geoReason, setGeoReason] = useState("");
   const [floatDismissed, setFloatDismissed] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  /** Outra corrida (não a próxima) aberta pela agenda ou pelo aviso "para confirmar". */
+  const [otherTripId, setOtherTripId] = useState<string | null>(null);
   const [agendaFilter, setAgendaFilter] = useState<"hoje" | "amanha" | "semana">("semana");
   const [histMonth, setHistMonth] = useState<string>(() => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()).slice(0, 7));
   const [payByTrip, setPayByTrip] = useState<Record<string, { stage: string; amount: number; paid_at: string | null }>>({});
@@ -169,6 +171,8 @@ export function DriverTripsPanel({
   const primaryId = useMemo(() => pickDriverFocusTripId(active), [active]);
   const primaryTrip = active.find((t) => t.id === primaryId) ?? null;
   const otherActive = active.filter((t) => t.id !== primaryId);
+  const pendingOthers = otherActive.filter((t) => t.operational_status === "dispatched");
+  const otherTrip = otherTripId ? (trips.find((t) => t.id === otherTripId) ?? null) : null;
   const primaryKey = primaryTrip ? `${primaryTrip.id}:${primaryTrip.operational_status}` : "";
   useEffect(() => {
     onPrimaryTrip?.(primaryTrip);
@@ -574,6 +578,24 @@ export function DriverTripsPanel({
           <div className={`fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-40 ${!loading && !primaryTrip && idleHome ? "" : "px-3 pb-3"}`}>
             <div className="mx-auto max-w-lg">
               {message && !sheet ? <p className="mb-2 rounded-2xl bg-white/95 px-4 py-3 text-sm text-[#8A5A00] shadow">{message}</p> : null}
+              {!loading && pendingOthers.length ? (
+                <button
+                  type="button"
+                  onClick={() => setOtherTripId(pendingOthers[0]!.id)}
+                  className="mb-2 flex w-full items-center gap-3 rounded-2xl bg-[#FBF5E6] px-4 py-3 text-left shadow-[0_6px_18px_rgba(0,0,0,0.12)] ring-1 ring-[#EBD9A6]"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#111] text-sm font-bold text-prime-gold">{pendingOthers.length}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-[#111]">
+                      {pendingOthers.length === 1 ? "Corrida para confirmar" : `${pendingOthers.length} corridas para confirmar`}
+                    </span>
+                    <span className="block truncate text-xs text-[#5E4812]">
+                      {dayTime(pendingOthers[0]!.scheduled_at)} · {String(pendingOthers[0]!.destination_text ?? "").split(",")[0]}
+                    </span>
+                  </span>
+                  <span aria-hidden className="text-[#8A6A1F]">›</span>
+                </button>
+              ) : null}
               {loading ? (
                 <div className="h-24 animate-pulse rounded-[28px] bg-white/90 shadow" />
               ) : !primaryTrip ? (
@@ -700,10 +722,69 @@ export function DriverTripsPanel({
             if (t.id === primaryTrip?.id) {
               onGoHome?.();
               setDetailOpen(true);
-            }
+            } else setOtherTripId(t.id);
           }}
           primaryId={primaryTrip?.id ?? null}
         />
+      ) : null}
+
+      {otherTrip ? (
+        <div className="fixed inset-0 z-[75] flex flex-col bg-black/30" role="dialog" aria-modal="true">
+          <button type="button" aria-label="Fechar" className="min-h-[10dvh] flex-1" onClick={() => setOtherTripId(null)} />
+          <div className="max-h-[90dvh] overflow-y-auto rounded-t-[28px] bg-[#F1F0EC] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#D9D3C5]" />
+            <div className="mx-auto max-w-lg space-y-3">
+              <div className="rounded-[24px] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.1em] text-[#8A6A1F]">{dayTime(otherTrip.scheduled_at).split(" · ")[0]}</p>
+                    <p className="text-3xl font-extrabold text-[#111]">{dayTime(otherTrip.scheduled_at).split(" · ")[1]}</p>
+                  </div>
+                  <StatusBadge status={otherTrip.operational_status} />
+                </div>
+                <p className="mt-2 text-[15px] font-semibold text-[#111]">{tripPeopleLabel(otherTrip) || "Passageiro"}</p>
+                <p className="mt-2 flex gap-2 text-sm">
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-prime-gold" />
+                  <span>{otherTrip.origin_text}</span>
+                </p>
+                <p className="mt-1 flex gap-2 text-sm">
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full border-2 border-[#111]" />
+                  <span>{otherTrip.destination_text}</span>
+                </p>
+                {otherTrip.flight_number ? <p className="mt-2 text-sm text-[#5C6067]">✈ Voo {otherTrip.flight_number}</p> : null}
+                {otherTrip.notes ? <p className="mt-2 whitespace-pre-line rounded-xl bg-[#F6F4EF] px-3 py-2 text-sm text-[#3B3E44]">{otherTrip.notes}</p> : null}
+                <DriverPayLine trip={otherTrip} />
+                {otherTrip.operational_status === "dispatched" ? (
+                  <>
+                    <div className="mt-3">
+                      <SwipeToConfirm
+                        label="Deslize para confirmar"
+                        busy={busyTrip === otherTrip.id}
+                        onConfirm={() => {
+                          void setStatus(otherTrip.id, "accepted");
+                          setOtherTripId(null);
+                        }}
+                      />
+                    </div>
+                    <DriverDeclineButton
+                      tripId={otherTrip.id}
+                      devFallbackRole={devFallbackRole}
+                      onDeclined={() => {
+                        setOtherTripId(null);
+                        setMessage("Corrida devolvida para a central.");
+                        void load();
+                      }}
+                    />
+                  </>
+                ) : null}
+              </div>
+              <DriverPassengerContact trip={otherTrip} devFallbackRole={devFallbackRole} />
+              <button type="button" onClick={() => setOtherTripId(null)} className="w-full rounded-2xl py-3 text-sm text-[#6B6F76]">
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {sheet && !geoBlock && trips.find((t) => t.id === sheet.tripId) ? (
@@ -997,4 +1078,12 @@ function DriverHistory({
       ))}
     </section>
   );
+}
+
+/** "Sex 21/11 · 18:55" no horário de Brasília. */
+function dayTime(iso: string) {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
+  const t = d.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+  return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${t}`;
 }
