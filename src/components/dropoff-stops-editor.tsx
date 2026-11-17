@@ -32,7 +32,8 @@ export function DropoffStopsEditor({
   stops,
   onChange,
   devFallbackRole = "admin",
-  kind
+  kind,
+  people
 }: {
   stops: EditableStop[];
   onChange: (s: EditableStop[]) => void;
