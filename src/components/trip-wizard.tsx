@@ -9,7 +9,7 @@ import { AddressAutocompleteInput } from "@/components/address-autocomplete-inpu
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
 import { TeamPassengerPicker } from "@/components/team-passenger-picker";
 import { BookingPaymentFields, bookingPaymentBody, emptyBookingPayment } from "@/components/booking-payment-form";
-import type { KnownPerson } from "@/lib/clients/known-people";
+import { findKnownPerson, type KnownPerson } from "@/lib/clients/known-people";
 import { DropoffStopsEditor, emptyStop, FinalStopPersonFields, emptyFinalPerson, stopsForApi, type EditableStop } from "@/components/dropoff-stops-editor";
 import { teamMissingAddress, teamTripShape, type TeamDirection, type TeamMember } from "@/lib/trips/team-trip";
 import { TypedDateTime } from "@/components/typed-date-time";
@@ -102,6 +102,28 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [routeKind, setRouteKind] = useState<"direto" | "deixar" | "buscar">("direto");
   // Quem já viajou por este cliente: o nome digitado na parada puxa endereço e telefone.
   const [knownPeople, setKnownPeople] = useState<KnownPerson[]>([]);
+  /** Troca o tipo de trajeto. Ao sair do "Direto", aproveita o passageiro principal como 1ª pessoa. */
+  function chooseRoute(k: "direto" | "deixar" | "buscar") {
+    setRouteKind(k);
+    if (k === "direto") {
+      setManualStops([]);
+      return;
+    }
+    setManualStops((xs) => {
+      const next = [...xs];
+      if (!next.length && paxName.trim()) {
+        const known = findKnownPerson(knownPeople, paxName);
+        next.push({
+          ...emptyStop(),
+          passenger_name: paxName.trim(),
+          passenger_phone: paxPhone || known?.phone || "",
+          ...(known?.address ? { address_text: known.address, lat: known.lat, lng: known.lng, autofilled: true } : {})
+        });
+      }
+      while (next.length < 2) next.push(emptyStop());
+      return next;
+    });
+  }
   useEffect(() => {
     if (!clientId) {
       setKnownPeople([]);
@@ -1041,22 +1063,21 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                   <div className="grid gap-2 sm:grid-cols-3">
                     {(
                       [
-                        { k: "direto", t: "Direto", d: "Uma saída e um destino" },
-                        { k: "deixar", t: "Deixar várias pessoas", d: "Ex.: volta do trabalho — a última parada é o destino" },
-                        { k: "buscar", t: "Buscar várias pessoas", d: "Ex.: ida ao trabalho — busca cada um e leva todos" }
+                        { k: "direto", t: "Direto", d: "1 saída e 1 destino" },
+                        { k: "deixar", t: "Saída única → deixar vários", d: "Ex.: sai do TRT e deixa 1º Catarina, 2º Marília… (volta do trabalho)" },
+                        { k: "buscar", t: "Buscar vários → destino único", d: "Ex.: busca cada um em casa e leva todos ao TRT (ida ao trabalho)" }
                       ] as const
                     ).map((o) => (
                       <button
                         key={o.k}
                         type="button"
-                        onClick={() => {
-                          setRouteKind(o.k);
-                          if (o.k !== "direto" && manualStops.length < 2) setManualStops((xs) => [...xs, ...Array.from({ length: 2 - xs.length }, () => emptyStop())]);
-                          if (o.k === "direto") setManualStops([]);
-                        }}
+                        onClick={() => chooseRoute(o.k)}
                         className={`rounded-xl p-3 text-left ring-1 ${routeKind === o.k ? "bg-[#111] text-white ring-[#111]" : "bg-white ring-prime-border"}`}
                       >
-                        <span className="block text-sm font-semibold">{o.t}</span>
+                        <span className="block text-sm font-semibold" style={{ color: routeKind === o.k ? "#fff" : "#111" }}>
+                          {routeKind === o.k ? "✓ " : ""}
+                          {o.t}
+                        </span>
                         <span className={`block text-xs ${routeKind === o.k ? "text-white/70" : "text-prime-muted"}`}>{o.d}</span>
                       </button>
                     ))}
@@ -1138,6 +1159,18 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
                 devFallbackRole="admin"
               />
               {manualStops.length && !teamShape?.dropoffStops ? <FinalStopPersonFields value={finalPerson} onChange={setFinalPerson} /> : null}
+              {!team.length && routeKind === "direto" && !manualStops.length ? (
+                <div className="grid gap-2 rounded-xl bg-[#F7F2E6] p-3 sm:grid-cols-2">
+                  <button type="button" onClick={() => chooseRoute("deixar")} className="rounded-lg bg-white p-3 text-left ring-1 ring-prime-border">
+                    <span className="block text-sm font-semibold" style={{ color: "#111" }}>Vai deixar mais de uma pessoa? →</span>
+                    <span className="block text-xs text-prime-muted">Mantém a saída e abre Parada 1, 2, 3… (a última é o destino)</span>
+                  </button>
+                  <button type="button" onClick={() => chooseRoute("buscar")} className="rounded-lg bg-white p-3 text-left ring-1 ring-prime-border">
+                    <span className="block text-sm font-semibold" style={{ color: "#111" }}>Vai buscar mais de uma pessoa? →</span>
+                    <span className="block text-xs text-prime-muted">Embarque 1, 2, 3… e um destino para todos</span>
+                  </button>
+                </div>
+              ) : null}
                 </>
               )}
             </div>
