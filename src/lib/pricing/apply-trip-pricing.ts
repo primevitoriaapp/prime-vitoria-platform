@@ -65,11 +65,18 @@ export type CategoryPricingPreview = {
   metadata: Record<string, unknown>;
 };
 
+/** Hora parada digitada pela central só para esta corrida (R$ por hora). */
+export function waitRateOverride(raw: unknown): { client: number | null; driver: number | null } {
+  const o = (raw ?? null) as { client?: unknown; driver?: unknown } | null;
+  const n = (v: unknown) => (v == null || v === "" || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Number(v));
+  return { client: n(o?.client), driver: n(o?.driver) };
+}
+
 /** Calcula pela tabela do cliente sem gravar nada (prévia da conferência = o que o salvar grava). */
 export async function computeCategoryPricing(input: ApplyTripPricingInput): Promise<CategoryPricingPreview | null> {
   const { data: trip } = await db
     .from("trips")
-    .select("vehicle_category_id, service_mode, driver_id, scheduled_at, wait_minutes, wait_client_waived, client_amount, driver_amount, calculation_metadata")
+    .select("vehicle_category_id, service_mode, driver_id, scheduled_at, wait_minutes, wait_client_waived, wait_rate_override, client_amount, driver_amount, calculation_metadata")
     .eq("id", input.tripId)
     .eq("tenant_id", input.tenantId)
     .maybeSingle();
@@ -103,8 +110,10 @@ export async function computeCategoryPricing(input: ApplyTripPricingInput): Prom
   });
 
   // Valor digitado pela central na corrida tem prioridade (orçamento combinado).
-  const quotedClient = prevWasTable ? 0 : Number(trip.client_amount) || 0;
-  const quotedDriver = prevWasTable ? 0 : Number(trip.driver_amount) || 0;
+  // O valor gravado já pode conter a espera de um cálculo anterior: tira antes de somar de novo.
+  const prevWait = (trip.calculation_metadata as { wait?: { client_amount?: number; driver_amount?: number } } | null)?.wait;
+  const quotedClient = prevWasTable ? 0 : Math.max(0, roundMoney((Number(trip.client_amount) || 0) - (Number(prevWait?.client_amount) || 0)));
+  const quotedDriver = prevWasTable ? 0 : Math.max(0, roundMoney((Number(trip.driver_amount) || 0) - (Number(prevWait?.driver_amount) || 0)));
   let client = quotedClient > 0 ? quotedClient : table.client;
   let partner = quotedClient > 0 ? (quotedDriver > 0 ? quotedDriver : table.partner) : table.partner;
   if (client == null) return null;
@@ -113,8 +122,8 @@ export async function computeCategoryPricing(input: ApplyTripPricingInput): Prom
   const hp = cells.find((c) => c.service === "hora_parada" && c.enabled);
   const wait = calculateWaitCharge((input.waitMinutes ?? (trip.wait_minutes as number | null | undefined)) as number | null | undefined, {
     ...terms,
-    wait_client_price_per_hour: hp?.client_price ?? terms.wait_client_price_per_hour,
-    wait_driver_price_per_hour: hp?.partner_price ?? terms.wait_driver_price_per_hour
+    wait_client_price_per_hour: waitRateOverride(trip.wait_rate_override).client ?? hp?.client_price ?? terms.wait_client_price_per_hour,
+    wait_driver_price_per_hour: waitRateOverride(trip.wait_rate_override).driver ?? hp?.partner_price ?? terms.wait_driver_price_per_hour
   }, { clientWaived: trip.wait_client_waived === true });
   client = roundMoney(client + wait.client_amount);
   partner = partner == null ? null : roundMoney(partner + wait.driver_amount);
@@ -198,7 +207,7 @@ export async function applyTripPricingOnCompletion(
 
   const { data: tripRow } = await db
     .from("trips")
-    .select("driver_id, service_type, scheduled_at, wait_minutes, wait_client_waived, client_amount, driver_amount")
+    .select("driver_id, service_type, scheduled_at, wait_minutes, wait_client_waived, wait_rate_override, client_amount, driver_amount, calculation_metadata")
     .eq("id", input.tripId)
     .eq("tenant_id", input.tenantId)
     .maybeSingle();
@@ -256,8 +265,9 @@ export async function applyTripPricingOnCompletion(
   // Transfer e diária são orçados pela central: o valor digitado na corrida vale mais que a tabela.
   // Sem valor na corrida e tabela zerada, não grava zero (a fatura acusa "sem valor").
   const isQuotedService = Boolean(serviceKey) && !String(serviceKey).startsWith("corporativo");
-  const quotedClient = Number(tripRow?.client_amount) || 0;
-  const quotedDriver = Number(tripRow?.driver_amount) || 0;
+  const prevWaitRule = (tripRow?.calculation_metadata as { wait?: { client_amount?: number; driver_amount?: number } } | null)?.wait;
+  const quotedClient = Math.max(0, roundMoney((Number(tripRow?.client_amount) || 0) - (Number(prevWaitRule?.client_amount) || 0)));
+  const quotedDriver = Math.max(0, roundMoney((Number(tripRow?.driver_amount) || 0) - (Number(prevWaitRule?.driver_amount) || 0)));
   if (isQuotedService && quotedClient <= 0 && !(computed.amount_client > 0)) {
     return { applied: false, skipped_reason: "valor_a_combinar_sem_valor" };
   }
@@ -274,7 +284,12 @@ export async function applyTripPricingOnCompletion(
 
   // Hora parada do cadastro do cliente: tolerância + valor proporcional ao tempo.
   const terms = await getClientBillingTerms(input.clientId, input.tenantId);
-  const wait = calculateWaitCharge(tripRow?.wait_minutes as number | null | undefined, terms, { clientWaived: tripRow?.wait_client_waived === true });
+  const ov = waitRateOverride(tripRow?.wait_rate_override);
+  const wait = calculateWaitCharge(
+    tripRow?.wait_minutes as number | null | undefined,
+    { ...terms, wait_client_price_per_hour: ov.client ?? terms.wait_client_price_per_hour, wait_driver_price_per_hour: ov.driver ?? terms.wait_driver_price_per_hour },
+    { clientWaived: tripRow?.wait_client_waived === true }
+  );
   const hasDriver = Boolean(tripDriver.data?.driver_id);
   const result =
     wait.client_amount > 0 || wait.driver_amount > 0

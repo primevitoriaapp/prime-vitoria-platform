@@ -23,6 +23,10 @@ type Item = {
   wait_tolerance: number;
   wait_client_waived: boolean;
   wait_charge: number;
+  wait_driver_charge: number;
+  wait_client_rate: number | null;
+  wait_driver_rate: number | null;
+  wait_rate_source: "corrida" | "cliente" | null;
   arrived_at: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -63,6 +67,97 @@ const dur = (a: string | null, b: string | null) => {
   const m = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000);
   return m > 0 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}` : null;
 };
+
+
+type WaitSave = { waived: boolean; rate?: { client: number; driver: number; save_to_client: boolean } };
+
+/** Caixa da espera além da tolerância: escolha clara entre cobrar e cortesia; sem valor cadastrado, pede o valor da hora parada ali mesmo. */
+function WaitBox({ it, busy, onSave }: { it: Item; busy: boolean; onSave: (b: WaitSave) => void }) {
+  const billable = Math.ceil((it.wait_minutes - it.wait_tolerance) / 5) * 5;
+  const hasRate = it.wait_client_rate != null && it.wait_client_rate > 0;
+  const [open, setOpen] = useState(false);
+  const [rc, setRc] = useState(it.wait_client_rate != null ? money(it.wait_client_rate) : "");
+  const [rd, setRd] = useState(it.wait_driver_rate != null ? money(it.wait_driver_rate) : "");
+  const [save, setSave] = useState(true);
+  const c = rc.trim() ? num(rc) : NaN;
+  const d = rd.trim() ? num(rd) : 0;
+  const prevC = Number.isFinite(c) ? Math.round((billable / 60) * c * 100) / 100 : null;
+  const prevD = Number.isFinite(d) ? Math.round((billable / 60) * d * 100) / 100 : null;
+  const charging = !it.wait_client_waived;
+  const showForm = open || (charging && !hasRate);
+  return (
+    <div className="mt-2 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-200">
+      <p className="font-semibold text-amber-900">
+        Espera passou da tolerância ({it.wait_tolerance} min): {billable} min a cobrar
+      </p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => (hasRate ? onSave({ waived: false }) : setOpen(true))}
+          className={`rounded-lg px-2 py-2 text-xs font-bold ring-1 ${charging ? "bg-[#111] text-prime-gold ring-[#111]" : "bg-white text-[#111] ring-amber-300"}`}
+        >
+          {charging ? "✓ " : ""}Cobrar do cliente
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onSave({ waived: true })}
+          className={`rounded-lg px-2 py-2 text-xs font-bold ring-1 ${!charging ? "bg-[#111] text-prime-gold ring-[#111]" : "bg-white text-[#111] ring-amber-300"}`}
+        >
+          {!charging ? "✓ " : ""}Não cobrar (cortesia)
+        </button>
+      </div>
+      <p className="mt-2 text-xs text-amber-900">
+        {!charging
+          ? "Cortesia: o cliente não paga a espera. O motorista recebe a espera mesmo assim."
+          : it.wait_charge > 0
+            ? `Cobrando ${brl(it.wait_charge)} do cliente${it.wait_driver_charge > 0 ? ` · motorista recebe +${brl(it.wait_driver_charge)}` : ""} (hora parada ${brl(it.wait_client_rate)}/h).`
+            : hasRate
+              ? it.client_amount == null
+                ? `Hora parada ${brl(it.wait_client_rate)}/h = ${brl(Math.round((billable / 60) * (it.wait_client_rate ?? 0) * 100) / 100)}. A corrida está sem valor: lance em “Corrigir antes de aprovar” já somando a espera.`
+                : `Hora parada ${brl(it.wait_client_rate)}/h. Clique em “Cobrar do cliente” para somar a espera.`
+              : "Falta o valor da hora parada deste cliente. Informe abaixo:"}
+      </p>
+      {showForm ? (
+        <div className="mt-2 grid gap-2 rounded-lg bg-white p-2.5 ring-1 ring-amber-200">
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs">
+              <span className="font-semibold">Cliente paga (R$ por hora)</span>
+              <input inputMode="decimal" value={rc} onChange={(e) => setRc(e.target.value)} placeholder="Ex.: 60,00" className="mt-1 w-full rounded-lg border border-prime-border px-2 py-1.5 text-sm" />
+            </label>
+            <label className="text-xs">
+              <span className="font-semibold">Motorista recebe (R$ por hora)</span>
+              <input inputMode="decimal" value={rd} onChange={(e) => setRd(e.target.value)} placeholder="Ex.: 40,00" className="mt-1 w-full rounded-lg border border-prime-border px-2 py-1.5 text-sm" />
+            </label>
+          </div>
+          {prevC != null ? (
+            <p className="text-xs text-prime-muted">
+              {billable} min = cliente {brl(prevC)}
+              {prevD ? ` · motorista ${brl(prevD)}` : ""}
+            </p>
+          ) : null}
+          <label className="flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={save} onChange={(e) => setSave(e.target.checked)} />
+            Usar este valor nas próximas corridas de {it.client}
+          </label>
+          <button
+            type="button"
+            disabled={busy || !Number.isFinite(c) || c <= 0}
+            onClick={() => onSave({ waived: false, rate: { client: c, driver: Number.isFinite(d) ? d : 0, save_to_client: save } })}
+            className="rounded-lg bg-[#111] px-3 py-2 text-xs font-bold text-prime-gold disabled:opacity-40"
+          >
+            {busy ? "Salvando…" : "Cobrar a espera com este valor"}
+          </button>
+        </div>
+      ) : hasRate && charging ? (
+        <button type="button" onClick={() => setOpen(true)} className="mt-1 text-xs font-semibold text-amber-900 underline">
+          Mudar o valor da hora parada
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 /** Fila de aprovação: toda corrida finalizada passa pelo gestor antes de ir para fatura e carteira. */
 export function TripApprovalQueue() {
@@ -107,12 +202,16 @@ export function TripApprovalQueue() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edit, form.km, form.wait, manual]);
 
-  async function setWaiver(it: Item, waived: boolean) {
+  /** Decisão da espera: cobrar (com o valor da hora parada) ou cortesia. A corrida continua na fila até você aprovar. */
+  async function saveWait(it: Item, b: WaitSave) {
     setBusy(it.id);
     setMsg(null);
     const r = await fetchWithSupabaseSession(
       `/api/trips/${it.id}/km-review`,
-      { method: "POST", body: JSON.stringify({ choice: "keep", wait_client_waived: waived }) },
+      {
+        method: "POST",
+        body: JSON.stringify({ choice: "keep", keep_pending: true, wait_client_waived: b.waived, ...(b.rate ? { wait_rate: b.rate } : {}) })
+      },
       "admin"
     ).catch(() => null);
     const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } }) : {};
@@ -121,7 +220,14 @@ export function TripApprovalQueue() {
       setMsg({ ok: false, text: j.error?.message ?? "Não foi possível salvar a decisão da espera." });
       return;
     }
-    setMsg({ ok: true, text: waived ? "Espera não será cobrada do cliente." : "Espera será cobrada do cliente." });
+    setMsg({
+      ok: true,
+      text: b.waived
+        ? "Espera não será cobrada do cliente (cortesia). O motorista recebe a espera."
+        : it.client_amount == null
+          ? "Valor da hora parada salvo. A corrida ainda está sem valor: clique em “Corrigir antes de aprovar” e lance o valor."
+          : "Espera somada ao valor do cliente e do motorista. Confira e aprove."
+    });
     await load();
   }
 
@@ -280,34 +386,7 @@ export function TripApprovalQueue() {
                   <p className="mt-1 text-sm text-prime-muted">{it.by_km ? "Sem KM do painel" : "Corrida de valor fixo (não depende de KM)"}</p>
                 )}
                 {it.wait_minutes > 0 ? <p className="mt-1 text-sm">⏱ Espera: {it.wait_minutes} min</p> : null}
-                {it.wait_minutes > it.wait_tolerance ? (
-                  <div className="mt-2 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-200">
-                    <p className="font-semibold text-amber-900">
-                      Espera passou da tolerância ({it.wait_tolerance} min): {Math.ceil((it.wait_minutes - it.wait_tolerance) / 5) * 5} min a cobrar
-                    </p>
-                    <p className="text-xs text-amber-900">
-                      {it.wait_client_waived ? "Decisão: não cobrar do cliente (cortesia). O motorista recebe a espera." : it.wait_charge > 0 ? `Hoje está cobrando ${brl(it.wait_charge)} do cliente.` : "Sem valor de hora parada cadastrado para este cliente/veículo."}
-                    </p>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        disabled={busy === it.id || !it.wait_client_waived}
-                        onClick={() => void setWaiver(it, false)}
-                        className="rounded-lg bg-[#111] px-2 py-2 text-xs font-bold text-prime-gold disabled:opacity-40"
-                      >
-                        Cobrar do cliente
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busy === it.id || it.wait_client_waived}
-                        onClick={() => void setWaiver(it, true)}
-                        className="rounded-lg bg-white px-2 py-2 text-xs font-semibold ring-1 ring-amber-300 disabled:opacity-40"
-                      >
-                        Não cobrar (cortesia)
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
+                {it.wait_minutes > it.wait_tolerance ? <WaitBox it={it} busy={busy === it.id} onSave={(b) => saveWait(it, b)} /> : null}
                 {it.planned_km ? <p className="mt-1 text-xs text-prime-muted">Previsto no mapa: {km(it.planned_km)}</p> : null}
               </section>
               <section className="px-5 py-4">

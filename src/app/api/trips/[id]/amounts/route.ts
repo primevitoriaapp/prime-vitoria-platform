@@ -31,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { data: trip } = await db
       .from("trips")
-      .select("id, client_amount, driver_amount, driver_id, operational_status")
+      .select("id, client_amount, driver_amount, driver_id, operational_status, calculation_metadata")
       .eq("id", id)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -43,7 +43,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { data: updated, error } = await db
       .from("trips")
-      .update({ client_amount: client, driver_amount: driver, margin })
+      .update({
+        client_amount: client,
+        driver_amount: driver,
+        margin,
+        // Valor digitado é o total fechado: a espera antiga não pode ser descontada/somada de novo num recálculo.
+        ...(trip.calculation_metadata && typeof trip.calculation_metadata === "object"
+          ? { calculation_metadata: { ...(trip.calculation_metadata as Record<string, unknown>), wait: undefined, valor_digitado: true } }
+          : {})
+      })
       .eq("id", id)
       .eq("tenant_id", tenantId)
       .select("id, client_amount, driver_amount, margin")

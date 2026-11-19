@@ -20,6 +20,47 @@ async function tripsBetween(tenantId: string, from: string, to: string) {
   return (data ?? []) as (MetricTrip & { id: string; scheduled_at: string })[];
 }
 
+
+type DashItem = { id: string; when: string; title: string; sub: string };
+type DashAlert = {
+  tone: "red" | "amber" | "blue";
+  text: string;
+  href: string;
+  kind?: "aprovar" | "sem_motorista" | "sem_valor";
+  count?: number;
+  title?: string;
+  hint?: string;
+  action?: string;
+  /** Para onde cada linha leva (padrão: a própria corrida). */
+  itemHref?: string;
+  items?: DashItem[];
+};
+
+/** Resumo de cada corrida para listar dentro do card (dia/hora, cliente, trajeto). */
+async function briefTrips(tenantId: string, ids: string[], clientName: Map<string, string>): Promise<Map<string, DashItem>> {
+  const uniq = [...new Set(ids)];
+  if (!uniq.length) return new Map();
+  const { data } = await db
+    .from("trips")
+    .select("id, scheduled_at, client_id, passenger_name, origin_text, destination_text")
+    .eq("tenant_id", tenantId)
+    .in("id", uniq);
+  const short = (t: unknown) => String(t ?? "").split(" - ")[0].split(",")[0].trim().slice(0, 32);
+  const when = (iso: string) =>
+    new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return new Map(
+    (data ?? []).map((t) => [
+      t.id as string,
+      {
+        id: t.id as string,
+        when: when(t.scheduled_at as string),
+        title: [clientName.get(t.client_id as string) ?? "Cliente", t.passenger_name].filter(Boolean).join(" · "),
+        sub: `${short(t.origin_text)} → ${short(t.destination_text)}`
+      }
+    ])
+  );
+}
+
 const showMoneyFor = (session: Awaited<ReturnType<typeof getSessionContext>>) => can(session, "finance.read") || session.role === "admin";
 
 export async function GET(request: Request) {
@@ -45,12 +86,14 @@ export async function GET(request: Request) {
       tripsBetween(tenantId, r.prevFrom, r.prevTo).then(inScope),
       db
         .from("trips")
-        .select("id", { count: "exact", head: true })
+        .select("id", { count: "exact" })
         .eq("tenant_id", tenantId)
         .is("driver_id", null)
         .in("operational_status", ["requested", "approved"])
         .gte("scheduled_at", now.toISOString())
-        .lt("scheduled_at", in24h),
+        .lt("scheduled_at", in24h)
+        .order("scheduled_at")
+        .limit(20),
       db
         .from("trips")
         .select("id", { count: "exact", head: true })
@@ -126,23 +169,56 @@ export async function GET(request: Request) {
       (clients.data ?? []).map((c) => [c.id as string, ((c.trade_name as string) || (c.name as string)) ?? "Cliente"])
     );
 
-    const alerts: { tone: "red" | "amber" | "blue"; text: string; href: string }[] = [];
+    const alerts: DashAlert[] = [];
     // Corridas finalizadas esperando a aprovação do gestor.
-    const { count: toApprove } = await db
+    const { data: approveRows, count: toApprove } = await db
       .from("trips")
-      .select("id", { count: "exact", head: true })
+      .select("id", { count: "exact" })
       .eq("tenant_id", tenantId)
       .eq("operational_status", "completed")
       .is("reviewed_at", null)
-      .gte("scheduled_at", new Date(Date.now() - 90 * 86400000).toISOString());
+      .gte("scheduled_at", new Date(Date.now() - 90 * 86400000).toISOString())
+      .order("scheduled_at")
+      .limit(20);
+    const noValueIds = currScoped
+      .filter((t) => t.operational_status === "completed" && !(Number(t.client_amount) > 0))
+      .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
+      .map((t) => t.id);
+    const brief = await briefTrips(
+      tenantId,
+      [...(approveRows ?? []).map((x) => x.id as string), ...(noDriver.data ?? []).map((x) => x.id as string), ...noValueIds.slice(0, 20)],
+      clientName
+    );
+    const pick = (ids: string[]) => ids.map((id) => brief.get(id)).filter((x): x is DashItem => Boolean(x)).slice(0, 4);
     if ((toApprove ?? 0) > 0)
-      alerts.push({ tone: "amber", text: `${toApprove} corrida(s) finalizada(s) esperando sua aprovação (KM e valores)`, href: "/conferencia" });
+      alerts.push({
+        tone: "amber",
+        text: `${toApprove} corrida(s) finalizada(s) esperando sua aprovação (KM e valores)`,
+        href: "/conferencia",
+        kind: "aprovar",
+        count: toApprove ?? 0,
+        title: "Aprovar corridas finalizadas",
+        hint: "Confira KM, espera e valores. Só depois a corrida entra na fatura e na carteira do motorista.",
+        action: "Conferir",
+        itemHref: "/conferencia",
+        items: pick((approveRows ?? []).map((x) => x.id as string))
+      });
     if ((pending.count ?? 0) > 0)
       alerts.push({ tone: "blue", text: `${pending.count} pedido(s) novo(s) esperando confirmação`, href: "/agenda?grupo=agendada&periodo=mes" });
     if ((driverReqs ?? 0) > 0)
       alerts.push({ tone: "amber", text: `${driverReqs} pedido(s) de motorista para aprovar (dados, foto, CNH, carro ou PIX)`, href: "/drivers#pedidos" });
     if ((noDriver.count ?? 0) > 0)
-      alerts.push({ tone: "red", text: `${noDriver.count} corrida(s) nos próximos 3 dias sem motorista`, href: "/agenda?grupo=agendada&periodo=semana" });
+      alerts.push({
+        tone: "red",
+        text: `${noDriver.count} corrida(s) nos próximos 3 dias sem motorista`,
+        href: "/agenda?grupo=agendada&periodo=semana",
+        kind: "sem_motorista",
+        count: noDriver.count ?? 0,
+        title: "Sem motorista (próximos 3 dias)",
+        hint: "Abra a corrida e escolha o motorista.",
+        action: "Escolher motorista",
+        items: pick((noDriver.data ?? []).map((x) => x.id as string))
+      });
     if ((stale.count ?? 0) > 0)
       alerts.push({ tone: "red", text: `${stale.count} corrida(s) que já passaram e não foram finalizadas`, href: "/agenda#esquecidas" });
     if ((expenses.data ?? []).length > 0)
@@ -152,7 +228,17 @@ export async function GET(request: Request) {
         href: `/agenda?trip=${(expenses.data ?? [])[0].trip_id}#trip-detail`
       });
     if (s.completedNoValue > 0)
-      alerts.push({ tone: "amber", text: `${s.completedNoValue} corrida(s) finalizada(s) sem valor no período`, href: "/agenda?grupo=finalizada&periodo=mes" });
+      alerts.push({
+        tone: "amber",
+        text: `${s.completedNoValue} corrida(s) finalizada(s) sem valor no período`,
+        href: noValueIds.length === 1 ? `/agenda?trip=${noValueIds[0]}#trip-detail` : "/agenda?grupo=finalizada&periodo=mes",
+        kind: "sem_valor",
+        count: s.completedNoValue,
+        title: "Finalizadas sem valor",
+        hint: "Sem valor a corrida não entra na fatura. Abra e lance quanto o cliente paga e quanto o motorista recebe.",
+        action: "Lançar valor",
+        items: pick(noValueIds)
+      });
     if (payablesOverdue > 0)
       alerts.push({ tone: "red", text: `${payablesOverdue} conta(s) da empresa vencida(s)`, href: "/contas-a-pagar" });
     if ((lowRatings.data ?? []).length > 0)

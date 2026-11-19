@@ -117,6 +117,17 @@ const bodySchema = z.object({
   recalc: z.boolean().optional(),
   /** true = não cobrar a espera do cliente (o motorista recebe mesmo assim). */
   wait_client_waived: z.boolean().optional(),
+  /** true = só ajusta a espera; a corrida continua na fila de aprovação. */
+  keep_pending: z.boolean().optional(),
+  /** Valor da hora parada (R$ por hora) quando o cliente/veículo não tem valor cadastrado. */
+  wait_rate: z
+    .object({
+      client: z.coerce.number().min(0).max(5000),
+      driver: z.coerce.number().min(0).max(5000),
+      /** true = grava também no cadastro do cliente para as próximas corridas. */
+      save_to_client: z.boolean().optional()
+    })
+    .optional(),
   odometer_start: z.union([z.string(), z.number()]).optional().nullable(),
   odometer_end: z.union([z.string(), z.number()]).optional().nullable(),
   km: z.coerce.number().positive().max(3000).optional()
@@ -160,9 +171,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     const now = new Date().toISOString();
     if (body.choice !== "keep") Object.assign(update, { actual_km: km, km_updated_at: now });
-    Object.assign(update, { reviewed_at: now, review_required: false });
+    if (!body.keep_pending) Object.assign(update, { reviewed_at: now, review_required: false });
     if (body.wait_minutes !== undefined) Object.assign(update, { wait_minutes: body.wait_minutes, wait_started_at: null });
     if (body.wait_client_waived !== undefined) update.wait_client_waived = body.wait_client_waived;
+    if (body.wait_rate) {
+      update.wait_rate_override = { client: body.wait_rate.client, driver: body.wait_rate.driver };
+      if (body.wait_rate.save_to_client) {
+        await db
+          .from("clients")
+          .update({ wait_client_price_per_hour: body.wait_rate.client, wait_driver_price_per_hour: body.wait_rate.driver })
+          .eq("id", t.client_id as string)
+          .eq("tenant_id", tenantId);
+      }
+    }
     const { error } = await db.from("trips").update(update).eq("id", id).eq("tenant_id", tenantId);
     if (error) return fail("KM_UPDATE_FAILED", error.message, 500);
 
@@ -199,6 +220,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         escolha: body.choice,
         ...(body.wait_minutes !== undefined ? { espera_antes: t.wait_minutes ?? 0, espera_depois: body.wait_minutes } : {}),
         ...(body.wait_client_waived !== undefined ? { espera_cobrada_do_cliente: !body.wait_client_waived } : {}),
+        ...(body.wait_rate ? { hora_parada_cliente: body.wait_rate.client, hora_parada_motorista: body.wait_rate.driver, salvo_no_cadastro: body.wait_rate.save_to_client === true } : {}),
         km_antes: t.km_billable ?? t.actual_km,
         km_depois: km,
         cliente_antes: t.client_amount,

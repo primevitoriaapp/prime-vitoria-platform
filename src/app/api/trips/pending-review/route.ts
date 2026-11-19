@@ -3,6 +3,7 @@ import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { clientRefFromNotes } from "@/lib/trips/client-ref";
+import { waitRateOverride } from "@/lib/pricing/apply-trip-pricing";
 
 /** Corridas finalizadas esperando a aprovação da central (KM e valores conferidos). */
 export async function GET() {
@@ -14,7 +15,7 @@ export async function GET() {
     const { data, error } = await db
       .from("trips")
       .select(
-        "id, scheduled_at, client_id, driver_id, service_mode, passenger_name, origin_text, destination_text, odometer_start, odometer_end, actual_km, km_billable, km_source, planned_km, wait_minutes, wait_client_waived, calculation_metadata, client_amount, driver_amount, review_required, review_reason, notes, timeline_overrides"
+        "id, scheduled_at, client_id, driver_id, service_mode, passenger_name, origin_text, destination_text, odometer_start, odometer_end, actual_km, km_billable, km_source, planned_km, wait_minutes, wait_client_waived, wait_rate_override, calculation_metadata, client_amount, driver_amount, review_required, review_reason, notes, timeline_overrides"
       )
       .eq("tenant_id", tenantId)
       .eq("operational_status", "completed")
@@ -27,7 +28,7 @@ export async function GET() {
     const cIds = [...new Set(rows.map((r) => r.client_id as string))];
     const dIds = [...new Set(rows.map((r) => r.driver_id as string).filter(Boolean))];
     const [{ data: cs }, { data: ds }] = await Promise.all([
-      cIds.length ? db.from("clients").select("id, name, trade_name, wait_tolerance_minutes").in("id", cIds) : Promise.resolve({ data: [] as { id: string; name: string; trade_name: string | null; wait_tolerance_minutes: number | null }[] }),
+      cIds.length ? db.from("clients").select("id, name, trade_name, wait_tolerance_minutes, wait_client_price_per_hour, wait_driver_price_per_hour").in("id", cIds) : Promise.resolve({ data: [] as { id: string; name: string; trade_name: string | null; wait_tolerance_minutes: number | null; wait_client_price_per_hour: number | null; wait_driver_price_per_hour: number | null }[] }),
       dIds.length ? db.from("drivers").select("id, full_name").in("id", dIds) : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] })
     ]);
     // Horários reais (app do motorista ou corrigidos pela central).
@@ -44,6 +45,15 @@ export async function GET() {
       ((r.timeline_overrides as Record<string, string> | null)?.[key] ?? firstAt.get(`${r.id}|${status}`)) || null;
     const cName = new Map((cs ?? []).map((c) => [c.id as string, ((c.trade_name as string | null) || (c.name as string)).trim()]));
     const cTol = new Map((cs ?? []).map((c) => [c.id as string, Number((c as { wait_tolerance_minutes?: number | null }).wait_tolerance_minutes ?? 10)]));
+    const cRate = new Map(
+      (cs ?? []).map((c) => [
+        c.id as string,
+        {
+          client: (c as { wait_client_price_per_hour?: number | null }).wait_client_price_per_hour,
+          driver: (c as { wait_driver_price_per_hour?: number | null }).wait_driver_price_per_hour
+        }
+      ])
+    );
     const dName = new Map((ds ?? []).map((d) => [d.id as string, (d.full_name as string | null) ?? "Motorista"]));
     return ok(
       rows.map((r) => {
@@ -69,6 +79,18 @@ export async function GET() {
           wait_tolerance: cTol.get(r.client_id as string) ?? 10,
           wait_client_waived: r.wait_client_waived === true,
           wait_charge: Number(((r.calculation_metadata as { wait?: { client_amount?: number } } | null)?.wait?.client_amount) ?? 0) || 0,
+          wait_driver_charge: Number(((r.calculation_metadata as { wait?: { driver_amount?: number } } | null)?.wait?.driver_amount) ?? 0) || 0,
+          ...(() => {
+            const ov = waitRateOverride(r.wait_rate_override);
+            const cr = cRate.get(r.client_id as string);
+            const cl = cr?.client == null ? null : Number(cr.client) || null;
+            const dr = cr?.driver == null ? null : Number(cr.driver) || null;
+            return {
+              wait_client_rate: ov.client ?? cl,
+              wait_driver_rate: ov.driver ?? dr,
+              wait_rate_source: ov.client != null ? "corrida" : cl != null ? "cliente" : null
+            };
+          })(),
           arrived_at: timeOf(r, "arrived", "local"),
           started_at: timeOf(r, "in_progress", "iniciada"),
           completed_at: timeOf(r, "completed", "finalizada"),

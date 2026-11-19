@@ -30,8 +30,21 @@ type Data = {
   activeDrivers: number;
   topClients: { id: string; name: string; trips: number; revenue: number | null }[];
   topDrivers: { id: string; name: string; trips: number }[];
-  alerts: { tone: "red" | "amber" | "blue"; text: string; href: string }[];
+  alerts: DashAlert[];
   series?: SeriesPoint[];
+};
+
+type DashAlert = {
+  tone: "red" | "amber" | "blue";
+  text: string;
+  href: string;
+  kind?: "aprovar" | "sem_motorista" | "sem_valor";
+  count?: number;
+  title?: string;
+  hint?: string;
+  action?: string;
+  itemHref?: string;
+  items?: { id: string; when: string; title: string; sub: string }[];
 };
 
 type NextTrip = {
@@ -98,6 +111,49 @@ function alertIcon(text: string): string {
   if (t.includes("veículo") || t.includes("motorista")) return ICONS.car;
   if (t.includes("cnh")) return ICONS.id;
   return ICONS.alert;
+}
+
+
+/** Card de ação: número grande, o que fazer, e as corridas em si (cada uma abre direto). */
+function ActionCard({ a }: { a: DashAlert }) {
+  const items = a.items ?? [];
+  const count = a.count ?? items.length;
+  const red = a.tone === "red";
+  return (
+    <section className={`flex flex-col overflow-hidden rounded-2xl border bg-white shadow-prime-card ${red ? "border-orange-300" : "border-[#E7D9B0]"}`}>
+      <header className={`flex items-start gap-3 px-4 py-3 ${red ? "bg-orange-50" : "bg-[#FBF6E9]"}`}>
+        <span className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-xl px-2 text-xl font-bold ${red ? "bg-orange-600 text-[#fff]" : "bg-[#111] text-prime-gold"}`}>{count}</span>
+        <div className="min-w-0">
+          <h3 className="text-[15px] font-semibold leading-tight" style={{ color: "#111" }}>
+            {a.title ?? a.text}
+          </h3>
+          {a.hint ? <p className="mt-0.5 text-xs leading-snug text-prime-muted">{a.hint}</p> : null}
+        </div>
+      </header>
+      <ul className="flex-1 divide-y divide-prime-border">
+        {items.map((it) => (
+          <li key={it.id}>
+            <Link
+              href={(a.itemHref ?? `/agenda?trip=${it.id}#trip-detail`) as Route}
+              className="group flex items-center gap-3 px-4 py-2.5 transition hover:bg-prime-bg/60"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-semibold capitalize text-prime-muted">{it.when}</span>
+                <span className="block truncate text-sm font-medium text-prime-text">{it.title}</span>
+                <span className="block truncate text-xs text-prime-muted">{it.sub}</span>
+              </span>
+              <span className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${red ? "bg-orange-600 text-[#fff]" : "bg-[#111] text-prime-gold"}`}>
+                {a.action ?? "Abrir"} →
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <Link href={a.href as Route} className="border-t border-prime-border px-4 py-2.5 text-center text-sm font-semibold text-prime-gold-ink hover:underline">
+        {count > items.length ? `Ver todas as ${count} →` : "Abrir a lista completa →"}
+      </Link>
+    </section>
+  );
 }
 
 const ALERT_TONE = {
@@ -247,21 +303,32 @@ export function DashboardOverview({ tenantId, showMoney }: { tenantId: string | 
     <div className="space-y-6">
       {error ? <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
 
-      {data && data.alerts.length > 0 ? (
+      {data && data.alerts.some((a) => a.items?.length) ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          {data.alerts
+            .filter((a) => a.items?.length)
+            .map((a) => (
+              <ActionCard key={a.text} a={a} />
+            ))}
+        </div>
+      ) : null}
+      {data && data.alerts.some((a) => !a.items?.length) ? (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {data.alerts.map((a) => (
-            <Link
-              key={a.text}
-              href={a.href as Route}
-              className="group flex items-center gap-4 rounded-2xl border border-prime-border bg-white px-4 py-3.5 shadow-prime-card transition hover:border-prime-gold"
-            >
-              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ALERT_TONE[a.tone]}`}>
-                <Icon d={alertIcon(a.text)} />
-              </span>
-              <span className="min-w-0 flex-1 text-[15px] font-medium leading-snug text-prime-text">{a.text}</span>
-              <span className="shrink-0 text-sm font-semibold text-prime-gold-ink group-hover:underline">Ver →</span>
-            </Link>
-          ))}
+          {data.alerts
+            .filter((a) => !a.items?.length)
+            .map((a) => (
+              <Link
+                key={a.text}
+                href={a.href as Route}
+                className="group flex items-center gap-4 rounded-2xl border border-prime-border bg-white px-4 py-3.5 shadow-prime-card transition hover:border-prime-gold"
+              >
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ALERT_TONE[a.tone]}`}>
+                  <Icon d={alertIcon(a.text)} />
+                </span>
+                <span className="min-w-0 flex-1 text-[15px] font-medium leading-snug text-prime-text">{a.text}</span>
+                <span className="shrink-0 text-sm font-semibold text-prime-gold-ink group-hover:underline">Ver →</span>
+              </Link>
+            ))}
         </div>
       ) : null}
 
