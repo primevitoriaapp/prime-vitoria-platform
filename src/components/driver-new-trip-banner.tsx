@@ -1,5 +1,6 @@
-import { BodyPortal } from "@/components/ui/body-portal";
 "use client";
+
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type Props = {
   origin: string;
