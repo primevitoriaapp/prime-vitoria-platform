@@ -165,13 +165,10 @@ input[type="datetime-local"]::-webkit-date-and-time-value {
     background: #fff;
   }
   table.pv-rtable td {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    display: flow-root;
     width: 100%;
     min-height: 34px;
-    padding: 6px 0 !important;
+    padding: 7px 0 !important;
     border: 0 !important;
     text-align: right !important;
     white-space: normal !important;
@@ -180,24 +177,30 @@ input[type="datetime-local"]::-webkit-date-and-time-value {
   table.pv-rtable td + td {
     border-top: 1px dashed #efeae0 !important;
   }
+  /* Nome da coluna à esquerda; o conteúdo (texto, blocos, botões) flui à direita. */
   table.pv-rtable td::before {
     content: attr(data-label);
-    flex: 0 0 auto;
-    max-width: 45%;
+    float: left;
+    width: 38%;
+    margin-right: 12px;
     text-align: left;
     font-size: 12px;
     font-weight: 600;
+    line-height: 1.35;
     color: #6f6a60;
+    overflow-wrap: normal;
+  }
+  /* Célula sem nome de coluna (ex.: título de grupo, botões): ocupa a largura toda. */
+  table.pv-rtable td[data-label=""],
+  table.pv-rtable td:not([data-label]) {
+    display: block;
+    text-align: left !important;
   }
   table.pv-rtable td[data-label=""]::before,
   table.pv-rtable td:not([data-label])::before {
     display: none;
   }
-  table.pv-rtable td[data-label=""] {
-    justify-content: flex-start;
-    text-align: left !important;
-  }
-  /* Botões da linha ficam lado a lado e quebram linha se precisar. */
+  /* Botões e etiquetas da linha ficam lado a lado e quebram linha se precisar. */
   table.pv-rtable td > div,
   table.pv-rtable td > span {
     flex-wrap: wrap;
