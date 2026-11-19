@@ -26,6 +26,7 @@ import { DriverPassengerLink } from "@/components/driver-passenger-link";
 import { DriverTripExpenses } from "@/components/trip-expenses";
 import { fmtRating, tripTags, type DriverSummary } from "@/components/driver-app-home";
 import type { ReactNode } from "react";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 const ACTIVE: TripOperationalStatus[] = [
   "dispatched",
@@ -481,7 +482,7 @@ export function DriverTripsPanel({
     ) : null}
 
     {geoBlock ? (
-      <div className="fixed inset-0 z-[95] flex items-end justify-center bg-black/50 p-3 sm:items-center" role="dialog" aria-modal="true">
+      <BodyPortal><div className="fixed inset-0 z-[95] flex items-end justify-center bg-black/50 p-3 sm:items-center" role="dialog" aria-modal="true">
         <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-[28px] bg-white p-5 pb-[calc(20px+env(safe-area-inset-bottom))] shadow-2xl">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FBF3E0] text-2xl" aria-hidden>
             📍
@@ -539,7 +540,7 @@ export function DriverTripsPanel({
             Voltar
           </button>
         </div>
-      </div>
+      </div></BodyPortal>
     ) : null}
 
     <div className={hidden ? "hidden" : "space-y-5"}>
@@ -661,7 +662,7 @@ export function DriverTripsPanel({
 
           {/* Detalhes completos da corrida */}
           {detailOpen && primaryTrip ? (
-            <div className="fixed inset-0 z-[70] flex flex-col bg-black/30" role="dialog" aria-modal="true">
+            <BodyPortal><div className="fixed inset-0 z-[70] flex flex-col bg-black/30" role="dialog" aria-modal="true">
               <button type="button" aria-label="Fechar" className="min-h-[10dvh] flex-1" onClick={() => setDetailOpen(false)} />
               <div className="max-h-[90dvh] overflow-y-auto rounded-t-[28px] bg-[#F1F0EC] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3">
                 <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#D9D3C5]" />
@@ -707,7 +708,7 @@ export function DriverTripsPanel({
                   </button>
                 </div>
               </div>
-            </div>
+            </div></BodyPortal>
           ) : null}
         </>
       ) : null}
@@ -729,7 +730,7 @@ export function DriverTripsPanel({
       ) : null}
 
       {otherTrip ? (
-        <div className="fixed inset-0 z-[75] flex flex-col bg-black/30" role="dialog" aria-modal="true">
+        <BodyPortal><div className="fixed inset-0 z-[75] flex flex-col bg-black/30" role="dialog" aria-modal="true">
           <button type="button" aria-label="Fechar" className="min-h-[10dvh] flex-1" onClick={() => setOtherTripId(null)} />
           <div className="max-h-[90dvh] overflow-y-auto rounded-t-[28px] bg-[#F1F0EC] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3">
             <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#D9D3C5]" />
@@ -784,7 +785,7 @@ export function DriverTripsPanel({
               </button>
             </div>
           </div>
-        </div>
+        </div></BodyPortal>
       ) : null}
 
       {sheet && !geoBlock && trips.find((t) => t.id === sheet.tripId) ? (

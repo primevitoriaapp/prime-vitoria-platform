@@ -75,7 +75,7 @@ export function NotificationsBell({
         ) : null}
       </button>
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 max-h-[70vh] w-[min(420px,calc(100vw-32px))] overflow-y-auto rounded-2xl border border-prime-border bg-white p-2 shadow-xl">
+        <div className="absolute right-0 z-50 mt-2 max-h-[70dvh] w-[min(420px,calc(100vw-32px))] overflow-y-auto rounded-2xl border border-prime-border bg-white p-2 shadow-xl">
           <div className="mb-2">
             <PushSetup audience="central" compact />
           </div>

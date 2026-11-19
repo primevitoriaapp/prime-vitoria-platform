@@ -15,6 +15,7 @@ import { QuoteRouteEditor, emptyPoint, type RoutePoint } from "@/components/quot
 import { QUOTE_STATUS, effectiveQuoteStatus, formatQuoteNumber, isDiaria, itemHours, itemsMissingForTrips, priceKeyFor, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
 import { COMPANY_SCOPES, inCompany, useCompany } from "@/lib/company/company-context";
 import { formatBrDateTime, saoPauloDateAndTimeToUtcIso } from "@/lib/dates/br-date";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type QuoteRow = {
   id: string;
@@ -893,7 +894,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       {!locked ? <QuotePrepayFields prepaid={prepaid} onPrepaid={setPrepaid} value={prepay} onChange={setPrepay} total={totals.total} /> : null}
 
       {/* Barra de ações sempre visível no rodapé: não precisa rolar para aprovar. */}
-      <div className="sticky bottom-0 z-30 -mx-4 border-t border-prime-border bg-white/95 px-4 py-3 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur lg:-mx-8 lg:px-8">
+      <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 -mx-4 md:bottom-0 border-t border-prime-border bg-white/95 px-4 py-3 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur lg:-mx-8 lg:px-8">
         {msg ? <p className={`mb-2 rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-800"}`}>{msg.text}</p> : null}
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-auto text-sm">
@@ -1015,8 +1016,8 @@ function QuoteMailDialog({
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+(\s*[,;]\s*[^\s@]+@[^\s@]+\.[^\s@]+)*$/.test(to.trim());
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl">
+    <BodyPortal><div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]" role="dialog" aria-modal="true">
+      <div className="w-full max-w-lg space-y-3 max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain rounded-2xl bg-white p-5 shadow-2xl">
         <h3 className="text-lg font-semibold">Enviar orçamento por e-mail</h3>
         <label className="grid gap-1 text-sm">
           <span>Para (separe vários com vírgula)</span>
@@ -1046,6 +1047,6 @@ function QuoteMailDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div></BodyPortal>
   );
 }

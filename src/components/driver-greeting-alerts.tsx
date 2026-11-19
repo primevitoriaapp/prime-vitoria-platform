@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type Data = { first_name: string; birthday: "today" | "yesterday" | null; alerts: { level: string; text: string }[] };
 
@@ -43,8 +44,8 @@ export function DriverGreetingAlerts() {
 
   if (showBday) {
     return (
-      <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
-        <div className="w-full max-w-sm overflow-hidden rounded-3xl bg-[#111] text-center shadow-2xl">
+      <BodyPortal><div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/60 p-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]" role="dialog" aria-modal="true">
+        <div className="w-full max-w-sm max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain rounded-3xl bg-[#111] text-center shadow-2xl">
           <div className="px-6 pb-2 pt-8">
             <p className="text-6xl">🎉</p>
             <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-prime-gold">Prime Vitória</p>
@@ -71,15 +72,15 @@ export function DriverGreetingAlerts() {
             </button>
           </div>
         </div>
-      </div>
+      </div></BodyPortal>
     );
   }
 
   if (showDocs) {
     const bad = d.alerts.some((a) => a.level !== "atencao");
     return (
-      <div className="fixed inset-0 z-[84] flex items-end justify-center bg-black/50 p-3 sm:items-center" role="dialog" aria-modal="true">
-        <div className="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl">
+      <BodyPortal><div className="fixed inset-0 z-[84] flex items-end justify-center bg-black/50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center" role="dialog" aria-modal="true">
+        <div className="w-full max-w-md max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 shadow-2xl">
           <p className={`text-lg font-bold ${bad ? "text-red-700" : "text-amber-800"}`}>{bad ? "⚠ Documento vencendo" : "Lembrete de documento"}</p>
           <ul className="mt-2 grid gap-1 text-[15px]">
             {d.alerts.map((a, i) => (
@@ -100,7 +101,7 @@ export function DriverGreetingAlerts() {
             Entendi
           </button>
         </div>
-      </div>
+      </div></BodyPortal>
     );
   }
   return null;

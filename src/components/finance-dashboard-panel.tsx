@@ -389,7 +389,7 @@ export function FinanceDashboardPanel() {
           >
             {d.clients.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="pv-rtable w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs uppercase text-prime-muted">
                       <th className="py-2">Cliente</th>

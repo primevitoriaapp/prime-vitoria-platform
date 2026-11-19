@@ -9,6 +9,7 @@ import { BoletoReader } from "@/components/boleto-reader";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { inCompany, useCompany, companyLabel } from "@/lib/company/company-context";
 import { PAYABLE_CATEGORIES, categoryLabel, payableSituation, type PayableSituation } from "@/lib/finance/company-payables-calc";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type Row = {
   id: string;
@@ -225,8 +226,8 @@ export function CompanyPayablesPanel() {
   return (
     <section className="space-y-4">
       {payRow ? (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-3 sm:items-center" role="dialog" aria-modal="true">
-          <div className="grid w-full max-w-md gap-3 rounded-2xl bg-white p-5 shadow-2xl" onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT" && e.preventDefault()}>
+        <BodyPortal><div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center" role="dialog" aria-modal="true">
+          <div className="grid w-full max-w-md gap-3 max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain rounded-2xl bg-white p-5 shadow-2xl" onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT" && e.preventDefault()}>
             <p className="text-base font-semibold">Dar baixa: {payRow.description}</p>
             <div className="grid grid-cols-2 gap-3">
               <label className="grid gap-1 text-sm">
@@ -279,7 +280,7 @@ export function CompanyPayablesPanel() {
               </button>
             </div>
           </div>
-        </div>
+        </div></BodyPortal>
       ) : null}
       {company !== "todas" ? (
         <p className="rounded-xl bg-[#111] px-4 py-2 text-sm text-[#fff]">
@@ -394,7 +395,7 @@ export function CompanyPayablesPanel() {
       {msg ? <p className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-800"}`}>{msg.text}</p> : null}
 
       <div className="overflow-x-auto rounded-2xl border border-prime-border bg-white shadow-prime-card">
-        <table className="w-full min-w-[820px] text-sm">
+        <table className="pv-rtable w-full min-w-[820px] text-sm">
           <thead>
             <tr className="text-left">
               <th className="px-3 py-2">Vencimento</th>

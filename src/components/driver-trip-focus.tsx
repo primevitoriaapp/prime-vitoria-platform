@@ -22,6 +22,7 @@ import { ReceptiveSignButton, needsReceptiveSign } from "@/components/receptive-
 import { DriverHomeMap, MapSafe } from "@/components/driver-home-map";
 import { SwipeToConfirm } from "@/components/swipe-to-confirm";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 const TZ = "America/Sao_Paulo";
 
@@ -231,7 +232,7 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
   const mapPoint = target.lat != null && target.lng != null ? { lat: Number(target.lat), lng: Number(target.lng) } : null;
 
   return (
-    <div className={`fixed inset-0 z-[60] flex flex-col ${night ? "bg-[#2A2D33]" : "bg-[#E8E4DA]"}`}>
+    <BodyPortal><div className={`fixed inset-0 z-[60] flex flex-col ${night ? "bg-[#2A2D33]" : "bg-[#E8E4DA]"}`}>
       {/* Mapa */}
       <div className="absolute inset-x-0 top-0 h-[42dvh]" style={night ? { filter: "invert(0.92) hue-rotate(180deg) brightness(0.85) contrast(0.9)" } : undefined}>
         <MapSafe>
@@ -439,7 +440,7 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
       {sheet ? (
         <div className="fixed inset-0 z-[90] flex flex-col justify-end bg-black/45" role="dialog" aria-modal="true" aria-label={sheet.title}>
           <button type="button" aria-label="Fechar" className="flex-1" onClick={() => setSheet(null)} />
-          <div className={`rounded-t-[28px] px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 ${c.sheetBg}`}>
+          <div className={`max-h-[90dvh] overflow-y-auto overscroll-contain rounded-t-[28px] px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 ${c.sheetBg}`}>
             <div className="mx-auto max-w-lg">
               <p className="text-lg font-bold">{sheet.title}</p>
               <div className="mt-3 grid gap-2">
@@ -467,7 +468,7 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
           </div>
         </div>
       ) : null}
-    </div>
+    </div></BodyPortal>
   );
 }
 

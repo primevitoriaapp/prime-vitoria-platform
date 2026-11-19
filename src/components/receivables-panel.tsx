@@ -148,7 +148,7 @@ export function ReceivablesPanel({ tenantId, devFallbackRole = "financeiro" }: P
         <p className="mt-3 text-sm text-slate-500">Sem títulos ({total} no total).</p>
       ) : (
         <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="pv-rtable w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
                 <th className="py-2 pr-2">Vencimento</th>

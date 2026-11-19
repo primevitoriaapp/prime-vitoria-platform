@@ -47,14 +47,14 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
             </span>
           </span>
         </a>
-        <nav className="hidden items-center gap-7 md:flex" aria-label="Seções">
+        <nav className="hidden items-center gap-7 lg:flex" aria-label="Seções">
           {LINKS.map(([h, l]) => (
             <a key={h} href={h} className="text-sm font-medium transition hover:opacity-70" style={{ color: dark ? "#111" : "#fff" }}>
               {l}
             </a>
           ))}
         </nav>
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <Langs lang={lang} dark={dark} />
           <a
           href={SITE.phoneHref}
@@ -101,7 +101,7 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
             {T.agendar}
           </Link>
         </div>
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2 lg:hidden">
         <a
           href={SITE.phoneHref}
           aria-label={SITE_TEXT[lang].footer.ligar}
@@ -115,7 +115,7 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className={`flex h-10 w-10 items-center justify-center rounded-full md:hidden ${dark ? "bg-[#F4F1EA]" : "bg-white/15 backdrop-blur"}`}
+          className={`flex h-10 w-10 items-center justify-center rounded-full lg:hidden ${dark ? "bg-[#F4F1EA]" : "bg-white/15 backdrop-blur"}`}
           aria-label={open ? "Fechar menu" : "Abrir menu"}
           aria-expanded={open}
         >
@@ -126,7 +126,7 @@ export function SiteNav({ lang }: { lang: SiteLang }) {
         </div>
       </div>
       {open ? (
-        <div className="border-t border-[#ECE7DB] bg-white px-5 pb-6 pt-2 md:hidden">
+        <div className="max-h-[calc(100dvh-4.5rem-env(safe-area-inset-top))] overflow-y-auto overscroll-contain border-t border-[#ECE7DB] bg-white px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2 lg:hidden">
           {LINKS.map(([h, l]) => (
             <a key={h} href={h} onClick={() => setOpen(false)} className="block border-b border-[#F2EEE6] py-3.5 text-base text-[#111]">
               {l}

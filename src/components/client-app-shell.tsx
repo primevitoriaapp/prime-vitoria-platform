@@ -15,6 +15,7 @@ import { PrimeLogoMark } from "@/components/prime-logo-mark";
 import { OperationalRealtimeBridge } from "@/components/operational-realtime-bridge";
 import { isClientPortalReadOnly } from "@/lib/client/portal-config";
 import { logoutAction } from "@/app/login/actions";
+import { ResponsiveTables } from "@/components/ui/responsive-tables";
 
 type ClientOption = { id: string; name: string; type?: string };
 type Tab = "inicio" | "pedir" | "corridas" | "financeiro" | "equipe";
@@ -184,6 +185,7 @@ export function ClientAppShell({
 
   return (
     <div className="min-h-screen bg-[#F4F2EE] pb-28 text-prime-text sm:pb-10">
+      <ResponsiveTables />
       <OperationalRealtimeBridge tenantId={tenantId} />
 
       <header className="sticky top-0 z-40 border-b border-[#ECE7DB] bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur">

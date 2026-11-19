@@ -85,7 +85,7 @@ export function ProfileClientScopePanel() {
     <div className="space-y-4">
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="min-w-full text-left text-sm">
+        <table className="pv-rtable min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
             <tr>
               <th className="px-3 py-2">Nome</th>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type M = {
   id: string;
@@ -68,8 +69,8 @@ export function DriverMessagePopup() {
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="Aviso da central">
-      <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+    <BodyPortal><div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center" role="dialog" aria-modal="true" aria-label="Aviso da central">
+      <div className="w-full max-w-md max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain rounded-3xl bg-white shadow-2xl">
         <div className="bg-[#111] px-5 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-prime-gold">📣 Aviso da central</p>
           <p className="mt-1 text-xl font-bold" style={{ color: "#fff" }}>
@@ -100,7 +101,7 @@ export function DriverMessagePopup() {
           {queue.length > 1 ? <p className="text-center text-xs text-[#6B6F76]">Mais {queue.length - 1} aviso(s) depois deste</p> : null}
         </div>
       </div>
-    </div>
+    </div></BodyPortal>
   );
 }
 

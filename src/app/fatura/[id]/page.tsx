@@ -15,6 +15,7 @@ import { loadInvoiceDetail } from "@/lib/finance/invoice-detail";
 import { InvoiceOverview } from "@/components/invoice-overview";
 import { invoicePixCharge } from "@/lib/finance/invoice-charge";
 import { DocHeader, DocRoute } from "@/components/docs/prime-doc";
+import { ResponsiveTables } from "@/components/ui/responsive-tables";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +77,8 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
   const td: React.CSSProperties = { padding: "7px 6px", fontSize: 12, borderBottom: "1px solid #EEE9DC", verticalAlign: "top" };
 
   return (
-    <main style={{ background: "#F4F1EA", minHeight: "100vh", padding: "24px 12px" }} className="invoice-root">
+    <main style={{ background: "#F4F1EA", minHeight: "100dvh", padding: "24px 12px" }} className="invoice-root">
+      <ResponsiveTables />
       <style>{`
         @media print {
           .invoice-root { background: #fff !important; padding: 0 !important; }
@@ -201,7 +203,7 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
 
         <section style={{ padding: "4px 24px 24px", overflowX: "auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", margin: "6px 0 8px" }}>Relatório das corridas</div>
-          <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 760 }}>
+          <table className="pv-rtable" style={{ borderCollapse: "collapse", width: "100%", minWidth: 760 }}>
             <thead>
               <tr>
                 <th style={th}>Data</th>

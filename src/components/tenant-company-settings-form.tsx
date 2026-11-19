@@ -209,7 +209,7 @@ export function TenantCompanySettingsForm() {
         </p>
       </section>
 
-      <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl bg-white/95 p-3 shadow-prime-card ring-1 ring-prime-border">
+      <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 md:bottom-3 flex flex-wrap items-center gap-3 rounded-2xl bg-white/95 p-3 shadow-prime-card ring-1 ring-prime-border">
         <button type="submit" disabled={busy} className="rounded-xl bg-[#111] px-5 py-2.5 text-sm font-bold text-prime-gold disabled:opacity-50">
           {busy ? "Salvando…" : "Salvar"}
         </button>

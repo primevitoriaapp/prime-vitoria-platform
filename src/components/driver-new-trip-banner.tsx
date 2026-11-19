@@ -1,3 +1,4 @@
+import { BodyPortal } from "@/components/ui/body-portal";
 "use client";
 
 type Props = {
@@ -8,9 +9,9 @@ type Props = {
 
 export function DriverNewTripBanner({ origin, destination, onDismiss }: Props) {
   return (
-    <div
+    <BodyPortal><div
       role="alert"
-      className="fixed inset-x-0 top-0 z-50 border-b border-amber-400/60 bg-amber-950 px-4 py-3 shadow-lg"
+      className="fixed inset-x-0 top-0 z-[96] border-b border-amber-400/60 bg-amber-950 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-lg"
     >
       <div className="mx-auto flex max-w-3xl items-start justify-between gap-3">
         <div className="min-w-0">
@@ -30,6 +31,6 @@ export function DriverNewTripBanner({ origin, destination, onDismiss }: Props) {
           Fechar
         </button>
       </div>
-    </div>
+    </div></BodyPortal>
   );
 }

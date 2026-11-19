@@ -229,7 +229,7 @@ function PayoutGroupCard({
       {expanded ? (
         <div className="border-t border-prime-border p-4">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="pv-rtable w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase text-prime-muted">
                   <th className="w-8 py-2" />

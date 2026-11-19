@@ -304,7 +304,7 @@ export function ClientReportPanel() {
           {error ? <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
 
           <div className="overflow-x-auto rounded-2xl border border-prime-border bg-white shadow-prime-card">
-            <table className="w-full min-w-[960px] text-sm">
+            <table className="pv-rtable w-full min-w-[960px] text-sm">
               <thead className="bg-prime-bg text-left text-xs uppercase tracking-wide text-prime-muted">
                 <tr>
                   <th className="px-3 py-2">Data</th>

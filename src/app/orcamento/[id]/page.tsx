@@ -6,6 +6,7 @@ import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { loadQuoteDoc } from "@/lib/quotes/quote-document";
 import { QuoteClientResponse } from "@/components/quote-client-response";
 import { DocHeader, DocRoute } from "@/components/docs/prime-doc";
+import { ResponsiveTables } from "@/components/ui/responsive-tables";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +68,8 @@ export default async function OrcamentoPage({
   const btn: React.CSSProperties = { borderRadius: 8, padding: "9px 14px", fontWeight: 600, fontSize: 14, textDecoration: "none", display: "inline-block" };
 
   return (
-    <main style={{ background: "#F4F1EA", minHeight: "100vh", padding: "24px 12px" }} className="quote-root">
+    <main style={{ background: "#F4F1EA", minHeight: "100dvh", padding: "24px 12px" }} className="quote-root">
+      <ResponsiveTables />
       <style>{`
         @media print {
           .quote-root { background: #fff !important; padding: 0 !important; }
@@ -123,7 +125,7 @@ export default async function OrcamentoPage({
 
         <section style={{ padding: "0 26px 10px" }}>
           <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-          <table style={{ width: "100%", minWidth: 560, borderCollapse: "collapse" }}>
+          <table className="pv-rtable" style={{ width: "100%", minWidth: 560, borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <th style={{ ...th, width: 70 }}>Hora</th>

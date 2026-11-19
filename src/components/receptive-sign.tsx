@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 /** Mostra o botão quando a corrida pede placa/receptivo ou o embarque é em aeroporto. */
 export { needsReceptiveSign } from "@/lib/operations/receptive-sign-rule";
@@ -43,7 +44,7 @@ export function ReceptiveSignButton({ name, className }: { name: string | null |
         🪧 Abrir placa de receptivo
       </button>
       {open ? (
-        <div className="fixed inset-0 z-[200] flex flex-col bg-white" role="dialog" aria-label="Placa de receptivo">
+        <BodyPortal><div className="fixed inset-0 z-[200] flex flex-col bg-white" role="dialog" aria-label="Placa de receptivo">
           <div className="flex flex-1 flex-col items-center justify-center gap-[3vh] px-[4vw] text-center" onClick={() => !editing && setEditing(false)}>
             {logoOk ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -78,7 +79,7 @@ export function ReceptiveSignButton({ name, className }: { name: string | null |
             </button>
           </div>
           <p className="pointer-events-none absolute left-0 right-0 top-2 text-center text-xs text-[#AAA] landscape:hidden">Vire o celular para a placa ficar maior</p>
-        </div>
+        </div></BodyPortal>
       ) : null}
     </>
   );

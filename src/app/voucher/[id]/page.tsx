@@ -16,6 +16,7 @@ import { parseDropoffStops } from "@/lib/trips/trip-dropoff-stops";
 import { clientRefFromNotes } from "@/lib/trips/client-ref";
 import { shortAddress } from "@/lib/client/short-address";
 import { DOC_GOLD, DOC_LABEL, DOC_TD, DOC_TH, DocHeader, DocInfoGrid, DocRoute, DocSheet, docPrintCss, type RoutePoint } from "@/components/docs/prime-doc";
+import { ResponsiveTables } from "@/components/ui/responsive-tables";
 
 export const dynamic = "force-dynamic";
 
@@ -118,7 +119,8 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
   const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
-    <main style={{ background: "#F4F1EA", minHeight: "100vh", padding: "24px 12px" }} className="voucher-root">
+    <main style={{ background: "#F4F1EA", minHeight: "100dvh", padding: "24px 12px" }} className="voucher-root">
+      <ResponsiveTables />
       <style>{docPrintCss("voucher-root", "voucher-sheet", "voucher-actions")}</style>
 
       <div className="voucher-actions" style={{ maxWidth: 900, margin: "0 auto 12px", display: "flex", gap: 8, justifyContent: "space-between" }}>
@@ -170,7 +172,7 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
 
         <section style={{ padding: "4px 24px 18px", overflowX: "auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", margin: "6px 0 8px" }}>Serviço</div>
-          <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 620 }}>
+          <table className="pv-rtable" style={{ borderCollapse: "collapse", width: "100%", minWidth: 620 }}>
             <thead>
               <tr>
                 <th style={DOC_TH}>Data</th>

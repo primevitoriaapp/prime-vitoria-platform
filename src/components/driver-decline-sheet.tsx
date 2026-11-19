@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 const REASONS = ["Imprevisto pessoal", "Problema com o carro", "Conflito de horário", "Estou longe do local", "Toquei sem querer em aceitar"];
 
@@ -45,9 +46,9 @@ export function DriverDeclineButton({
         Não posso fazer esta corrida
       </button>
       {open ? (
-        <div className="fixed inset-0 z-[90] flex flex-col justify-end bg-black/40" role="dialog" aria-modal="true">
+        <BodyPortal><div className="fixed inset-0 z-[90] flex flex-col justify-end bg-black/40" role="dialog" aria-modal="true">
           <button type="button" aria-label="Voltar" className="flex-1" onClick={() => !busy && setOpen(false)} />
-          <div className="rounded-t-[28px] bg-white px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4">
+          <div className="max-h-[90dvh] overflow-y-auto overscroll-contain rounded-t-[28px] bg-white px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4">
             <div className="mx-auto max-w-lg">
               <p className="text-lg font-bold text-[#111]">Recusar esta corrida?</p>
               <p className="mt-1 text-sm text-[#6B6F76]">Ela sai da sua agenda e volta para a central escolher outro motorista. A central é avisada na hora.</p>
@@ -89,7 +90,7 @@ export function DriverDeclineButton({
               </div>
             </div>
           </div>
-        </div>
+        </div></BodyPortal>
       ) : null}
     </>
   );

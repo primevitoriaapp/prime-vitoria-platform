@@ -284,7 +284,7 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
   return (
     <section className={full ? "grid gap-3 lg:grid-cols-[1fr_340px] lg:items-start" : "space-y-3"}>
       <div className="overflow-hidden rounded-xl border border-prime-border bg-white shadow-prime-card">
-        <div ref={mapEl} style={{ height: full ? "calc(100vh - 220px)" : 420, minHeight: 420 }} />
+        <div ref={mapEl} style={{ height: full ? "calc(100dvh - 220px)" : 420, minHeight: 360 }} />
         <div className="flex flex-wrap items-center gap-2 border-t border-prime-border px-4 py-3 text-xs">
           {counts.map(({ s, n }) => {
             const off = hidden.has(s);

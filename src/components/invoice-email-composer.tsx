@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type Draft = {
   to: string[];
@@ -80,8 +81,8 @@ export function InvoiceEmailComposer({
 
   const field = "w-full rounded-lg border border-prime-border bg-white px-3 py-2 text-sm";
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-3 sm:items-center" role="dialog" aria-modal="true">
-      <div className="max-h-[94dvh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+    <BodyPortal><div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center" role="dialog" aria-modal="true">
+      <div className="max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overscroll-contain w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <header className="flex items-center justify-between border-b border-prime-border px-5 py-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">{tipo === "lembrete" ? "Enviar lembrete de pagamento" : "Enviar fatura por e-mail"}</p>
@@ -167,6 +168,6 @@ export function InvoiceEmailComposer({
           </div>
         )}
       </div>
-    </div>
+    </div></BodyPortal>
   );
 }

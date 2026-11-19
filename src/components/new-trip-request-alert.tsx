@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatBrDateTime } from "@/lib/dates/br-date";
 import { shortPlaceLabel } from "@/lib/trips/format-place-label";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type Props = {
   /** Tenant da sessão; sem tenant não subscreve. */
@@ -261,7 +262,7 @@ export function NewTripRequestAlert({ tenantId }: Props) {
       </button>
 
       {alerts.length ? (
-        <div
+        <BodyPortal><div
           className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-[95] flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2 md:bottom-4"
           role="status"
           aria-live="polite"
@@ -300,7 +301,7 @@ export function NewTripRequestAlert({ tenantId }: Props) {
               </Link>
             </div>
           ))}
-        </div>
+        </div></BodyPortal>
       ) : null}
     </>
   );

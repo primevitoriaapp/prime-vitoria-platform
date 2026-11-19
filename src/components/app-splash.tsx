@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PrimeLogoMark } from "@/components/prime-logo-mark";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 /** Abertura do app (uma vez por sessão): fundo preto, logo girando e o nome da Prime. */
 export function AppSplash({ area = "Transporte executivo" }: { area?: string }) {
@@ -28,7 +29,7 @@ export function AppSplash({ area = "Transporte executivo" }: { area?: string }) 
 
   if (!show) return null;
   return (
-    <div
+    <BodyPortal><div
       className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#0B0B0B] transition-opacity duration-500"
       style={{ opacity: leaving ? 0 : 1 }}
       aria-hidden
@@ -48,6 +49,6 @@ export function AppSplash({ area = "Transporte executivo" }: { area?: string }) 
       <p className="mt-2 text-[12px] uppercase tracking-[0.32em]" style={{ color: "#C9A84C", animation: "pvUp .6s 1.1s both" }}>
         {area}
       </p>
-    </div>
+    </div></BodyPortal>
   );
 }

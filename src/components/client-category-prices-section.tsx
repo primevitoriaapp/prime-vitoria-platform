@@ -127,7 +127,7 @@ export function ClientCategoryPricesSection({ clientId, disabled }: { clientId: 
               </button>
               {isOpen ? (
                 <div className="overflow-x-auto border-t border-prime-border p-3">
-                  <table className="w-full min-w-[520px] text-sm">
+                  <table className="pv-rtable w-full min-w-[520px] text-sm">
                     <thead>
                       <tr className="text-left text-xs uppercase text-prime-muted">
                         <th className="pb-2">Liberar</th>

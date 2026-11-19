@@ -118,7 +118,7 @@ export function OpenPeriodCard() {
                   {isOpen ? (
                     <div className="grid gap-3 bg-prime-bg/40 px-5 pb-5 pt-2">
                       <div className="overflow-x-auto rounded-xl border border-prime-border bg-white">
-                        <table className="w-full min-w-[640px] text-sm">
+                        <table className="pv-rtable w-full min-w-[640px] text-sm">
                           <thead>
                             <tr className="bg-prime-bg text-left text-[11px] uppercase tracking-wide text-prime-muted">
                               <th className="px-3 py-2">Data</th>

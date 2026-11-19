@@ -8,6 +8,7 @@ import { DriverMessagesList } from "@/components/driver-messages-inbox";
 import { InstallAppCard } from "@/components/install-app-card";
 import { PushSetup } from "@/components/push-setup";
 import { fmtRating, type DriverSummary } from "@/components/driver-app-home";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type Me = {
   profile_name: string | null;
@@ -65,7 +66,7 @@ export function DriverProfileMenu({ me, summary, pinCard }: { me: Me | null; sum
 
   if (current)
     return (
-      <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#F6F4EF] pb-[calc(2rem+env(safe-area-inset-bottom))]">
+      <BodyPortal><div className="fixed inset-0 z-[60] overflow-y-auto bg-[#F6F4EF] pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <div className="sticky top-0 z-10 bg-[#F6F4EF]/95 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur">
           <div className="mx-auto flex max-w-lg items-center gap-3">
             <button type="button" onClick={() => setOpen(null)} aria-label="Voltar" className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
@@ -86,7 +87,7 @@ export function DriverProfileMenu({ me, summary, pinCard }: { me: Me | null; sum
           ) : null}
           {open === "pin" ? pinCard : null}
         </div>
-      </div>
+      </div></BodyPortal>
     );
 
   const v = me?.vehicle;

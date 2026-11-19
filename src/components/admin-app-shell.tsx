@@ -17,6 +17,7 @@ import { CompanyProvider } from "@/lib/company/company-context";
 import { PendingRequestsPill } from "@/components/pending-requests-pill";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { papelUsuarioPt } from "@/lib/i18n/pt-br";
+import { ResponsiveTables } from "@/components/ui/responsive-tables";
 
 const NAV = [
   { href: "/dashboard", label: "Início", icon: "▣", group: "Operação" },
@@ -189,14 +190,15 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <CompanyProvider>
-    <div className="admin-theme flex h-dvh flex-col overflow-hidden bg-prime-bg text-prime-text">
+    <div className="admin-theme flex min-h-dvh flex-col overflow-x-clip bg-prime-bg text-prime-text md:h-dvh md:overflow-hidden">
+      <ResponsiveTables />
       <div className="flex min-h-0 flex-1">
         <aside className="prime-sidebar hidden h-full w-64 shrink-0 flex-col overflow-hidden border-r border-[#ECE7DB] bg-prime-sidebar md:flex print:hidden">
           {sidebarBody}
         </aside>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="z-40 shrink-0 border-b border-prime-border bg-prime-card/95 backdrop-blur print:hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-x-clip md:min-h-0 md:overflow-hidden">
+          <header className="sticky top-0 z-40 shrink-0 border-b border-prime-border bg-prime-card/95 pt-[env(safe-area-inset-top)] backdrop-blur md:static md:pt-0 print:hidden">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 md:py-3 lg:px-8">
               <div className="flex min-w-0 items-center gap-2 md:hidden">
                 <button
@@ -247,7 +249,7 @@ export function AdminAppShell({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-4 md:pb-8 md:pt-7 lg:px-10 lg:py-9 print:overflow-visible">
+          <main className="flex-1 px-4 pb-4 pt-4 md:min-h-0 md:overflow-y-auto md:overscroll-contain md:pb-8 md:pt-7 lg:px-10 lg:py-9 print:overflow-visible">
             <div className="mx-auto w-full max-w-[1440px]">
             {session && !showFullNav && !isFinanceiro ? (
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { InvoiceEmailComposer } from "@/components/invoice-email-composer";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type Inv = {
   id: string;
@@ -382,8 +383,8 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
       ) : null}
 
       {payOpen ? (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-3 sm:items-center" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+        <BodyPortal><div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain rounded-2xl bg-white p-5 shadow-2xl">
             <h3 className="text-lg font-semibold">Confirmar pagamento</h3>
             <p className="text-sm text-prime-muted">A data do pagamento define quando os motoristas parceiros recebem (data + conciliação, em dia útil).</p>
             <div className="mt-4 grid gap-3">
@@ -419,7 +420,7 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
               </button>
             </div>
           </div>
-        </div>
+        </div></BodyPortal>
       ) : null}
 
       {msg ? <p className={`text-sm ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p> : null}

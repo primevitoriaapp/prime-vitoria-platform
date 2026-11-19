@@ -6,6 +6,7 @@ import type { Trip } from "@/lib/domain/types";
 import { odometerDistance, parseOdometer } from "@/lib/trips/odometer";
 import { DriverSignaturePad } from "@/components/driver-signature-pad";
 import { DriverPassengerListStep } from "@/components/driver-passenger-list-step";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type Extra = { odometer_start?: string; odometer_end?: string };
 type SigState = { required: boolean; done: boolean };
@@ -85,8 +86,8 @@ export function DriverFinishSheet({
   const canSaveSig = skip ? reason.trim().length >= 3 : signer.trim().length >= 2 && Boolean(image);
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 sm:items-center" role="dialog" aria-modal="true">
-      <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-[#1F1F22] p-5 text-[#F5F5F5] shadow-2xl sm:rounded-3xl">
+    <BodyPortal><div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 sm:items-center" role="dialog" aria-modal="true">
+      <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl bg-[#1F1F22] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] text-[#F5F5F5] shadow-2xl sm:rounded-3xl">
         <h2 className="text-lg font-semibold">{mode === "start" ? "Iniciar corrida" : "Finalizar corrida"}</h2>
         <p className="mt-1 text-sm text-[#AAAAAA]">{trip.passenger_name ?? "Passageiro"}</p>
 
@@ -203,6 +204,6 @@ export function DriverFinishSheet({
           </p>
         ) : null}
       </div>
-    </div>
+    </div></BodyPortal>
   );
 }

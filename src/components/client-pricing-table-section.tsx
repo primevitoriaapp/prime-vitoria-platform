@@ -179,7 +179,7 @@ export function ClientPricingTableSection({ clientId, disabled }: Props) {
         (referência: km mínimo para cobrança por km).
       </p>
       <div className="overflow-x-auto rounded-prime-card border border-prime-border bg-prime-card shadow-prime-card">
-        <table className="w-full min-w-[880px] text-left text-sm">
+        <table className="pv-rtable w-full min-w-[880px] text-left text-sm">
           <thead>
             <tr className="border-b border-prime-border text-xs uppercase tracking-wide text-prime-muted">
               <th className="px-2 py-2">Tipo de serviço</th>
