@@ -235,7 +235,12 @@ export function TripApprovalQueue() {
     setBusy(id);
     const r = await fetchWithSupabaseSession(`/api/trips/${id}/review`, { method: "POST" }, "admin");
     setBusy(null);
-    if (!silent) setMsg(r.ok ? { ok: true, text: "Corrida aprovada. Motorista e cliente veem “Confirmada pela central”." } : { ok: false, text: "Não foi possível aprovar." });
+    if (!silent)
+      setMsg(
+        r.ok
+          ? { ok: true, text: "Corrida aprovada. Motorista e cliente veem “Confirmada pela central”." }
+          : { ok: false, text: `Não foi possível aprovar (erro ${r.status}). Atualize a página e tente de novo.` }
+      );
     return r.ok;
   }
 
@@ -400,16 +405,28 @@ export function TripApprovalQueue() {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-prime-muted">3 · Sua decisão</p>
                 <button
                   type="button"
-                  disabled={busy === it.id || it.client_amount == null}
+                  disabled={busy === it.id}
                   onClick={() => {
+                    if (
+                      it.client_amount == null &&
+                      !window.confirm(
+                        "Esta corrida está SEM VALOR.\n\nSe aprovar assim, ela entra na fatura com R$ 0 e o motorista não terá valor a receber.\n\nPara cobrar, cancele e use “Corrigir antes de aprovar”. Aprovar sem valor mesmo assim?"
+                      )
+                    )
+                      return;
                     void approve(it.id).then(async (okk) => {
                       if (okk) await load();
                     });
                   }}
                   className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-[#fff] disabled:opacity-50"
                 >
-                  ✓ Aprovar como está
+                  {busy === it.id ? "Aprovando…" : it.client_amount == null ? "✓ Aprovar sem valor" : "✓ Aprovar como está"}
                 </button>
+                {it.client_amount == null ? (
+                  <p className="text-xs leading-snug text-amber-800">
+                    Sem valor: {it.client} não tem preço cadastrado para esta categoria. Lance o valor em “Corrigir antes de aprovar” ou cadastre os preços do cliente.
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
