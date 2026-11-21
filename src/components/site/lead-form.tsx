@@ -93,6 +93,11 @@ export function LeadForm({ kind }: { kind: Kind }) {
     }
     setCompleteUrl(j.data?.completeUrl ?? null);
     setDone(true);
+    // Motorista segue direto para as 8 etapas do cadastro completo, sem esperar link da central.
+    if (kind === "motorista" && j.data?.completeUrl) {
+      const url = j.data.completeUrl;
+      setTimeout(() => window.location.assign(url), 1200);
+    }
     try {
       (window as unknown as { fbq?: (...a: unknown[]) => void }).fbq?.("track", "Lead", { content_name: kind });
       (window as unknown as { gtag?: (...a: unknown[]) => void }).gtag?.("event", "generate_lead", { lead_type: kind });
@@ -105,17 +110,17 @@ export function LeadForm({ kind }: { kind: Kind }) {
     return (
       <div className="rounded-[28px] bg-white p-8 text-center shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#111] text-2xl text-[#D9BC6A]">✓</span>
-        <h3 className="mt-4 font-prime-serif text-2xl text-[#111]">Cadastro recebido!</h3>
+        <h3 className="mt-4 font-prime-serif text-2xl text-[#111]">{kind === "motorista" && completeUrl ? "Etapa 1 concluída!" : "Cadastro recebido!"}</h3>
         <p className="mt-2 text-[15px] leading-relaxed text-[#6F6A60]">
           {kind === "motorista"
             ? completeUrl
-              ? "Agora falta a 2ª etapa: o cadastro completo, com documentos e dados do veículo. Leva cerca de 10 minutos e você pode continuar depois pelo mesmo link."
+              ? "Abrindo o cadastro completo (documentos, veículo e dados de pagamento). Seus dados já vão preenchidos. Leva cerca de 10 minutos."
               : "Nossa equipe vai analisar seus dados e chamar você no WhatsApp para os próximos passos."
             : "Um consultor da Prime Vitória vai falar com você em até 1 dia útil para entender a necessidade da sua empresa."}
         </p>
         {kind === "motorista" && completeUrl ? (
           <a href={completeUrl} className="mt-6 inline-block w-full rounded-full bg-[#111] px-6 py-4 text-base font-semibold text-[#D9BC6A]">
-            Continuar para o cadastro completo →
+            Continuar agora →
           </a>
         ) : null}
       </div>
