@@ -29,7 +29,7 @@ type QuoteRow = {
   created_at: string;
 };
 type Category = { id: string; name: string; passengers: number; allows_km?: boolean; active?: boolean };
-type Client = { id: string; name: string; trade_name?: string | null; type: string; billing_issuer?: string | null; email?: string | null };
+type Client = { id: string; name: string; trade_name?: string | null; type: string; billing_issuer?: string | null; email?: string | null; phone?: string | null };
 type PriceRow = { category_id: string; service: string; enabled: boolean; client_price: number | null; partner_price: number | null };
 type Item = {
   vehicle_category_id: string;
@@ -120,6 +120,13 @@ const HOUR_CHIPS = [4, 5, 6, 8, 10, 12, 15];
 
 const DEFAULT_CONDITIONS =
   "Valores válidos para os serviços e datas descritos. Hora parada, pedágio e estacionamento, quando houver, são cobrados à parte. Cancelamento sem custo até 24 horas antes do serviço.";
+
+/** Número para o wa.me: só dígitos, com 55 quando é celular/fixo brasileiro sem DDI. */
+function waPhone(raw: string): string {
+  const d = String(raw ?? "").replace(/\D/g, "");
+  if (d.length === 10 || d.length === 11) return `55${d}`;
+  return d.length >= 12 ? d : "";
+}
 
 async function api<T>(url: string, init?: RequestInit) {
   const res = await fetchWithSupabaseSession(url, init ?? {}, "admin");
@@ -275,6 +282,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [mailOpen, setMailOpen] = useState(false);
+  const [share, setShare] = useState<{ loading?: boolean; error?: string; link?: string; number: string; total: number; copied?: boolean } | null>(null);
   const [clientResponse, setClientResponse] = useState<string | null>(null);
 
   useEffect(() => {
@@ -475,6 +483,25 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
     setMsg({ ok: true, text: "Orçamento salvo." });
     if (!id) onSaved(r.data.id);
     return r.data.id;
+  }
+
+  /** Salva, pega o link público e abre as opções de envio (WhatsApp, e-mail, copiar, PDF). */
+  async function openShare() {
+    setShare({ loading: true, number: "", total: totals.total });
+    const saved = await save();
+    if (!saved) return setShare(null);
+    const r = await api<{ link: string; number: string; total: number }>(`/api/quotes/${saved}/share`);
+    if (!r.ok || !r.data) return setShare({ error: r.error ?? "Não consegui gerar o link.", number: "", total: totals.total });
+    setShare({ link: r.data.link, number: r.data.number, total: r.data.total });
+  }
+
+  function shareText(sh: { link?: string; number: string; total: number }) {
+    const first = (contact.name || clients.find((c) => c.id === clientId)?.trade_name || "").trim().split(" ")[0];
+    return `Olá${first ? `, ${first}` : ""}! Aqui é da Prime Vitória. Segue o seu orçamento ${sh.number} (total ${brl(sh.total)}):\n${sh.link}\n\nPelo link você vê todos os detalhes, aprova e pode salvar em PDF. Qualquer dúvida, é só responder aqui.`;
+  }
+
+  async function markSent() {
+    if (status === "rascunho") await setQuoteStatus("enviado");
   }
 
   async function setQuoteStatus(s: string, reason?: string) {
@@ -916,55 +943,126 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       {/* Barra de ações sempre visível no rodapé: não precisa rolar para aprovar. */}
       <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 -mx-4 md:bottom-0 border-t border-prime-border bg-white/95 px-4 py-3 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur lg:-mx-8 lg:px-8">
         {msg ? <p className={`mb-2 rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-800"}`}>{msg.text}</p> : null}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <span className="mr-auto text-sm">
             Total <strong className="text-lg">{brl(totals.total)}</strong>
             <span className="ml-2 text-xs text-prime-muted">margem {totals.total > 0 ? `${Math.round((totals.margin / totals.total) * 100)}%` : "—"}</span>
           </span>
           {!locked ? (
-            <>
-              <button type="button" disabled={busy} className="btn-primary disabled:opacity-50" onClick={() => void save()}>
-                {busy ? "Salvando…" : "Salvar"}
+            <button type="button" disabled={busy} className="btn-primary disabled:opacity-50" onClick={() => void save()}>
+              {busy ? "Salvando…" : "Salvar"}
+            </button>
+          ) : null}
+        </div>
+        {!locked ? (
+          id ? (
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <button
+                type="button"
+                disabled={busy}
+                className="col-span-2 rounded-lg bg-[#111] px-4 py-2.5 text-sm font-semibold text-prime-gold disabled:opacity-50 sm:col-span-1"
+                onClick={() => void openShare()}
+              >
+                📤 Enviar ao cliente
               </button>
-              {id ? (
-                <>
-                  <a href={`/api/quotes/${id}/pdf`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white px-4 py-2 text-sm font-semibold ring-1 ring-prime-border hover:ring-prime-gold">
-                    PDF
-                  </a>
-                  <button type="button" disabled={busy} className="rounded-lg bg-white px-4 py-2 text-sm font-semibold ring-1 ring-prime-border hover:ring-prime-gold" onClick={() => setMailOpen(true)}>
+              <button type="button" disabled={busy} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-[#fff] hover:bg-emerald-700" onClick={() => void approve()}>
+                ✓ Cliente aprovou
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                className="rounded-lg px-4 py-2.5 text-sm text-red-700 ring-1 ring-red-200 hover:bg-red-50"
+                onClick={() => {
+                  const reason = window.prompt("Motivo da recusa (preço, data, fechou com outro…):");
+                  if (reason !== null) void setQuoteStatus("recusado", reason);
+                }}
+              >
+                Recusado
+              </button>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-prime-muted">Salve para gerar o PDF, enviar e aprovar.</p>
+          )
+        ) : (
+          <a href={`/api/quotes/${id}/pdf`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold ring-1 ring-prime-border">
+            Abrir PDF
+          </a>
+        )}
+      </div>
+
+      {share && id ? (
+        <BodyPortal>
+          <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center" onClick={() => setShare(null)}>
+            <div
+              className="max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl bg-white p-5 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold">Enviar orçamento {share.number}</h3>
+              <p className="mt-1 text-sm text-prime-muted">
+                O cliente abre o link, vê tudo, aprova e pode salvar em PDF. Total {brl(share.total)}.
+              </p>
+              {share.loading ? <p className="mt-4 text-sm">Preparando o link…</p> : null}
+              {share.error ? <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{share.error}</p> : null}
+              {share.link ? (
+                <div className="mt-4 grid gap-2">
+                  {waPhone(contact.phone || clients.find((c) => c.id === clientId)?.phone || "") ? (
+                    <a
+                      href={`https://wa.me/${waPhone(contact.phone || clients.find((c) => c.id === clientId)?.phone || "")}?text=${encodeURIComponent(shareText(share))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => void markSent()}
+                      className="rounded-xl bg-[#25D366] px-4 py-3 text-center text-sm font-semibold text-[#fff]"
+                    >
+                      WhatsApp de {(contact.name || clients.find((c) => c.id === clientId)?.trade_name || "cliente").split(" ")[0]}
+                    </a>
+                  ) : (
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(shareText(share))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => void markSent()}
+                      className="rounded-xl bg-[#25D366] px-4 py-3 text-center text-sm font-semibold text-[#fff]"
+                    >
+                      WhatsApp (escolher contato)
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShare(null);
+                      setMailOpen(true);
+                    }}
+                    className="rounded-xl px-4 py-3 text-sm font-semibold ring-1 ring-prime-border"
+                  >
                     ✉ Enviar por e-mail
-                  </button>
-                  {status !== "enviado" ? (
-                    <button type="button" disabled={busy} className="rounded-lg bg-white px-4 py-2 text-sm ring-1 ring-prime-border hover:ring-prime-gold" onClick={() => void setQuoteStatus("enviado")}>
-                      Marcar como enviado
-                    </button>
-                  ) : null}
-                  <button type="button" disabled={busy} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-[#fff] hover:bg-emerald-700" onClick={() => void approve()}>
-                    ✓ Cliente aprovou
                   </button>
                   <button
                     type="button"
-                    disabled={busy}
-                    className="rounded-lg px-4 py-2 text-sm text-red-700 ring-1 ring-red-200 hover:bg-red-50"
-                    onClick={() => {
-                      const reason = window.prompt("Motivo da recusa (preço, data, fechou com outro…):");
-                      if (reason !== null) void setQuoteStatus("recusado", reason);
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(shareText(share));
+                        setShare({ ...share, copied: true });
+                      } catch {
+                        window.prompt("Copie a mensagem:", shareText(share));
+                      }
+                      void markSent();
                     }}
+                    className="rounded-xl px-4 py-3 text-sm font-semibold ring-1 ring-prime-border"
                   >
-                    Recusado
+                    {share.copied ? "✓ Mensagem copiada" : "Copiar mensagem com o link"}
                   </button>
-                </>
-              ) : (
-                <span className="text-xs text-prime-muted">Salve para gerar o PDF, enviar e aprovar.</span>
-              )}
-            </>
-          ) : (
-            <a href={`/api/quotes/${id}/pdf`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white px-4 py-2 text-sm font-semibold ring-1 ring-prime-border">
-              Abrir PDF
-            </a>
-          )}
-        </div>
-      </div>
+                  <a href={`/api/quotes/${id}/pdf`} target="_blank" rel="noopener noreferrer" className="rounded-xl px-4 py-3 text-center text-sm font-semibold ring-1 ring-prime-border">
+                    Abrir / baixar PDF
+                  </a>
+                </div>
+              ) : null}
+              <button type="button" onClick={() => setShare(null)} className="mt-3 w-full rounded-xl px-4 py-2.5 text-sm text-prime-muted">
+                Fechar
+              </button>
+            </div>
+          </div>
+        </BodyPortal>
+      ) : null}
 
       {mailOpen && id ? (
         <QuoteMailDialog
