@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
-type Contract = { id: string; title: string; status: "pendente" | "assinado" | "recusado" | "cancelado"; sign_url: string | null; created_at: string; signed_at: string | null };
+type Signer = { name: string; email?: string | null; status?: string | null; sign_url?: string | null; signed_at?: string | null };
+type Contract = { id: string; title: string; status: "pendente" | "assinado" | "recusado" | "cancelado"; sign_url: string | null; created_at: string; signed_at: string | null; signers?: Signer[] | null };
 type Field = { variable: string; value: string };
 type Data = {
   connected: boolean;
@@ -37,6 +38,17 @@ export function QuoteContractCard({ quoteId }: { quoteId: string }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  // Outros assinantes (você e testemunhas): lembrados neste navegador para não digitar de novo.
+  const [others, setOthers] = useState<{ name: string; email: string; role: string }[]>([]);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("pv-contract-extra-signers");
+      if (raw) setOthers(JSON.parse(raw));
+      else setOthers([{ name: "", email: "", role: "Contratada" }, { name: "", email: "", role: "Testemunha" }, { name: "", email: "", role: "Testemunha" }]);
+    } catch {
+      setOthers([{ name: "", email: "", role: "Contratada" }, { name: "", email: "", role: "Testemunha" }, { name: "", email: "", role: "Testemunha" }]);
+    }
+  }, []);
 
   const load = useCallback(
     async (template?: string) => {
@@ -63,9 +75,20 @@ export function QuoteContractCard({ quoteId }: { quoteId: string }) {
     if (!signer.name.trim() || (!signer.email.trim() && !signer.phone.trim())) return setMsg({ ok: false, text: "Informe o nome e o e-mail ou WhatsApp de quem assina." });
     setBusy(true);
     setMsg(null);
+    try {
+      window.localStorage.setItem("pv-contract-extra-signers", JSON.stringify(others));
+    } catch {
+      /* sem memória neste navegador: tudo bem */
+    }
     const r = await fetchWithSupabaseSession(
       `/api/quotes/${quoteId}/contract`,
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ template_id: tpl, fields, signer: { name: signer.name, email: signer.email || null, phone: signer.phone || null } }) },
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          template_id: tpl,
+          fields,
+          signer: { name: signer.name, email: signer.email || null, phone: signer.phone || null },
+          others: others.filter((o) => o.name.trim()).map((o) => ({ name: o.name.trim(), email: o.email.trim() || null, role: o.role }))
+        })
+      },
       "admin"
     ).catch(() => null);
     const j = r ? await r.json().catch(() => ({})) : {};
@@ -76,14 +99,14 @@ export function QuoteContractCard({ quoteId }: { quoteId: string }) {
     await load();
   }
 
-  async function copy(c: Contract) {
-    if (!c.sign_url) return;
+  async function copyUrl(key: string, url: string | null | undefined) {
+    if (!url) return;
     try {
-      await navigator.clipboard.writeText(c.sign_url);
-      setCopied(c.id);
+      await navigator.clipboard.writeText(url);
+      setCopied(key);
       setTimeout(() => setCopied(null), 2000);
     } catch {
-      window.prompt("Copie o link:", c.sign_url);
+      window.prompt("Copie o link:", url);
     }
   }
 
@@ -118,23 +141,41 @@ export function QuoteContractCard({ quoteId }: { quoteId: string }) {
                   {c.signed_at ? ` em ${new Date(c.signed_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}
                 </span>
               </span>
-              {c.status === "pendente" && c.sign_url ? (
-                <span className="flex flex-wrap gap-1.5">
-                  <button type="button" onClick={() => void copy(c)} className="rounded-lg bg-[#111] px-3 py-1 text-xs font-semibold text-prime-gold">
-                    {copied === c.id ? "✓ Copiado" : "Copiar link"}
-                  </button>
-                  <a
-                    href={`https://wa.me/?text=${encodeURIComponent(`Segue o contrato do seu serviço com a Prime Vitória para assinatura digital: ${c.sign_url}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-lg px-3 py-1 text-xs font-semibold ring-1 ring-prime-border"
-                  >
-                    WhatsApp
-                  </a>
-                  <button type="button" onClick={() => void load(tpl)} className="rounded-lg px-3 py-1 text-xs ring-1 ring-prime-border">
-                    Atualizar situação
-                  </button>
-                </span>
+              {c.status === "pendente" ? (
+                <button type="button" onClick={() => void load(tpl)} className="rounded-lg px-3 py-1 text-xs ring-1 ring-prime-border">
+                  Atualizar situação
+                </button>
+              ) : null}
+              {c.status === "pendente" ? (
+                <ul className="mt-1 grid w-full gap-1.5">
+                  {(c.signers?.length ? c.signers : [{ name: "Contratante", sign_url: c.sign_url, status: null }]).map((sg, i) => {
+                    const done = sg.status === "signed";
+                    const key = `${c.id}-${i}`;
+                    return (
+                      <li key={key} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-prime-bg px-2.5 py-2">
+                        <span className="min-w-0 text-xs">
+                          <span className="block truncate font-semibold text-prime-text">{sg.name || `Assinante ${i + 1}`}</span>
+                          <span className={done ? "text-emerald-700" : "text-prime-muted"}>{done ? "✓ Assinou" : "Falta assinar"}</span>
+                        </span>
+                        {!done && sg.sign_url ? (
+                          <span className="flex gap-1.5">
+                            <button type="button" onClick={() => void copyUrl(key, sg.sign_url)} className="rounded-lg bg-[#111] px-3 py-1 text-xs font-semibold text-prime-gold">
+                              {copied === key ? "✓ Copiado" : "Copiar link"}
+                            </button>
+                            <a
+                              href={`https://wa.me/?text=${encodeURIComponent(`Segue o contrato da Prime Vitória para assinatura digital: ${sg.sign_url}`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="rounded-lg px-3 py-1 text-xs font-semibold ring-1 ring-prime-border"
+                            >
+                              WhatsApp
+                            </a>
+                          </span>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : null}
             </li>
           ))}
@@ -174,6 +215,36 @@ export function QuoteContractCard({ quoteId }: { quoteId: string }) {
                   <span>{l}</span>
                   <input className="rounded-lg border border-prime-border bg-white px-2 py-2 text-sm" value={signer[k]} onChange={(e) => setSigner({ ...signer, [k]: e.target.value })} onKeyDown={(e) => e.key === "Enter" && e.preventDefault()} />
                 </label>
+              ))}
+            </div>
+            <div className="grid gap-2 rounded-lg bg-white p-2.5 ring-1 ring-prime-border">
+              <p className="text-sm font-semibold">Outros assinantes (você e testemunhas)</p>
+              <p className="text-[11px] text-prime-muted">Cada um recebe o próprio link. Ficam salvos neste aparelho para os próximos contratos. Deixe o nome vazio para não incluir.</p>
+              {others.map((o, i) => (
+                <div key={i} className="grid gap-1.5 sm:grid-cols-[1fr_1fr_auto]">
+                  <input
+                    className="rounded-lg border border-prime-border px-2 py-1.5 text-sm"
+                    placeholder={`Nome (${o.role})`}
+                    value={o.name}
+                    onChange={(e) => setOthers((l) => l.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)))}
+                    onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                  />
+                  <input
+                    className="rounded-lg border border-prime-border px-2 py-1.5 text-sm"
+                    placeholder="E-mail (opcional)"
+                    value={o.email}
+                    onChange={(e) => setOthers((l) => l.map((x, k) => (k === i ? { ...x, email: e.target.value } : x)))}
+                    onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                  />
+                  <select
+                    className="rounded-lg border border-prime-border bg-white px-2 py-1.5 text-sm"
+                    value={o.role}
+                    onChange={(e) => setOthers((l) => l.map((x, k) => (k === i ? { ...x, role: e.target.value } : x)))}
+                  >
+                    <option>Contratada</option>
+                    <option>Testemunha</option>
+                  </select>
+                </div>
               ))}
             </div>
             {fields.length ? (

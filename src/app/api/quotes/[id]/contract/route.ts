@@ -4,7 +4,7 @@ import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
-import { zapsignCreateFromTemplate, zapsignListTemplates, zapsignTemplateVariables, zapsignToken } from "@/lib/integrations/zapsign";
+import { zapsignAddSigner, zapsignCreateFromTemplate, zapsignListTemplates, zapsignTemplateVariables, zapsignToken } from "@/lib/integrations/zapsign";
 import { partySignUrl, syncPending, type ContractRow } from "@/lib/contracts/contracts";
 import { CLIENT_CONTRACT_TEMPLATE_NAME, maybeAutoApproveQuote, quoteContractValues } from "@/lib/contracts/quote-contract";
 
@@ -55,7 +55,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 const bodySchema = z.object({
   template_id: z.string().min(5).max(100),
   fields: z.array(z.object({ variable: z.string().max(120), value: z.string().max(3000) })).max(300),
-  signer: z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().max(200).nullable().optional(), phone: z.string().trim().max(30).nullable().optional() })
+  signer: z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().max(200).nullable().optional(), phone: z.string().trim().max(30).nullable().optional() }),
+  /** Outros assinantes: a Prime (contratada) e testemunhas. Cada um recebe o próprio link. */
+  others: z
+    .array(z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().max(200).nullable().optional(), role: z.string().trim().max(40).optional() }))
+    .max(4)
+    .optional()
 });
 
 /** Gera o contrato na ZapSign com os dados conferidos e devolve o link de assinatura do cliente. */
@@ -74,7 +79,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       data: b.fields.filter((f) => f.value.trim()).map((f) => ({ de: f.variable, para: f.value })),
       externalId: `quote:${id}`
     });
-    const signers = (doc.signers ?? []).map((s) => ({ name: s.name, email: s.email ?? null, status: s.status, sign_url: s.sign_url ?? null, signed_at: null }));
+    const signers: { name: string; email: string | null; status?: string; sign_url: string | null; signed_at: null; role?: string }[] = (doc.signers ?? []).map((s) => ({
+      name: s.name,
+      email: s.email ?? null,
+      status: s.status,
+      sign_url: s.sign_url ?? null,
+      signed_at: null,
+      role: "Contratante"
+    }));
+    for (const o of b.others ?? []) {
+      try {
+        const added = await zapsignAddSigner(doc.token, { name: o.name, email: o.email || null, role: o.role });
+        signers.push({ name: added.name ?? o.name, email: added.email ?? o.email ?? null, status: added.status ?? "new", sign_url: added.sign_url ?? null, signed_at: null, role: o.role });
+      } catch {
+        signers.push({ name: o.name, email: o.email ?? null, status: "erro", sign_url: null, signed_at: null, role: o.role });
+      }
+    }
     const { data: row, error } = await db
       .from("contracts")
       .insert({
