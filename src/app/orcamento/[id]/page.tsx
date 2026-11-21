@@ -237,7 +237,15 @@ export default async function OrcamentoPage({
           </section>
         ) : null}
 
-        {viaLink && t ? <QuoteClientResponse quoteId={id} token={t} status={q.status as string} defaultName={clientName === "Cliente" ? "" : clientName} /> : null}
+        {viaLink && t ? <QuoteClientResponse
+            quoteId={id}
+            token={t}
+            status={q.status as string}
+            defaultName={clientName === "Cliente" ? "" : clientName}
+            needsData={!q.client_id}
+            defaultEmail={String(q.contact_email ?? "")}
+            defaultPhone={String(q.contact_phone ?? "")}
+          /> : null}
 
         <footer style={{ borderTop: `2px solid ${GOLD}`, padding: "14px 26px 20px", fontSize: 12, color: "#555" }}>
           {viaLink ? "Dúvidas? Fale com a central." : "Para aprovar, responda este orçamento por WhatsApp ou e-mail."} {d.issuer.phone ? `Central: ${d.issuer.phone}. ` : ""}

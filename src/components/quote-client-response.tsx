@@ -3,7 +3,62 @@
 import { useState } from "react";
 
 /** No link do orçamento: o cliente aprova com um clique ou pede ajuste. */
-export function QuoteClientResponse({ quoteId, token, status, defaultName }: { quoteId: string; token: string; status: string; defaultName: string }) {
+type Contratante = { nome: string; cpf: string; email: string; telefone: string; cep: string; endereco: string; numero: string; complemento: string; bairro: string; cidade: string; uf: string };
+
+const cpfMask = (v: string) =>
+  v
+    .replace(/\D/g, "")
+    .slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+const cepMask = (v: string) => v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+
+export function QuoteClientResponse({
+  quoteId,
+  token,
+  status,
+  defaultName,
+  needsData = false,
+  defaultEmail = "",
+  defaultPhone = ""
+}: {
+  quoteId: string;
+  token: string;
+  status: string;
+  defaultName: string;
+  /** Pessoa física sem cadastro: pede os dados do contrato ao aprovar. */
+  needsData?: boolean;
+  defaultEmail?: string;
+  defaultPhone?: string;
+}) {
+  const [ct, setCt] = useState<Contratante>({ nome: defaultName, cpf: "", email: defaultEmail, telefone: defaultPhone, cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" });
+  const setC = (k: keyof Contratante) => (e: { target: { value: string } }) => {
+    const v = k === "cpf" ? cpfMask(e.target.value) : k === "cep" ? cepMask(e.target.value) : k === "uf" ? e.target.value.toUpperCase().slice(0, 2) : e.target.value;
+    setCt((x) => ({ ...x, [k]: v }));
+    if (k === "cep" && v.replace(/\D/g, "").length === 8) void lookupCep(v.replace(/\D/g, ""));
+  };
+  async function lookupCep(d: string) {
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${d}/json/`);
+      const j = (await r.json()) as { erro?: boolean; logradouro?: string; bairro?: string; localidade?: string; uf?: string };
+      if (j.erro) return;
+      setCt((x) => ({ ...x, endereco: j.logradouro || x.endereco, bairro: j.bairro || x.bairro, cidade: j.localidade || x.cidade, uf: j.uf || x.uf }));
+    } catch {
+      /* sem busca de CEP: a pessoa digita */
+    }
+  }
+  const ctOk =
+    ct.nome.trim().split(/\s+/).length >= 2 &&
+    ct.cpf.replace(/\D/g, "").length === 11 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ct.email.trim()) &&
+    ct.telefone.replace(/\D/g, "").length >= 10 &&
+    ct.cep.replace(/\D/g, "").length === 8 &&
+    ct.endereco.trim().length >= 3 &&
+    ct.numero.trim().length >= 1 &&
+    ct.bairro.trim().length >= 2 &&
+    ct.cidade.trim().length >= 2 &&
+    ct.uf.trim().length === 2;
   const [mode, setMode] = useState<"idle" | "aprovar" | "ajuste">("idle");
   const [name, setName] = useState(defaultName);
   const [message, setMessage] = useState("");
@@ -17,7 +72,13 @@ export function QuoteClientResponse({ quoteId, token, status, defaultName }: { q
     const res = await fetch(`/api/public/quotes/${quoteId}/respond`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ t: token, action, name, message: message || undefined })
+      body: JSON.stringify({
+        t: token,
+        action,
+        name: action === "aprovar" && needsData ? ct.nome : name,
+        message: message || undefined,
+        contratante: action === "aprovar" && needsData ? ct : undefined
+      })
     });
     const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { status: string }; error?: { message?: string } };
     setBusy(false);
@@ -25,7 +86,9 @@ export function QuoteClientResponse({ quoteId, token, status, defaultName }: { q
     setDone(
       action === "ajuste"
         ? "Recebemos seu pedido de ajuste. A Prime Vitória responde em breve."
-        : "Orçamento aprovado! Seus serviços estão reservados e você recebe a confirmação com os dados do motorista antes de cada serviço."
+        : needsData
+          ? "Orçamento aprovado e dados recebidos! A Prime Vitória vai te enviar o contrato para assinatura digital por e-mail e WhatsApp. Confira também a caixa de spam."
+          : "Orçamento aprovado! Seus serviços estão reservados e você recebe a confirmação com os dados do motorista antes de cada serviço."
     );
   }
 
@@ -49,10 +112,69 @@ export function QuoteClientResponse({ quoteId, token, status, defaultName }: { q
         </div>
       ) : (
         <div style={{ display: "grid", gap: 10 }}>
-          <label style={{ fontSize: 13 }}>
-            Seu nome
-            <input style={input} value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
+          {mode === "aprovar" && needsData ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Seus dados para o contrato</div>
+              <div style={{ fontSize: 12, color: "#6F6A60", marginTop: -6 }}>Usados só no contrato de prestação de serviço e na nota fiscal.</div>
+              <label style={{ fontSize: 13 }}>
+                Nome completo
+                <input style={input} value={ct.nome} onChange={setC("nome")} autoComplete="name" />
+              </label>
+              <div className="qcr-grid" style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
+                <label style={{ fontSize: 13 }}>
+                  CPF
+                  <input style={input} inputMode="numeric" value={ct.cpf} onChange={setC("cpf")} placeholder="000.000.000-00" />
+                </label>
+                <label style={{ fontSize: 13 }}>
+                  WhatsApp
+                  <input style={input} type="tel" inputMode="tel" value={ct.telefone} onChange={setC("telefone")} autoComplete="tel" />
+                </label>
+              </div>
+              <label style={{ fontSize: 13 }}>
+                E-mail (para receber o contrato)
+                <input style={input} type="email" value={ct.email} onChange={setC("email")} autoComplete="email" />
+              </label>
+              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)" }}>
+                <label style={{ fontSize: 13 }}>
+                  CEP
+                  <input style={input} inputMode="numeric" value={ct.cep} onChange={setC("cep")} placeholder="00000-000" autoComplete="postal-code" />
+                </label>
+                <label style={{ fontSize: 13 }}>
+                  Número
+                  <input style={input} value={ct.numero} onChange={setC("numero")} />
+                </label>
+              </div>
+              <label style={{ fontSize: 13 }}>
+                Endereço (rua / avenida)
+                <input style={input} value={ct.endereco} onChange={setC("endereco")} autoComplete="address-line1" />
+              </label>
+              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)" }}>
+                <label style={{ fontSize: 13 }}>
+                  Complemento
+                  <input style={input} value={ct.complemento} onChange={setC("complemento")} placeholder="Apto, bloco…" />
+                </label>
+                <label style={{ fontSize: 13 }}>
+                  Bairro
+                  <input style={input} value={ct.bairro} onChange={setC("bairro")} />
+                </label>
+              </div>
+              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "minmax(0,3fr) minmax(0,1fr)" }}>
+                <label style={{ fontSize: 13 }}>
+                  Cidade
+                  <input style={input} value={ct.cidade} onChange={setC("cidade")} />
+                </label>
+                <label style={{ fontSize: 13 }}>
+                  UF
+                  <input style={input} value={ct.uf} onChange={setC("uf")} maxLength={2} />
+                </label>
+              </div>
+            </div>
+          ) : (
+            <label style={{ fontSize: 13 }}>
+              Seu nome
+              <input style={input} value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+          )}
           <label style={{ fontSize: 13 }}>
             {mode === "aprovar" ? "Observação (opcional): nomes dos passageiros, voo…" : "O que precisa mudar?"}
             <textarea style={{ ...input, minHeight: 80 }} value={message} onChange={(e) => setMessage(e.target.value)} />
@@ -61,7 +183,7 @@ export function QuoteClientResponse({ quoteId, token, status, defaultName }: { q
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               type="button"
-              disabled={busy || name.trim().length < 2 || (mode === "ajuste" && message.trim().length < 3)}
+              disabled={busy || (mode === "aprovar" && needsData ? !ctOk : name.trim().length < 2) || (mode === "ajuste" && message.trim().length < 3)}
               style={{ ...btn("#111", "#C9A84C"), opacity: busy ? 0.6 : 1 }}
               onClick={() => void send(mode)}
             >
