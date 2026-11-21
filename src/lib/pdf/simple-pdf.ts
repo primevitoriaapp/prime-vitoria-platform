@@ -31,15 +31,19 @@ const SPECIAL: Record<string, { code: number; w: number }> = {
 export type Font = "R" | "B";
 export type RGB = [number, number, number];
 
-/** Troca caracteres fora do WinAnsi por equivalentes simples. */
+/** Troca caracteres fora do WinAnsi por equivalentes simples (texto colado do WhatsApp/Word traz caracteres invisíveis). */
 function normalize(s: string): string {
   return s
-    .replace(/→/g, "»")
+    .replace(/[→➜➔⇒]/g, "»")
+    .replace(/[←⇐]/g, "«")
     .replace(/\u2212/g, "-")
-    .replace(/\u00a0/g, " ")
-    .replace(/[→➜]/g, "»")
+    .replace(/[\u2010\u2011\u2012]/g, "-")
+    .replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, " ")
     .replace(/\t/g, " ")
-    .replace(/[​-‍﻿]/g, "");
+    .replace(/[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff]/g, "")
+    .replace(/[▪▫◦●○■□►▶✓✔☑✅]/g, "•")
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[\r]/g, "");
 }
 
 function charWidth(ch: string, font: Font): number {
@@ -71,7 +75,12 @@ function encode(s: string): string {
     if (c < 128) code = c;
     else if (SPECIAL[ch]) code = SPECIAL[ch].code;
     else if (c >= 0xa0 && c <= 0xff) code = c;
-    else code = 63; // ?
+    else {
+      // Letra com acento fora da tabela: usa a letra base; o resto some em vez de virar "?".
+      const b = ch.normalize("NFD").charCodeAt(0);
+      if (b >= 32 && b < 128) code = b;
+      else continue;
+    }
     if (code === 40 || code === 41 || code === 92) out += "\\" + String.fromCharCode(code);
     else if (code < 32 || code > 126) out += "\\" + code.toString(8).padStart(3, "0");
     else out += String.fromCharCode(code);
