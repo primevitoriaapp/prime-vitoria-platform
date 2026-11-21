@@ -129,7 +129,7 @@ async function api<T>(url: string, init?: RequestInit) {
 
 /** Orçamentos: lista e editor. Aprovado vira corridas na agenda. */
 export function QuotesPanel() {
-  const { company } = useCompany();
+  const { company, setCompany } = useCompany();
   const [list, setList] = useState<QuoteRow[]>([]);
   const [openId, setOpenId] = useState<string | "novo" | null>(null);
   // Aviso do sininho abre o orçamento direto: /orcamentos?abrir=<id>
