@@ -91,3 +91,60 @@ export async function markLinkPaid(
     await maybeAutoApproveQuote(l.tenant_id as string, l.quote_id as string).catch(() => null);
   }
 }
+
+/**
+ * Link do SINAL (50%) de um orçamento, gerado sozinho quando o cliente aprova pelo link.
+ * Taxa do cartão repassada ao cliente (a Prime recebe o valor cheio). Não gera de novo se já existe um em aberto ou pago.
+ * Sem InfinitePay conectada, devolve null (a central gera na mão depois).
+ */
+export async function ensureQuoteSinalLink(tenantId: string, quoteId: string): Promise<{ url: string; amount: number } | null> {
+  const { randomBytes, randomUUID } = await import("node:crypto");
+  const { db } = await import("@/lib/server/db");
+  const { infinitepayConfig, infinitepayCreateLink } = await import("@/lib/integrations/infinitepay");
+  const { OFFICIAL_URLS } = await import("@/lib/server/official-urls");
+  const { formatQuoteNumber } = await import("@/lib/quotes/quote-calc");
+  const cfg = await infinitepayConfig();
+  if (!cfg?.api_key) return null;
+  const { data: existing } = await db
+    .from("payment_links")
+    .select("url, amount, status")
+    .eq("tenant_id", tenantId)
+    .eq("quote_id", quoteId)
+    .in("status", ["aberto", "pago"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existing?.url) return existing.status === "pago" ? null : { url: existing.url as string, amount: Number(existing.amount) };
+  const { data: q } = await db.from("quotes").select("id, number, total, client_id, contact_name, contact_email, contact_phone").eq("id", quoteId).eq("tenant_id", tenantId).maybeSingle();
+  const total = Number(q?.total ?? 0);
+  if (!q || total <= 0) return null;
+  const amount = Math.round(total * 50) / 100;
+  const description = `Prime Vitória · Orçamento ${formatQuoteNumber(q.number as number)} · ${KIND_LABEL.sinal}`;
+  const orderNsu = `pv-${randomUUID()}`;
+  const hookToken = randomBytes(18).toString("base64url");
+  const created = await infinitepayCreateLink({
+    orderNsu,
+    description,
+    amount,
+    webhookUrl: `${OFFICIAL_URLS.central}/api/webhooks/infinitepay/${hookToken}`,
+    assuredInstallments: 0,
+    customer: { name: q.contact_name as string | null, email: q.contact_email as string | null, phone: q.contact_phone as string | null }
+  });
+  await db.from("payment_links").insert({
+    tenant_id: tenantId,
+    quote_id: quoteId,
+    trip_ids: [],
+    client_id: (q.client_id as string | null) ?? null,
+    kind: "sinal",
+    description,
+    amount,
+    assured_installments: 0,
+    order_nsu: orderNsu,
+    hook_token: hookToken,
+    url: created.url,
+    slug: created.slug,
+    created_by: null,
+    raw: created.raw as never
+  });
+  return { url: created.url, amount };
+}

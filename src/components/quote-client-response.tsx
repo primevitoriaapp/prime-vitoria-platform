@@ -65,6 +65,7 @@ export function QuoteClientResponse({
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(status === "aprovado" ? "Este orçamento já está aprovado. Obrigado!" : null);
   const [err, setErr] = useState<string | null>(null);
+  const [pay, setPay] = useState<{ url: string; amount: number } | null>(null);
 
   async function send(action: "aprovar" | "ajuste") {
     setBusy(true);
@@ -80,9 +81,10 @@ export function QuoteClientResponse({
         contratante: action === "aprovar" && needsData ? ct : undefined
       })
     });
-    const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { status: string }; error?: { message?: string } };
+    const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { status: string; payment?: { url: string; amount: number } | null }; error?: { message?: string } };
     setBusy(false);
     if (!res.ok || !j.success) return setErr(j.error?.message ?? "Não foi possível enviar. Tente de novo.");
+    if (j.data?.payment?.url) setPay(j.data.payment);
     setDone(
       action === "ajuste"
         ? "Recebemos seu pedido de ajuste. A Prime Vitória responde em breve."
@@ -93,7 +95,27 @@ export function QuoteClientResponse({
   }
 
   if (done) {
-    return <div style={{ margin: "0 26px 18px", padding: 16, borderRadius: 12, background: "#ECFDF5", color: "#065F46", fontSize: 14, fontWeight: 600 }}>{done}</div>;
+    return (
+      <div style={{ margin: "0 26px 18px", display: "grid", gap: 10 }}>
+        <div style={{ padding: 16, borderRadius: 12, background: "#ECFDF5", color: "#065F46", fontSize: 14, fontWeight: 600 }}>{done}</div>
+        {pay ? (
+          <div style={{ padding: 16, borderRadius: 14, background: "#111", color: "#fff" }}>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>Garanta sua reserva: sinal de 50%</div>
+            <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>
+              {pay.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} no PIX ou cartão (até 12x; no cartão, a taxa da maquininha é do pagador). O restante segue o combinado no contrato.
+            </div>
+            <a
+              href={pay.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "block", marginTop: 12, padding: "14px 16px", borderRadius: 12, background: "#C9A84C", color: "#111", fontWeight: 700, fontSize: 15, textAlign: "center", textDecoration: "none" }}
+            >
+              Pagar o sinal agora
+            </a>
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   const btn = (bg: string, color: string): React.CSSProperties => ({ flex: 1, minWidth: 160, padding: "14px 16px", borderRadius: 12, border: 0, background: bg, color, fontWeight: 700, fontSize: 15, cursor: "pointer" });

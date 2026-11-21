@@ -3,6 +3,7 @@ import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { approveQuote } from "@/lib/quotes/approve-quote";
 import { validCpf } from "@/lib/drivers/driver-signup-fields";
+import { ensureQuoteSinalLink } from "@/lib/finance/payment-links";
 import { formatQuoteNumber } from "@/lib/quotes/quote-calc";
 import { pushToStaff } from "@/lib/push/web-push";
 import { enqueueInAppForTenantRoles } from "@/lib/notifications/enqueue-for-profiles";
@@ -89,17 +90,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       dataNote = " Dados do contrato recebidos.";
     }
 
-    let result: { status: string; trips?: number; pending?: string } = { status: "ajuste" };
+    let result: { status: string; trips?: number; pending?: string; payment?: { url: string; amount: number } | null } = { status: "ajuste" };
     if (body.action === "aprovar") {
       const r = await approveQuote(tenantId, id, null);
       // Se faltou dado (ex.: horário), a aprovação fica registrada e a central completa e confirma.
       result = r.ok ? { status: "aprovado", trips: r.trips } : { status: "aprovado_pendente", pending: r.message };
+      // Pessoa física: já recebe o link do sinal (50%), com a taxa do cartão por conta do cliente.
+      if (body.contratante) result.payment = await ensureQuoteSinalLink(tenantId, id).catch(() => null);
     }
 
     const title = body.action === "aprovar" ? `✅ ${number} aprovado pelo cliente` : `✏️ ${number}: cliente pediu ajuste`;
     const text =
       (result.status === "aprovado_pendente" ? `${body.name} aprovou, mas falta completar: ${result.pending}` : `${body.name}${body.message ? `: ${body.message.slice(0, 120)}` : ""}`) +
-      (dataNote ? `${dataNote} Gere o contrato no orçamento.` : "");
+      (dataNote ? `${dataNote} Gere o contrato no orçamento.` : "") +
+      (result.payment ? ` Link do sinal (${result.payment.amount.toFixed(2).replace(".", ",")}) enviado ao cliente.` : "");
     await Promise.allSettled([
       pushToStaff(tenantId, { title, body: text, url: `/orcamentos?abrir=${id}`, tag: `quote-${id}` }),
       enqueueInAppForTenantRoles(tenantId, ["admin", "operador"], { eventType: "operations.quote_response", quoteId: id, title, body: text }, { correlation_id: `quote-${id}-${Date.now()}` })
