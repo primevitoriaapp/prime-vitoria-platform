@@ -38,6 +38,7 @@ export function LeadForm({ kind }: { kind: Kind }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [completeUrl, setCompleteUrl] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -84,12 +85,13 @@ export function LeadForm({ kind }: { kind: Kind }) {
     setBusy(true);
     const body = { kind, ...v, use_cases: kind === "empresa" ? cases : undefined, utm, consent: true };
     const r = await fetch("/api/public/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
-    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } }) : {};
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; data?: { completeUrl?: string | null }; error?: { message?: string } }) : {};
     setBusy(false);
     if (!r?.ok || !j.success) {
       setErr(r?.status === 429 ? "Muitos envios seguidos. Fale com a gente pelo WhatsApp." : "Não conseguimos enviar agora. Confira os campos ou fale com a gente pelo WhatsApp.");
       return;
     }
+    setCompleteUrl(j.data?.completeUrl ?? null);
     setDone(true);
     try {
       (window as unknown as { fbq?: (...a: unknown[]) => void }).fbq?.("track", "Lead", { content_name: kind });
@@ -106,9 +108,16 @@ export function LeadForm({ kind }: { kind: Kind }) {
         <h3 className="mt-4 font-prime-serif text-2xl text-[#111]">Cadastro recebido!</h3>
         <p className="mt-2 text-[15px] leading-relaxed text-[#6F6A60]">
           {kind === "motorista"
-            ? "Nossa equipe vai analisar seus dados e chamar você no WhatsApp para os próximos passos."
+            ? completeUrl
+              ? "Agora falta a 2ª etapa: o cadastro completo, com documentos e dados do veículo. Leva cerca de 10 minutos e você pode continuar depois pelo mesmo link."
+              : "Nossa equipe vai analisar seus dados e chamar você no WhatsApp para os próximos passos."
             : "Um consultor da Prime Vitória vai falar com você em até 1 dia útil para entender a necessidade da sua empresa."}
         </p>
+        {kind === "motorista" && completeUrl ? (
+          <a href={completeUrl} className="mt-6 inline-block w-full rounded-full bg-[#111] px-6 py-4 text-base font-semibold text-[#D9BC6A]">
+            Continuar para o cadastro completo →
+          </a>
+        ) : null}
       </div>
     );
 

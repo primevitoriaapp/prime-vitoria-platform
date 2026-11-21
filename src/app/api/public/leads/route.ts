@@ -1,9 +1,10 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { pushToStaff } from "@/lib/push/web-push";
+import { enqueueInAppForTenantRoles } from "@/lib/notifications/enqueue-for-profiles";
 
 const str = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 
@@ -74,17 +75,23 @@ export async function POST(request: Request) {
       utm: utm ?? {},
       ip_hash: createHash("sha256").update(`pv-${ip}`).digest("hex").slice(0, 24)
     };
-    const { error } = await db.from("site_leads").insert(row);
+    // Motorista já recebe o link do cadastro completo (2ª etapa) para continuar na hora, se quiser.
+    const completeToken = kind === "motorista" ? randomBytes(18).toString("base64url") : null;
+    const { data: saved, error } = await db
+      .from("site_leads")
+      .insert({ ...row, ...(completeToken ? { complete_token: completeToken, complete_sent_at: new Date().toISOString() } : {}) })
+      .select("id")
+      .single();
     if (error) return fail("LEAD_FAILED", "Não conseguimos salvar agora. Tente de novo ou chame no WhatsApp.", 500);
 
-    await pushToStaff(tenantId, {
-      title: kind === "motorista" ? "🚘 Novo motorista quer ser parceiro" : "🏢 Nova empresa pelo site",
-      body: kind === "motorista" ? `${name}${city ? ` · ${city}` : ""}` : `${row.company_name} · ${name}`,
-      url: "/cadastros-site",
-      tag: `lead-${kind}`
-    }).catch(() => 0);
+    const title = kind === "motorista" ? "🚘 Novo motorista quer ser parceiro" : "🏢 Nova empresa pelo site";
+    const text = kind === "motorista" ? `${name}${city ? ` · ${city}` : ""}` : `${row.company_name} · ${name}`;
+    await Promise.allSettled([
+      pushToStaff(tenantId, { title, body: text, url: "/cadastros-site", tag: `lead-${kind}` }),
+      enqueueInAppForTenantRoles(tenantId, ["admin", "operador"], { eventType: "operations.site_lead", url: "/cadastros-site", leadId: saved?.id, title, body: text }, { correlation_id: `lead-${saved?.id}` })
+    ]);
 
-    return ok({ received: true });
+    return ok({ received: true, completeUrl: completeToken ? `/cadastro-motorista/${completeToken}` : null });
   } catch (error) {
     return mapApiError(error);
   }
