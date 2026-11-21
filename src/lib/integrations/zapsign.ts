@@ -102,6 +102,8 @@ export async function zapsignCreateFromTemplate(input: {
       signer_email: input.signer.email || undefined,
       signer_phone_country: digits ? "55" : undefined,
       signer_phone_number: digits || undefined,
+      // Com e-mail, a própria ZapSign manda o convite de assinatura para o cliente.
+      send_automatic_email: Boolean(input.signer.email),
       lang: "pt-br",
       external_id: input.externalId,
       data: input.data

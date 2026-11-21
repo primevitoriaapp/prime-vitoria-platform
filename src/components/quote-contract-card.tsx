@@ -116,7 +116,7 @@ export function QuoteContractCard({ quoteId }: { quoteId: string }) {
   const empty = fields.filter((f) => !f.value.trim()).length;
 
   return (
-    <section className="grid gap-3 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
+    <section className="grid min-w-0 gap-3 overflow-hidden rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold">📝 Contrato (pessoa física, casamento, eventos)</h3>
         {d.quote_status === "aprovado" ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">Serviço confirmado ✓</span> : null}
@@ -133,40 +133,40 @@ export function QuoteContractCard({ quoteId }: { quoteId: string }) {
       {live.length ? (
         <ul className="divide-y divide-prime-border rounded-xl border border-prime-border">
           {live.map((c) => (
-            <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm">
+            <li key={c.id} className="grid min-w-0 gap-2 px-3 py-2.5 text-sm">
               <span className="min-w-0">
-                <span className="block truncate font-medium">{c.title}</span>
+                <span className="block break-words font-medium">{c.title}</span>
                 <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${ST[c.status][1]}`}>
                   {ST[c.status][0]}
                   {c.signed_at ? ` em ${new Date(c.signed_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}
                 </span>
               </span>
               {c.status === "pendente" ? (
-                <button type="button" onClick={() => void load(tpl)} className="rounded-lg px-3 py-1 text-xs ring-1 ring-prime-border">
+                <button type="button" onClick={() => void load(tpl)} className="justify-self-start rounded-lg px-3 py-1 text-xs ring-1 ring-prime-border">
                   Atualizar situação
                 </button>
               ) : null}
               {c.status === "pendente" ? (
-                <ul className="mt-1 grid w-full gap-1.5">
+                <ul className="mt-1 grid min-w-0 gap-1.5">
                   {(c.signers?.length ? c.signers : [{ name: "Contratante", sign_url: c.sign_url, status: null }]).map((sg, i) => {
                     const done = sg.status === "signed";
                     const key = `${c.id}-${i}`;
                     return (
-                      <li key={key} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-prime-bg px-2.5 py-2">
+                      <li key={key} className="grid min-w-0 gap-2 rounded-lg bg-prime-bg px-2.5 py-2 sm:flex sm:items-center sm:justify-between">
                         <span className="min-w-0 text-xs">
                           <span className="block truncate font-semibold text-prime-text">{sg.name || `Assinante ${i + 1}`}</span>
                           <span className={done ? "text-emerald-700" : "text-prime-muted"}>{done ? "✓ Assinou" : "Falta assinar"}</span>
                         </span>
                         {!done && sg.sign_url ? (
-                          <span className="flex gap-1.5">
-                            <button type="button" onClick={() => void copyUrl(key, sg.sign_url)} className="rounded-lg bg-[#111] px-3 py-1 text-xs font-semibold text-prime-gold">
+                          <span className="grid grid-cols-2 gap-1.5 sm:flex">
+                            <button type="button" onClick={() => void copyUrl(key, sg.sign_url)} className="rounded-lg bg-[#111] px-3 py-2 text-xs font-semibold text-prime-gold">
                               {copied === key ? "✓ Copiado" : "Copiar link"}
                             </button>
                             <a
-                              href={`https://wa.me/?text=${encodeURIComponent(`Segue o contrato da Prime Vitória para assinatura digital: ${sg.sign_url}`)}`}
+                              href={`https://wa.me/?text=${encodeURIComponent(`Olá${sg.name ? `, ${sg.name.split(" ")[0]}` : ""}! Seu contrato com a Prime Vitória está pronto para assinatura digital. É só abrir o link, conferir e assinar pelo celular: ${sg.sign_url}`)}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="rounded-lg px-3 py-1 text-xs font-semibold ring-1 ring-prime-border"
+                              className="rounded-lg px-3 py-2 text-center text-xs font-semibold ring-1 ring-prime-border"
                             >
                               WhatsApp
                             </a>
