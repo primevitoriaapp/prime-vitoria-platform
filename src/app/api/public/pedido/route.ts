@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         contact_name: b.name,
         contact_phone: b.phone,
         contact_email: b.email || null,
-        issuer: "rj_prime",
+        issuer: "prime_servicos", // empresa usada no dia a dia (faturamento padrão)
         status: "rascunho",
         discount: 0,
         total: 0,

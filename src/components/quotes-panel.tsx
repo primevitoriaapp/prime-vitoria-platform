@@ -132,6 +132,15 @@ export function QuotesPanel() {
   const { company } = useCompany();
   const [list, setList] = useState<QuoteRow[]>([]);
   const [openId, setOpenId] = useState<string | "novo" | null>(null);
+  // Aviso do sininho abre o orçamento direto: /orcamentos?abrir=<id>
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get("abrir");
+      if (id) setOpenId(id);
+    } catch {
+      /* sem parâmetro */
+    }
+  }, []);
   const [filter, setFilter] = useState("abertos");
 
   const load = useCallback(async () => {
@@ -161,6 +170,7 @@ export function QuotesPanel() {
     .filter((q) => inCompany(company, q.issuer))
     .map((q) => ({ ...q, st: effectiveQuoteStatus(q.status, q.valid_until, t) }))
     .filter((q) => (filter === "abertos" ? ["rascunho", "enviado"].includes(q.st) : filter === "todos" ? true : q.st === filter));
+  const hiddenByCompany = company === "todas" ? 0 : list.filter((q) => !inCompany(company, q.issuer) && ["rascunho", "enviado"].includes(effectiveQuoteStatus(q.status, q.valid_until, t))).length;
   const pipeline = list.filter((q) => inCompany(company, q.issuer) && effectiveQuoteStatus(q.status, q.valid_until, t) === "enviado").reduce((s, q) => s + Number(q.total), 0);
   const won = list.filter((q) => inCompany(company, q.issuer) && q.status === "aprovado");
   const decided = list.filter((q) => inCompany(company, q.issuer) && ["aprovado", "recusado"].includes(q.status)).length;
@@ -182,6 +192,16 @@ export function QuotesPanel() {
         </div>
       </div>
 
+      {hiddenByCompany > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+          <span>
+            {hiddenByCompany} orçamento(s) em aberto estão em <b>outra empresa</b> e não aparecem com o filtro atual.
+          </span>
+          <button type="button" onClick={() => setCompany("todas")} className="rounded-lg bg-[#111] px-3 py-1.5 text-xs font-semibold text-prime-gold">
+            Ver todas as empresas
+          </button>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex flex-wrap rounded-xl border border-prime-border bg-white p-1 text-sm">
           {[

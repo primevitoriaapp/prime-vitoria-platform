@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { useTenantTableRefresh } from "@/lib/realtime/use-tenant-table-refresh";
@@ -11,6 +12,7 @@ type Item = {
   title: string;
   body: string;
   tripId: string | null;
+  link?: string;
   unread: boolean;
   createdAt: string;
   trip?: { scheduled_at: string; route: string; client: string | null; driver: string | null; status: string } | null;
@@ -34,6 +36,7 @@ export function InAppNotificationsPanel({
 }: Props) {
   const [expanded, setExpanded] = useState(!defaultCollapsed);
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [total, setTotal] = useState(0);
@@ -174,9 +177,21 @@ export function InAppNotificationsPanel({
               {items.map((item) => {
                 const t = item.trip;
                 const needsDriver = t && !t.driver && ["requested", "approved"].includes(t.status);
-                const href = item.tripId ? `/agenda?trip=${item.tripId}#trip-detail` : "/agenda";
+                const href = item.link ?? (item.tripId ? `/agenda?trip=${item.tripId}#trip-detail` : "/agenda");
+                const go = () => {
+                  if (item.unread) void markRead(item.id);
+                  window.dispatchEvent(new Event("pv-close-bell"));
+                  router.push(href as never);
+                };
                 return (
-                  <li key={item.id} className={`rounded-xl border p-3 text-sm ${item.unread ? "border-prime-gold/60 bg-[#FBF7EC]" : "border-prime-border bg-white"}`}>
+                  <li
+                    key={item.id}
+                    role="link"
+                    tabIndex={0}
+                    onClick={go}
+                    onKeyDown={(e) => e.key === "Enter" && go()}
+                    className={`cursor-pointer rounded-xl border p-3 text-sm transition active:scale-[0.99] ${item.unread ? "border-prime-gold/60 bg-[#FBF7EC]" : "border-prime-border bg-white"}`}
+                  >
                     <p className="font-semibold text-prime-text">{item.title}</p>
                     {t ? (
                       <p className="mt-0.5 text-prime-muted">
@@ -192,7 +207,11 @@ export function InAppNotificationsPanel({
                       </span>
                       <Link
                         href={href as never}
-                        onClick={() => item.unread && void markRead(item.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (item.unread) void markRead(item.id);
+                          window.dispatchEvent(new Event("pv-close-bell"));
+                        }}
                         className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${needsDriver ? "bg-[#111] text-prime-gold" : "ring-1 ring-prime-border"}`}
                       >
                         {needsDriver ? "Definir motorista" : "Abrir"}

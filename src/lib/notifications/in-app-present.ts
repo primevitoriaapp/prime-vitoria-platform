@@ -14,6 +14,8 @@ export type InAppNotificationView = {
   title: string;
   body: string;
   tripId: string | null;
+  /** Para onde o aviso leva ao tocar (corrida, orçamento ou página informada no aviso). */
+  link: string;
   unread: boolean;
   createdAt: string;
   sentAt: string | null;
@@ -28,6 +30,17 @@ function payloadRecord(payload: unknown): Record<string, unknown> {
 function tripIdFrom(payload: Record<string, unknown>): string | null {
   const v = payload.tripId ?? payload.trip_id;
   return typeof v === "string" && v.length > 0 ? v : null;
+}
+
+function linkFor(payload: Record<string, unknown>, tripId: string | null, eventType: string): string {
+  if (tripId) return `/agenda?trip=${tripId}#trip-detail`;
+  const quoteId = payload.quoteId ?? payload.quote_id;
+  if (typeof quoteId === "string" && quoteId) return `/orcamentos?abrir=${quoteId}`;
+  const url = payload.url;
+  if (typeof url === "string" && url.startsWith("/")) return url;
+  if (eventType.startsWith("finance.")) return "/painel-financeiro";
+  if (eventType.includes("quote")) return "/orcamentos";
+  return "/agenda";
 }
 
 /** Textos PT-BR para eventos in-app conhecidos. */
@@ -129,6 +142,7 @@ export function presentInAppNotification(row: InAppNotificationRow): InAppNotifi
     title,
     body,
     tripId,
+    link: linkFor(payload, tripId, eventType),
     unread: row.read_at == null,
     createdAt: row.created_at,
     sentAt: row.sent_at

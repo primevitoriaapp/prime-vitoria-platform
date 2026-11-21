@@ -58,6 +58,12 @@ export function NotificationsBell({
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
+  // Fecha o sininho quando um aviso leva para outra tela.
+  useEffect(() => {
+    const close = () => setOpen(false);
+    window.addEventListener("pv-close-bell", close);
+    return () => window.removeEventListener("pv-close-bell", close);
+  }, []);
 
   return (
     <div ref={boxRef} className="relative">
