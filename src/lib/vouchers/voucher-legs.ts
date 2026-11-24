@@ -77,6 +77,9 @@ export function voucherToLegs(v: ParsedVoucher, cats: Cat[]): VoucherLeg[] {
     if (it.kind === "disponivel" && it.hours) {
       const stop = it.stopPlace || it.destination || "Local do evento (confirmar)";
       const back = addHours(it.date, it.time, it.hours);
+      // Valor da diária dividido nas duas partes (ida e volta). Centavo que sobrar fica na ida.
+      const half2 = it.amount == null ? null : Math.floor((it.amount * 100) / 2) / 100;
+      const half1 = it.amount == null || half2 == null ? null : Math.round((it.amount - half2) * 100) / 100;
       legs.push({
         ...baseLeg(v, it, cats),
         key: `${ref}-1`,
@@ -85,9 +88,9 @@ export function voucherToLegs(v: ParsedVoucher, cats: Cat[]): VoucherLeg[] {
         time: it.time,
         origin: it.origin,
         destination: stop,
-        clientAmount: money(it.amount),
+        clientAmount: money(half1),
         notes: [`${head} item ${it.letter}: veículo disponível ${it.hours}h${it.km ? ` (${it.km} km)` : ""}. Ida até o evento.`, extra].filter(Boolean).join("\n"),
-        label: `Parte 1 de 2 do veículo disponível ${it.hours}h (o cliente paga a diária aqui)`
+        label: `Parte 1 de 2 do veículo disponível ${it.hours}h (metade da diária)`
       });
       legs.push({
         ...baseLeg(v, it, cats),
@@ -97,9 +100,9 @@ export function voucherToLegs(v: ParsedVoucher, cats: Cat[]): VoucherLeg[] {
         time: back.time,
         origin: stop,
         destination: it.origin,
-        clientAmount: "0",
+        clientAmount: money(half2),
         notes: `${head} item ${it.letter}: retorno após o evento (parte da diária de ${it.hours}h). Confirmar o horário com o passageiro.`,
-        label: `Parte 2 de 2: volta. Horário estimado (início + ${it.hours}h), ajuste se precisar`
+        label: `Parte 2 de 2: volta (outra metade da diária). Horário estimado (início + ${it.hours}h), ajuste se precisar`
       });
       continue;
     }

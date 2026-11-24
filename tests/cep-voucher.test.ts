@@ -51,8 +51,8 @@ test("voucher vira corridas, com o disponível dividido em 2 transfers", () => {
   assert.match(legs[1].destination, /^Cozinha Contemporânea/);
   assert.equal(legs[2].time, "23:50");
   assert.match(legs[2].destination, /^Easy Hotel/);
-  assert.equal(legs[1].clientAmount, "700");
-  assert.equal(legs[2].clientAmount, "0");
+  assert.equal(legs[1].clientAmount, "350");
+  assert.equal(legs[2].clientAmount, "350");
   assert.equal(legs[0].flight, "LA3844");
 });
 
