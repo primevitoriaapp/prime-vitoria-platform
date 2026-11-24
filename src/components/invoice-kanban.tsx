@@ -21,7 +21,7 @@ type ClientAcc = {
   trips?: AccTrip[];
 };
 type AccTrip = { id: string; scheduled_at: string; stage: "aprovada" | "aprovar" | "agendada"; ref: string | null; ref_guess?: string | null; passenger: string | null; route: string; client_amount: number | null };
-type VCard = { key: string; client: ClientAcc; nr: string; trips: AccTrip[]; missing: AccTrip[]; total: number };
+type VCard = { key: string; client: ClientAcc; nr: string; isNr: boolean; trips: AccTrip[]; missing: AccTrip[]; total: number };
 type Inv = {
   id: string;
   number: number;
@@ -104,6 +104,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
   }, [load]);
 
   // Cliente que fecha por serviço: escolhe as corridas aprovadas e fecha uma fatura só com elas.
+  const [q, setQ] = useState("");
   const [picking, setPicking] = useState<string | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
 
@@ -138,15 +139,19 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     for (const c of accs.filter((x) => x.per_service && x.approved_count > 0)) {
       const all = c.trips ?? [];
       const ok = all.filter((t) => t.stage === "aprovada");
+      // Cliente que trabalha com NR (ex.: CEP): um card por NR. Cliente sem NR (ex.: Seg Pro): um card por dia.
+      const usesNr = all.some((t) => t.ref);
+      const day = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
       const by = new Map<string, AccTrip[]>();
       for (const t of ok) {
-        const k = t.ref ? t.ref.replace(/-.*$/, "") : "";
+        const k = t.ref ? t.ref.replace(/-.*$/, "") : usesNr ? "" : `SERVIÇOS DE ${day(t.scheduled_at)}`;
         by.set(k, [...(by.get(k) ?? []), t]);
       }
       for (const [nr, trips] of by) {
         trips.sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
-        const missing = nr ? all.filter((t) => t.stage !== "aprovada" && t.ref?.replace(/-.*$/, "") === nr) : [];
-        out.push({ key: `${c.client_id}|${nr || "-"}`, client: c, nr, trips, missing, total: trips.reduce((x, t) => x + Number(t.client_amount ?? 0), 0) });
+        const isNr = /^NR/i.test(nr) || (usesNr && nr !== "" && !nr.startsWith("SERVIÇOS"));
+        const missing = isNr ? all.filter((t) => t.stage !== "aprovada" && t.ref?.replace(/-.*$/, "") === nr) : [];
+        out.push({ key: `${c.client_id}|${nr || "-"}`, client: c, nr, isNr, trips, missing, total: trips.reduce((x, t) => x + Number(t.client_amount ?? 0), 0) });
       }
     }
     // Sem voucher primeiro (precisa de atenção), depois por data do primeiro serviço.
@@ -156,7 +161,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
   async function closeVoucher(v: VCard) {
     const pax = [...new Set(v.trips.flatMap((t) => String(t.passenger ?? "").split(",").map((x) => x.trim()).filter(Boolean)))];
     const warn = v.missing.length ? `\n\nAtenção: ${v.missing.length} corrida(s) deste voucher ainda não estão aprovadas e ficam de fora.` : "";
-    if (!window.confirm(`Fechar a fatura do voucher ${v.nr} (${v.client.client_name})?\n\n${pax.join(", ")}\n${v.trips.length} corrida(s) · ${brl(v.total)}${warn}`)) return;
+    if (!window.confirm(`Fechar a fatura ${v.isNr ? `do voucher ${v.nr}` : `de ${v.nr.toLowerCase()}`} (${v.client.client_name})?\n\n${pax.join(", ")}\n${v.trips.length} corrida(s) · ${brl(v.total)}${warn}`)) return;
     const due = new Date(Date.now() + (v.client.payment_term_days ?? 30) * 86400000).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
     setBusy(v.key);
     setMsg(null);
@@ -170,6 +175,10 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     if (!r?.ok || !j.success || !j.data) return setMsg({ ok: false, text: j.error?.message ?? "Não foi possível fechar." });
     window.location.href = `/finance/faturas/${j.data.invoice_id}?nova=1`;
   }
+
+  const norm = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/^nr\s*/, "");
+  const hit = (...parts: (string | number | null | undefined)[]) => !q.trim() || parts.some((p) => p != null && norm(String(p)).includes(norm(q.trim())));
+  const shownVouchers = vouchers.filter((v) => hit(v.nr, v.client.client_name, ...v.trips.map((t) => t.passenger), ...v.trips.map((t) => t.ref)));
 
   const cols = useMemo(() => {
     const execucao = accs.filter((c) => c.upcoming_count + c.to_approve_count > 0);
@@ -341,14 +350,18 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">Quadro do faturamento</p>
           <p className="text-sm text-prime-muted">Arraste o card para a próxima coluna (ou use o botão do card). Mês atual e anterior.</p>
         </div>
-        <button type="button" onClick={() => void load()} className="text-xs font-semibold text-prime-gold-ink">
-          ↻ Atualizar
-        </button>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar NR, cliente ou passageiro" className="min-w-0 flex-1 rounded-lg border border-prime-border bg-white px-3 py-2 text-base sm:w-72 sm:flex-none sm:text-sm" />
+          <button type="button" onClick={() => void load()} className="shrink-0 text-xs font-semibold text-prime-gold-ink">
+            ↻ Atualizar
+          </button>
+        </div>
       </div>
       {msg ? <p className={`rounded-lg px-3 py-2 text-sm font-semibold text-[#fff] ${msg.ok ? "bg-emerald-600" : "bg-red-600"}`}>{msg.text}</p> : null}
       <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 xl:grid xl:grid-cols-4 xl:overflow-visible">
         {COLS.map((col) => {
-          const n = cols[col.id].length + (col.id === "fechar" ? vouchers.length : 0);
+          const list = col.id === "execucao" ? cols.execucao.filter((c) => hit(c.client_name)) : col.id === "fechar" ? cols.fechar.filter((c) => hit(c.client_name)) : col.id === "faturado" ? cols.faturado.filter((v) => hit(v.client_name, v.client_ref, v.number)) : cols.enviado.filter((v) => hit(v.client_name, v.client_ref, v.number));
+          const n = list.length + (col.id === "fechar" ? shownVouchers.length : 0);
           return (
             <div
               key={col.id}
@@ -371,7 +384,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
               {!loading && n === 0 ? <p className="px-1 py-4 text-center text-xs text-prime-muted">Nada aqui</p> : null}
 
               {col.id === "execucao"
-                ? cols.execucao.map((c) => (
+                ? cols.execucao.filter((c) => hit(c.client_name)).map((c) => (
                     <div key={c.client_id} className={card}>
                       <p className="font-semibold">{c.client_name}</p>
                       <p className="text-[11px] text-prime-muted">{c.billing}</p>
@@ -404,7 +417,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                 : null}
 
               {col.id === "fechar"
-                ? vouchers.map((v) =>
+                ? shownVouchers.map((v) =>
                     v.nr ? (
                       <VoucherCard key={v.key} v={v} card={card} busy={busy === v.key} onClose={() => void closeVoucher(v)} onDrag={() => setDrag({ col: "fechar", key: v.key })} />
                     ) : (
@@ -414,7 +427,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                 : null}
 
               {col.id === "fechar"
-                ? cols.fechar.map((c) => (
+                ? cols.fechar.filter((c) => hit(c.client_name)).map((c) => (
                     <div
                       key={c.client_id}
                       draggable
@@ -519,7 +532,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                 : null}
 
               {col.id === "faturado"
-                ? cols.faturado.map((v) => {
+                ? cols.faturado.filter((v) => hit(v.client_name, v.client_ref, v.number)).map((v) => {
                     const nf = Boolean(v.nf_path || v.nf_number);
                     const boleto = Boolean(v.boleto_path || v.boleto_url);
                     return (
@@ -543,13 +556,14 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                 : null}
 
               {col.id === "enviado"
-                ? cols.enviado.map((v) => (
+                ? cols.enviado.filter((v) => hit(v.client_name, v.client_ref, v.number)).map((v) => (
                     <div key={v.id} className={card}>
                       <p className="flex justify-between gap-2 font-semibold">
                         <span className="truncate">{v.client_name ?? "Cliente"}</span>
                         <span className="text-xs text-prime-muted">nº {v.number}</span>
                       </p>
                       <p className="text-lg font-bold tabular-nums">{brl(Number(v.total_amount))}</p>
+                      {v.client_ref ? <p className="text-xs font-semibold">{/^NR/i.test(v.client_ref) ? `Voucher ${v.client_ref}` : v.client_ref}</p> : null}
                       <p className={`text-xs font-semibold ${dueTone(v.due_date)}`}>
                         {v.due_date < todayYmd() ? "VENCIDA em " : "Vence "}
                         {br(v.due_date)}
@@ -593,7 +607,7 @@ function VoucherCard({ v, card, busy, onClose, onDrag }: { v: VCard; card: strin
     <div draggable onDragStart={onDrag} className={`${card} cursor-grab active:cursor-grabbing`}>
       <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-prime-muted">{v.client.client_name}</p>
       <p className="flex items-baseline justify-between gap-2">
-        <span className="font-bold">Voucher {v.nr}</span>
+        <span className="font-bold">{v.isNr ? `Voucher ${v.nr}` : v.nr.charAt(0) + v.nr.slice(1).toLowerCase()}</span>
         <span className="shrink-0 text-base font-bold tabular-nums">{moneyBR(v.total)}</span>
       </p>
       <p className="truncate text-xs">{pax.length ? pax.map(shortName).join(", ") : "Sem passageiro"}</p>
@@ -621,7 +635,7 @@ function VoucherCard({ v, card, busy, onClose, onDrag }: { v: VCard; card: strin
         </ul>
       ) : null}
       <button type="button" disabled={busy} onClick={onClose} className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50">
-        {busy ? "Fechando…" : "Fechar fatura deste voucher →"}
+        {busy ? "Fechando…" : v.isNr ? "Fechar fatura deste voucher →" : "Fechar fatura deste dia →"}
       </button>
     </div>
   );
