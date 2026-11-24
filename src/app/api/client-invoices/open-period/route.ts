@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const to = new Date(`${new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10)}T23:59:59-03:00`).toISOString();
     const { data: trips, error } = await db
       .from("trips")
-      .select("id, client_id, driver_id, scheduled_at, operational_status, reviewed_at, client_amount, driver_amount, km_billable, actual_km, passenger_name, origin_text, destination_text, notes")
+      .select("id, client_id, driver_id, scheduled_at, operational_status, reviewed_at, client_amount, driver_amount, km_billable, actual_km, passenger_name, origin_text, destination_text, notes, client_voucher_path")
       .eq("tenant_id", tenantId)
       .is("client_invoice_id", null)
       .gte("scheduled_at", from)
@@ -88,6 +88,7 @@ export async function GET(request: Request) {
         scheduled_at: t.scheduled_at,
         stage,
         ref: clientRefFromNotes(t.notes as string | null),
+        has_voucher: Boolean(t.client_voucher_path),
         driver: t.driver_id ? dName.get(t.driver_id as string) ?? null : null,
         passenger: t.passenger_name ?? null,
         route: `${shortAddress(String(t.origin_text ?? ""))} → ${shortAddress(String(t.destination_text ?? ""))}`,

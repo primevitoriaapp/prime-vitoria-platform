@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { BodyPortal } from "@/components/ui/body-portal";
 
 type ClientAcc = {
   client_id: string;
@@ -20,7 +21,7 @@ type ClientAcc = {
   upcoming_count: number;
   trips?: AccTrip[];
 };
-type AccTrip = { id: string; scheduled_at: string; stage: "aprovada" | "aprovar" | "agendada"; ref: string | null; ref_guess?: string | null; passenger: string | null; route: string; client_amount: number | null };
+type AccTrip = { id: string; scheduled_at: string; stage: "aprovada" | "aprovar" | "agendada"; ref: string | null; ref_guess?: string | null; has_voucher?: boolean; passenger: string | null; route: string; client_amount: number | null };
 type VCard = { key: string; client: ClientAcc; nr: string; isNr: boolean; trips: AccTrip[]; missing: AccTrip[]; total: number };
 type Inv = {
   id: string;
@@ -419,7 +420,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
               {col.id === "fechar"
                 ? shownVouchers.map((v) =>
                     v.nr ? (
-                      <VoucherCard key={v.key} v={v} card={card} busy={busy === v.key} onClose={() => void closeVoucher(v)} onDrag={() => setDrag({ col: "fechar", key: v.key })} />
+                      <VoucherCard key={v.key} v={v} card={card} busy={busy === v.key} onClose={() => void closeVoucher(v)} onDrag={() => setDrag({ col: "fechar", key: v.key })} onSaved={() => void load()} />
                     ) : (
                       <NoRefCard key={v.key} v={v} onSaved={() => void load()} />
                     )
@@ -597,8 +598,10 @@ const shortName = (n: string) => {
 };
 
 /** Um voucher (NR) pronto para virar fatura. */
-function VoucherCard({ v, card, busy, onClose, onDrag }: { v: VCard; card: string; busy: boolean; onClose: () => void; onDrag: () => void }) {
+function VoucherCard({ v, card, busy, onClose, onDrag, onSaved }: { v: VCard; card: string; busy: boolean; onClose: () => void; onDrag: () => void; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
+  const [peek, setPeek] = useState<AccTrip | null>(null);
+  const withFile = v.trips.find((t) => t.has_voucher);
   const pax = paxOf(v.trips);
   // Mesmo item do voucher em duas corridas: provável erro de digitação.
   const items = v.trips.map((t) => (t.ref?.includes("-") ? t.ref.slice(t.ref.indexOf("-") + 1) : null));
@@ -617,19 +620,28 @@ function VoucherCard({ v, card, busy, onClose, onDrag }: { v: VCard; card: strin
       </p>
       {v.missing.length ? <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] text-amber-900">Falta(m) {v.missing.length} corrida(s) deste voucher (ainda não aprovada). Se fechar agora, ficam de fora.</p> : null}
       {dup.length ? <p className="mt-1 rounded-md bg-red-50 px-2 py-1 text-[11px] text-red-800">Item {[...new Set(dup)].join(", ")} aparece em mais de uma corrida. Confira antes de fechar.</p> : null}
-      <button type="button" onClick={() => setOpen((o) => !o)} className="mt-1 text-[11px] font-semibold text-prime-gold-ink">
-        {open ? "Esconder corridas" : "Ver corridas"}
-      </button>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <button type="button" onClick={() => setOpen((o) => !o)} className="text-xs font-semibold text-prime-gold-ink">
+          {open ? "Esconder corridas" : "Ver corridas ▾"}
+        </button>
+        {withFile ? (
+          <a href={`/api/trips/${withFile.id}/client-voucher`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-prime-gold-ink">
+            📎 Voucher da CEP
+          </a>
+        ) : null}
+      </div>
       {open ? (
         <ul className="mt-1 grid gap-1">
           {v.trips.map((t) => (
-            <li key={t.id} className="flex min-w-0 items-start justify-between gap-2 rounded-md bg-prime-bg px-2 py-1 text-[11px]">
-              <span className="min-w-0">
-                {t.ref?.includes("-") ? <b className="mr-1 text-[#7A5C16]">{t.ref.slice(t.ref.indexOf("-") + 1)}</b> : null}
-                {whenBR(t.scheduled_at)}
-                <span className="block truncate text-prime-muted">{t.route}</span>
-              </span>
-              <span className="shrink-0 tabular-nums">{moneyBR(Number(t.client_amount ?? 0))}</span>
+            <li key={t.id}>
+              <button type="button" onClick={() => setPeek(t)} className="flex w-full min-w-0 items-start justify-between gap-2 rounded-md bg-prime-bg px-2 py-1.5 text-left text-xs hover:ring-1 hover:ring-prime-gold">
+                <span className="min-w-0">
+                  {t.ref?.includes("-") ? <b className="mr-1 text-[#7A5C16]">{t.ref.slice(t.ref.indexOf("-") + 1)}</b> : null}
+                  {whenBR(t.scheduled_at)}
+                  <span className="block truncate text-prime-muted">{t.route}</span>
+                </span>
+                <span className="shrink-0 tabular-nums">{moneyBR(Number(t.client_amount ?? 0))} ›</span>
+              </button>
             </li>
           ))}
         </ul>
@@ -637,12 +649,14 @@ function VoucherCard({ v, card, busy, onClose, onDrag }: { v: VCard; card: strin
       <button type="button" disabled={busy} onClick={onClose} className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50">
         {busy ? "Fechando…" : v.isNr ? "Fechar fatura deste voucher →" : "Fechar fatura deste dia →"}
       </button>
+      {peek ? <TripPeek trip={peek} siblings={v.trips} onClose={() => setPeek(null)} onSaved={onSaved} /> : null}
     </div>
   );
 }
 
 /** Corridas aprovadas sem NR: a central informa o NR e a corrida vai para o card do voucher. */
 function NoRefCard({ v, onSaved }: { v: VCard; onSaved: () => void }) {
+  const [peek, setPeek] = useState<AccTrip | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [val, setVal] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -666,13 +680,14 @@ function NoRefCard({ v, onSaved }: { v: VCard; onSaved: () => void }) {
       <ul className="mt-2 grid gap-1.5">
         {v.trips.map((t) => (
           <li key={t.id} className="min-w-0 rounded-lg bg-white px-2 py-1.5 text-xs">
-            <div className="flex min-w-0 items-start justify-between gap-2">
+            <button type="button" onClick={() => setPeek(t)} className="flex w-full min-w-0 items-start justify-between gap-2 text-left">
               <span className="min-w-0">
                 <b>{whenBR(t.scheduled_at)}</b> · {paxOf([t]).map(shortName).join(", ") || "Sem passageiro"}
                 <span className="block truncate text-prime-muted">{t.route}</span>
+                <span className="text-[11px] font-semibold text-prime-gold-ink">Ver detalhes do serviço ›</span>
               </span>
               <span className="shrink-0 font-semibold tabular-nums">{moneyBR(Number(t.client_amount ?? 0))}</span>
-            </div>
+            </button>
             {editing === t.id ? (
               <div className="mt-1 flex min-w-0 gap-1">
                 <input
@@ -712,6 +727,168 @@ function NoRefCard({ v, onSaved }: { v: VCard; onSaved: () => void }) {
         ))}
       </ul>
       {err ? <p className="mt-1 rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-800">{err}</p> : null}
+      {peek ? <TripPeek trip={peek} siblings={v.trips} onClose={() => setPeek(null)} onSaved={onSaved} /> : null}
     </div>
+  );
+}
+
+type TripFull = {
+  id: string;
+  scheduled_at: string;
+  operational_status: string;
+  passenger_name: string | null;
+  passenger_phone: string | null;
+  passenger_count: number | null;
+  origin_text: string | null;
+  destination_text: string | null;
+  flight_number: string | null;
+  notes: string | null;
+  client_amount: number | null;
+  km_billable: number | null;
+  actual_km: number | null;
+  driver_name?: string | null;
+  client_voucher_path: string | null;
+  trip_dropoff_stops: { address_text: string; passenger_name?: string }[] | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+};
+
+/** Detalhe completo do serviço para conferir com o e-mail/voucher do cliente antes de fechar. */
+function TripPeek({ trip, siblings, onClose, onSaved }: { trip: AccTrip; siblings: AccTrip[]; onClose: () => void; onSaved: () => void }) {
+  const [t, setT] = useState<TripFull | null>(null);
+  const [nr, setNr] = useState(trip.ref ?? (trip.ref_guess ? `${trip.ref_guess}-` : ""));
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [hasFile, setHasFile] = useState(Boolean(trip.has_voucher));
+  useEffect(() => {
+    void fetchWithSupabaseSession(`/api/trips/${trip.id}`, {}, "admin")
+      .then((r) => r.json())
+      .then((j: { success?: boolean; data?: TripFull }) => {
+        if (j.success && j.data) {
+          setT(j.data);
+          setHasFile(Boolean(j.data.client_voucher_path));
+        }
+      })
+      .catch(() => undefined);
+  }, [trip.id]);
+  async function saveNr() {
+    if (nr.trim().length < 3) return setMsg({ ok: false, t: "Digite o NR (ex.: NR263691-B2)." });
+    setBusy(true);
+    const r = await fetchWithSupabaseSession("/api/client-invoices/set-ref", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_id: trip.id, ref: nr.trim() }) }, "admin").catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } }) : {};
+    setBusy(false);
+    if (!j.success) return setMsg({ ok: false, t: j.error?.message ?? "Não foi possível salvar." });
+    setMsg({ ok: true, t: "NR salvo. A corrida foi para o card do voucher." });
+    onSaved();
+  }
+  async function upload(f: File | undefined) {
+    if (!f) return;
+    setBusy(true);
+    const fd = new FormData();
+    fd.append("file", f);
+    const r = await fetchWithSupabaseSession(`/api/trips/${trip.id}/client-voucher`, { method: "POST", body: fd }, "admin").catch(() => null);
+    setBusy(false);
+    if (r?.ok) {
+      setHasFile(true);
+      setMsg({ ok: true, t: "Voucher anexado." });
+      onSaved();
+    } else setMsg({ ok: false, t: "Não foi possível anexar (PDF ou imagem até 10 MB)." });
+  }
+  const others = siblings.filter((x) => x.id !== trip.id);
+  const Row = ({ k, v }: { k: string; v: React.ReactNode }) =>
+    v ? (
+      <div className="grid grid-cols-[110px_1fr] gap-2 border-b border-prime-border/60 py-2 text-sm last:border-0">
+        <span className="text-prime-muted">{k}</span>
+        <span className="min-w-0 break-words">{v}</span>
+      </div>
+    ) : null;
+  const STATUS: Record<string, string> = { completed: "Concluída", cancelled: "Cancelada", no_show: "Não compareceu", in_progress: "Em andamento" };
+  return (
+    <BodyPortal>
+      <div className="fixed inset-0 z-[120] flex justify-end bg-black/40" onClick={onClose}>
+        <div className="flex h-dvh w-full max-w-lg flex-col bg-prime-bg pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between gap-3 border-b border-prime-border bg-white px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-xs text-prime-muted">Conferir serviço</p>
+              <p className="truncate font-semibold">
+                {whenBR(trip.scheduled_at)} · {moneyBR(Number(trip.client_amount ?? 0))}
+              </p>
+            </div>
+            <button type="button" onClick={onClose} className="rounded-full px-3 py-1.5 text-sm ring-1 ring-prime-border">
+              Fechar
+            </button>
+          </div>
+          <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
+            {!t ? <div className="h-40 animate-pulse rounded-xl bg-white" /> : null}
+            {t ? (
+              <section className="rounded-xl bg-white px-3 py-1">
+                <Row k="NR / item" v={trip.ref ?? <span className="font-semibold text-amber-700">sem NR</span>} />
+                <Row k="Data e hora" v={new Date(t.scheduled_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })} />
+                <Row k="Passageiro(s)" v={`${t.passenger_name ?? "—"}${t.passenger_count && t.passenger_count > 1 ? ` (${t.passenger_count} pessoas)` : ""}`} />
+                <Row k="Telefone" v={t.passenger_phone} />
+                <Row k="Voo" v={t.flight_number} />
+                <Row k="Saída" v={t.origin_text} />
+                <Row k="Paradas" v={t.trip_dropoff_stops?.length ? t.trip_dropoff_stops.map((s) => `${s.passenger_name ? `${s.passenger_name}: ` : ""}${s.address_text}`).join(" → ") : null} />
+                <Row k="Destino" v={t.destination_text} />
+                <Row k="Motorista" v={t.driver_name} />
+                <Row k="KM" v={t.km_billable ?? t.actual_km ? `${t.km_billable ?? t.actual_km} km` : null} />
+                <Row k="Situação" v={STATUS[t.operational_status] ?? t.operational_status} />
+                <Row k="Valor ao cliente" v={moneyBR(Number(t.client_amount ?? 0))} />
+                <Row k="Observações" v={t.notes ? <span className="whitespace-pre-line text-xs">{t.notes}</span> : null} />
+              </section>
+            ) : null}
+
+            <section className="space-y-2 rounded-xl bg-white p-3">
+              <p className="text-sm font-semibold">Voucher do cliente</p>
+              {hasFile ? (
+                <a href={`/api/trips/${trip.id}/client-voucher`} target="_blank" rel="noopener noreferrer" className="block rounded-lg bg-[#111] px-3 py-2.5 text-center text-sm font-semibold text-prime-gold">
+                  📎 Abrir voucher anexado
+                </a>
+              ) : (
+                <p className="text-xs text-prime-muted">Nenhum voucher anexado nesta corrida. Anexe o PDF do e-mail da CEP para conferir e guardar junto.</p>
+              )}
+              <label className="block text-xs text-prime-muted">
+                {hasFile ? "Trocar arquivo" : "Anexar voucher (PDF ou foto)"}
+                <input type="file" accept="application/pdf,image/*" disabled={busy} onChange={(e) => void upload(e.target.files?.[0])} className="mt-1 block w-full text-xs" />
+              </label>
+            </section>
+
+            <section className="space-y-2 rounded-xl bg-white p-3">
+              <p className="text-sm font-semibold">{trip.ref ? "Corrigir NR" : "De qual voucher é este serviço?"}</p>
+              <div className="flex gap-2">
+                <input value={nr} onChange={(e) => setNr(e.target.value.toUpperCase())} placeholder="NR263691-B2" className="min-w-0 flex-1 rounded-lg border border-prime-border px-3 py-2 text-base sm:text-sm" />
+                <button type="button" disabled={busy} onClick={() => void saveNr()} className="rounded-lg bg-[#111] px-4 text-sm font-semibold text-prime-gold disabled:opacity-50">
+                  Salvar
+                </button>
+              </div>
+              {trip.ref_guess && !trip.ref ? <p className="text-xs text-prime-muted">Sugestão pelo passageiro: {trip.ref_guess}. Confirme no e-mail antes de salvar.</p> : null}
+            </section>
+
+            {msg ? <p className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>{msg.t}</p> : null}
+
+            {others.length ? (
+              <section className="rounded-xl bg-white p-3">
+                <p className="mb-1 text-sm font-semibold">Outras corridas neste card</p>
+                <ul className="grid gap-1 text-xs">
+                  {others.map((o) => (
+                    <li key={o.id} className="flex justify-between gap-2 rounded-md bg-prime-bg px-2 py-1.5">
+                      <span className="min-w-0">
+                        <b>{whenBR(o.scheduled_at)}</b> {o.ref ? `· ${o.ref}` : ""}
+                        <span className="block truncate text-prime-muted">{o.route}</span>
+                      </span>
+                      <span className="shrink-0">{moneyBR(Number(o.client_amount ?? 0))}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            <a href={`/agenda?trip=${trip.id}`} className="block rounded-lg px-3 py-2.5 text-center text-sm font-semibold ring-1 ring-prime-border">
+              Abrir a corrida completa na agenda (editar, cancelar)
+            </a>
+          </div>
+        </div>
+      </div>
+    </BodyPortal>
   );
 }
