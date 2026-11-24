@@ -98,21 +98,23 @@ export async function GET(request: Request) {
       });
       groups.set(t.client_id as string, g);
     }
-    // Corrida sem NR: sugere o NR de outra corrida do mesmo passageiro (a mais próxima no tempo). Só sugestão; a central confirma.
+    // Corrida sem NR: só sugere quando for claramente a VOLTA de outra corrida do mesmo passageiro
+    // (sai de onde a outra terminou, no mesmo dia). Sem isso, não chuta.
+    const raw = new Map((trips ?? []).map((t) => [t.id as string, t]));
+    const place = (s: unknown) => String(s ?? "").toLowerCase().split(/[,-]/)[0].trim();
     for (const g of groups.values()) {
-      const list = g.trips as { scheduled_at: string; ref: string | null; passenger: string | null; ref_guess?: string | null }[];
-      const norm = (s: string | null) => String(s ?? "").toLowerCase().split(",").map((x) => x.trim()).filter(Boolean);
+      const list = g.trips as { id: string; scheduled_at: string; ref: string | null; passenger: string | null; ref_guess?: string | null }[];
       for (const t of list) {
         if (t.ref) continue;
-        const mine = norm(t.passenger);
-        if (!mine.length) continue;
+        const me = raw.get(t.id);
         let best: { ref: string; d: number } | null = null;
         for (const o of list) {
-          if (!o.ref) continue;
-          const theirs = norm(o.passenger);
-          if (!mine.some((n) => theirs.includes(n))) continue;
-          const d = Math.abs(new Date(o.scheduled_at).getTime() - new Date(t.scheduled_at).getTime());
-          if (d <= 3 * 86400000 && (!best || d < best.d)) best = { ref: o.ref.replace(/-.*$/, ""), d };
+          if (!o.ref || o.passenger !== t.passenger) continue;
+          const other = raw.get(o.id);
+          const d = new Date(t.scheduled_at).getTime() - new Date(o.scheduled_at).getTime();
+          if (d <= 0 || d > 14 * 3600000) continue;
+          if (!place(me?.origin_text) || place(me?.origin_text) !== place(other?.destination_text)) continue;
+          if (!best || d < best.d) best = { ref: /\d$/.test(o.ref) ? o.ref.replace(/\d$/, "2") : o.ref.replace(/-.*$/, ""), d };
         }
         t.ref_guess = best?.ref ?? null;
       }

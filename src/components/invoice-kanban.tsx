@@ -717,14 +717,14 @@ function NoRefCard({ v, onSaved }: { v: VCard; onSaved: () => void }) {
               <div className="mt-1 flex flex-wrap gap-1">
                 {t.ref_guess ? (
                   <button type="button" onClick={() => void save(t.id, t.ref_guess as string)} className="rounded-md bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900">
-                    É do {t.ref_guess}
+                    É a volta {t.ref_guess}
                   </button>
                 ) : null}
                 <button
                   type="button"
                   onClick={() => {
                     setEditing(t.id);
-                    setVal(t.ref_guess ? `${t.ref_guess}-` : "NR");
+                    setVal(t.ref_guess ? (t.ref_guess.includes("-") ? t.ref_guess : `${t.ref_guess}-`) : "NR");
                   }}
                   className="rounded-md px-2 py-1 text-[11px] ring-1 ring-prime-border"
                 >
@@ -766,7 +766,7 @@ type TripFull = {
 /** Detalhe completo do serviço para conferir com o e-mail/voucher do cliente antes de fechar. */
 function TripPeek({ trip, siblings, billed = [], onClose, onSaved }: { trip: AccTrip; siblings: AccTrip[]; billed?: Inv[]; onClose: () => void; onSaved: () => void }) {
   const [t, setT] = useState<TripFull | null>(null);
-  const [nr, setNr] = useState(trip.ref ?? (trip.ref_guess ? `${trip.ref_guess}-` : ""));
+  const [nr, setNr] = useState(trip.ref ?? (trip.ref_guess ? (trip.ref_guess.includes("-") ? trip.ref_guess : `${trip.ref_guess}-`) : ""));
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [hasFile, setHasFile] = useState(Boolean(trip.has_voucher));
@@ -930,7 +930,7 @@ function TripPeek({ trip, siblings, billed = [], onClose, onSaved }: { trip: Acc
                   Salvar
                 </button>
               </div>
-              {trip.ref_guess && !trip.ref ? <p className="text-xs text-prime-muted">Sugestão pelo passageiro: {trip.ref_guess}. Confirme no e-mail antes de salvar.</p> : null}
+              {trip.ref_guess && !trip.ref ? <p className="text-xs text-prime-muted">Parece a volta de {trip.ref_guess}. Confirme no e-mail antes de salvar.</p> : null}
             </section>
 
             {msg ? <p className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>{msg.t}</p> : null}
