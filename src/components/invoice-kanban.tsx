@@ -624,7 +624,7 @@ function VoucherCard({ v, card, busy, onClose, onDrag, onSaved }: { v: VCard; ca
       </button>
       {v.billed.length ? (
         <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
-          Este voucher já tem fatura: {v.billed.map((b) => `nº ${b.number} (${moneyBR(Number(b.total_amount))})`).join(", ")}. Confira se esta corrida não está incluída nela antes de cobrar de novo.
+          Este voucher já tem fatura: {v.billed.map((b) => `nº ${b.number} (${moneyBR(Number(b.total_amount))})`).join(", ")}. Abra a corrida: se ela já estava incluída, use “Já foi cobrada na fatura”.
         </p>
       ) : null}
       {v.missing.length ? <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] text-amber-900">Falta(m) {v.missing.length} corrida(s) deste voucher (ainda não aprovada). Se fechar agora, ficam de fora.</p> : null}
@@ -658,7 +658,7 @@ function VoucherCard({ v, card, busy, onClose, onDrag, onSaved }: { v: VCard; ca
       <button type="button" disabled={busy} onClick={onClose} className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50">
         {busy ? "Fechando…" : v.isNr ? "Fechar fatura deste voucher →" : "Fechar fatura deste dia →"}
       </button>
-      {peek ? <TripPeek trip={peek} siblings={v.trips} onClose={() => setPeek(null)} onSaved={onSaved} /> : null}
+      {peek ? <TripPeek trip={peek} siblings={v.trips} billed={v.billed} onClose={() => setPeek(null)} onSaved={onSaved} /> : null}
     </div>
   );
 }
@@ -764,7 +764,7 @@ type TripFull = {
 };
 
 /** Detalhe completo do serviço para conferir com o e-mail/voucher do cliente antes de fechar. */
-function TripPeek({ trip, siblings, onClose, onSaved }: { trip: AccTrip; siblings: AccTrip[]; onClose: () => void; onSaved: () => void }) {
+function TripPeek({ trip, siblings, billed = [], onClose, onSaved }: { trip: AccTrip; siblings: AccTrip[]; billed?: Inv[]; onClose: () => void; onSaved: () => void }) {
   const [t, setT] = useState<TripFull | null>(null);
   const [nr, setNr] = useState(trip.ref ?? (trip.ref_guess ? `${trip.ref_guess}-` : ""));
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
@@ -794,6 +794,16 @@ function TripPeek({ trip, siblings, onClose, onSaved }: { trip: AccTrip; sibling
     if (!j.success) return setMsg({ ok: false, t: j.error?.message ?? "Não foi possível salvar." });
     setMsg({ ok: true, t: "NR salvo. A corrida foi para o card do voucher." });
     onSaved();
+  }
+  async function attach(inv: Inv) {
+    if (!window.confirm(`Esta corrida já foi cobrada dentro da fatura nº ${inv.number}?\n\nEla entra na fatura nº ${inv.number} com valor R$ 0 para o cliente (o total da fatura não muda) e sai do fechamento. O motorista continua recebendo o valor dele.`)) return;
+    setBusy(true);
+    const r = await fetchWithSupabaseSession("/api/client-invoices/attach-billed", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_id: trip.id, invoice_id: inv.id }) }, "admin").catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } }) : {};
+    setBusy(false);
+    if (!j.success) return setMsg({ ok: false, t: j.error?.message ?? "Não foi possível." });
+    onSaved();
+    onClose();
   }
   async function saveAmounts() {
     const num = (x: string) => (x.trim() ? Number(x.replace(/\./g, "").replace(",", ".")) : null);
@@ -864,6 +874,18 @@ function TripPeek({ trip, siblings, onClose, onSaved }: { trip: AccTrip; sibling
                 <Row k="KM" v={t.km_billable ?? t.actual_km ? `${t.km_billable ?? t.actual_km} km` : null} />
                 <Row k="Situação" v={STATUS[t.operational_status] ?? t.operational_status} />
                 <Row k="Observações" v={t.notes ? <span className="whitespace-pre-line text-xs">{t.notes}</span> : null} />
+              </section>
+            ) : null}
+
+            {billed.length ? (
+              <section className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-900">Este voucher já foi faturado</p>
+                <p className="text-xs text-amber-900/80">Se esta corrida já estava incluída (ex.: volta que faz parte da diária), ligue-a à fatura para ela sair daqui sem cobrar de novo.</p>
+                {billed.map((b) => (
+                  <button key={b.id} type="button" disabled={busy} onClick={() => void attach(b)} className="w-full rounded-lg bg-[#111] px-3 py-2.5 text-sm font-semibold text-prime-gold disabled:opacity-50">
+                    Já foi cobrada na fatura nº {b.number} ({moneyBR(Number(b.total_amount))})
+                  </button>
+                ))}
               </section>
             ) : null}
 
