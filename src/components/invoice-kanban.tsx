@@ -21,6 +21,7 @@ type ClientAcc = {
   trips?: AccTrip[];
 };
 type AccTrip = { id: string; scheduled_at: string; stage: "aprovada" | "aprovar" | "agendada"; ref: string | null; ref_guess?: string | null; passenger: string | null; route: string; client_amount: number | null };
+type VCard = { key: string; client: ClientAcc; nr: string; trips: AccTrip[]; missing: AccTrip[]; total: number };
 type Inv = {
   id: string;
   number: number;
@@ -131,9 +132,48 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     window.location.href = `/finance/faturas/${j.data.invoice_id}?nova=1`;
   }
 
+  /** Clientes que fecham por serviço (ex.: CEP): um card por voucher (NR) + um card "sem voucher". */
+  const vouchers = useMemo(() => {
+    const out: VCard[] = [];
+    for (const c of accs.filter((x) => x.per_service && x.approved_count > 0)) {
+      const all = c.trips ?? [];
+      const ok = all.filter((t) => t.stage === "aprovada");
+      const by = new Map<string, AccTrip[]>();
+      for (const t of ok) {
+        const k = t.ref ? t.ref.replace(/-.*$/, "") : "";
+        by.set(k, [...(by.get(k) ?? []), t]);
+      }
+      for (const [nr, trips] of by) {
+        trips.sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+        const missing = nr ? all.filter((t) => t.stage !== "aprovada" && t.ref?.replace(/-.*$/, "") === nr) : [];
+        out.push({ key: `${c.client_id}|${nr || "-"}`, client: c, nr, trips, missing, total: trips.reduce((x, t) => x + Number(t.client_amount ?? 0), 0) });
+      }
+    }
+    // Sem voucher primeiro (precisa de atenção), depois por data do primeiro serviço.
+    return out.sort((a, b) => (a.nr === "" ? -1 : b.nr === "" ? 1 : a.trips[0].scheduled_at.localeCompare(b.trips[0].scheduled_at)));
+  }, [accs]);
+
+  async function closeVoucher(v: VCard) {
+    const pax = [...new Set(v.trips.flatMap((t) => String(t.passenger ?? "").split(",").map((x) => x.trim()).filter(Boolean)))];
+    const warn = v.missing.length ? `\n\nAtenção: ${v.missing.length} corrida(s) deste voucher ainda não estão aprovadas e ficam de fora.` : "";
+    if (!window.confirm(`Fechar a fatura do voucher ${v.nr} (${v.client.client_name})?\n\n${pax.join(", ")}\n${v.trips.length} corrida(s) · ${brl(v.total)}${warn}`)) return;
+    const due = new Date(Date.now() + (v.client.payment_term_days ?? 30) * 86400000).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+    setBusy(v.key);
+    setMsg(null);
+    const r = await fetchWithSupabaseSession(
+      "/api/client-invoices/vouchers",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_ids: v.trips.map((t) => t.id), due_date: due, ref: v.nr }) },
+      "admin"
+    ).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; data?: { invoice_id: string }; error?: { message?: string } }) : {};
+    setBusy(null);
+    if (!r?.ok || !j.success || !j.data) return setMsg({ ok: false, text: j.error?.message ?? "Não foi possível fechar." });
+    window.location.href = `/finance/faturas/${j.data.invoice_id}?nova=1`;
+  }
+
   const cols = useMemo(() => {
     const execucao = accs.filter((c) => c.upcoming_count + c.to_approve_count > 0);
-    const fechar = accs.filter((c) => c.approved_count > 0);
+    const fechar = accs.filter((c) => c.approved_count > 0 && !c.per_service);
     const faturado = invs.filter((v) => v.status === "aberta");
     const enviado = invs.filter((v) => v.status === "enviada").sort((x, y) => x.due_date.localeCompare(y.due_date));
     return { execucao, fechar, faturado, enviado };
@@ -141,7 +181,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
 
   const totals: Record<Col, number> = {
     execucao: cols.execucao.reduce((s, c) => s + c.upcoming_total + c.to_approve_total, 0),
-    fechar: cols.fechar.reduce((s, c) => s + c.approved_total, 0),
+    fechar: cols.fechar.reduce((s, c) => s + c.approved_total, 0) + vouchers.reduce((s, v) => s + v.total, 0),
     faturado: cols.faturado.reduce((s, v) => s + Number(v.total_amount), 0),
     enviado: cols.enviado.reduce((s, v) => s + Number(v.total_amount), 0)
   };
@@ -269,6 +309,12 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     setOver(null);
     if (!d || d.col === to) return;
     if (d.col === "fechar" && to === "faturado") {
+      const v = vouchers.find((x) => x.key === d.key);
+      if (v) {
+        if (v.nr) void closeVoucher(v);
+        else setMsg({ ok: false, text: "Informe o NR dessas corridas antes de fechar." });
+        return;
+      }
       const c = cols.fechar.find((x) => x.client_id === d.key);
       if (c) void closeClient(c);
       return;
@@ -302,7 +348,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
       {msg ? <p className={`rounded-lg px-3 py-2 text-sm font-semibold text-[#fff] ${msg.ok ? "bg-emerald-600" : "bg-red-600"}`}>{msg.text}</p> : null}
       <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 xl:grid xl:grid-cols-4 xl:overflow-visible">
         {COLS.map((col) => {
-          const n = cols[col.id].length;
+          const n = cols[col.id].length + (col.id === "fechar" ? vouchers.length : 0);
           return (
             <div
               key={col.id}
@@ -358,6 +404,16 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                 : null}
 
               {col.id === "fechar"
+                ? vouchers.map((v) =>
+                    v.nr ? (
+                      <VoucherCard key={v.key} v={v} card={card} busy={busy === v.key} onClose={() => void closeVoucher(v)} onDrag={() => setDrag({ col: "fechar", key: v.key })} />
+                    ) : (
+                      <NoRefCard key={v.key} v={v} onSaved={() => void load()} />
+                    )
+                  )
+                : null}
+
+              {col.id === "fechar"
                 ? cols.fechar.map((c) => (
                     <div
                       key={c.client_id}
@@ -374,7 +430,31 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                       {picking === c.client_id ? (
                         <div className="mt-2 grid min-w-0 grid-cols-1 gap-1.5">
                           <p className="text-xs font-semibold">Marque o que entra nesta fatura:</p>
-                          <PickByRef trips={(c.trips ?? []).filter((t) => t.stage === "aprovada")} picked={picked} setPicked={setPicked} onSaved={() => void load()} />
+                          {(c.trips ?? [])
+                            .filter((t) => t.stage === "aprovada")
+                            .map((t) => (
+                              <label key={t.id} className="flex min-w-0 cursor-pointer items-start gap-2 rounded-lg bg-prime-bg px-2 py-1.5 text-xs">
+                                <input
+                                  type="checkbox"
+                                  className="mt-0.5"
+                                  checked={picked.has(t.id)}
+                                  onChange={(e) =>
+                                    setPicked((p) => {
+                                      const n = new Set(p);
+                                      if (e.target.checked) n.add(t.id);
+                                      else n.delete(t.id);
+                                      return n;
+                                    })
+                                  }
+                                />
+                                <span className="min-w-0 flex-1">
+                                  <b>{whenBR(t.scheduled_at)}</b>
+                                  {t.ref ? ` · ${t.ref}` : t.passenger ? ` · ${t.passenger}` : ""}
+                                  <span className="block truncate text-prime-muted">{t.route}</span>
+                                </span>
+                                <span className="shrink-0 font-semibold tabular-nums">{brl(Number(t.client_amount ?? 0))}</span>
+                              </label>
+                            ))}
                           <button
                             type="button"
                             disabled={busy === c.client_id || !picked.size}
@@ -494,29 +574,64 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
   );
 }
 
-/** Fechamento por serviço: corridas agrupadas pelo NR do cliente (ex.: NR263691), com subtotal e marcação do grupo inteiro. */
-function PickByRef({ trips, picked, setPicked, onSaved }: { trips: AccTrip[]; picked: Set<string>; setPicked: (f: (p: Set<string>) => Set<string>) => void; onSaved: () => void }) {
+const moneyBR = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const whenBR = (iso: string) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const paxOf = (list: AccTrip[]) => [...new Set(list.flatMap((t) => String(t.passenger ?? "").split(",").map((x) => x.trim()).filter(Boolean)))];
+const shortName = (n: string) => {
+  const w = n.split(/\s+/).filter(Boolean).map((x) => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase());
+  return w.length > 1 ? `${w[0]} ${w[w.length - 1]}` : (w[0] ?? "");
+};
+
+/** Um voucher (NR) pronto para virar fatura. */
+function VoucherCard({ v, card, busy, onClose, onDrag }: { v: VCard; card: string; busy: boolean; onClose: () => void; onDrag: () => void }) {
+  const [open, setOpen] = useState(false);
+  const pax = paxOf(v.trips);
+  // Mesmo item do voucher em duas corridas: provável erro de digitação.
+  const items = v.trips.map((t) => (t.ref?.includes("-") ? t.ref.slice(t.ref.indexOf("-") + 1) : null));
+  const dup = items.filter((x, i) => x && items.indexOf(x) !== i);
+  return (
+    <div draggable onDragStart={onDrag} className={`${card} cursor-grab active:cursor-grabbing`}>
+      <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-prime-muted">{v.client.client_name}</p>
+      <p className="flex items-baseline justify-between gap-2">
+        <span className="font-bold">Voucher {v.nr}</span>
+        <span className="shrink-0 text-base font-bold tabular-nums">{moneyBR(v.total)}</span>
+      </p>
+      <p className="truncate text-xs">{pax.length ? pax.map(shortName).join(", ") : "Sem passageiro"}</p>
+      <p className="text-[11px] text-prime-muted">
+        {v.trips.length} corrida(s) · {whenBR(v.trips[0].scheduled_at).slice(0, 5)}
+        {v.trips.length > 1 ? ` a ${whenBR(v.trips[v.trips.length - 1].scheduled_at).slice(0, 5)}` : ""}
+      </p>
+      {v.missing.length ? <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] text-amber-900">Falta(m) {v.missing.length} corrida(s) deste voucher (ainda não aprovada). Se fechar agora, ficam de fora.</p> : null}
+      {dup.length ? <p className="mt-1 rounded-md bg-red-50 px-2 py-1 text-[11px] text-red-800">Item {[...new Set(dup)].join(", ")} aparece em mais de uma corrida. Confira antes de fechar.</p> : null}
+      <button type="button" onClick={() => setOpen((o) => !o)} className="mt-1 text-[11px] font-semibold text-prime-gold-ink">
+        {open ? "Esconder corridas" : "Ver corridas"}
+      </button>
+      {open ? (
+        <ul className="mt-1 grid gap-1">
+          {v.trips.map((t) => (
+            <li key={t.id} className="flex min-w-0 items-start justify-between gap-2 rounded-md bg-prime-bg px-2 py-1 text-[11px]">
+              <span className="min-w-0">
+                {t.ref?.includes("-") ? <b className="mr-1 text-[#7A5C16]">{t.ref.slice(t.ref.indexOf("-") + 1)}</b> : null}
+                {whenBR(t.scheduled_at)}
+                <span className="block truncate text-prime-muted">{t.route}</span>
+              </span>
+              <span className="shrink-0 tabular-nums">{moneyBR(Number(t.client_amount ?? 0))}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <button type="button" disabled={busy} onClick={onClose} className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50">
+        {busy ? "Fechando…" : "Fechar fatura deste voucher →"}
+      </button>
+    </div>
+  );
+}
+
+/** Corridas aprovadas sem NR: a central informa o NR e a corrida vai para o card do voucher. */
+function NoRefCard({ v, onSaved }: { v: VCard; onSaved: () => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [val, setVal] = useState("");
   const [err, setErr] = useState<string | null>(null);
-  const base = (r: string | null) => (r ? r.replace(/-.*$/, "") : "");
-  const item = (r: string | null) => (r && r.includes("-") ? r.slice(r.indexOf("-") + 1) : null);
-  const money = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const groups = useMemo(() => {
-    const m = new Map<string, AccTrip[]>();
-    for (const t of [...trips].sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))) {
-      const k = base(t.ref);
-      m.set(k, [...(m.get(k) ?? []), t]);
-    }
-    // "Sem NR" primeiro (precisa de atenção), depois os NRs em ordem.
-    return [...m.entries()].sort(([a], [b]) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)));
-  }, [trips]);
-  const toggle = (ids: string[], on: boolean) =>
-    setPicked((p) => {
-      const n = new Set(p);
-      ids.forEach((id) => (on ? n.add(id) : n.delete(id)));
-      return n;
-    });
   async function save(tripId: string, ref: string) {
     setErr(null);
     const r = await fetchWithSupabaseSession("/api/client-invoices/set-ref", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_id: tripId, ref }) }, "admin").catch(() => null);
@@ -526,92 +641,63 @@ function PickByRef({ trips, picked, setPicked, onSaved }: { trips: AccTrip[]; pi
     setVal("");
     onSaved();
   }
-  const when = (iso: string) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-  const names = (list: AccTrip[]) => [...new Set(list.flatMap((t) => String(t.passenger ?? "").split(",").map((x) => x.trim()).filter(Boolean)))];
-  const title = (n: string) => n.split(" ").filter(Boolean).map((w, i, a) => (i === 0 || i === a.length - 1 ? w.charAt(0) + w.slice(1).toLowerCase() : "")).filter(Boolean).join(" ");
   return (
-    <div className="grid min-w-0 gap-2">
-      {groups.map(([nr, list]) => {
-        const ids = list.map((t) => t.id);
-        const all = ids.every((id) => picked.has(id));
-        const some = ids.some((id) => picked.has(id));
-        const total = list.reduce((s, t) => s + Number(t.client_amount ?? 0), 0);
-        const pax = names(list);
-        return (
-          <div key={nr || "sem"} className={`min-w-0 overflow-hidden rounded-xl border ${nr ? "border-prime-border bg-white" : "border-amber-300 bg-amber-50"}`}>
-            <label className="flex min-w-0 cursor-pointer items-start gap-2 border-b border-prime-border/70 px-2 py-2 text-xs">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={all}
-                ref={(el) => {
-                  if (el) el.indeterminate = some && !all;
-                }}
-                onChange={(e) => toggle(ids, e.target.checked)}
-              />
-              <span className="min-w-0 flex-1">
-                <b className={nr ? "text-[#111]" : "text-amber-900"}>{nr || "Sem NR — confira antes de fechar"}</b>
-                <span className="block truncate text-prime-muted">{pax.length ? pax.map(title).join(", ") : "Sem passageiro"} · {list.length} corrida(s)</span>
+    <div className="min-w-0 overflow-hidden rounded-xl border border-amber-300 bg-amber-50 p-3 shadow-sm">
+      <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-amber-900/80">{v.client.client_name}</p>
+      <p className="flex items-baseline justify-between gap-2">
+        <span className="font-bold text-amber-900">Sem voucher ({v.trips.length})</span>
+        <span className="shrink-0 font-bold tabular-nums">{moneyBR(v.total)}</span>
+      </p>
+      <p className="text-[11px] text-amber-900/80">Diga de qual voucher (NR) é cada corrida. Ela passa para o card do voucher.</p>
+      <ul className="mt-2 grid gap-1.5">
+        {v.trips.map((t) => (
+          <li key={t.id} className="min-w-0 rounded-lg bg-white px-2 py-1.5 text-xs">
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <span className="min-w-0">
+                <b>{whenBR(t.scheduled_at)}</b> · {paxOf([t]).map(shortName).join(", ") || "Sem passageiro"}
+                <span className="block truncate text-prime-muted">{t.route}</span>
               </span>
-              <span className="shrink-0 font-bold tabular-nums">{money(total)}</span>
-            </label>
-            <div className="grid gap-1 p-1.5">
-              {list.map((t) => (
-                <div key={t.id} className="min-w-0 rounded-lg px-1.5 py-1 text-xs">
-                  <label className="flex min-w-0 cursor-pointer items-start gap-2">
-                    <input type="checkbox" className="mt-0.5" checked={picked.has(t.id)} onChange={(e) => toggle([t.id], e.target.checked)} />
-                    <span className="min-w-0 flex-1">
-                      {item(t.ref) ? <span className="mr-1 rounded bg-[#F1EDE3] px-1 py-px text-[10px] font-bold text-[#7A5C16]">item {item(t.ref)}</span> : null}
-                      <b>{when(t.scheduled_at)}</b>
-                      {!nr && t.passenger ? ` · ${t.passenger}` : ""}
-                      <span className="block truncate text-prime-muted">{t.route}</span>
-                    </span>
-                    <span className="shrink-0 font-semibold tabular-nums">{money(Number(t.client_amount ?? 0))}</span>
-                  </label>
-                  {!nr ? (
-                    editing === t.id ? (
-                      <div className="mt-1 flex min-w-0 gap-1 pl-5">
-                        <input
-                          autoFocus
-                          value={val}
-                          onChange={(e) => setVal(e.target.value.toUpperCase())}
-                          placeholder="NR263691-B2"
-                          className="min-w-0 flex-1 rounded-md border border-prime-border bg-white px-2 py-1.5 text-base sm:text-xs"
-                        />
-                        <button type="button" onClick={() => void save(t.id, val)} disabled={val.trim().length < 2} className="rounded-md bg-[#111] px-2 text-xs font-bold text-prime-gold disabled:opacity-50">
-                          Salvar
-                        </button>
-                        <button type="button" onClick={() => setEditing(null)} className="px-1 text-xs text-prime-muted">
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-1 flex flex-wrap gap-1 pl-5">
-                        {t.ref_guess ? (
-                          <button type="button" onClick={() => void save(t.id, t.ref_guess as string)} className="rounded-md bg-white px-2 py-1 text-[11px] font-semibold ring-1 ring-amber-300">
-                            É do {t.ref_guess}? Confirmar
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditing(t.id);
-                            setVal(t.ref_guess ? `${t.ref_guess}-` : "NR");
-                          }}
-                          className="rounded-md bg-white px-2 py-1 text-[11px] ring-1 ring-prime-border"
-                        >
-                          {t.ref_guess ? "Outro NR" : "Informar NR"}
-                        </button>
-                      </div>
-                    )
-                  ) : null}
-                </div>
-              ))}
+              <span className="shrink-0 font-semibold tabular-nums">{moneyBR(Number(t.client_amount ?? 0))}</span>
             </div>
-          </div>
-        );
-      })}
-      {err ? <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-800">{err}</p> : null}
+            {editing === t.id ? (
+              <div className="mt-1 flex min-w-0 gap-1">
+                <input
+                  autoFocus
+                  value={val}
+                  onChange={(e) => setVal(e.target.value.toUpperCase())}
+                  placeholder="NR263691-B2"
+                  className="min-w-0 flex-1 rounded-md border border-prime-border bg-white px-2 py-1.5 text-base sm:text-xs"
+                />
+                <button type="button" onClick={() => void save(t.id, val)} disabled={val.trim().length < 3} className="rounded-md bg-[#111] px-2 text-xs font-bold text-prime-gold disabled:opacity-50">
+                  Salvar
+                </button>
+                <button type="button" onClick={() => setEditing(null)} className="px-1 text-xs text-prime-muted">
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {t.ref_guess ? (
+                  <button type="button" onClick={() => void save(t.id, t.ref_guess as string)} className="rounded-md bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900">
+                    É do {t.ref_guess}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(t.id);
+                    setVal(t.ref_guess ? `${t.ref_guess}-` : "NR");
+                  }}
+                  className="rounded-md px-2 py-1 text-[11px] ring-1 ring-prime-border"
+                >
+                  {t.ref_guess ? "Outro voucher" : "Informar NR"}
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {err ? <p className="mt-1 rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-800">{err}</p> : null}
     </div>
   );
 }
