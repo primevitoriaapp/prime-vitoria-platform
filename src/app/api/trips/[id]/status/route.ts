@@ -263,6 +263,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     if (body.to_status === "in_progress" && odoStart != null) statusUpdate.odometer_start = odoStart;
     if (body.to_status === "completed") {
+      // Revisão só vale depois do fim: se alguém revisou com a corrida em andamento, volta para a fila de aprovação.
+      statusUpdate.reviewed_at = null;
       const drops = parseDropoffStops(trip.trip_dropoff_stops);
       if (drops.some((d) => !d.dropped_at)) statusUpdate.trip_dropoff_stops = closeAllDropoffs(drops);
     }

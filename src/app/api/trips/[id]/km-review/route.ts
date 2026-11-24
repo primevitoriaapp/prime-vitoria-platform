@@ -171,7 +171,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     const now = new Date().toISOString();
     if (body.choice !== "keep") Object.assign(update, { actual_km: km, km_updated_at: now });
-    if (!body.keep_pending) Object.assign(update, { reviewed_at: now, review_required: false });
+    // Aprovação só depois que o motorista finaliza; antes disso, ajusta o KM/valor mas a corrida continua na fila.
+    const finished = ["completed", "no_show", "cancelled"].includes(String((t as { operational_status?: string }).operational_status ?? "completed"));
+    if (!body.keep_pending && finished) Object.assign(update, { reviewed_at: now, review_required: false });
     if (body.wait_minutes !== undefined) Object.assign(update, { wait_minutes: body.wait_minutes, wait_started_at: null });
     if (body.wait_client_waived !== undefined) update.wait_client_waived = body.wait_client_waived;
     if (body.wait_rate) {

@@ -25,6 +25,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     if (!["admin", "operador"].includes(session.role)) return fail("FORBIDDEN", "Sem permissão", 403);
     const tenantId = assertTenantScope(session);
     const { id } = await params;
+    const { data: cur } = await db.from("trips").select("operational_status").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+    if (cur && !["completed", "no_show", "cancelled"].includes(String(cur.operational_status)))
+      return fail("TRIP_NOT_FINISHED", "A corrida ainda não terminou. Revise depois que o motorista finalizar.", 409);
     const { error } = await db
       .from("trips")
       .update({ review_required: false, reviewed_at: new Date().toISOString() })
