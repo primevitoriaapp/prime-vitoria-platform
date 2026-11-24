@@ -13,6 +13,7 @@ import { DriverHomeMap, MapSafe } from "@/components/driver-home-map";
 import type { Trip } from "@/lib/domain/types";
 import { DriverHomeStatsStrip, DriverIdleHome, readPaused, useDriverSummary } from "@/components/driver-app-home";
 import { DriverProfileMenu } from "@/components/driver-profile-menu";
+import { DriverPrimeClub } from "@/components/driver-prime-club";
 
 type DriverOption = { id: string; cpf: string; profile_name?: string | null };
 type Me = {
@@ -23,7 +24,7 @@ type Me = {
   operational_status: string;
   vehicle: { model: string; plate: string; brand?: string | null; color?: string | null; category?: string | null } | null;
 };
-type Tab = "inicio" | "agenda" | "carteira" | "corridas" | "perfil";
+type Tab = "inicio" | "agenda" | "carteira" | "corridas" | "club" | "perfil";
 
 type Props = {
   tenantId: string | null;
@@ -45,7 +46,7 @@ function isNight() {
   return h >= 18 || h < 6;
 }
 
-const TAB_TITLE: Record<Tab, string> = { inicio: "Início", agenda: "Agenda", carteira: "Carteira", corridas: "Histórico", perfil: "Perfil" };
+const TAB_TITLE: Record<Tab, string> = { inicio: "Início", agenda: "Agenda", carteira: "Carteira", corridas: "Agenda", club: "Prime Club", perfil: "Perfil" };
 
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
 function nextTripLabel(t: Trip | null) {
@@ -62,13 +63,14 @@ const ICONS: Record<Tab, string> = {
   corridas: "M5 4h14v16H5zM8 8h8M8 12h8M8 16h5",
   carteira: "M3 7h18v12H3zM3 7l3-3h12l3 3M16 13h2",
   agenda: "M4 6h16v14H4zM4 10h16M9 3v5M15 3v5",
+  club: "M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z",
   perfil: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4 4-6 8-6s8 2 8 6"
 };
 const TABS: { id: Tab; label: string }[] = [
   { id: "inicio", label: "Início" },
   { id: "agenda", label: "Agenda" },
   { id: "carteira", label: "Carteira" },
-  { id: "corridas", label: "Histórico" },
+  { id: "club", label: "Prime Club" },
   { id: "perfil", label: "Perfil" }
 ];
 
@@ -86,7 +88,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
   const summary = useDriverSummary(mode === "motorista");
   useEffect(() => {
     const a = searchParams.get("aba");
-    if (a && TABS.some((t) => t.id === a)) setTab(a as Tab);
+    if (a && (TABS.some((t) => t.id === a) || a === "corridas")) setTab(a as Tab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -130,6 +132,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
 
   const devRole = mode === "admin" ? "admin" : "motorista";
   const name = mode === "admin" ? (drivers.find((d) => d.id === selectedDriverId)?.profile_name ?? "Motorista") : (me?.profile_name || me?.full_name || "Motorista");
+  const on = (id: Tab) => tab === id || (id === "agenda" && tab === "corridas");
   function go(t: Tab) {
     setTab(t);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -195,6 +198,20 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
               PRIME <span className="text-[#8A6A1F]">VITÓRIA</span>
             </p>
             {tab !== "perfil" ? <h1 className="mt-3 text-[28px] font-extrabold leading-tight">{TAB_TITLE[tab]}</h1> : null}
+            {tab === "agenda" || tab === "corridas" ? (
+              <div className="mt-3 grid grid-cols-2 rounded-2xl bg-white p-1 text-sm ring-1 ring-[#ECE7DB]">
+                {(
+                  [
+                    ["agenda", "Próximas"],
+                    ["corridas", "Histórico"]
+                  ] as const
+                ).map(([k, t]) => (
+                  <button key={k} type="button" onClick={() => setTab(k)} className={`rounded-xl py-2.5 ${tab === k ? "bg-[#111] font-semibold text-[#D9BC6A]" : "text-[#6B6F76]"}`}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             {mode === "admin" ? (
               <label className="mt-3 block text-xs text-[#5C6067]">
                 Vendo o app como:
@@ -228,8 +245,16 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           onPrimaryTrip={setNextTrip}
           summary={summary}
           idleHome={<DriverIdleHome summary={summary} nextLabel={null} preview={mode === "admin"} onAgenda={() => go("agenda")} />}
-          hidden={tab === "perfil" || tab === "carteira"}
+          hidden={tab === "perfil" || tab === "carteira" || tab === "club"}
         />
+
+        {tab === "club" ? (
+          mode === "motorista" ? (
+            <DriverPrimeClub />
+          ) : (
+            <p className="rounded-3xl bg-white p-4 text-sm text-[#6B6F76]">O Prime Club aparece quando o próprio motorista entra com CPF e PIN.</p>
+          )
+        ) : null}
 
         {tab === "carteira" ? (
           mode === "motorista" ? (
@@ -257,10 +282,10 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
               <button
                 type="button"
                 onClick={() => go(t.id)}
-                aria-current={tab === t.id ? "page" : undefined}
-                className={`flex w-full flex-col items-center gap-1 py-2.5 text-xs ${tab === t.id ? "font-bold text-[#111]" : "text-[#6B6F76]"}`}
+                aria-current={on(t.id) ? "page" : undefined}
+                className={`flex w-full flex-col items-center gap-1 whitespace-nowrap py-2.5 text-xs ${on(t.id) ? "font-bold text-[#111]" : "text-[#6B6F76]"}`}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={tab === t.id ? "#B08D35" : "currentColor"} strokeWidth={tab === t.id ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={on(t.id) ? "#B08D35" : "currentColor"} strokeWidth={on(t.id) ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d={ICONS[t.id]} />
                 </svg>
                 {t.label}
