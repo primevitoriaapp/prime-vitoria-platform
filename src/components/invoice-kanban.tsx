@@ -22,7 +22,7 @@ type ClientAcc = {
   trips?: AccTrip[];
 };
 type AccTrip = { id: string; scheduled_at: string; stage: "aprovada" | "aprovar" | "agendada"; ref: string | null; ref_guess?: string | null; has_voucher?: boolean; passenger: string | null; route: string; client_amount: number | null };
-type VCard = { key: string; client: ClientAcc; nr: string; isNr: boolean; trips: AccTrip[]; missing: AccTrip[]; total: number };
+type VCard = { key: string; client: ClientAcc; nr: string; isNr: boolean; trips: AccTrip[]; missing: AccTrip[]; total: number; billed: Inv[] };
 type Inv = {
   id: string;
   number: number;
@@ -152,16 +152,18 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
         trips.sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
         const isNr = /^NR/i.test(nr) || (usesNr && nr !== "" && !nr.startsWith("SERVIÇOS"));
         const missing = isNr ? all.filter((t) => t.stage !== "aprovada" && t.ref?.replace(/-.*$/, "") === nr) : [];
-        out.push({ key: `${c.client_id}|${nr || "-"}`, client: c, nr, isNr, trips, missing, total: trips.reduce((x, t) => x + Number(t.client_amount ?? 0), 0) });
+        const billed = isNr ? invs.filter((i) => i.client_id === c.client_id && (i.client_ref ?? "").toUpperCase() === nr.toUpperCase()) : [];
+        out.push({ key: `${c.client_id}|${nr || "-"}`, client: c, nr, isNr, trips, missing, billed, total: trips.reduce((x, t) => x + Number(t.client_amount ?? 0), 0) });
       }
     }
     // Sem voucher primeiro (precisa de atenção), depois por data do primeiro serviço.
     return out.sort((a, b) => (a.nr === "" ? -1 : b.nr === "" ? 1 : a.trips[0].scheduled_at.localeCompare(b.trips[0].scheduled_at)));
-  }, [accs]);
+  }, [accs, invs]);
 
   async function closeVoucher(v: VCard) {
     const pax = [...new Set(v.trips.flatMap((t) => String(t.passenger ?? "").split(",").map((x) => x.trim()).filter(Boolean)))];
-    const warn = v.missing.length ? `\n\nAtenção: ${v.missing.length} corrida(s) deste voucher ainda não estão aprovadas e ficam de fora.` : "";
+    const already = v.billed.length ? `\n\n⚠ Este voucher JÁ TEM fatura (${v.billed.map((b) => `nº ${b.number} de ${brl(Number(b.total_amount))}`).join(", ")}). Esta será uma fatura complementar. Confira se a corrida não foi cobrada.` : "";
+    const warn = (v.missing.length ? `\n\nAtenção: ${v.missing.length} corrida(s) deste voucher ainda não estão aprovadas e ficam de fora.` : "") + already;
     if (!window.confirm(`Fechar a fatura ${v.isNr ? `do voucher ${v.nr}` : `de ${v.nr.toLowerCase()}`} (${v.client.client_name})?\n\n${pax.join(", ")}\n${v.trips.length} corrida(s) · ${brl(v.total)}${warn}`)) return;
     const due = new Date(Date.now() + (v.client.payment_term_days ?? 30) * 86400000).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
     setBusy(v.key);
@@ -599,7 +601,7 @@ const shortName = (n: string) => {
 
 /** Um voucher (NR) pronto para virar fatura. */
 function VoucherCard({ v, card, busy, onClose, onDrag, onSaved }: { v: VCard; card: string; busy: boolean; onClose: () => void; onDrag: () => void; onSaved: () => void }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(v.trips.length <= 4);
   const [peek, setPeek] = useState<AccTrip | null>(null);
   const withFile = v.trips.find((t) => t.has_voucher);
   const pax = paxOf(v.trips);
@@ -608,21 +610,28 @@ function VoucherCard({ v, card, busy, onClose, onDrag, onSaved }: { v: VCard; ca
   const dup = items.filter((x, i) => x && items.indexOf(x) !== i);
   return (
     <div draggable onDragStart={onDrag} className={`${card} cursor-grab active:cursor-grabbing`}>
-      <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-prime-muted">{v.client.client_name}</p>
-      <p className="flex items-baseline justify-between gap-2">
-        <span className="font-bold">{v.isNr ? `Voucher ${v.nr}` : v.nr.charAt(0) + v.nr.slice(1).toLowerCase()}</span>
-        <span className="shrink-0 text-base font-bold tabular-nums">{moneyBR(v.total)}</span>
-      </p>
-      <p className="truncate text-xs">{pax.length ? pax.map(shortName).join(", ") : "Sem passageiro"}</p>
-      <p className="text-[11px] text-prime-muted">
-        {v.trips.length} corrida(s) · {whenBR(v.trips[0].scheduled_at).slice(0, 5)}
-        {v.trips.length > 1 ? ` a ${whenBR(v.trips[v.trips.length - 1].scheduled_at).slice(0, 5)}` : ""}
-      </p>
+      <button type="button" onClick={() => (v.trips.length === 1 ? setPeek(v.trips[0]) : setOpen((o) => !o))} className="block w-full min-w-0 text-left">
+        <span className="block truncate text-[11px] font-semibold uppercase tracking-wide text-prime-muted">{v.client.client_name}</span>
+        <span className="flex items-baseline justify-between gap-2">
+          <span className="font-bold">{v.isNr ? `Voucher ${v.nr}` : v.nr.charAt(0) + v.nr.slice(1).toLowerCase()}</span>
+          <span className="shrink-0 text-base font-bold tabular-nums">{moneyBR(v.total)}</span>
+        </span>
+        <span className="block truncate text-xs">{pax.length ? pax.map(shortName).join(", ") : "Sem passageiro"}</span>
+        <span className="block text-[11px] text-prime-muted">
+          {v.trips.length} corrida(s) · {whenBR(v.trips[0].scheduled_at).slice(0, 5)}
+          {v.trips.length > 1 ? ` a ${whenBR(v.trips[v.trips.length - 1].scheduled_at).slice(0, 5)}` : ""}
+        </span>
+      </button>
+      {v.billed.length ? (
+        <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
+          Este voucher já tem fatura: {v.billed.map((b) => `nº ${b.number} (${moneyBR(Number(b.total_amount))})`).join(", ")}. Confira se esta corrida não está incluída nela antes de cobrar de novo.
+        </p>
+      ) : null}
       {v.missing.length ? <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] text-amber-900">Falta(m) {v.missing.length} corrida(s) deste voucher (ainda não aprovada). Se fechar agora, ficam de fora.</p> : null}
       {dup.length ? <p className="mt-1 rounded-md bg-red-50 px-2 py-1 text-[11px] text-red-800">Item {[...new Set(dup)].join(", ")} aparece em mais de uma corrida. Confira antes de fechar.</p> : null}
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
         <button type="button" onClick={() => setOpen((o) => !o)} className="text-xs font-semibold text-prime-gold-ink">
-          {open ? "Esconder corridas" : "Ver corridas ▾"}
+          {open ? "Esconder corridas ▴" : `Ver as ${v.trips.length} corridas ▾`}
         </button>
         {withFile ? (
           <a href={`/api/trips/${withFile.id}/client-voucher`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-prime-gold-ink">
