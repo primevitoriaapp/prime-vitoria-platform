@@ -609,7 +609,7 @@ function VoucherCard({ v, card, busy, onClose, onDrag, onSaved }: { v: VCard; ca
   const items = v.trips.map((t) => (t.ref?.includes("-") ? t.ref.slice(t.ref.indexOf("-") + 1) : null));
   const dup = items.filter((x, i) => x && items.indexOf(x) !== i);
   return (
-    <div draggable onDragStart={onDrag} className={`${card} cursor-grab active:cursor-grabbing`}>
+    <div className={card} data-drag={onDrag ? "off" : undefined}>
       <button type="button" onClick={() => (v.trips.length === 1 ? setPeek(v.trips[0]) : setOpen((o) => !o))} className="block w-full min-w-0 text-left">
         <span className="block truncate text-[11px] font-semibold uppercase tracking-wide text-prime-muted">{v.client.client_name}</span>
         <span className="flex items-baseline justify-between gap-2">
