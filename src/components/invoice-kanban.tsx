@@ -753,6 +753,7 @@ type TripFull = {
   flight_number: string | null;
   notes: string | null;
   client_amount: number | null;
+  driver_amount?: number | null;
   km_billable: number | null;
   actual_km: number | null;
   driver_name?: string | null;
@@ -769,6 +770,8 @@ function TripPeek({ trip, siblings, onClose, onSaved }: { trip: AccTrip; sibling
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [hasFile, setHasFile] = useState(Boolean(trip.has_voucher));
+  const [cli, setCli] = useState(String(trip.client_amount ?? "").replace(".", ","));
+  const [drv, setDrv] = useState("");
   useEffect(() => {
     void fetchWithSupabaseSession(`/api/trips/${trip.id}`, {}, "admin")
       .then((r) => r.json())
@@ -776,6 +779,8 @@ function TripPeek({ trip, siblings, onClose, onSaved }: { trip: AccTrip; sibling
         if (j.success && j.data) {
           setT(j.data);
           setHasFile(Boolean(j.data.client_voucher_path));
+          if (j.data.client_amount != null) setCli(String(j.data.client_amount).replace(".", ","));
+          if (j.data.driver_amount != null) setDrv(String(j.data.driver_amount).replace(".", ","));
         }
       })
       .catch(() => undefined);
@@ -788,6 +793,22 @@ function TripPeek({ trip, siblings, onClose, onSaved }: { trip: AccTrip; sibling
     setBusy(false);
     if (!j.success) return setMsg({ ok: false, t: j.error?.message ?? "Não foi possível salvar." });
     setMsg({ ok: true, t: "NR salvo. A corrida foi para o card do voucher." });
+    onSaved();
+  }
+  async function saveAmounts() {
+    const num = (x: string) => (x.trim() ? Number(x.replace(/\./g, "").replace(",", ".")) : null);
+    const c = num(cli);
+    if (c == null || !Number.isFinite(c)) return setMsg({ ok: false, t: "Digite o valor ao cliente." });
+    setBusy(true);
+    const r = await fetchWithSupabaseSession(
+      `/api/trips/${trip.id}/amounts`,
+      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_amount: c, ...(drv.trim() ? { driver_amount: num(drv) } : {}) }) },
+      "admin"
+    ).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } }) : {};
+    setBusy(false);
+    if (!j.success) return setMsg({ ok: false, t: j.error?.message ?? "Não foi possível salvar os valores." });
+    setMsg({ ok: true, t: "Valores salvos. O card do voucher já soma o novo valor." });
     onSaved();
   }
   async function upload(f: File | undefined) {
@@ -842,10 +863,27 @@ function TripPeek({ trip, siblings, onClose, onSaved }: { trip: AccTrip; sibling
                 <Row k="Motorista" v={t.driver_name} />
                 <Row k="KM" v={t.km_billable ?? t.actual_km ? `${t.km_billable ?? t.actual_km} km` : null} />
                 <Row k="Situação" v={STATUS[t.operational_status] ?? t.operational_status} />
-                <Row k="Valor ao cliente" v={moneyBR(Number(t.client_amount ?? 0))} />
                 <Row k="Observações" v={t.notes ? <span className="whitespace-pre-line text-xs">{t.notes}</span> : null} />
               </section>
             ) : null}
+
+            <section className="space-y-2 rounded-xl bg-white p-3">
+              <p className="text-sm font-semibold">Valores desta corrida</p>
+              <p className="text-xs text-prime-muted">Confira com o voucher. Diária “disponível” dividida em ida e volta: cada perna fica com metade do valor do voucher (ex.: R$ 550 → 275 + 275).</p>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="grid gap-1 text-xs text-prime-muted">
+                  Cliente paga (R$)
+                  <input value={cli} onChange={(e) => setCli(e.target.value)} inputMode="decimal" className="rounded-lg border border-prime-border px-3 py-2 text-base text-[#111] sm:text-sm" />
+                </label>
+                <label className="grid gap-1 text-xs text-prime-muted">
+                  Motorista recebe (R$)
+                  <input value={drv} onChange={(e) => setDrv(e.target.value)} inputMode="decimal" placeholder="sem mudança" className="rounded-lg border border-prime-border px-3 py-2 text-base text-[#111] sm:text-sm" />
+                </label>
+              </div>
+              <button type="button" disabled={busy} onClick={() => void saveAmounts()} className="w-full rounded-lg bg-[#111] px-3 py-2.5 text-sm font-semibold text-prime-gold disabled:opacity-50">
+                Salvar valores
+              </button>
+            </section>
 
             <section className="space-y-2 rounded-xl bg-white p-3">
               <p className="text-sm font-semibold">Voucher do cliente</p>
