@@ -20,7 +20,7 @@ type ClientAcc = {
   upcoming_count: number;
   trips?: AccTrip[];
 };
-type AccTrip = { id: string; scheduled_at: string; stage: "aprovada" | "aprovar" | "agendada"; ref: string | null; passenger: string | null; route: string; client_amount: number | null };
+type AccTrip = { id: string; scheduled_at: string; stage: "aprovada" | "aprovar" | "agendada"; ref: string | null; ref_guess?: string | null; passenger: string | null; route: string; client_amount: number | null };
 type Inv = {
   id: string;
   number: number;
@@ -374,31 +374,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                       {picking === c.client_id ? (
                         <div className="mt-2 grid min-w-0 grid-cols-1 gap-1.5">
                           <p className="text-xs font-semibold">Marque o que entra nesta fatura:</p>
-                          {(c.trips ?? [])
-                            .filter((t) => t.stage === "aprovada")
-                            .map((t) => (
-                              <label key={t.id} className="flex min-w-0 cursor-pointer items-start gap-2 rounded-lg bg-prime-bg px-2 py-1.5 text-xs">
-                                <input
-                                  type="checkbox"
-                                  className="mt-0.5"
-                                  checked={picked.has(t.id)}
-                                  onChange={(e) =>
-                                    setPicked((p) => {
-                                      const n = new Set(p);
-                                      if (e.target.checked) n.add(t.id);
-                                      else n.delete(t.id);
-                                      return n;
-                                    })
-                                  }
-                                />
-                                <span className="min-w-0 flex-1">
-                                  <b>{new Date(t.scheduled_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</b>
-                                  {t.passenger ? ` · ${t.passenger}` : ""}
-                                  <span className="block truncate text-prime-muted">{t.route}</span>
-                                </span>
-                                <span className="shrink-0 font-semibold tabular-nums">{brl(Number(t.client_amount ?? 0))}</span>
-                              </label>
-                            ))}
+                          <PickByRef trips={(c.trips ?? []).filter((t) => t.stage === "aprovada")} picked={picked} setPicked={setPicked} onSaved={() => void load()} />
                           <button
                             type="button"
                             disabled={busy === c.client_id || !picked.size}
@@ -515,5 +491,127 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
         })}
       </div>
     </section>
+  );
+}
+
+/** Fechamento por serviço: corridas agrupadas pelo NR do cliente (ex.: NR263691), com subtotal e marcação do grupo inteiro. */
+function PickByRef({ trips, picked, setPicked, onSaved }: { trips: AccTrip[]; picked: Set<string>; setPicked: (f: (p: Set<string>) => Set<string>) => void; onSaved: () => void }) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const [val, setVal] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const base = (r: string | null) => (r ? r.replace(/-.*$/, "") : "");
+  const item = (r: string | null) => (r && r.includes("-") ? r.slice(r.indexOf("-") + 1) : null);
+  const money = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const groups = useMemo(() => {
+    const m = new Map<string, AccTrip[]>();
+    for (const t of [...trips].sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))) {
+      const k = base(t.ref);
+      m.set(k, [...(m.get(k) ?? []), t]);
+    }
+    // "Sem NR" primeiro (precisa de atenção), depois os NRs em ordem.
+    return [...m.entries()].sort(([a], [b]) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)));
+  }, [trips]);
+  const toggle = (ids: string[], on: boolean) =>
+    setPicked((p) => {
+      const n = new Set(p);
+      ids.forEach((id) => (on ? n.add(id) : n.delete(id)));
+      return n;
+    });
+  async function save(tripId: string, ref: string) {
+    setErr(null);
+    const r = await fetchWithSupabaseSession("/api/client-invoices/set-ref", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_id: tripId, ref }) }, "admin").catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } }) : {};
+    if (!j.success) return setErr(j.error?.message ?? "Não foi possível salvar o NR.");
+    setEditing(null);
+    setVal("");
+    onSaved();
+  }
+  const when = (iso: string) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const names = (list: AccTrip[]) => [...new Set(list.flatMap((t) => String(t.passenger ?? "").split(",").map((x) => x.trim()).filter(Boolean)))];
+  const title = (n: string) => n.split(" ").filter(Boolean).map((w, i, a) => (i === 0 || i === a.length - 1 ? w.charAt(0) + w.slice(1).toLowerCase() : "")).filter(Boolean).join(" ");
+  return (
+    <div className="grid min-w-0 gap-2">
+      {groups.map(([nr, list]) => {
+        const ids = list.map((t) => t.id);
+        const all = ids.every((id) => picked.has(id));
+        const some = ids.some((id) => picked.has(id));
+        const total = list.reduce((s, t) => s + Number(t.client_amount ?? 0), 0);
+        const pax = names(list);
+        return (
+          <div key={nr || "sem"} className={`min-w-0 overflow-hidden rounded-xl border ${nr ? "border-prime-border bg-white" : "border-amber-300 bg-amber-50"}`}>
+            <label className="flex min-w-0 cursor-pointer items-start gap-2 border-b border-prime-border/70 px-2 py-2 text-xs">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={all}
+                ref={(el) => {
+                  if (el) el.indeterminate = some && !all;
+                }}
+                onChange={(e) => toggle(ids, e.target.checked)}
+              />
+              <span className="min-w-0 flex-1">
+                <b className={nr ? "text-[#111]" : "text-amber-900"}>{nr || "Sem NR — confira antes de fechar"}</b>
+                <span className="block truncate text-prime-muted">{pax.length ? pax.map(title).join(", ") : "Sem passageiro"} · {list.length} corrida(s)</span>
+              </span>
+              <span className="shrink-0 font-bold tabular-nums">{money(total)}</span>
+            </label>
+            <div className="grid gap-1 p-1.5">
+              {list.map((t) => (
+                <div key={t.id} className="min-w-0 rounded-lg px-1.5 py-1 text-xs">
+                  <label className="flex min-w-0 cursor-pointer items-start gap-2">
+                    <input type="checkbox" className="mt-0.5" checked={picked.has(t.id)} onChange={(e) => toggle([t.id], e.target.checked)} />
+                    <span className="min-w-0 flex-1">
+                      {item(t.ref) ? <span className="mr-1 rounded bg-[#F1EDE3] px-1 py-px text-[10px] font-bold text-[#7A5C16]">item {item(t.ref)}</span> : null}
+                      <b>{when(t.scheduled_at)}</b>
+                      {!nr && t.passenger ? ` · ${t.passenger}` : ""}
+                      <span className="block truncate text-prime-muted">{t.route}</span>
+                    </span>
+                    <span className="shrink-0 font-semibold tabular-nums">{money(Number(t.client_amount ?? 0))}</span>
+                  </label>
+                  {!nr ? (
+                    editing === t.id ? (
+                      <div className="mt-1 flex min-w-0 gap-1 pl-5">
+                        <input
+                          autoFocus
+                          value={val}
+                          onChange={(e) => setVal(e.target.value.toUpperCase())}
+                          placeholder="NR263691-B2"
+                          className="min-w-0 flex-1 rounded-md border border-prime-border bg-white px-2 py-1.5 text-base sm:text-xs"
+                        />
+                        <button type="button" onClick={() => void save(t.id, val)} disabled={val.trim().length < 2} className="rounded-md bg-[#111] px-2 text-xs font-bold text-prime-gold disabled:opacity-50">
+                          Salvar
+                        </button>
+                        <button type="button" onClick={() => setEditing(null)} className="px-1 text-xs text-prime-muted">
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-1 flex flex-wrap gap-1 pl-5">
+                        {t.ref_guess ? (
+                          <button type="button" onClick={() => void save(t.id, t.ref_guess as string)} className="rounded-md bg-white px-2 py-1 text-[11px] font-semibold ring-1 ring-amber-300">
+                            É do {t.ref_guess}? Confirmar
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditing(t.id);
+                            setVal(t.ref_guess ? `${t.ref_guess}-` : "NR");
+                          }}
+                          className="rounded-md bg-white px-2 py-1 text-[11px] ring-1 ring-prime-border"
+                        >
+                          {t.ref_guess ? "Outro NR" : "Informar NR"}
+                        </button>
+                      </div>
+                    )
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {err ? <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-800">{err}</p> : null}
+    </div>
   );
 }

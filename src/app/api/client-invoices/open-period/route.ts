@@ -97,6 +97,25 @@ export async function GET(request: Request) {
       });
       groups.set(t.client_id as string, g);
     }
+    // Corrida sem NR: sugere o NR de outra corrida do mesmo passageiro (a mais próxima no tempo). Só sugestão; a central confirma.
+    for (const g of groups.values()) {
+      const list = g.trips as { scheduled_at: string; ref: string | null; passenger: string | null; ref_guess?: string | null }[];
+      const norm = (s: string | null) => String(s ?? "").toLowerCase().split(",").map((x) => x.trim()).filter(Boolean);
+      for (const t of list) {
+        if (t.ref) continue;
+        const mine = norm(t.passenger);
+        if (!mine.length) continue;
+        let best: { ref: string; d: number } | null = null;
+        for (const o of list) {
+          if (!o.ref) continue;
+          const theirs = norm(o.passenger);
+          if (!mine.some((n) => theirs.includes(n))) continue;
+          const d = Math.abs(new Date(o.scheduled_at).getTime() - new Date(t.scheduled_at).getTime());
+          if (d <= 3 * 86400000 && (!best || d < best.d)) best = { ref: o.ref.replace(/-.*$/, ""), d };
+        }
+        t.ref_guess = best?.ref ?? null;
+      }
+    }
     const out = [...groups.values()].sort((a, b) => Number(b.approved_total) + Number(b.to_approve_total) - (Number(a.approved_total) + Number(a.to_approve_total)));
     return ok({ month, clients: out });
   } catch (e) {
