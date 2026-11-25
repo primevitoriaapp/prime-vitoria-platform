@@ -112,10 +112,17 @@ export async function submitPassengerTemplates(c: WhatsappCloudConfig): Promise<
     const components: unknown[] = [{ type: "BODY", text: t.body, example: { body_text: [t.example] } }];
     if (t.button) components.push({ type: "BUTTONS", buttons: [{ type: "URL", text: t.button.text, url: `${t.button.urlPrefix}{{1}}`, example: [`${t.button.urlPrefix}exemplo123`] }] });
     try {
-      const r = await graph(c, `${encodeURIComponent(c.waba_id)}/message_templates`, {
-        method: "POST",
-        body: JSON.stringify({ name: t.name, language: "pt_BR", category: "UTILITY", components })
-      });
+      const post = () =>
+        graph(c, `${encodeURIComponent(c.waba_id)}/message_templates`, {
+          method: "POST",
+          body: JSON.stringify({ name: t.name, language: "pt_BR", category: "UTILITY", components })
+        });
+      let r = await post();
+      // Limite de pedidos seguidos do Dualhook: espera e tenta 1 vez de novo.
+      if (!r.ok && /rate limit/i.test(graphError(r.body, r.status))) {
+        await new Promise((res) => setTimeout(res, 12000));
+        r = await post();
+      }
       out.push({ name: t.name, ok: r.ok, detail: r.ok ? String(r.body.status ?? "enviado para análise") : graphError(r.body, r.status) });
     } catch {
       out.push({ name: t.name, ok: false, detail: "Falha de rede" });
