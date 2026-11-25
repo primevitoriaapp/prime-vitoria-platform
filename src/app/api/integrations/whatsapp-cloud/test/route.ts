@@ -21,7 +21,11 @@ export async function POST(request: Request) {
     if (wa.length <= 11) wa = `55${wa}`;
     const c = await getWhatsappCloudConfig();
     if (!cloudReady(c)) return fail("NOT_CONFIGURED", "Falta a chave ou o ID do número.", 400);
-    const { data: contact } = await db.from("whatsapp_contacts").select("last_inbound_at").eq("tenant_id", tenantId).eq("wa_id", wa).maybeSingle();
+    // Celular brasileiro pode vir do WhatsApp com ou sem o 9 da frente (ex.: 5527996485974 ou 552796485974).
+    const alt = wa.length === 13 && wa.startsWith("55") && wa[4] === "9" ? wa.slice(0, 4) + wa.slice(5) : wa.length === 12 && wa.startsWith("55") ? `${wa.slice(0, 4)}9${wa.slice(4)}` : wa;
+    const { data: found } = await db.from("whatsapp_contacts").select("wa_id, last_inbound_at").eq("tenant_id", tenantId).in("wa_id", [wa, alt]).order("last_inbound_at", { ascending: false, nullsFirst: false }).limit(1);
+    const contact = found?.[0] ?? null;
+    if (contact?.wa_id) wa = contact.wa_id;
     const last = contact?.last_inbound_at ? new Date(contact.last_inbound_at).getTime() : 0;
     if (!last || Date.now() - last > 24 * 3600_000)
       return fail("WINDOW_CLOSED", "Antes do teste, mande qualquer mensagem desse número para a central (27) 2142-8307. O WhatsApp só deixa a empresa escrever livre até 24 horas depois da última mensagem da pessoa.", 409);
