@@ -6,6 +6,8 @@ import { insertAuditEvent } from "@/lib/server/audit-log";
 import { cloudReady, getWhatsappCloudConfig, passengerTemplatesStatus, submitPassengerTemplates } from "@/lib/messages/whatsapp-cloud";
 import { PASSENGER_TEMPLATES, renderPassengerTemplate } from "@/lib/messages/passenger-whatsapp-templates";
 
+export const maxDuration = 60;
+
 /** WhatsApp oficial: configuração, modelos e últimos avisos. Só admin. */
 export async function GET() {
   try {

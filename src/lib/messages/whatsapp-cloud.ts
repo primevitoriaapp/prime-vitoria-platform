@@ -83,7 +83,17 @@ export async function sendWhatsappTemplate(
 /** Pede à Meta a aprovação dos 3 modelos (categoria utilidade, português). */
 export async function submitPassengerTemplates(c: WhatsappCloudConfig): Promise<{ name: string; ok: boolean; detail: string }[]> {
   const out: { name: string; ok: boolean; detail: string }[] = [];
+  // Não reenvia o que já está na Meta e espera entre um e outro (o Dualhook limita pedidos seguidos).
+  const existing = await passengerTemplatesStatus(c).catch(() => []);
+  let first = true;
   for (const t of PASSENGER_TEMPLATES) {
+    const st = existing.find((x) => x.name === t.name)?.status;
+    if (st && st !== "não enviado" && st !== "REJECTED") {
+      out.push({ name: t.name, ok: true, detail: `já enviado (${st === "APPROVED" ? "aprovado" : st === "PENDING" ? "em análise" : st})` });
+      continue;
+    }
+    if (!first) await new Promise((r) => setTimeout(r, 6000));
+    first = false;
     const components: unknown[] = [{ type: "BODY", text: t.body, example: { body_text: [t.example] } }];
     if (t.button) components.push({ type: "BUTTONS", buttons: [{ type: "URL", text: t.button.text, url: `${t.button.urlPrefix}{{1}}`, example: [`${t.button.urlPrefix}exemplo123`] }] });
     try {
