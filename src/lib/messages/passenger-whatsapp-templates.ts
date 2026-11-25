@@ -4,9 +4,12 @@
  * Sem banco: usado no painel (prévia), no envio e nos testes.
  */
 export type PassengerNotifyKind = "confirmado" | "a_caminho" | "avaliacao";
+export type DriverNotifyKind = "motorista_nova" | "motorista_alterada" | "motorista_cancelada";
 
 export type PassengerTemplate = {
-  kind: PassengerNotifyKind;
+  kind: PassengerNotifyKind | DriverNotifyKind;
+  /** Para quem vai. */
+  audience?: "passageiro" | "motorista";
   /** Nome do modelo na Meta (minúsculas e _). */
   name: string;
   label: string;
@@ -54,12 +57,63 @@ export const PASSENGER_TEMPLATES: PassengerTemplate[] = [
   }
 ];
 
-export function passengerTemplate(kind: PassengerNotifyKind): PassengerTemplate {
-  return PASSENGER_TEMPLATES.find((t) => t.kind === kind) as PassengerTemplate;
+export const DRIVER_APP_URL_PREFIX = "https://motorista.primevitoria.com/driver?trip=";
+
+/**
+ * Avisos ao motorista. Sem valores e sem nome da empresa cliente (parceiro não vê cliente nem valor).
+ * Só o essencial; os detalhes ficam no app.
+ */
+export const DRIVER_TEMPLATES: PassengerTemplate[] = [
+  {
+    kind: "motorista_nova",
+    audience: "motorista",
+    name: "prime_motorista_nova_corrida",
+    label: "Motorista · Nova corrida",
+    when: "Quando a central escala o motorista",
+    body:
+      "Olá, {{1}}! Você recebeu uma nova corrida da Prime Vitória.\n\n" +
+      "📅 {{2}} às {{3}}\n" +
+      "📍 Embarque: {{4}}\n" +
+      "🏁 Destino: {{5}}\n\n" +
+      "Abra o app do motorista para ver todos os detalhes.",
+    button: { text: "Abrir a corrida", urlPrefix: DRIVER_APP_URL_PREFIX },
+    example: ["João", "amanhã (14/11)", "07:30", "Aeroporto de Vitória", "Praia do Canto"]
+  },
+  {
+    kind: "motorista_alterada",
+    audience: "motorista",
+    name: "prime_motorista_corrida_alterada",
+    label: "Motorista · Corrida alterada",
+    when: "Quando a central muda horário, endereço, passageiro ou voo de uma corrida dele",
+    body:
+      "Olá, {{1}}! A corrida de {{2}} às {{3}} foi atualizada pela central.\n" +
+      "📍 Embarque: {{4}}\n\n" +
+      "Confira os novos detalhes no app do motorista antes de sair.",
+    button: { text: "Ver a corrida", urlPrefix: DRIVER_APP_URL_PREFIX },
+    example: ["João", "amanhã (14/11)", "08:00", "Aeroporto de Vitória"]
+  },
+  {
+    kind: "motorista_cancelada",
+    audience: "motorista",
+    name: "prime_motorista_corrida_cancelada",
+    label: "Motorista · Corrida cancelada ou retirada",
+    when: "Quando a corrida é cancelada ou passada para outro motorista",
+    body:
+      "Olá, {{1}}! A corrida de {{2}} às {{3}} (embarque em {{4}}) não está mais com você.\n\n" +
+      "Ela já saiu da sua agenda no app. Qualquer dúvida, fale com a central.",
+    example: ["João", "amanhã (14/11)", "07:30", "Aeroporto de Vitória"]
+  }
+];
+
+/** Todos os modelos que vão para a Meta (passageiro e motorista). */
+export const ALL_TEMPLATES: PassengerTemplate[] = [...PASSENGER_TEMPLATES, ...DRIVER_TEMPLATES];
+
+export function passengerTemplate(kind: PassengerNotifyKind | DriverNotifyKind): PassengerTemplate {
+  return ALL_TEMPLATES.find((t) => t.kind === kind) as PassengerTemplate;
 }
 
 /** Texto final, como o passageiro vai ver (para a prévia e o registro). */
-export function renderPassengerTemplate(kind: PassengerNotifyKind, params: string[], buttonSuffix?: string | null): string {
+export function renderPassengerTemplate(kind: PassengerNotifyKind | DriverNotifyKind, params: string[], buttonSuffix?: string | null): string {
   const t = passengerTemplate(kind);
   const text = t.body.replace(/\{\{(\d+)\}\}/g, (_, n) => params[Number(n) - 1] ?? "");
   return t.button ? `${text}\n\n[ ${t.button.text} → ${t.button.urlPrefix}${buttonSuffix ?? "…"} ]` : text;

@@ -1,6 +1,6 @@
 import { db } from "@/lib/server/db";
 import { normalizeWhatsappPhone } from "@/lib/messages/templates";
-import { PASSENGER_TEMPLATES, type PassengerTemplate } from "@/lib/messages/passenger-whatsapp-templates";
+import { ALL_TEMPLATES, type PassengerTemplate } from "@/lib/messages/passenger-whatsapp-templates";
 
 /**
  * WhatsApp oficial (API da Meta, sem intermediário). A configuração fica no banco
@@ -12,7 +12,21 @@ import { PASSENGER_TEMPLATES, type PassengerTemplate } from "@/lib/messages/pass
  * - "ligado": envia de verdade.
  */
 export type WhatsappCloudMode = "desligado" | "teste" | "ligado";
-export type WhatsappCloudConfig = { phone_number_id: string; waba_id: string; token: string; mode: WhatsappCloudMode };
+export type WhatsappAudience = "motoristas" | "passageiros";
+export type WhatsappCloudConfig = {
+  phone_number_id: string;
+  waba_id: string;
+  token: string;
+  mode: WhatsappCloudMode;
+  /** No modo teste, quem já recebe de verdade. */
+  live?: WhatsappAudience[];
+};
+
+/** Envia de verdade para este público? ("ligado" = todos; "teste" = só os marcados). */
+export function sendsLive(c: WhatsappCloudConfig, who: WhatsappAudience): boolean {
+  if (c.mode === "ligado") return true;
+  return c.mode === "teste" && (c.live ?? []).includes(who);
+}
 
 const GRAPH = "https://graph.facebook.com/v23.0";
 /** Dualhook (coexistência): mesma API da Meta, com chave "dh_live_…". */
@@ -24,7 +38,8 @@ export async function getWhatsappCloudConfig(): Promise<WhatsappCloudConfig> {
   const { data } = await db.from("app_secrets").select("value").eq("key", "whatsapp_cloud").maybeSingle();
   const v = (data?.value ?? {}) as Partial<WhatsappCloudConfig>;
   const mode: WhatsappCloudMode = v.mode === "ligado" || v.mode === "teste" ? v.mode : "desligado";
-  return { phone_number_id: String(v.phone_number_id ?? ""), waba_id: String(v.waba_id ?? ""), token: String(v.token ?? ""), mode };
+  const live = (Array.isArray(v.live) ? v.live : []).filter((x): x is WhatsappAudience => x === "motoristas" || x === "passageiros");
+  return { phone_number_id: String(v.phone_number_id ?? ""), waba_id: String(v.waba_id ?? ""), token: String(v.token ?? ""), mode, live };
 }
 
 export function cloudReady(c: WhatsappCloudConfig): boolean {
@@ -80,13 +95,13 @@ export async function sendWhatsappTemplate(
   }
 }
 
-/** Pede à Meta a aprovação dos 3 modelos (categoria utilidade, português). */
+/** Pede à Meta a aprovação dos modelos (passageiro e motorista; categoria utilidade, português). */
 export async function submitPassengerTemplates(c: WhatsappCloudConfig): Promise<{ name: string; ok: boolean; detail: string }[]> {
   const out: { name: string; ok: boolean; detail: string }[] = [];
   // Não reenvia o que já está na Meta e espera entre um e outro (o Dualhook limita pedidos seguidos).
   const existing = await passengerTemplatesStatus(c).catch(() => []);
   let first = true;
-  for (const t of PASSENGER_TEMPLATES) {
+  for (const t of ALL_TEMPLATES) {
     const st = existing.find((x) => x.name === t.name)?.status;
     if (st && st !== "não enviado" && st !== "REJECTED") {
       out.push({ name: t.name, ok: true, detail: `já enviado (${st === "APPROVED" ? "aprovado" : st === "PENDING" ? "em análise" : st})` });
@@ -112,8 +127,8 @@ export async function submitPassengerTemplates(c: WhatsappCloudConfig): Promise<
 /** Situação de cada modelo na Meta (aprovado, em análise, recusado) e a categoria que a Meta deu. */
 export async function passengerTemplatesStatus(c: WhatsappCloudConfig): Promise<{ name: string; status: string; category: string | null }[]> {
   const r = await graph(c, `${encodeURIComponent(c.waba_id)}/message_templates?fields=name,status,category&limit=100`).catch(() => null);
-  const list = ((r?.body.data as { name: string; status: string; category?: string }[] | undefined) ?? []).filter((x) => PASSENGER_TEMPLATES.some((t) => t.name === x.name));
-  return PASSENGER_TEMPLATES.map((t) => {
+  const list = ((r?.body.data as { name: string; status: string; category?: string }[] | undefined) ?? []).filter((x) => ALL_TEMPLATES.some((t) => t.name === x.name));
+  return ALL_TEMPLATES.map((t) => {
     const f = list.find((x) => x.name === t.name);
     return { name: t.name, status: f?.status ?? "não enviado", category: f?.category ?? null };
   });

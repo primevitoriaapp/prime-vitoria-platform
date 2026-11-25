@@ -9,7 +9,7 @@ import {
   renderPassengerTemplate,
   type PassengerNotifyKind
 } from "@/lib/messages/passenger-whatsapp-templates";
-import { cloudReady, getWhatsappCloudConfig, sendWhatsappTemplate } from "@/lib/messages/whatsapp-cloud";
+import { cloudReady, getWhatsappCloudConfig, sendWhatsappTemplate, sendsLive } from "@/lib/messages/whatsapp-cloud";
 
 /** Regras para não pesar no WhatsApp do cliente. */
 const RATING_EVERY_DAYS = 7;
@@ -138,8 +138,8 @@ export async function notifyPassengers(tenantId: string, tripId: string, kind: P
       continue;
     }
 
-    if (cfg.mode === "teste" || !cloudReady(cfg)) {
-      await db.from("passenger_notifications").update({ status: "simulada", detail: cfg.mode === "teste" ? "Modo teste: não enviado" : "WhatsApp oficial ainda não configurado" }).eq("id", slot.id);
+    if (!sendsLive(cfg, "passageiros") || !cloudReady(cfg)) {
+      await db.from("passenger_notifications").update({ status: "simulada", detail: cloudReady(cfg) ? "Modo teste: não enviado" : "WhatsApp oficial ainda não configurado" }).eq("id", slot.id);
       res.simulated++;
       continue;
     }

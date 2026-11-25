@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
 type Log = { id: string; kind: string; phone: string; person_name: string | null; status: string; detail: string | null; preview: string | null; created_at: string };
-const KIND_PT: Record<string, string> = { confirmado: "Confirmado", a_caminho: "A caminho", avaliacao: "Avaliação" };
+const KIND_PT: Record<string, string> = {
+  confirmado: "Confirmado",
+  a_caminho: "A caminho",
+  avaliacao: "Avaliação",
+  motorista_nova: "Nova corrida",
+  motorista_alterada: "Corrida alterada",
+  motorista_cancelada: "Corrida cancelada/retirada"
+};
 const STATUS_PT: Record<string, { t: string; cls: string }> = {
   enviada: { t: "Enviada", cls: "bg-emerald-50 text-emerald-800" },
   simulada: { t: "Teste (não enviada)", cls: "bg-amber-50 text-amber-900" },
@@ -12,10 +19,11 @@ const STATUS_PT: Record<string, { t: string; cls: string }> = {
   falhou: { t: "Falhou", cls: "bg-red-50 text-red-800" }
 };
 
-/** Histórico dos avisos automáticos aos passageiros (confirmado, a caminho, avaliação). */
+/** Histórico dos avisos automáticos (passageiros e motoristas). */
 export function PassengerNoticeLog() {
   const [log, setLog] = useState<Log[] | null>(null);
   const [mode, setMode] = useState("");
+  const [live, setLive] = useState<string[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   useEffect(() => {
     void fetchWithSupabaseSession("/api/integrations/whatsapp-cloud", {}, "admin")
@@ -24,6 +32,7 @@ export function PassengerNoticeLog() {
         if (j?.success) {
           setLog(j.data.log ?? []);
           setMode(j.data.mode);
+          setLive(j.data.live ?? []);
         } else setLog([]);
       })
       .catch(() => setLog([]));
@@ -32,8 +41,16 @@ export function PassengerNoticeLog() {
   return (
     <section className="grid gap-2 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-semibold">Avisos automáticos aos passageiros</h3>
-        <span className="text-xs text-prime-muted">{mode === "teste" ? "Modo teste: nada é enviado de verdade" : mode === "ligado" ? "Ligado" : ""}</span>
+        <h3 className="font-semibold">Avisos automáticos (passageiros e motoristas)</h3>
+        <span className="text-xs text-prime-muted">
+          {mode === "ligado"
+            ? "Ligado para todos"
+            : mode === "teste"
+              ? live.length
+                ? `Enviando de verdade para: ${live.join(" e ")}`
+                : "Modo teste: nada é enviado de verdade"
+              : "Desligado"}
+        </span>
       </div>
       {log.length ? (
         <ul className="divide-y divide-prime-border rounded-xl border border-prime-border text-sm">
