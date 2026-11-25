@@ -2,6 +2,7 @@ import { db } from "@/lib/server/db";
 import { renderTemplate, type MessageAudience, type MessageEventId } from "@/lib/messages/templates";
 import { loadTripMessageContext, samePhone } from "@/lib/messages/trip-message-context";
 import { sendWhatsappText, whatsappProviderConfigured } from "@/lib/messages/whatsapp-provider";
+import { getWhatsappCloudConfig, sendsLive } from "@/lib/messages/whatsapp-cloud";
 
 /**
  * Registra as mensagens do evento na fila do painel WhatsApp e, se o WhatsApp
@@ -17,6 +18,14 @@ export async function dispatchTripMessages(
   if (opts?.replace) {
     // Ex.: troca de motorista — as mensagens novas substituem as anteriores do mesmo evento.
     await db.from("whatsapp_messages").delete().eq("trip_id", tripId).eq("event", event).in("audience", audiences);
+  }
+  // Público que já recebe pelo WhatsApp oficial não entra mais na fila manual (evita fila acumulada e aviso em dobro).
+  const official = await getWhatsappCloudConfig().catch(() => null);
+  if (official) {
+    audiences = audiences.filter((a) =>
+      a === "motorista" ? !sendsLive(official, "motoristas") : a === "passageiro" || a === "solicitante" ? !sendsLive(official, "passageiros") : true
+    );
+    if (!audiences.length) return { queued: 0, sent: 0 };
   }
   const ctx = await loadTripMessageContext(tenantId, tripId);
   if (!ctx) return { queued: 0, sent: 0 };
