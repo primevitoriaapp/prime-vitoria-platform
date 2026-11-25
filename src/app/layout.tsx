@@ -8,7 +8,9 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 export const metadata: Metadata = {
   title: "Plataforma Prime Vitória",
   description: "Plataforma operacional de transporte executivo.",
-  manifest: "/manifest-central.json"
+  manifest: "/manifest-central.json",
+  // Verificação do domínio primevitoria.com no Meta Business (WhatsApp/anúncios).
+  other: { "facebook-domain-verification": "kbzlvyvmyr5ulnyl1n3fle3kw824e5" }
 };
 
 export const viewport: Viewport = {
