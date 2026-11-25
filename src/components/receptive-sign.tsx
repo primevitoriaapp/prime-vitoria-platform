@@ -31,6 +31,82 @@ export function ReceptiveSignButton({ name, className }: { name: string | null |
   }, [open]);
 
   const shown = text.trim() || "Passageiro";
+
+  /** Desenha a placa em alta resolução (A4 deitado, 300 dpi aprox.) para baixar ou imprimir. */
+  async function render(): Promise<HTMLCanvasElement> {
+    const W = 3508, H = 2480;
+    const c = document.createElement("canvas");
+    c.width = W;
+    c.height = H;
+    const g = c.getContext("2d") as CanvasRenderingContext2D;
+    g.fillStyle = "#fff";
+    g.fillRect(0, 0, W, H);
+    let top = 260;
+    const logo = await new Promise<HTMLImageElement | null>((res) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = () => res(null);
+      im.src = "/api/public/brand-logo";
+    });
+    if (logo && logo.naturalWidth) {
+      const h = 520, w = (logo.naturalWidth / logo.naturalHeight) * h;
+      g.drawImage(logo, (W - w) / 2, top, w, h);
+      top += h + 120;
+    } else {
+      g.fillStyle = "#111";
+      g.textAlign = "center";
+      g.font = "800 220px Helvetica, Arial, sans-serif";
+      g.fillText("PRIME VITÓRIA", W / 2, top + 220);
+      top += 420;
+    }
+    g.fillStyle = "#C9A84C";
+    g.fillRect(W / 2 - 700, top, 1400, 14);
+    // Nome: maior fonte que cabe em até 2 linhas.
+    g.fillStyle = "#111";
+    g.textAlign = "center";
+    const maxW = W - 360;
+    const words = shown.split(/\s+/);
+    let size = 560, lines: string[] = [shown];
+    for (; size >= 160; size -= 20) {
+      g.font = `800 ${size}px Helvetica, Arial, sans-serif`;
+      if (g.measureText(shown).width <= maxW) { lines = [shown]; break; }
+      let best: string[] | null = null;
+      for (let i = 1; i < words.length; i++) {
+        const a = words.slice(0, i).join(" "), b = words.slice(i).join(" ");
+        if (g.measureText(a).width <= maxW && g.measureText(b).width <= maxW) { best = [a, b]; break; }
+      }
+      if (best && size <= 440) { lines = best; break; }
+    }
+    g.font = `800 ${size}px Helvetica, Arial, sans-serif`;
+    const nameTop = top + 140;
+    const free = H - 300 - nameTop;
+    const block = lines.length * size * 1.08;
+    lines.forEach((l, i) => g.fillText(l, W / 2, nameTop + (free - block) / 2 + size + i * size * 1.08));
+    g.fillStyle = "#7A6A3A";
+    g.font = "700 90px Helvetica, Arial, sans-serif";
+    g.fillText("PRIME VITÓRIA · TRANSPORTE EXECUTIVO", W / 2, H - 170);
+    return c;
+  }
+
+  async function download() {
+    const c = await render();
+    const a = document.createElement("a");
+    a.href = c.toDataURL("image/png");
+    a.download = `placa-${shown.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "receptivo"}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  async function print() {
+    const url = (await render()).toDataURL("image/png");
+    const w = window.open("", "_blank");
+    if (!w) return download();
+    w.document.write(
+      `<!doctype html><html><head><title>Placa - ${shown.replace(/</g, "")}</title><style>@page{size:A4 landscape;margin:0}html,body{margin:0;height:100%}img{width:100%;height:100%;object-fit:contain;display:block}</style></head><body><img src="${url}" onload="setTimeout(function(){window.print()},300)"></body></html>`
+    );
+    w.document.close();
+  }
   // Tamanho da letra pelo comprimento do nome (cabe na largura).
   const size = `min(${Math.max(9, Math.min(22, Math.round(190 / Math.max(shown.length, 6))))}vw, 30vh)`;
 
@@ -74,6 +150,12 @@ export function ReceptiveSignButton({ name, className }: { name: string | null |
                 ✎ Mudar o nome (ex.: Sra. Noeli Sartori)
               </button>
             )}
+            <button type="button" onClick={() => void print()} className="hidden rounded-lg px-3 py-2 text-sm font-semibold ring-1 ring-[#DDD] sm:block">
+              🖨️ Imprimir A4
+            </button>
+            <button type="button" onClick={() => void download()} className="rounded-lg px-3 py-2 text-sm font-semibold ring-1 ring-[#DDD]">
+              ⬇️ Baixar
+            </button>
             <button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-[#C9A84C]">
               Fechar
             </button>

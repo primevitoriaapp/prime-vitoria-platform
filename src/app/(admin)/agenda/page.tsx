@@ -96,10 +96,14 @@ export default async function AgendaPage({
           />
           {showClaimBar ? <TripReviewBanner tripId={focusTripId} /> : null}
           {showClaimBar ? <TripKmReviewCard tripId={focusTripId} /> : null}
-          {focusTrip && needsReceptiveSign({ service_extras: (focusTrip as unknown as { service_extras?: string[] | null }).service_extras, origin_text: focusTrip.origin_text }) ? (
+          {focusTrip ? (
             <div className="max-w-sm">
               <ReceptiveSignButton name={focusTrip.passenger_name} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-prime-gold bg-white px-4 py-2.5 text-sm font-bold text-[#111]" />
-              <p className="mt-1 text-xs text-prime-muted">É a mesma placa que o motorista abre no app quando está indo buscar ou chegou ao embarque.</p>
+              <p className="mt-1 text-xs text-prime-muted">
+                {needsReceptiveSign({ service_extras: (focusTrip as unknown as { service_extras?: string[] | null }).service_extras, origin_text: focusTrip.origin_text })
+                  ? "O motorista também abre esta placa no app. Dentro dela: Imprimir (A4) ou Baixar a imagem."
+                  : "Abra para imprimir em A4 ou baixar a imagem da placa."}
+              </p>
             </div>
           ) : null}
           {showClaimBar ? <TripPaymentsCard tripId={focusTripId} /> : null}
