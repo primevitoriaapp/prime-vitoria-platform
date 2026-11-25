@@ -83,7 +83,7 @@ export default async function HomePage() {
         </div>
       </div>
       <p className="mt-10 text-center text-xs text-[#fff]/40">
-        R J Prime Transporte LTDA · CNPJ 49.126.277/0001-54 · contato@primevitoria.com
+        Prime Vitória · PRIME LOCADORA &amp; SERVIÇOS LTDA · CNPJ 65.710.916/0001-80 · (27) 2142-8307 · contato@primevitoria.com
       </p>
     </div>
   );

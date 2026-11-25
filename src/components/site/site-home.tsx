@@ -453,7 +453,8 @@ export async function SiteHome({ lang }: { lang: SiteLang }) {
           </div>
         </div>
         <p className="border-t border-[#F2EEE6] px-5 py-5 text-center text-xs text-[#6B6F76]">
-          © {new Date().getFullYear()} Prime Vitória · R J Prime Transporte LTDA · CNPJ 49.126.277/0001-54
+          © {new Date().getFullYear()} Prime Vitória · PRIME LOCADORA &amp; SERVIÇOS LTDA · CNPJ 65.710.916/0001-80
+          <span className="mt-1 block">Rua Amélia da Cunha Ornelas, 89 · Vitória/ES · CEP 29050-620 · (27) 2142-8307 · R J Prime Transporte LTDA · CNPJ 49.126.277/0001-54</span>
         </p>
       </footer>
 
