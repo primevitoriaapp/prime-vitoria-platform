@@ -119,7 +119,7 @@ export function WhatsappCloudCard() {
           <input value={wabaId} onChange={(e) => setWabaId(e.target.value)} inputMode="numeric" className="rounded-xl border border-prime-border px-3 py-2 text-sm" placeholder="Só números" />
         </label>
         <label className="grid gap-1 text-sm">
-          <span className="font-semibold">Chave de acesso permanente</span>
+          <span className="font-semibold">Chave de acesso (Dualhook: começa com dh_live_)</span>
           <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} className="rounded-xl border border-prime-border px-3 py-2 text-sm" placeholder={st?.token_tail ? `Guardada (final ${st.token_tail}) — cole outra para trocar` : "Cole aqui (fica guardada)"} />
         </label>
       </div>

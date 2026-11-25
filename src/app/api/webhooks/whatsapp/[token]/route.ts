@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/server/db";
+import { ingestWhatsappEvent } from "@/lib/whatsapp/inbound";
 
 export const dynamic = "force-dynamic";
 
@@ -44,8 +45,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const p = payload as { entry?: { changes?: { field?: string; value?: { messages?: unknown[]; statuses?: unknown[] } }[] }[] };
   const change = p.entry?.[0]?.changes?.[0];
   const kind = change?.value?.messages ? "message" : change?.value?.statuses ? "status" : (change?.field ?? "other");
-  const { error } = await db.from("whatsapp_inbound_events").insert({ tenant_id: ch.tenant_id, channel_id: ch.id, kind, payload });
+  const { data: ev, error } = await db.from("whatsapp_inbound_events").insert({ tenant_id: ch.tenant_id, channel_id: ch.id, kind, payload }).select("id").single();
   if (error) return NextResponse.json({ ok: false }, { status: 500 }); // a Meta tenta de novo
+  try {
+    await ingestWhatsappEvent(ch.tenant_id, payload);
+    await db.from("whatsapp_inbound_events").update({ processed_at: new Date().toISOString() }).eq("id", ev.id);
+  } catch {
+    // fica guardado no evento bruto e pode ser reprocessado
+  }
   await db.from("whatsapp_channels").update({ last_event_at: new Date().toISOString() }).eq("id", ch.id);
   return NextResponse.json({ ok: true });
 }

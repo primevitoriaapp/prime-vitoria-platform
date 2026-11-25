@@ -15,6 +15,10 @@ export type WhatsappCloudMode = "desligado" | "teste" | "ligado";
 export type WhatsappCloudConfig = { phone_number_id: string; waba_id: string; token: string; mode: WhatsappCloudMode };
 
 const GRAPH = "https://graph.facebook.com/v23.0";
+/** Dualhook (coexistência): mesma API da Meta, com chave "dh_live_…". */
+const DUALHOOK = "https://api.dualhook.com/v25.0";
+export const isDualhookKey = (token: string) => token.startsWith("dh_live_") || token.startsWith("dh_test_");
+export const providerName = (c: WhatsappCloudConfig) => (isDualhookKey(c.token) ? "Dualhook" : "Meta");
 
 export async function getWhatsappCloudConfig(): Promise<WhatsappCloudConfig> {
   const { data } = await db.from("app_secrets").select("value").eq("key", "whatsapp_cloud").maybeSingle();
@@ -33,7 +37,7 @@ async function graph(c: WhatsappCloudConfig, path: string, init?: RequestInit): 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
   try {
-    const res = await fetch(`${GRAPH}/${path}`, {
+    const res = await fetch(`${isDualhookKey(c.token) ? DUALHOOK : GRAPH}/${path}`, {
       ...init,
       headers: { Authorization: `Bearer ${c.token}`, "Content-Type": "application/json", ...(init?.headers ?? {}) },
       signal: controller.signal,
@@ -103,4 +107,30 @@ export async function passengerTemplatesStatus(c: WhatsappCloudConfig): Promise<
     const f = list.find((x) => x.name === t.name);
     return { name: t.name, status: f?.status ?? "não enviado", category: f?.category ?? null };
   });
+}
+
+/** Texto livre (só vale dentro de 24 horas desde a última mensagem do cliente). */
+export async function sendWhatsappText(c: WhatsappCloudConfig, waId: string, text: string): Promise<CloudSendResult> {
+  // wa_id já vem no formato internacional (ex.: 5527999990000 ou 447700900000).
+  const to = waId.replace(/\D/g, "");
+  if (to.length < 10) return { ok: false, error: "Telefone inválido" };
+  try {
+    const r = await graph(c, `${encodeURIComponent(c.phone_number_id)}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to, type: "text", text: { body: text, preview_url: true } })
+    });
+    if (!r.ok) return { ok: false, error: graphError(r.body, r.status) };
+    const msgs = r.body.messages as { id?: string }[] | undefined;
+    return { ok: true, id: msgs?.[0]?.id ?? null };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error && err.name === "AbortError" ? "Tempo esgotado" : "Falha de rede" };
+  }
+}
+
+/** Marca como lida no WhatsApp do cliente (os tracinhos azuis). Não dá erro se falhar. */
+export async function markWhatsappRead(c: WhatsappCloudConfig, waMessageId: string): Promise<void> {
+  await graph(c, `${encodeURIComponent(c.phone_number_id)}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ messaging_product: "whatsapp", status: "read", message_id: waMessageId })
+  }).catch(() => null);
 }
