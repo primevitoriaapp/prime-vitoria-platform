@@ -33,6 +33,16 @@ export function WhatsappCloudCard() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [testPhone, setTestPhone] = useState("");
+
+  async function sendTest() {
+    setBusy(true);
+    setMsg(null);
+    const r = await fetchWithSupabaseSession("/api/integrations/whatsapp-cloud/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: testPhone }) }, "admin").catch(() => null);
+    const j = r ? await r.json().catch(() => ({})) : {};
+    setBusy(false);
+    setMsg(r?.ok && j?.success ? { ok: true, text: `Enviado pelo ${j.data.provider}. Confira o WhatsApp desse número.` } : { ok: false, text: j?.error?.message ?? "Não foi possível enviar." });
+  }
 
   async function load() {
     const r = await fetchWithSupabaseSession("/api/integrations/whatsapp-cloud", {}, "admin").catch(() => null);
@@ -140,6 +150,16 @@ export function WhatsappCloudCard() {
         <button type="button" disabled={busy || !st?.configured || !st?.waba_id} onClick={() => void submitTemplates()} className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold ring-1 ring-prime-border disabled:opacity-40">
           Enviar as 3 mensagens para aprovação da Meta
         </button>
+      </div>
+      <div className="grid gap-2 rounded-xl bg-prime-bg p-3 text-sm">
+        <span className="font-semibold">Testar a conexão (envia 1 mensagem real, mesmo em modo teste)</span>
+        <span className="text-xs text-prime-muted">Antes, mande qualquer mensagem desse número para a central. Depois digite o número aqui.</span>
+        <div className="flex flex-wrap gap-2">
+          <input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} inputMode="tel" placeholder="(27) 99999-9999" className="min-w-0 flex-1 rounded-xl border border-prime-border bg-white px-3 py-2 text-base sm:text-sm" />
+          <button type="button" disabled={busy || testPhone.replace(/\D/g, "").length < 10} onClick={() => void sendTest()} className="rounded-xl bg-[#111] px-4 py-2 text-sm font-semibold text-prime-gold disabled:opacity-40">
+            Enviar teste
+          </button>
+        </div>
       </div>
       {msg ? <p className={`rounded-lg px-3 py-2 text-sm font-semibold text-[#fff] ${msg.ok ? "bg-emerald-600" : "bg-red-600"}`}>{msg.text}</p> : null}
 
