@@ -71,11 +71,12 @@ export async function invoicePdfFor(tenantId: string, id: string): Promise<{ byt
         ...r.stops.map((s) => ({ address: shortAddress(s.address) || s.address, who: s.passenger })),
         { address: shortAddress(r.destination) || r.destination }
       ],
-      extra: [r.flight ? `Voo ${r.flight}` : null, r.wait_minutes > 0 ? `Espera ${r.wait_minutes} min` : null].filter(Boolean).join(" · ") || null,
+      extra: [r.flight ? `Voo ${r.flight}` : null, r.wait_minutes > 0 && !(r.extras ?? []).length ? `Espera ${r.wait_minutes} min` : null].filter(Boolean).join(" · ") || null,
       service: r.service,
       km: r.km || null,
       amount: r.amount,
-      waitCharge: r.wait_charge ? { billable_minutes: r.wait_charge.billable_minutes, amount: r.wait_charge.amount } : null
+      waitCharge: r.wait_charge ? { billable_minutes: r.wait_charge.billable_minutes, amount: r.wait_charge.amount } : null,
+      extras: r.extras ?? []
     }))
   });
   const ref = inv.client_ref ? `-${inv.client_ref.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w-]+/g, "_")}` : "";

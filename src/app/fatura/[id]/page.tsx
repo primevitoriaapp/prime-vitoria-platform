@@ -240,7 +240,13 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                       <div style={{ fontSize: 11, color: "#8A5A00", marginTop: 4, background: "#FFF4D6", borderRadius: 4, padding: "2px 6px", display: "inline-block" }}>
                         + Hora extra / espera: {r.wait_charge.billable_minutes} min · {brl(r.wait_charge.amount)}
                       </div>
-                    ) : r.wait_minutes > 0 ? (
+                    ) : null}
+                    {(r.extras ?? []).map((x, i) => (
+                      <div key={i} style={{ fontSize: 11, color: "#8A5A00", marginTop: 4, background: "#FFF4D6", borderRadius: 4, padding: "2px 6px", display: "inline-block" }}>
+                        + {x.line} · {brl(x.amount)}
+                      </div>
+                    ))}
+                    {!r.wait_charge && !(r.extras ?? []).length && r.wait_minutes > 0 ? (
                       <div style={{ fontSize: 10, color: "#888" }}>Espera {r.wait_minutes} min (dentro da tolerância)</div>
                     ) : null}
                   </td>
@@ -248,10 +254,19 @@ export default async function FaturaPage({ params }: { params: Promise<{ id: str
                   <td style={{ ...td, textAlign: "right" }}>{r.km ? r.km.toLocaleString("pt-BR") : "—"}</td>
                   <td style={{ ...td, textAlign: "right", fontWeight: 600 }}>
                     {brl(r.amount)}
-                    {r.wait_charge && r.amount != null ? (
+                    {(r.wait_charge || (r.extras ?? []).length) && r.amount != null ? (
                       <div style={{ fontSize: 10, fontWeight: 400, color: "#666", whiteSpace: "nowrap" }}>
-                        corrida {brl(Math.round((r.amount - r.wait_charge.amount) * 100) / 100)}
-                        <br />+ hora extra {brl(r.wait_charge.amount)}
+                        corrida {brl(Math.round((r.amount - (r.wait_charge?.amount ?? 0) - (r.extras ?? []).reduce((s2, x) => s2 + x.amount, 0)) * 100) / 100)}
+                        {r.wait_charge ? (
+                          <>
+                            <br />+ hora extra {brl(r.wait_charge.amount)}
+                          </>
+                        ) : null}
+                        {(r.extras ?? []).map((x, i) => (
+                          <span key={i}>
+                            <br />+ {x.line.split(" — ")[0].toLowerCase()} {brl(x.amount)}
+                          </span>
+                        ))}
                       </div>
                     ) : null}
                   </td>

@@ -13,6 +13,8 @@ export type InvoicePdfRow = {
   amount: number | null;
   /** Hora extra/espera cobrada (já somada em amount). */
   waitCharge?: { billable_minutes: number; amount: number } | null;
+  /** Adicionais (hora extra, pedágio…) já somados em amount. */
+  extras?: { line: string; amount: number }[];
 };
 
 export type InvoicePdfData = {
@@ -153,10 +155,12 @@ export function buildInvoicePdf(d: InvoicePdfData): Uint8Array {
     });
     if (r.extra) wrap(r.extra, 7.5, routeW).forEach((t) => route.push({ t, muted: true }));
     if (r.waitCharge) route.push({ t: `+ Hora extra / espera: ${r.waitCharge.billable_minutes} min · ${brl(r.waitCharge.amount)}`, bold: true });
+    for (const x of r.extras ?? []) wrap(`+ ${x.line} · ${brl(x.amount)}`, 8, routeW).forEach((t) => route.push({ t, bold: true }));
     const pax = wrap(r.passenger || "-", 8, cols.route - cols.pax - 8);
     if (r.requester) pax.push(`pedido: ${r.requester}`);
     const svc = wrap(r.service, 8, cols.km - cols.svc - 30);
-    const h = Math.max(route.length, pax.length, svc.length, r.waitCharge ? 3 : 2) * 10.5 + 10;
+    const valLines = (r.waitCharge ? 1 : 0) + (r.extras?.length ?? 0);
+    const h = Math.max(route.length, pax.length, svc.length, valLines ? valLines + 2 : 2) * 10.5 + 10;
     if (y + h > bottom) {
       pdf.addPage();
       y = 40;
@@ -170,9 +174,11 @@ export function buildInvoicePdf(d: InvoicePdfData): Uint8Array {
     svc.forEach((t, i) => T(t, cols.svc, ty + i * 10.5, 8));
     T(r.km ? r.km.toLocaleString("pt-BR") : "—", cols.km, ty, 8, { align: "right" });
     T(r.amount == null ? "—" : brl(r.amount), cols.val - 2, ty, 8.5, { bold: true, align: "right" });
-    if (r.waitCharge && r.amount != null) {
-      T(`corrida ${brl(Math.round((r.amount - r.waitCharge.amount) * 100) / 100)}`, cols.val - 2, ty + 10.5, 7, { color: MUTED, align: "right" });
-      T(`+ hora extra ${brl(r.waitCharge.amount)}`, cols.val - 2, ty + 20, 7, { color: MUTED, align: "right" });
+    if (valLines && r.amount != null) {
+      const adds = [...(r.waitCharge ? [{ k: "hora extra", v: r.waitCharge.amount }] : []), ...(r.extras ?? []).map((x) => ({ k: x.line.split(" — ")[0].toLowerCase(), v: x.amount }))];
+      const base = Math.round((r.amount - adds.reduce((s2, a) => s2 + a.v, 0)) * 100) / 100;
+      T(`corrida ${brl(base)}`, cols.val - 2, ty + 10.5, 7, { color: MUTED, align: "right" });
+      adds.forEach((a, i) => T(`+ ${a.k} ${brl(a.v)}`, cols.val - 2, ty + 20 + i * 9.5, 7, { color: MUTED, align: "right" }));
     }
     y += h;
     pdf.line(L, y, R, y, LINE, 0.8);

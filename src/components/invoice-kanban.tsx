@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { TripClosingCard } from "@/components/trip-closing-card";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { BodyPortal } from "@/components/ui/body-portal";
 
@@ -638,6 +639,11 @@ function VoucherCard({ v, card, busy, onClose, onSaved }: { v: VCard; card: stri
             📎 Voucher da CEP
           </a>
         ) : null}
+        {v.isNr ? (
+          <a href={`/agenda?nova=1&cliente=${encodeURIComponent(v.client.client_id)}&ref=${encodeURIComponent(v.nr)}`} className="text-xs font-semibold text-prime-gold-ink">
+            + Incluir corrida nesta NR
+          </a>
+        ) : null}
       </div>
       {open ? (
         <ul className="mt-1 grid gap-1">
@@ -905,6 +911,11 @@ function TripPeek({ trip, siblings, billed = [], onClose, onSaved }: { trip: Acc
               <button type="button" disabled={busy} onClick={() => void saveAmounts()} className="w-full rounded-lg bg-[#111] px-3 py-2.5 text-sm font-semibold text-prime-gold disabled:opacity-50">
                 Salvar valores
               </button>
+            </section>
+
+            <section className="space-y-2 rounded-xl bg-white p-3">
+              <p className="text-sm font-semibold">Adicionais (hora extra, espera, pedágio…)</p>
+              <TripClosingCard tripId={trip.id} compact hideRef onChanged={onSaved} />
             </section>
 
             <section className="space-y-2 rounded-xl bg-white p-3">

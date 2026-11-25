@@ -5,6 +5,7 @@ import { listInvoiceTrips } from "@/lib/finance/client-invoices";
 import { tripKm } from "@/lib/finance/client-invoice-calc";
 import { clientRefFromNotes } from "@/lib/trips/client-ref";
 import { groupSplitItems, isSplitGroup, sumMoney } from "@/lib/finance/merge-split-services";
+import { extraLine } from "@/lib/trips/trip-extras";
 
 /** Hora parada que o cálculo somou no valor da corrida (metadata.wait). */
 export function waitChargeOf(meta: unknown, tripWaitMinutes: number): { minutes: number; billable_minutes: number; amount: number } | null {
@@ -45,6 +46,8 @@ export type InvoiceReportRow = {
   /** Hora parada cobrada nesta corrida (já somada em `amount`). */
   wait_charge: { minutes: number; billable_minutes: number; amount: number } | null;
   amount: number | null;
+  /** Adicionais lançados pela central (hora extra, pedágio…), já somados em `amount`. */
+  extras?: { line: string; amount: number }[];
   /** Item que junta trechos divididos (ex.: NR-E1 + NR-E2): ids de todas as corridas. */
   trip_ids?: string[];
   /** Chave para juntar na fatura (escolhida no fechamento). */
@@ -82,6 +85,7 @@ export function mergeSplitReportRows(rows: InvoiceReportRow[]): InvoiceReportRow
             }
           : null,
       amount: sumMoney(x.parts.map((p) => p.amount)),
+      extras: x.parts.flatMap((p) => p.extras ?? []),
       flight: first.flight ?? rest.find((p) => p.flight)?.flight ?? null,
       trip_ids: x.parts.flatMap((p) => p.trip_ids ?? [p.id])
     };
@@ -107,6 +111,17 @@ export async function buildInvoiceReport(invoiceId: string): Promise<InvoiceRepo
     ((centers ?? []) as { id: string; code: string | null; name: string }[]).map((c) => [c.id, c.code ? `${c.code} · ${c.name}` : c.name])
   );
 
+  const { data: extraRows } = trips.length
+    ? await db.from("trip_extras").select("trip_id, kind, description, minutes, client_amount, created_at").in("trip_id", trips.map((t) => t.id as string)).order("created_at")
+    : { data: [] as { trip_id: string; kind: string; description: string | null; minutes: number | null; client_amount: number }[] };
+  const extrasOf = new Map<string, { line: string; amount: number }[]>();
+  for (const e of extraRows ?? []) {
+    if (!(Number(e.client_amount) > 0)) continue;
+    const list = extrasOf.get(e.trip_id as string) ?? [];
+    list.push({ line: extraLine(e as never), amount: Number(e.client_amount) });
+    extrasOf.set(e.trip_id as string, list);
+  }
+
   const rows: InvoiceReportRow[] = trips.map((t) => ({
     id: t.id as string,
     number: String(t.id).slice(0, 8).toUpperCase(),
@@ -124,6 +139,7 @@ export async function buildInvoiceReport(invoiceId: string): Promise<InvoiceRepo
     wait_minutes: Number(t.wait_minutes ?? 0) || 0,
     wait_charge: waitChargeOf((t as { calculation_metadata?: unknown }).calculation_metadata, Number(t.wait_minutes ?? 0) || 0),
     amount: t.client_amount == null ? null : Number(t.client_amount),
+    extras: extrasOf.get(t.id as string) ?? [],
     merge_key: ((t as { invoice_merge_key?: string | null }).invoice_merge_key ?? null) || null
   }));
   return mergeSplitReportRows(rows);

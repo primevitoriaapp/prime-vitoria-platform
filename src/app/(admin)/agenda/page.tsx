@@ -28,6 +28,7 @@ import { TripPaymentsCard } from "@/components/trip-payments-card";
 import { ReceptiveSignButton } from "@/components/receptive-sign";
 import { needsReceptiveSign } from "@/lib/operations/receptive-sign-rule";
 import { TripInvoiceCard } from "@/components/trip-invoice-card";
+import { TripClosingCard } from "@/components/trip-closing-card";
 import { defaultAgendaRangeIso } from "@/lib/operations/agenda-default-range";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { fetchInternalApi } from "@/lib/server/internal-fetch";
@@ -46,7 +47,7 @@ import { TripExpensesReview } from "@/components/trip-expenses";
 export default async function AgendaPage({
   searchParams
 }: {
-  searchParams: Promise<{ trip?: string; nova?: string; periodo?: string; grupo?: string; editar?: string }>;
+  searchParams: Promise<{ trip?: string; nova?: string; periodo?: string; grupo?: string; editar?: string; cliente?: string; ref?: string }>;
 }) {
   const session = await getSessionContext();
   const sp = await searchParams;
@@ -107,6 +108,7 @@ export default async function AgendaPage({
             </div>
           ) : null}
           {showClaimBar ? <TripPaymentsCard tripId={focusTripId} /> : null}
+          {showClaimBar ? <TripClosingCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripInvoiceCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripFlightCard tripId={focusTripId} /> : null}
           {showClaimBar ? <TripPassengerListCard tripId={focusTripId} /> : null}
@@ -150,7 +152,7 @@ export default async function AgendaPage({
           </summary>
           <div className="space-y-3 border-t border-prime-border p-2 sm:p-4">
             <VoucherImportPanel />
-            <TripWizard />
+            <TripWizard initialClientId={sp.cliente} initialRef={sp.ref} />
             <details className="rounded-xl border border-dashed border-prime-border">
               <summary className="cursor-pointer px-4 py-2 text-sm text-prime-muted">
                 Corrida com vários trechos ou várias paradas de embarque (formulário completo)

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAssignDrivers } from "@/components/quick-assign";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
+import { ClientRefPicker } from "@/components/client-ref-picker";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input";
 import { PassengerAutocompleteInput } from "@/components/passenger-autocomplete-input";
@@ -31,7 +32,7 @@ const brl = (n: number | null | undefined) =>
   n == null ? "" : n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 /** Nova corrida em 5 etapas, com cadastro rápido de cliente e escolha do veículo por cartões. */
-export function TripWizard({ onDone }: { onDone?: () => void }) {
+export function TripWizard({ onDone, initialClientId, initialRef }: { onDone?: () => void; initialClientId?: string; initialRef?: string }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   // Motorista já na criação (opcional): a corrida sai atribuída e ele recebe o aviso na hora.
@@ -44,7 +45,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientQuery, setClientQuery] = useState("");
   const [clientType, setClientType] = useState<"todos" | "PJ" | "PF">("todos");
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(initialClientId ?? "");
   const [showNewClient, setShowNewClient] = useState(false);
   const [nc, setNc] = useState({ type: "PJ" as "PJ" | "PF", name: "", document: "", whatsapp: "", email: "", address: "", cep: "" });
   const [cepBusy, setCepBusy] = useState(false);
@@ -88,7 +89,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
   const [origin, setOrigin] = useState({ text: "", lat: null as number | null, lng: null as number | null });
   const [dest, setDest] = useState({ text: "", lat: null as number | null, lng: null as number | null });
   const [flight, setFlight] = useState("");
-  const [osRef, setOsRef] = useState("");
+  const [osRef, setOsRef] = useState(initialRef ?? "");
   const [clientAmount, setClientAmount] = useState("");
   const [driverAmount, setDriverAmount] = useState("");
   const [notes, setNotes] = useState("");
@@ -1231,10 +1232,7 @@ export function TripWizard({ onDone }: { onDone?: () => void }) {
               <span>Nº do voo (se for aeroporto)</span>
               <input className={input} placeholder="Ex.: LA3456" value={flight} onChange={(e) => setFlight(e.target.value)} />
             </label>
-            <label className="grid gap-1 text-sm">
-              <span>O.S. ou referência do cliente</span>
-              <input className={input} value={osRef} onChange={(e) => setOsRef(e.target.value)} />
-            </label>
+            <ClientRefPicker clientId={clientId || null} value={osRef} onChange={setOsRef} label="NR / O.S. / referência do cliente" />
             {mode === "km" ? (
               <div className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900 md:col-span-2">
                 {kmEstimate ? (
