@@ -13,6 +13,10 @@ import { cloudReady, getWhatsappCloudConfig, sendWhatsappTemplate } from "@/lib/
 
 /** Regras para não pesar no WhatsApp do cliente. */
 const RATING_EVERY_DAYS = 7;
+/** Passageiro recorrente (3+ avisos em 14 dias): avaliação no máximo 1 vez por mês. */
+const RATING_EVERY_DAYS_RECURRING = 30;
+/** Janela para considerar "mesmo motorista de sempre". */
+const HABIT_DAYS = 7;
 
 function first(s?: string | null) {
   return String(s ?? "").trim().split(/\s+/)[0] ?? "";
@@ -75,27 +79,53 @@ export async function notifyPassengers(tenantId: string, tripId: string, kind: P
           : [pax, driverName];
     const preview = renderPassengerTemplate(kind, params, token);
 
-    // Menos mensagens: 1 "confirmado" por pessoa por dia e 1 pedido de avaliação por semana.
+    // Menos mensagens:
+    // - "confirmado": 1 por pessoa por dia; e passageiro recorrente com o MESMO motorista não recebe (só quando o motorista muda).
+    // - "avaliação": 1 por semana; para recorrente, 1 por mês.
     let skipWhy: string | null = null;
-    if (kind === "confirmado" || kind === "avaliacao") {
-      const since = new Date(Date.now() - (kind === "avaliacao" ? RATING_EVERY_DAYS : 1) * 86400000).toISOString();
+    if (kind === "confirmado") {
+      const { data: last } = await db
+        .from("passenger_notifications")
+        .select("driver_id, status, created_at")
+        .eq("tenant_id", tenantId)
+        .eq("phone", phone)
+        .eq("kind", "confirmado")
+        .neq("trip_id", tripId)
+        .gte("created_at", new Date(Date.now() - HABIT_DAYS * 86400000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(5);
+      const today = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+      const sentToday = (last ?? []).some(
+        (r) => ["enviada", "simulada"].includes(String(r.status)) && new Date(String(r.created_at)).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" }) === today
+      );
+      const prev = (last ?? [])[0];
+      if (sentToday) skipWhy = "Esta pessoa já recebeu a confirmação de outra corrida hoje";
+      else if (prev?.driver_id && prev.driver_id === trip.driver_id) skipWhy = "Passageiro recorrente com o mesmo motorista (avisamos só quando o motorista mudar)";
+    } else if (kind === "avaliacao") {
+      const { count: recent } = await db
+        .from("passenger_notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("phone", phone)
+        .gte("created_at", new Date(Date.now() - 14 * 86400000).toISOString());
+      const days = (recent ?? 0) >= 3 ? RATING_EVERY_DAYS_RECURRING : RATING_EVERY_DAYS;
       const { count } = await db
         .from("passenger_notifications")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
         .eq("phone", phone)
-        .eq("kind", kind)
+        .eq("kind", "avaliacao")
         .in("status", ["enviada", "simulada"])
         .neq("trip_id", tripId)
-        .gte("created_at", since);
-      if ((count ?? 0) > 0) skipWhy = kind === "avaliacao" ? "Já pedimos avaliação a esta pessoa nesta semana" : "Esta pessoa já recebeu a confirmação de outra corrida hoje";
+        .gte("created_at", new Date(Date.now() - days * 86400000).toISOString());
+      if ((count ?? 0) > 0) skipWhy = days === RATING_EVERY_DAYS ? "Já pedimos avaliação a esta pessoa nesta semana" : "Passageiro recorrente: pedimos avaliação no máximo 1 vez por mês";
     }
 
     // Reserva a linha antes de enviar: se outro processo já reservou, não manda de novo.
     const { data: slot } = await db
       .from("passenger_notifications")
       .upsert(
-        { tenant_id: tenantId, trip_id: tripId, kind, phone, person_name: p.name, status: "pulada", detail: skipWhy ?? "processando", preview },
+        { tenant_id: tenantId, trip_id: tripId, kind, phone, person_name: p.name, status: "pulada", detail: skipWhy ?? "processando", preview, driver_id: trip.driver_id },
         { onConflict: "trip_id,kind,phone", ignoreDuplicates: true }
       )
       .select("id")

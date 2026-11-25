@@ -100,7 +100,7 @@ export function WhatsappCloudCard() {
       </div>
       <p className="text-sm text-prime-muted">
         Só 3 avisos por corrida, pelo número oficial da Prime: <b>motorista confirmado</b> (véspera, 18h), <b>a caminho</b> (com link para acompanhar) e <b>avaliação</b> (no fim; no máximo 1 por semana
-        para a mesma pessoa). Cada empresa cliente pode ser desligada no cadastro dela.
+        para a mesma pessoa). <b>Passageiro recorrente</b> (ex.: rota diária) só recebe a confirmação quando o motorista muda, e a avaliação no máximo 1 vez por mês. Cada empresa cliente pode ser desligada no cadastro dela.
       </p>
 
       <div className="grid gap-2">
