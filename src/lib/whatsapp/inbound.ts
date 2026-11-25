@@ -38,6 +38,13 @@ export async function ingestWhatsappEvent(tenantId: string, payload: unknown): P
     await db.from("whatsapp_contacts").upsert(patch, { onConflict: "tenant_id,wa_id" });
   }
   for (const s of statuses) {
-    await db.from("whatsapp_chat_messages").update({ status: s.status, ...(s.error ? { error: s.error } : {}) }).eq("tenant_id", tenantId).eq("wa_message_id", s.id);
+    const upd = () =>
+      db.from("whatsapp_chat_messages").update({ status: s.status, ...(s.error ? { error: s.error } : {}) }).eq("tenant_id", tenantId).eq("wa_message_id", s.id).select("id");
+    let { data } = await upd();
+    // O status pode chegar milissegundos antes da própria mensagem (eco do app): tenta de novo.
+    if (!data?.length) {
+      await new Promise((r) => setTimeout(r, 2000));
+      ({ data } = await upd());
+    }
   }
 }
