@@ -45,8 +45,10 @@ export async function notifyPassengers(tenantId: string, tripId: string, kind: P
   if (!trip?.driver_id) return res;
 
   if (trip.client_id) {
-    const { data: cl } = await db.from("clients").select("notify_passengers").eq("id", trip.client_id as string).maybeSingle();
+    const { data: cl } = await db.from("clients").select("notify_passengers, notify_mode").eq("id", trip.client_id as string).maybeSingle();
     if (cl && cl.notify_passengers === false) return res;
+    // Rota fixa diária: só o "a caminho" (com o link para acompanhar).
+    if (cl?.notify_mode === "so_a_caminho" && kind !== "a_caminho") return res;
   }
 
   const people = tripContacts(trip as never).filter((p) => normalizeWhatsappPhone(p.phone));
