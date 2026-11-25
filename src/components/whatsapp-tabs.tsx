@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { PassengerNoticeLog } from "@/components/passenger-notice-log";
 import { WhatsappInbox } from "@/components/whatsapp-inbox";
 import { WhatsappPanel } from "@/components/whatsapp-panel";
 
 /** Página WhatsApp: conversas da central + avisos de cada corrida. */
 export function WhatsappTabs({ tenantId }: { tenantId: string | null }) {
   const [tab, setTab] = useState<"conversas" | "avisos">("conversas");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("aba") === "avisos") setTab("avisos");
+  }, []);
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
@@ -21,7 +25,14 @@ export function WhatsappTabs({ tenantId }: { tenantId: string | null }) {
           </button>
         ))}
       </div>
-      {tab === "conversas" ? <WhatsappInbox /> : <WhatsappPanel tenantId={tenantId} />}
+      {tab === "conversas" ? (
+        <WhatsappInbox />
+      ) : (
+        <div className="space-y-4">
+          <PassengerNoticeLog />
+          <WhatsappPanel tenantId={tenantId} />
+        </div>
+      )}
     </div>
   );
 }

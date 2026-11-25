@@ -6,6 +6,8 @@ import { InfinitepayCard } from "@/components/infinitepay-card";
 import { WhatsappCloudCard } from "@/components/whatsapp-cloud-card";
 import { resolveEmailFrom } from "@/lib/notifications/send-email";
 import { AdminPageHeader } from "@/components/admin-page-header";
+import { IntegrationFold } from "@/components/integration-fold";
+import { db } from "@/lib/server/db";
 import { getSessionContext } from "@/lib/server/session";
 
 type Status = "ligado" | "parcial" | "desligado" | "em_breve";
@@ -29,7 +31,7 @@ const STATUS: Record<Status, { label: string; cls: string }> = {
   em_breve: { label: "Ainda não existe", cls: "bg-blue-50 text-blue-800 ring-blue-200" }
 };
 
-function list(): { group: string; items: Integration[] }[] {
+function list(waConnected = false, waMode = "desligado"): { group: string; items: Integration[] }[] {
   const emailFromOwnDomain = resolveEmailFrom().includes("primevitoria");
   return [
     {
@@ -37,15 +39,16 @@ function list(): { group: string; items: Integration[] }[] {
       items: [
         {
           name: "WhatsApp (central)",
-          what: "Mensagens automáticas de cada corrida para quem pediu, passageiro e motorista.",
-          status: has("ZAPI_INSTANCE_ID") && has("ZAPI_TOKEN") ? "ligado" : "desligado",
-          note:
-            has("ZAPI_INSTANCE_ID") && has("ZAPI_TOKEN")
-              ? "Conectado pelo QR code do número da central."
-              : "Falta criar a conta na Z-API, ler o QR code com o celular da central e colocar as 3 chaves no Vercel.",
-          cost: "Z-API: cerca de R$ 100/mês",
+          what: "Conversas do número (27) 2142-8307 no painel e avisos automáticos aos passageiros.",
+          status: waConnected ? (waMode === "ligado" ? "ligado" : "parcial") : "desligado",
+          note: waConnected
+            ? waMode === "ligado"
+              ? "Conectado pelo Dualhook (coexistência): o app do celular continua funcionando junto."
+              : "Conectado pelo Dualhook. Conversas já chegam no painel; os avisos aos passageiros estão em modo teste."
+            : "Falta conectar o número pelo Dualhook e colar a chave no quadro acima.",
+          cost: "Dualhook: €25/mês + mensagens da Meta",
           href: "/whatsapp",
-          hrefLabel: "Ver mensagens"
+          hrefLabel: "Ver conversas"
         },
         {
           name: "E-mail",
@@ -145,7 +148,10 @@ export default async function IntegracoesPage() {
   if (session.role !== "admin") {
     return <p className="text-sm text-prime-muted">Só o administrador vê as integrações.</p>;
   }
-  const groups = list();
+  const { data: wa } = await db.from("app_secrets").select("value").eq("key", "whatsapp_cloud").maybeSingle();
+  const waTok = String((wa?.value as { token?: string } | null)?.token ?? "");
+  const waMode = String((wa?.value as { mode?: string } | null)?.mode ?? "desligado");
+  const groups = list(waTok.length > 20, waMode);
   return (
     <div className="pb-10">
       <AdminPageHeader
@@ -153,10 +159,21 @@ export default async function IntegracoesPage() {
         subtitle="O que a plataforma usa de fora, o que já está ligado e o que falta para ligar."
       />
       <div className="space-y-8">
-        <CalendarFeedCard />
-        {session.role === "admin" ? <ZapsignTokenCard /> : null}
-        {session.role === "admin" ? <InfinitepayCard /> : null}
-        {session.role === "admin" ? <WhatsappCloudCard /> : null}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-prime-muted">Suas conexões</h2>
+          <IntegrationFold kind="calendar" title="Corridas no seu Google Agenda">
+            <CalendarFeedCard />
+          </IntegrationFold>
+          <IntegrationFold kind="zapsign" title="ZapSign (contratos)">
+            <ZapsignTokenCard />
+          </IntegrationFold>
+          <IntegrationFold kind="infinitepay" title="InfinitePay (links de pagamento)">
+            <InfinitepayCard />
+          </IntegrationFold>
+          <IntegrationFold kind="whatsapp" title="WhatsApp oficial da central">
+            <WhatsappCloudCard />
+          </IntegrationFold>
+        </section>
         {groups.map((g) => (
           <section key={g.group}>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-prime-muted">{g.group}</h2>

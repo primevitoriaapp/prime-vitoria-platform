@@ -21,7 +21,6 @@ const MODE_LABEL: Record<Mode, string> = {
   ligado: "Ligado — envia de verdade"
 };
 const STATUS_PT: Record<string, string> = { APPROVED: "✅ Aprovado", PENDING: "⏳ Em análise", REJECTED: "❌ Recusado", PAUSED: "⏸ Pausado", "não enviado": "Ainda não enviado" };
-const KIND_PT: Record<string, string> = { confirmado: "Confirmado", a_caminho: "A caminho", avaliacao: "Avaliação" };
 
 /** WhatsApp oficial (Meta): avisos automáticos ao passageiro. */
 export function WhatsappCloudCard() {
@@ -163,29 +162,9 @@ export function WhatsappCloudCard() {
       </div>
       {msg ? <p className={`rounded-lg px-3 py-2 text-sm font-semibold text-[#fff] ${msg.ok ? "bg-emerald-600" : "bg-red-600"}`}>{msg.text}</p> : null}
 
-      <div className="grid gap-1">
-        <p className="text-sm font-semibold">Últimos avisos {st?.mode === "teste" ? "(modo teste: nada foi enviado)" : ""}</p>
-        {st?.log.length ? (
-          <ul className="divide-y divide-prime-border rounded-xl border border-prime-border text-sm">
-            {st.log.map((l) => (
-              <li key={l.id} className="px-3 py-2">
-                <button type="button" onClick={() => setOpen(open === l.id ? null : l.id)} className="flex w-full flex-wrap justify-between gap-2 text-left">
-                  <span>
-                    <b>{KIND_PT[l.kind] ?? l.kind}</b> · {l.person_name ?? "Passageiro"} · {l.phone}
-                  </span>
-                  <span className="text-xs text-prime-muted">
-                    {l.status}
-                    {l.detail ? ` — ${l.detail}` : ""} · {new Date(l.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </button>
-                {open === l.id && l.preview ? <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-[#ECE5DD] px-3 py-2 font-sans text-sm">{l.preview}</pre> : null}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-prime-muted">Nenhum aviso ainda. No modo teste, cada corrida passa a aparecer aqui com o texto exato que o passageiro receberia.</p>
-        )}
-      </div>
+      <a href="/whatsapp?aba=avisos" className="text-sm font-semibold text-prime-gold-ink">
+        Ver o histórico de avisos aos passageiros →
+      </a>
     </section>
   );
 }
