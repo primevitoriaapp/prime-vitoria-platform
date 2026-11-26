@@ -93,7 +93,7 @@ export function WhatsappCloudCard() {
   const statusOf = (name: string) => st?.template_status.find((s) => s.name === name);
 
   return (
-    <section className="grid gap-4 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
+    <section className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-semibold">WhatsApp oficial · avisos a passageiros e motoristas</h3>
         <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${st?.mode === "ligado" ? "bg-emerald-50 text-emerald-800" : st?.mode === "teste" ? "bg-amber-50 text-amber-900" : "bg-gray-100 text-gray-700"}`}>
@@ -111,14 +111,32 @@ export function WhatsappCloudCard() {
         <p className="text-sm font-semibold">Mensagens (é o texto que vai para aprovação da Meta)</p>
         {(st?.templates ?? []).map((t) => (
           <div key={t.name} className="rounded-xl border border-prime-border">
-            <button type="button" onClick={() => setOpen(open === t.name ? null : t.name)} className="flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2 text-left text-sm">
-              <span className="font-semibold">{t.audience === "motorista" ? "🚘 " : "👤 "}{t.label}</span>
+            <button type="button" onClick={() => setOpen(open === t.name ? null : t.name)} className="grid w-full min-w-0 gap-1 px-3 py-2 text-left text-sm">
+              <span className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 font-semibold">
+                  {t.audience === "motorista" ? "🚘 " : "👤 "}
+                  {t.label}
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    statusOf(t.name)?.status === "APPROVED"
+                      ? "bg-emerald-50 text-emerald-800"
+                      : statusOf(t.name)?.status === "REJECTED"
+                        ? "bg-red-50 text-red-800"
+                        : statusOf(t.name)?.status === "PENDING"
+                          ? "bg-amber-50 text-amber-900"
+                          : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {STATUS_PT[statusOf(t.name)?.status ?? "não enviado"] ?? statusOf(t.name)?.status}
+                </span>
+              </span>
               <span className="text-xs text-prime-muted">
-                {t.when} · {STATUS_PT[statusOf(t.name)?.status ?? "não enviado"] ?? statusOf(t.name)?.status}
+                {t.when}
                 {statusOf(t.name)?.category && statusOf(t.name)?.category !== "UTILITY" ? ` · Meta classificou como ${statusOf(t.name)?.category} (mais caro)` : ""}
               </span>
             </button>
-            {open === t.name ? <pre className="whitespace-pre-wrap border-t border-prime-border bg-[#ECE5DD] px-3 py-3 font-sans text-sm text-[#111]">{t.preview}</pre> : null}
+            {open === t.name ? <pre className="whitespace-pre-wrap break-words border-t border-prime-border bg-[#ECE5DD] px-3 py-3 font-sans text-sm text-[#111]">{t.preview}</pre> : null}
           </div>
         ))}
       </div>
@@ -126,20 +144,20 @@ export function WhatsappCloudCard() {
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="grid gap-1 text-sm">
           <span className="font-semibold">ID do número (Phone number ID)</span>
-          <input value={phoneId} onChange={(e) => setPhoneId(e.target.value)} inputMode="numeric" className="rounded-xl border border-prime-border px-3 py-2 text-sm" placeholder="Só números" />
+          <input value={phoneId} onChange={(e) => setPhoneId(e.target.value)} inputMode="numeric" className="w-full min-w-0 rounded-xl border border-prime-border px-3 py-2 text-base md:text-sm" placeholder="Só números" />
         </label>
         <label className="grid gap-1 text-sm">
           <span className="font-semibold">ID da conta WhatsApp (WABA ID)</span>
-          <input value={wabaId} onChange={(e) => setWabaId(e.target.value)} inputMode="numeric" className="rounded-xl border border-prime-border px-3 py-2 text-sm" placeholder="Só números" />
+          <input value={wabaId} onChange={(e) => setWabaId(e.target.value)} inputMode="numeric" className="w-full min-w-0 rounded-xl border border-prime-border px-3 py-2 text-base md:text-sm" placeholder="Só números" />
         </label>
         <label className="grid gap-1 text-sm">
           <span className="font-semibold">Chave de acesso (Dualhook: começa com dh_live_)</span>
-          <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} className="rounded-xl border border-prime-border px-3 py-2 text-sm" placeholder={st?.token_tail ? `Guardada (final ${st.token_tail}) — cole outra para trocar` : "Cole aqui (fica guardada)"} />
+          <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} className="w-full min-w-0 rounded-xl border border-prime-border px-3 py-2 text-base md:text-sm" placeholder={st?.token_tail ? `Guardada (final ${st.token_tail}) — cole outra para trocar` : "Cole aqui (fica guardada)"} />
         </label>
       </div>
       <label className="grid gap-1 text-sm">
         <span className="font-semibold">Situação</span>
-        <select value={mode} onChange={(e) => setMode(e.target.value as Mode)} className="rounded-xl border border-prime-border px-3 py-2 text-sm">
+        <select value={mode} onChange={(e) => setMode(e.target.value as Mode)} className="w-full min-w-0 rounded-xl border border-prime-border px-3 py-2 text-base md:text-sm">
           {(Object.keys(MODE_LABEL) as Mode[]).map((m) => (
             <option key={m} value={m}>
               {MODE_LABEL[m]}
