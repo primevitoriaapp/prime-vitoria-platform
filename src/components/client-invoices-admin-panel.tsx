@@ -3,6 +3,7 @@
 import { VouchersToCloseCard } from "@/components/vouchers-to-close-card";
 import { OpenPeriodCard } from "@/components/open-period-card";
 import { InvoiceKanban } from "@/components/invoice-kanban";
+import { ToInvoiceList } from "@/components/to-invoice-list";
 import { InvoiceEmailComposer } from "@/components/invoice-email-composer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
@@ -50,6 +51,15 @@ function prevMonth() {
 /** Financeiro → fechamento mensal: gera faturas, envia, anexa boleto e dá baixa. */
 export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
+  const [view, setView] = useState<"lista" | "quadro">("lista");
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("prime.faturas.view");
+      if (v === "quadro" || v === "lista") setView(v);
+    } catch {
+      /* sem armazenamento */
+    }
+  }, []);
   const { company } = useCompany();
   const [month, setMonth] = useState(prevMonth);
   const [mode, setMode] = useState<"mes" | "periodo">("mes");
@@ -215,7 +225,31 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
         </div>
       </div>
 
-      <InvoiceKanban onChanged={() => void load()} />
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            ["lista", "📋 A faturar (marcar e fechar)"],
+            ["quadro", "🗂 Quadro (faturas e envios)"]
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => {
+              setView(k);
+              try {
+                localStorage.setItem("prime.faturas.view", k);
+              } catch {
+                /* sem armazenamento */
+              }
+            }}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold ${view === k ? "bg-[#111] text-[#D9BC6A]" : "bg-white ring-1 ring-prime-border"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {view === "lista" ? <ToInvoiceList onClosed={() => void load()} /> : <InvoiceKanban onChanged={() => void load()} />}
       <OpenPeriodCard />
       <div id="vouchers-a-fechar" className="scroll-mt-6">
         <VouchersToCloseCard onClosed={() => void load()} />
