@@ -262,6 +262,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   const [status, setStatus] = useState("rascunho");
   const [number, setNumber] = useState<number | null>(null);
   const [tripsCount, setTripsCount] = useState(0);
+  // Orçamento aprovado: quantos serviços já viraram corrida (os de baixo disso são inclusões novas).
+  const [baseCount, setBaseCount] = useState(0);
   const [tripIds, setTripIds] = useState<string[]>([]);
   const [prepaid, setPrepaid] = useState(false);
   const [prepay, setPrepay] = useState<BookingPaymentDraft>(() => emptyBookingPayment(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())));
@@ -355,6 +357,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           };
         })
       );
+      setBaseCount(q.items.length);
       setLoaded(true);
     })();
   }, [id]);
@@ -419,26 +422,10 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
     );
   }
 
-  function payload() {
+
+  /** Um serviço do formulário no formato da API. */
+  function itemPayload(i: Item) {
     return {
-      client_id: clientId || null,
-      contact_type: who === "cadastrado" ? (clients.find((c) => c.id === clientId)?.type === "PF" ? "PF" : "PJ") : who,
-      kind: kind || null,
-      bride_name: wedding.bride_name.trim() || null,
-      bride_phone: wedding.bride_phone.trim() || null,
-      planner_name: wedding.planner_name.trim() || null,
-      planner_phone: wedding.planner_phone.trim() || null,
-      contact_name: contact.name || null,
-      contact_document: contact.document || null,
-      contact_phone: contact.phone || null,
-      contact_email: contact.email || null,
-      issuer: issuer || null,
-      valid_until: validUntil || null,
-      discount: toNum(discount),
-      notes: notes || null,
-      conditions: conditions || null,
-      // Salva em ordem cronológica (orçamentos de vários dias ficam organizados no PDF).
-      items: sortedItems(items).map((i) => ({
         vehicle_category_id: i.vehicle_category_id || null,
         service_mode: i.service_mode,
         hours: isDiaria(i.service_mode) && i.hours ? toNum(i.hours) : null,
@@ -460,7 +447,29 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
         quantity: i.quantity,
         unit_price: toNum(i.unit_price),
         driver_amount: i.driver_amount ? toNum(i.driver_amount) : null
-      }))
+      };
+  }
+
+  function payload() {
+    return {
+      client_id: clientId || null,
+      contact_type: who === "cadastrado" ? (clients.find((c) => c.id === clientId)?.type === "PF" ? "PF" : "PJ") : who,
+      kind: kind || null,
+      bride_name: wedding.bride_name.trim() || null,
+      bride_phone: wedding.bride_phone.trim() || null,
+      planner_name: wedding.planner_name.trim() || null,
+      planner_phone: wedding.planner_phone.trim() || null,
+      contact_name: contact.name || null,
+      contact_document: contact.document || null,
+      contact_phone: contact.phone || null,
+      contact_email: contact.email || null,
+      issuer: issuer || null,
+      valid_until: validUntil || null,
+      discount: toNum(discount),
+      notes: notes || null,
+      conditions: conditions || null,
+      // Salva em ordem cronológica (orçamentos de vários dias ficam organizados no PDF).
+      items: sortedItems(items).map(itemPayload)
     };
   }
 
@@ -515,6 +524,31 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
     } else setMsg({ ok: false, text: r.error ?? "Falhou." });
   }
 
+  /** Orçamento aprovado: grava só os serviços novos e cria as corridas deles. */
+  async function addAfterApproval() {
+    if (!id) return;
+    const novos = items.slice(baseCount);
+    const missing = itemsMissingForTrips(
+      novos.map((i) => ({ quantity: i.quantity, unit_price: toNum(i.unit_price), service_mode: i.service_mode, hours: i.hours ? toNum(i.hours) : null, scheduled_at: i.date && i.time ? "ok" : null, origin_text: i.origin.text, destination_text: i.dest.text }))
+    );
+    if (missing.length) {
+      setMsg({ ok: false, text: `Complete o serviço novo: ${missing.map((m) => `falta ${m.missing.join(", ")}`).join("; ")}.` });
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    const r = await api<{ trips: number; total: number }>(`/api/quotes/${id}/add-items`, { method: "POST", body: JSON.stringify({ items: novos.map(itemPayload) }) });
+    setBusy(false);
+    if (!r.ok) return setMsg({ ok: false, text: r.error ?? "Não foi possível incluir." });
+    const sorted = sortedItems(items);
+    setItems(sorted);
+    setBaseCount(sorted.length);
+    setTripsCount((n) => n + (r.data?.trips ?? 0));
+    const q = await api<{ trips: { id: string }[] }>(`/api/quotes/${id}`);
+    setTripIds((q.data?.trips ?? []).map((t) => t.id));
+    setMsg({ ok: true, text: `Incluído! ${r.data?.trips ?? 0} corrida(s) nova(s) na Agenda. Novo total do orçamento: ${brl(r.data?.total ?? 0)}. Para mandar ao cliente, use “Enviar ao cliente” (sai atualizado, em ordem de data).` });
+  }
+
   async function approve() {
     const missing = itemsMissingForTrips(
       items.map((i) => ({
@@ -542,6 +576,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       return;
     }
     setStatus("aprovado");
+    setBaseCount(items.length);
     setTripsCount(r.data?.trips ?? 0);
     // Corridas criadas: busca os números para registrar o pagamento e mostrar o cartão de pagamento.
     const q = await api<{ trips: { id: string }[] }>(`/api/quotes/${saved}`);
@@ -734,6 +769,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           </div>
         ) : null}
         {items.map((it, idx) => {
+          // Serviço que já virou corrida fica travado; inclusão nova (depois de aprovado) fica editável.
+          const rowLocked = locked && idx < baseCount;
           const diaria = isDiaria(it.service_mode);
           const label = serviceLabelForClient(it.service_mode, it.hours ? toNum(it.hours) : null);
           const catName = cats.find((c) => c.id === it.vehicle_category_id)?.name;
@@ -744,7 +781,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                   <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#111] text-xs text-prime-gold">{idx + 1}</span>
                   {[catName, label, it.date ? it.date.split("-").reverse().slice(0, 2).join("/") : null, it.time || null].filter(Boolean).join(" · ") || "Novo serviço"}
                 </span>
-                {!locked ? (
+                {!rowLocked ? (
                   <span className="flex flex-wrap gap-3 text-xs">
                     {!diaria ? (
                       <button type="button" className="text-prime-gold-ink hover:underline" onClick={() => setItems((l) => [...l.slice(0, idx + 1), { ...it, origin: it.dest, dest: it.origin, stops: [...it.stops].reverse(), time: "" }, ...l.slice(idx + 1)])}>
@@ -772,7 +809,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
 
               <label className="grid gap-1 text-sm sm:col-span-2">
                 <span>Veículo</span>
-                <select className={input} disabled={locked} value={it.vehicle_category_id} onChange={(e) => setItem(idx, { vehicle_category_id: e.target.value })}>
+                <select className={input} disabled={rowLocked} value={it.vehicle_category_id} onChange={(e) => setItem(idx, { vehicle_category_id: e.target.value })}>
                   <option value="">Escolha…</option>
                   {cats.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -793,7 +830,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                     <button
                       key={m.id}
                       type="button"
-                      disabled={locked}
+                      disabled={rowLocked}
                       onClick={() => setItem(idx, { service_mode: m.id, ...(m.id === "diaria" && !it.hours ? { hours: "12" } : {}) })}
                       className={`rounded-lg px-3 py-2 text-sm ring-1 ${it.service_mode === m.id ? "bg-[#111] text-[#fff] ring-[#111]" : "bg-white ring-prime-border hover:ring-prime-gold"}`}
                     >
@@ -804,11 +841,11 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
               </div>
               <label className="grid gap-1 text-sm">
                 <span>Data</span>
-                <input type="date" className={`${input} ${!it.date && !locked ? "ring-1 ring-amber-300" : ""}`} disabled={locked} value={it.date} onChange={(e) => setItem(idx, { date: e.target.value })} />
+                <input type="date" className={`${input} ${!it.date && !rowLocked ? "ring-1 ring-amber-300" : ""}`} disabled={rowLocked} value={it.date} onChange={(e) => setItem(idx, { date: e.target.value })} />
               </label>
               <label className="grid gap-1 text-sm">
                 <span>{diaria ? "Início" : "Hora"}</span>
-                <input type="time" step={300} className={`${input} ${!it.time && !locked ? "ring-1 ring-amber-300" : ""}`} disabled={locked} value={it.time} onChange={(e) => setItem(idx, { time: e.target.value })} />
+                <input type="time" step={300} className={`${input} ${!it.time && !rowLocked ? "ring-1 ring-amber-300" : ""}`} disabled={rowLocked} value={it.time} onChange={(e) => setItem(idx, { time: e.target.value })} />
               </label>
 
               {diaria ? (
@@ -820,7 +857,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                         <button
                           key={h}
                           type="button"
-                          disabled={locked}
+                          disabled={rowLocked}
                           onClick={() => setItem(idx, { hours: String(h) })}
                           className={`min-w-[3rem] rounded-lg px-3 py-2 text-sm font-semibold ring-1 ${toNum(it.hours) === h ? "bg-prime-gold text-[#111] ring-prime-gold" : "bg-white ring-prime-border hover:ring-prime-gold"}`}
                         >
@@ -830,7 +867,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                       <input
                         className={`${input} w-24`}
                         inputMode="decimal"
-                        disabled={locked}
+                        disabled={rowLocked}
                         placeholder="Outra"
                         value={HOUR_CHIPS.includes(toNum(it.hours)) ? "" : it.hours}
                         onChange={(e) => setItem(idx, { hours: e.target.value.replace(/[^0-9.,]/g, "") })}
@@ -845,35 +882,35 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                   stops={it.stops}
                   dest={it.dest}
                   diaria={diaria && !it.package_id}
-                  locked={locked}
+                  locked={rowLocked}
                   onChange={(n) => setItem(idx, n)}
                 />
               </div>
 
               <label className="grid gap-1 text-sm sm:col-span-2">
                 <span>Passageiros (aparece no orçamento)</span>
-                <input className={input} disabled={locked} value={it.passenger_name} onChange={(e) => setItem(idx, { passenger_name: e.target.value })} />
+                <input className={input} disabled={rowLocked} value={it.passenger_name} onChange={(e) => setItem(idx, { passenger_name: e.target.value })} />
               </label>
               <label className="grid gap-1 text-sm">
                 <span>Pessoas</span>
-                <input type="number" min={1} className={input} disabled={locked} value={it.passenger_count} onChange={(e) => setItem(idx, { passenger_count: Math.max(1, Number(e.target.value) || 1) })} />
+                <input type="number" min={1} className={input} disabled={rowLocked} value={it.passenger_count} onChange={(e) => setItem(idx, { passenger_count: Math.max(1, Number(e.target.value) || 1) })} />
               </label>
               <label className="grid gap-1 text-sm">
                 <span>Qtd. de veículos</span>
-                <input type="number" min={1} max={50} className={input} disabled={locked} value={it.quantity} onChange={(e) => setItem(idx, { quantity: Math.max(1, Number(e.target.value) || 1) })} />
+                <input type="number" min={1} max={50} className={input} disabled={rowLocked} value={it.quantity} onChange={(e) => setItem(idx, { quantity: Math.max(1, Number(e.target.value) || 1) })} />
               </label>
               <label className="grid gap-1 text-sm">
                 <span>Valor por veículo (R$)</span>
-                <input className={input} inputMode="decimal" disabled={locked} placeholder="0,00" value={it.unit_price} onChange={(e) => setItem(idx, { unit_price: e.target.value.replace(/[^0-9.,]/g, "") })} onBlur={(e) => setItem(idx, { unit_price: e.target.value ? money2(toNum(e.target.value)) : "" })} />
+                <input className={input} inputMode="decimal" disabled={rowLocked} placeholder="0,00" value={it.unit_price} onChange={(e) => setItem(idx, { unit_price: e.target.value.replace(/[^0-9.,]/g, "") })} onBlur={(e) => setItem(idx, { unit_price: e.target.value ? money2(toNum(e.target.value)) : "" })} />
               </label>
               <label className="grid gap-1 text-sm">
                 <span>Motorista recebe (R$)</span>
-                <input className={`${input} bg-prime-bg`} inputMode="decimal" disabled={locked} placeholder="0,00" value={it.driver_amount} onChange={(e) => setItem(idx, { driver_amount: e.target.value.replace(/[^0-9.,]/g, "") })} onBlur={(e) => setItem(idx, { driver_amount: e.target.value ? money2(toNum(e.target.value)) : "" })} />
+                <input className={`${input} bg-prime-bg`} inputMode="decimal" disabled={rowLocked} placeholder="0,00" value={it.driver_amount} onChange={(e) => setItem(idx, { driver_amount: e.target.value.replace(/[^0-9.,]/g, "") })} onBlur={(e) => setItem(idx, { driver_amount: e.target.value ? money2(toNum(e.target.value)) : "" })} />
                 <span className="text-[12px] text-prime-muted">Interno: não aparece para o cliente</span>
               </label>
               <label className="grid gap-1 text-sm sm:col-span-6">
                 <span>Observação do serviço (aparece no orçamento)</span>
-                <input className={input} disabled={locked} placeholder="Ex.: levar e depois retornar · recepção com placa · voo G3 1234" value={it.description} onChange={(e) => setItem(idx, { description: e.target.value })} />
+                <input className={input} disabled={rowLocked} placeholder="Ex.: levar e depois retornar · recepção com placa · voo G3 1234" value={it.description} onChange={(e) => setItem(idx, { description: e.target.value })} />
               </label>
               <p className="text-xs text-prime-muted sm:col-span-6">
                 {it.date ? (it.time ? formatBrDateTime(saoPauloDateAndTimeToUtcIso(it.date, it.time) ?? "") : `${it.date.split("-").reverse().join("/")} · falta a hora`) : "Falta a data"} · subtotal{" "}
@@ -882,10 +919,23 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
             </div>
           );
         })}
-        {!locked ? (
-          <button type="button" className="w-full rounded-2xl border-2 border-dashed border-prime-border p-3 text-sm font-semibold text-prime-gold hover:border-prime-gold" onClick={() => setItems((l) => [...l, newItem(l[l.length - 1]?.date ?? "")])}>
-            + Adicionar serviço
-          </button>
+        <button type="button" className="w-full rounded-2xl border-2 border-dashed border-prime-border p-3 text-sm font-semibold text-prime-gold hover:border-prime-gold" onClick={() => setItems((l) => [...l, newItem(l[l.length - 1]?.date ?? "")])}>
+          {locked ? "+ Incluir serviço neste orçamento (transfer a mais, etc.)" : "+ Adicionar serviço"}
+        </button>
+        {locked && items.length > baseCount ? (
+          <div className="grid gap-2 rounded-2xl border-2 border-prime-gold bg-[#FFFDF7] p-4 text-sm">
+            <p>
+              <b>{items.length - baseCount} serviço(s) novo(s)</b> neste orçamento já aprovado. Ao salvar, eles entram na Agenda como corridas confirmadas e no orçamento em ordem de data e hora. Os serviços antigos não mudam.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={busy} className="btn-primary" onClick={() => void addAfterApproval()}>
+                {busy ? "Salvando…" : "Salvar e criar as corridas novas"}
+              </button>
+              <button type="button" disabled={busy} className="rounded-xl px-3 py-2 ring-1 ring-prime-border" onClick={() => setItems((l) => l.slice(0, baseCount))}>
+                Desistir dos novos
+              </button>
+            </div>
+          </div>
         ) : null}
       </section>
 

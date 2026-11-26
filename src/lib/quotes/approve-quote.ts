@@ -60,6 +60,29 @@ export async function approveQuote(tenantId: string, id: string, actorUserId: st
       await db.from("clients").update({ billing_issuer: q.issuer }).eq("id", clientId).is("billing_issuer", null);
     }
 
+    const nowIso = new Date().toISOString();
+    const rows = await quoteTripRows({ tenantId, quote: q as Record<string, unknown>, items: items as Record<string, unknown>[], clientId: clientId as string, actorUserId, amounts: tripAmountsFromQuote(items as never, Number(q.discount) || 0), nowIso });
+    const { data: trips, error: tErr } = await db.from("trips").insert(rows).select("id");
+    if (tErr) return fail("TRIPS_FAILED", tErr.message, 500);
+
+    await db.from("quotes").update({ status: "aprovado", approved_at: nowIso, client_id: clientId, updated_at: nowIso }).eq("id", id);
+    // Sinal já pago pelo link da InfinitePay: entra como pagamento das corridas criadas agora.
+    await db.from("payment_links").update({ client_id: clientId }).eq("quote_id", id).is("client_id", null);
+    await bookPaidLinksForQuote(tenantId, id).catch(() => undefined);
+  return { ok: true, trips: trips?.length ?? 0, client_id: clientId as string };
+}
+
+/** Itens do orçamento viram corridas (confirmadas, com o valor do orçamento). */
+export async function quoteTripRows(args: {
+  tenantId: string;
+  quote: Record<string, unknown>;
+  items: Record<string, unknown>[];
+  clientId: string;
+  actorUserId: string | null;
+  amounts: number[];
+  nowIso: string;
+}): Promise<Record<string, unknown>[]> {
+  const { tenantId, quote: q, items, clientId, actorUserId, amounts, nowIso } = args;
     const catIds = [...new Set(items.map((i) => i.vehicle_category_id as string).filter(Boolean))];
     const kinds = new Map<string, CategoryKind>();
     if (catIds.length) {
@@ -67,9 +90,7 @@ export async function approveQuote(tenantId: string, id: string, actorUserId: st
       for (const c of cats ?? []) kinds.set(c.id as string, c.kind as CategoryKind);
     }
 
-    const amounts = tripAmountsFromQuote(items as never, Number(q.discount) || 0);
     const label = formatQuoteNumber(q.number as number);
-    const nowIso = new Date().toISOString();
     const rows: Record<string, unknown>[] = [];
     let n = 0;
     for (const it of items) {
@@ -83,7 +104,7 @@ export async function approveQuote(tenantId: string, id: string, actorUserId: st
         rows.push({
           tenant_id: tenantId,
           client_id: clientId,
-          quote_id: id,
+          quote_id: q.id,
           service_type: legacyServiceType(kind, mode),
           vehicle_category_id: it.vehicle_category_id ?? null,
           service_mode: it.vehicle_category_id ? mode : null,
@@ -119,12 +140,5 @@ export async function approveQuote(tenantId: string, id: string, actorUserId: st
         });
       }
     }
-    const { data: trips, error: tErr } = await db.from("trips").insert(rows).select("id");
-    if (tErr) return fail("TRIPS_FAILED", tErr.message, 500);
-
-    await db.from("quotes").update({ status: "aprovado", approved_at: nowIso, client_id: clientId, updated_at: nowIso }).eq("id", id);
-    // Sinal já pago pelo link da InfinitePay: entra como pagamento das corridas criadas agora.
-    await db.from("payment_links").update({ client_id: clientId }).eq("quote_id", id).is("client_id", null);
-    await bookPaidLinksForQuote(tenantId, id).catch(() => undefined);
-  return { ok: true, trips: trips?.length ?? 0, client_id: clientId as string };
+  return rows;
 }
