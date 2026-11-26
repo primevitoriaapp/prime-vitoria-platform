@@ -38,6 +38,22 @@ export async function ingestWhatsappEvent(tenantId: string, payload: unknown): P
     await db.from("whatsapp_contacts").upsert(patch, { onConflict: "tenant_id,wa_id" });
   }
   for (const s of statuses) {
+    // Avisos automáticos (motorista / passageiro): marca entregue, lida ou falhou, com o motivo em português.
+    const noticePatch =
+      s.status === "failed"
+        ? { status: "falhou", detail: noticeError(s.error) }
+        : s.status === "read"
+          ? { detail: "Lida ✓✓" }
+          : s.status === "delivered"
+            ? { detail: "Entregue ✓✓" }
+            : null;
+    if (noticePatch) {
+      const [{ data: dn }, { data: pn }] = await Promise.all([
+        db.from("driver_whatsapp_notices").update(noticePatch).eq("tenant_id", tenantId).eq("provider_message_id", s.id).select("id"),
+        db.from("passenger_notifications").update(noticePatch).eq("tenant_id", tenantId).eq("provider_message_id", s.id).select("id")
+      ]);
+      if (dn?.length || pn?.length) continue;
+    }
     const upd = () =>
       db.from("whatsapp_chat_messages").update({ status: s.status, ...(s.error ? { error: s.error } : {}) }).eq("tenant_id", tenantId).eq("wa_message_id", s.id).select("id");
     let { data } = await upd();
@@ -47,4 +63,15 @@ export async function ingestWhatsappEvent(tenantId: string, payload: unknown): P
       ({ data } = await upd());
     }
   }
+}
+
+/** Motivo da falha do WhatsApp em português simples. */
+function noticeError(title: string | null): string {
+  const t = String(title ?? "").toLowerCase();
+  if (t.includes("payment")) return "Meta recusou: problema na forma de pagamento da conta do WhatsApp";
+  if (t.includes("not a valid") || t.includes("invalid") || t.includes("recipient")) return "Número inválido ou sem WhatsApp";
+  if (t.includes("template")) return "Mensagem (modelo) não aprovada ou pausada na Meta";
+  if (t.includes("rate") || t.includes("limit")) return "Limite de envios da Meta atingido";
+  if (t.includes("re-engagement") || t.includes("24")) return "Fora da janela de 24h";
+  return `Não entregue: ${title ?? "erro da Meta"}`;
 }
