@@ -182,7 +182,14 @@ export async function POST(request: Request) {
         .ilike("notes", `%${ref.replace(/[%_]/g, "")}%`)
         .not("operational_status", "in", "(cancelled,rejected)")
         .limit(5);
-      const dup = (same ?? []).find((t) => clientRefFromNotes(t.notes as string | null) === ref);
+      // Só é duplicada se for a mesma NR no mesmo horário (±30 min). Corrida a mais da mesma NR
+      // (inclusão do cliente, outro trecho) em outro horário é permitida.
+      const newAt = new Date(String(body.scheduled_at ?? "")).getTime();
+      const dup = (same ?? []).find(
+        (t) =>
+          clientRefFromNotes(t.notes as string | null) === ref &&
+          (!Number.isFinite(newAt) || Math.abs(new Date(String(t.scheduled_at)).getTime() - newAt) < 30 * 60000)
+      );
       if (dup) {
         const quando = new Date(dup.scheduled_at as string).toLocaleString("pt-BR", {
           timeZone: "America/Sao_Paulo",
@@ -193,7 +200,7 @@ export async function POST(request: Request) {
         });
         return fail(
           "DUPLICATE_CLIENT_REF",
-          `A ${ref} já está cadastrada (corrida Nº ${String(dup.id).slice(0, 8).toUpperCase()}, ${quando}). Abra essa corrida em vez de cadastrar de novo.`,
+          `A ${ref} já está cadastrada neste mesmo horário (corrida Nº ${String(dup.id).slice(0, 8).toUpperCase()}, ${quando}). Abra essa corrida em vez de cadastrar de novo.`,
           409
         );
       }
