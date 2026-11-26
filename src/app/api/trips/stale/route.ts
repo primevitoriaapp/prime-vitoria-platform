@@ -3,7 +3,7 @@ import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 
-/** Corridas que já passaram há mais de 12 h e não foram finalizadas nem canceladas. */
+/** Corridas que já passaram há mais de 3 h e não foram finalizadas nem canceladas. */
 export async function GET() {
   try {
     const session = await getSessionContext();
@@ -14,7 +14,7 @@ export async function GET() {
       .select("id, scheduled_at, operational_status, origin_text, destination_text, passenger_name, client_id, driver_id, client_amount, planned_km")
       .eq("tenant_id", tenantId)
       .in("operational_status", ["dispatched", "accepted", "on_the_way", "arrived", "in_progress"])
-      .lt("scheduled_at", new Date(Date.now() - 12 * 3600000).toISOString())
+      .lt("scheduled_at", new Date(Date.now() - 3 * 3600000).toISOString())
       .order("scheduled_at", { ascending: true })
       .limit(100);
     if (error) return fail("LIST_FAILED", error.message, 500);
