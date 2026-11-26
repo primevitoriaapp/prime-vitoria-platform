@@ -24,11 +24,11 @@ export async function GET() {
     const nameBy = new Map((clients ?? []).map((c) => [c.id as string, ((c.trade_name as string | null) || (c.name as string)).trim()]));
     const { data: trips, error } = await db
       .from("trips")
-      .select("id, client_id, scheduled_at, operational_status, client_amount, notes, client_voucher_path, reviewed_at, invoice_merge_key")
+      .select("id, client_id, scheduled_at, operational_status, client_amount, notes, client_voucher_path, reviewed_at, invoice_merge_key, charge_after_cancel")
       .eq("tenant_id", tenantId)
       .in("client_id", ids)
       .is("client_invoice_id", null)
-      .not("operational_status", "in", "(cancelled,rejected,no_show)")
+      .or("operational_status.not.in.(cancelled,rejected,no_show),charge_after_cancel.eq.true")
       .order("scheduled_at")
       .limit(1000);
     if (error) return fail("TRIPS_FAILED", error.message, 500);
@@ -44,7 +44,7 @@ export async function GET() {
         client_name: nameBy.get(t.client_id as string) ?? "Cliente",
         ref,
         scheduled_at: t.scheduled_at as string,
-        operational_status: t.operational_status as string,
+        operational_status: t.charge_after_cancel ? "completed" : (t.operational_status as string),
         client_amount: t.client_amount == null ? null : Number(t.client_amount),
         has_voucher: Boolean(t.client_voucher_path),
         approved: Boolean(t.reviewed_at),

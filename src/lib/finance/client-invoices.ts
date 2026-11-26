@@ -69,7 +69,8 @@ export async function generateClientInvoices(input: {
     .eq("tenant_id", input.tenantId)
     // Só entra na fatura corrida aprovada pelo gestor (KM e valores conferidos).
     .not("reviewed_at", "is", null)
-    .eq("operational_status", "completed")
+    // Concluída, ou cancelada/no-show que a central decidiu cobrar.
+    .or("operational_status.eq.completed,charge_after_cancel.eq.true")
     .is("client_invoice_id", null)
     .gte("scheduled_at", fromIso)
     .lte("scheduled_at", toIso)
@@ -201,7 +202,7 @@ export async function listInvoiceTrips(invoiceId: string) {
   const { data, error } = await db
     .from("trips")
     .select(
-      "id, scheduled_at, service_type, passenger_name, passenger_count, origin_text, destination_text, flight_number, cost_center_id, client_amount, km_billable, actual_km, planned_km, wait_minutes, created_by, notes, trip_dropoff_stops, calculation_metadata, invoice_merge_key"
+      "id, scheduled_at, service_type, passenger_name, passenger_count, origin_text, destination_text, flight_number, cost_center_id, client_amount, km_billable, actual_km, planned_km, wait_minutes, created_by, notes, trip_dropoff_stops, calculation_metadata, invoice_merge_key, charge_after_cancel, charge_reason"
     )
     .eq("client_invoice_id", invoiceId)
     .order("scheduled_at", { ascending: true })
@@ -315,12 +316,12 @@ export async function generateInvoiceForTrip(input: {
   const { clientRefFromNotes } = await import("@/lib/trips/client-ref");
   const { data: trip } = await db
     .from("trips")
-    .select("id, client_id, scheduled_at, notes, operational_status, client_invoice_id, client_voucher_path")
+    .select("id, client_id, scheduled_at, notes, operational_status, client_invoice_id, client_voucher_path, charge_after_cancel")
     .eq("id", input.tripId)
     .eq("tenant_id", input.tenantId)
     .maybeSingle();
   if (!trip) throw new Error("Corrida não encontrada");
-  if (trip.operational_status !== "completed") throw new Error("A corrida ainda não foi concluída");
+  if (trip.operational_status !== "completed" && !trip.charge_after_cancel) throw new Error("A corrida ainda não foi concluída");
   if (trip.client_invoice_id) throw new Error("Esta corrida já está numa fatura");
 
   const ref = clientRefFromNotes(trip.notes as string | null);
@@ -332,7 +333,7 @@ export async function generateInvoiceForTrip(input: {
       .select("id, scheduled_at, notes, client_amount, km_billable, actual_km, planned_km, client_voucher_path")
       .eq("tenant_id", input.tenantId)
       .eq("client_id", trip.client_id)
-      .eq("operational_status", "completed")
+      .or("operational_status.eq.completed,charge_after_cancel.eq.true")
       .is("client_invoice_id", null)
       .ilike("notes", `%${base.replace(/[%_]/g, "")}%`)
       .limit(50);
@@ -428,14 +429,14 @@ export async function generateInvoiceFromTrips(input: {
   if (!ids.length) throw new Error("Nenhuma corrida escolhida");
   const { data: trips } = await db
     .from("trips")
-    .select("id, client_id, scheduled_at, operational_status, client_invoice_id, reviewed_at, client_amount, km_billable, actual_km, planned_km, client_voucher_path")
+    .select("id, client_id, scheduled_at, operational_status, client_invoice_id, reviewed_at, client_amount, km_billable, actual_km, planned_km, client_voucher_path, charge_after_cancel")
     .eq("tenant_id", input.tenantId)
     .in("id", ids);
   const list = trips ?? [];
   if (list.length !== ids.length) throw new Error("Alguma corrida não foi encontrada");
   const clients = new Set(list.map((t) => t.client_id as string));
   if (clients.size !== 1) throw new Error("As corridas precisam ser do mesmo cliente");
-  if (list.some((t) => t.operational_status !== "completed")) throw new Error("Ainda tem corrida sem concluir neste grupo");
+  if (list.some((t) => t.operational_status !== "completed" && !t.charge_after_cancel)) throw new Error("Ainda tem corrida sem concluir neste grupo");
   if (list.some((t) => t.client_invoice_id)) throw new Error("Alguma corrida já está em outra fatura");
   if (list.some((t) => !t.reviewed_at)) throw new Error('Falta aprovar corrida deste grupo em "Aprovar corridas"');
   const clientId = list[0].client_id as string;

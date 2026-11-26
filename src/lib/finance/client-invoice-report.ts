@@ -126,7 +126,15 @@ export async function buildInvoiceReport(invoiceId: string): Promise<InvoiceRepo
     id: t.id as string,
     number: String(t.id).slice(0, 8).toUpperCase(),
     when: formatBrDateTime(t.scheduled_at as string),
-    service: primeServiceTypeLabel(String(t.service_type ?? ""), { audience: "client" }),
+    service: `${primeServiceTypeLabel(String(t.service_type ?? ""), { audience: "client" })}${
+      (t as { charge_after_cancel?: boolean }).charge_after_cancel
+        ? (t as { charge_reason?: string }).charge_reason === "no_show"
+          ? " · NO-SHOW (passageiro não compareceu)"
+          : (t as { charge_reason?: string }).charge_reason === "cancelamento_tardio"
+            ? " · Cancelamento em cima da hora"
+            : " · Taxa de cancelamento"
+        : ""
+    }`,
     passenger: ((t.passenger_name as string | null)?.trim() || "—") + (t.passenger_count && Number(t.passenger_count) > 1 ? ` (+${Number(t.passenger_count) - 1})` : ""),
     requester: t.created_by ? (profileById.get(t.created_by as string) ?? null) : null,
     cost_center: t.cost_center_id ? (ccById.get(t.cost_center_id as string) ?? null) : null,

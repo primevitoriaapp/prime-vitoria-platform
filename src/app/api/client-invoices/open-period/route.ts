@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const to = new Date(`${new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10)}T23:59:59-03:00`).toISOString();
     const { data: trips, error } = await db
       .from("trips")
-      .select("id, client_id, driver_id, scheduled_at, operational_status, reviewed_at, client_amount, driver_amount, km_billable, actual_km, passenger_name, origin_text, destination_text, notes, client_voucher_path")
+      .select("id, client_id, driver_id, scheduled_at, operational_status, reviewed_at, client_amount, driver_amount, km_billable, actual_km, passenger_name, origin_text, destination_text, notes, client_voucher_path, charge_after_cancel, charge_reason")
       .eq("tenant_id", tenantId)
       .is("client_invoice_id", null)
       .gte("scheduled_at", from)
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       .order("scheduled_at")
       .limit(3000);
     if (error) return fail("LIST_FAILED", error.message, 500);
-    const live = (trips ?? []).filter((t) => !DEAD.includes(t.operational_status as string));
+    const live = (trips ?? []).filter((t) => !DEAD.includes(t.operational_status as string) || t.charge_after_cancel === true);
     const cIds = [...new Set(live.map((t) => t.client_id as string))];
     const dIds = [...new Set(live.map((t) => t.driver_id as string).filter(Boolean))];
     const [{ data: cs }, { data: ds }] = await Promise.all([
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
           trips: []
         } as Record<string, unknown> & { trips: Record<string, unknown>[] });
       const amt = Number(t.client_amount ?? 0);
-      const done = DONE.includes(t.operational_status as string);
+      const done = DONE.includes(t.operational_status as string) || t.charge_after_cancel === true;
       const stage = done ? (t.reviewed_at ? "aprovada" : "aprovar") : "agendada";
       if (stage === "aprovada") {
         const day = new Date(t.scheduled_at as string).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
@@ -91,7 +91,7 @@ export async function GET(request: Request) {
         has_voucher: Boolean(t.client_voucher_path),
         driver: t.driver_id ? dName.get(t.driver_id as string) ?? null : null,
         passenger: t.passenger_name ?? null,
-        route: `${shortAddress(String(t.origin_text ?? ""))} → ${shortAddress(String(t.destination_text ?? ""))}`,
+        route: `${t.charge_after_cancel ? (t.charge_reason === "no_show" ? "NO-SHOW · " : "CANCELADA (cobrada) · ") : ""}${shortAddress(String(t.origin_text ?? ""))} → ${shortAddress(String(t.destination_text ?? ""))}`,
         km: t.km_billable != null ? Number(t.km_billable) : t.actual_km != null ? Number(t.actual_km) : null,
         client_amount: t.client_amount == null ? null : Number(t.client_amount),
         driver_amount: t.driver_amount == null ? null : Number(t.driver_amount)

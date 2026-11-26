@@ -7,6 +7,9 @@ import { TRIP_EXTRA_LABEL, type TripExtraKind } from "@/lib/trips/trip-extras";
 
 type Extra = { id: string; kind: TripExtraKind; line: string; client_amount: number; driver_amount: number };
 type Data = {
+  status: string;
+  charge_after_cancel: boolean;
+  charge_reason: "no_show" | "cancelamento_tardio" | "outro" | null;
   client_id: string | null;
   client_ref: string | null;
   client_amount: number | null;
@@ -177,8 +180,15 @@ export function TripClosingCard({ tripId, compact = false, hideRef = false, onCh
         )}
       </div>
 
+      {d.status === "cancelled" || d.status === "no_show" ? (
+        <CancelCharge tripId={tripId} d={d} locked={locked} onDone={() => {
+          void load();
+          onChanged?.();
+        }} />
+      ) : null}
+
       {/* Adicionais */}
-      <div className="grid gap-2">
+      <div className={d.status === "cancelled" || d.status === "no_show" ? "hidden" : "grid gap-2"}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-semibold">Adicionais</span>
           {!locked && !adding ? (
@@ -300,5 +310,102 @@ export function TripClosingCard({ tripId, compact = false, hideRef = false, onCh
       </div>
       {msg ? <p className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-800"}`}>{msg.text}</p> : null}
     </section>
+  );
+}
+
+const REASON: Record<string, string> = { no_show: "No-show (passageiro não compareceu)", cancelamento_tardio: "Cancelamento em cima da hora", outro: "Outro motivo" };
+
+/** Corrida cancelada / no-show: cobrar do cliente mesmo assim (e pagar o motorista, se ele foi). */
+function CancelCharge({ tripId, d, locked, onDone }: { tripId: string; d: Data; locked: boolean; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<"no_show" | "cancelamento_tardio" | "outro">(d.charge_reason ?? (d.status === "no_show" ? "no_show" : "cancelamento_tardio"));
+  const [cli, setCli] = useState(d.client_amount ? fmt(d.client_amount) : "");
+  const [drv, setDrv] = useState(d.driver_amount ? fmt(d.driver_amount) : "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function send(charge: boolean) {
+    setBusy(true);
+    setErr(null);
+    const body = charge ? { charge, reason, client_amount: parseMoney(cli), driver_amount: d.has_driver ? parseMoney(drv || "0") : 0 } : { charge };
+    const r = await fetchWithSupabaseSession(`/api/trips/${tripId}/cancel-charge`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, "admin").catch(() => null);
+    const j = r ? await r.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (r?.ok && j?.success) {
+      setOpen(false);
+      onDone();
+    } else setErr(j?.error?.message ?? "Não foi possível salvar.");
+  }
+
+  const input = "rounded-xl border border-prime-border px-3 py-2 text-base md:text-sm";
+  if (d.charge_after_cancel && !open) {
+    return (
+      <div className="grid gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm">
+        <p>
+          💰 <b>Será cobrada do cliente</b> · {REASON[d.charge_reason ?? "outro"]} · <b>{brl(d.client_amount)}</b>
+          {d.has_driver ? <> · motorista recebe {brl(d.driver_amount)}</> : null}
+        </p>
+        <p className="text-xs text-amber-900">Ela entra no fechamento como os outros serviços, com o motivo escrito na fatura.</p>
+        {!locked ? (
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setOpen(true)} className="text-xs font-semibold text-prime-gold-ink">
+              Mudar valores
+            </button>
+            <button type="button" disabled={busy} onClick={() => window.confirm("Não cobrar mais esta corrida? Ela sai do fechamento.") && void send(false)} className="text-xs font-semibold text-red-700">
+              Não cobrar
+            </button>
+          </div>
+        ) : null}
+        {err ? <p className="text-xs text-red-700">{err}</p> : null}
+      </div>
+    );
+  }
+  if (!open) {
+    return (
+      <div className="grid gap-2 rounded-xl bg-prime-bg p-3 text-sm">
+        <p>
+          Esta corrida está <b>{d.status === "no_show" ? "como no-show" : "cancelada"}</b> e não entra na fatura.
+        </p>
+        {!locked ? (
+          <button type="button" onClick={() => setOpen(true)} className="justify-self-start rounded-xl bg-[#111] px-4 py-2 font-semibold text-prime-gold">
+            💰 Cobrar mesmo assim (no-show / cancelamento)
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-2 rounded-xl border border-prime-gold bg-[#FFFDF7] p-3 text-sm">
+      <span className="font-semibold">Cobrar esta corrida do cliente</span>
+      <div className="flex flex-wrap gap-1.5">
+        {(Object.keys(REASON) as (keyof typeof REASON)[]).map((k) => (
+          <button key={k} type="button" onClick={() => setReason(k as typeof reason)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${reason === k ? "bg-[#111] text-[#D9BC6A]" : "bg-white ring-1 ring-prime-border"}`}>
+            {REASON[k]}
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="grid gap-1">
+          <span className="text-xs font-semibold">Cliente paga (R$)</span>
+          <input inputMode="decimal" value={cli} onChange={(e) => setCli(e.target.value)} className={input} />
+        </label>
+        {d.has_driver ? (
+          <label className="grid gap-1">
+            <span className="text-xs font-semibold">Motorista recebe (R$) — 0 se ele não foi</span>
+            <input inputMode="decimal" value={drv} onChange={(e) => setDrv(e.target.value)} className={input} />
+          </label>
+        ) : null}
+      </div>
+      <p className="text-xs text-prime-muted">Na fatura aparece o serviço com “{reason === "no_show" ? "NO-SHOW (passageiro não compareceu)" : "Cancelamento em cima da hora"}”.</p>
+      {err ? <p className="text-xs text-red-700">{err}</p> : null}
+      <div className="flex gap-2">
+        <button type="button" disabled={busy} onClick={() => void send(true)} className="rounded-xl bg-[#111] px-4 py-2 font-semibold text-prime-gold disabled:opacity-40">
+          {busy ? "Salvando…" : "Cobrar"}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="rounded-xl px-3 py-2 ring-1 ring-prime-border">
+          Cancelar
+        </button>
+      </div>
+    </div>
   );
 }

@@ -11,13 +11,14 @@ const PERIODS: DashPeriod[] = ["hoje", "7d", "mes", "ano"];
 async function tripsBetween(tenantId: string, from: string, to: string) {
   const { data, error } = await db
     .from("trips")
-    .select("id, operational_status, client_amount, driver_amount, client_id, driver_id, scheduled_at")
+    .select("id, operational_status, client_amount, driver_amount, client_id, driver_id, scheduled_at, charge_after_cancel")
     .eq("tenant_id", tenantId)
     .gte("scheduled_at", from)
     .lt("scheduled_at", to)
     .limit(5000);
   if (error) throw new Error(error.message);
-  return (data ?? []) as (MetricTrip & { id: string; scheduled_at: string })[];
+  // No-show / cancelamento cobrado conta no faturamento como serviço feito.
+  return (data ?? []).map((t) => (t.charge_after_cancel ? { ...t, operational_status: "completed" } : t)) as (MetricTrip & { id: string; scheduled_at: string })[];
 }
 
 

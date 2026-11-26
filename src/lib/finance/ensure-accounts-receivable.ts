@@ -11,12 +11,12 @@ export async function ensureAccountsReceivableFromTripFinancials(
 ): Promise<{ created: boolean; receivable_id?: string }> {
   const { data: trip } = await db
     .from("trips")
-    .select("client_id, operational_status")
+    .select("client_id, operational_status, charge_after_cancel")
     .eq("id", tripId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
-  if (!trip?.client_id || trip.operational_status !== "completed") {
+  if (!trip?.client_id || (trip.operational_status !== "completed" && !trip.charge_after_cancel)) {
     return { created: false };
   }
 
