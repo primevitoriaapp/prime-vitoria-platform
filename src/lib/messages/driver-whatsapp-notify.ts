@@ -56,6 +56,13 @@ export async function notifyDriverWhatsapp(
   // Corrida que já passou não gera aviso.
   if (!skip && new Date(String(trip.scheduled_at)).getTime() < Date.now() - 2 * 3600000) skip = "Corrida já passou";
 
+  // Tirou o motorista (ou cancelou): se ele voltar para a mesma corrida, recebe "nova corrida" de novo.
+  // E se ele foi escalado de novo, um "cancelada" antigo não pode travar o próximo cancelamento.
+  if (kind === "motorista_cancelada") {
+    await db.from("driver_whatsapp_notices").update({ status: "encerrada" }).eq("trip_id", tripId).eq("driver_id", driverId).eq("kind", "motorista_nova").in("status", ["enviada", "simulada"]);
+  } else if (kind === "motorista_nova") {
+    await db.from("driver_whatsapp_notices").update({ status: "encerrada" }).eq("trip_id", tripId).eq("driver_id", driverId).eq("kind", "motorista_cancelada").in("status", ["enviada", "simulada"]);
+  }
   const live = sendsLive(cfg, "motoristas") && cloudReady(cfg);
   const { data: row } = await db
     .from("driver_whatsapp_notices")

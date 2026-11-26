@@ -16,7 +16,8 @@ const STATUS_PT: Record<string, { t: string; cls: string }> = {
   enviada: { t: "Enviada", cls: "bg-emerald-50 text-emerald-800" },
   simulada: { t: "Teste (não enviada)", cls: "bg-amber-50 text-amber-900" },
   pulada: { t: "Não precisou", cls: "bg-gray-100 text-gray-700" },
-  falhou: { t: "Falhou", cls: "bg-red-50 text-red-800" }
+  falhou: { t: "Falhou", cls: "bg-red-50 text-red-800" },
+  encerrada: { t: "Enviada (depois retirado)", cls: "bg-gray-100 text-gray-700" }
 };
 
 /** Histórico dos avisos automáticos (passageiros e motoristas). */
