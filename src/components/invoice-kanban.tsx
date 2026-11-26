@@ -162,11 +162,15 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     return out.sort((a, b) => (a.nr === "" ? -1 : b.nr === "" ? 1 : a.trips[0].scheduled_at.localeCompare(b.trips[0].scheduled_at)));
   }, [accs, invs]);
 
-  async function closeVoucher(v: VCard) {
+  async function closeVoucher(full: VCard, only?: string[]) {
+    const pickTrips = only && only.length ? full.trips.filter((t) => only.includes(t.id)) : full.trips;
+    if (!pickTrips.length) return setMsg({ ok: false, text: "Marque pelo menos uma corrida para fechar." });
+    const v: VCard = { ...full, trips: pickTrips, total: Math.round(pickTrips.reduce((s2, t) => s2 + Number(t.client_amount ?? 0), 0) * 100) / 100 };
+    const leftOut = full.trips.length - pickTrips.length;
     const pax = [...new Set(v.trips.flatMap((t) => String(t.passenger ?? "").split(",").map((x) => x.trim()).filter(Boolean)))];
     const already = v.billed.length ? `\n\n⚠ Este voucher JÁ TEM fatura (${v.billed.map((b) => `nº ${b.number} de ${brl(Number(b.total_amount))}`).join(", ")}). Esta será uma fatura complementar. Confira se a corrida não foi cobrada.` : "";
     const warn = (v.missing.length ? `\n\nAtenção: ${v.missing.length} corrida(s) deste voucher ainda não estão aprovadas e ficam de fora.` : "") + already;
-    if (!window.confirm(`Fechar a fatura ${v.isNr ? `do voucher ${v.nr}` : `de ${v.nr.toLowerCase()}`} (${v.client.client_name})?\n\n${pax.join(", ")}\n${v.trips.length} corrida(s) · ${brl(v.total)}${warn}`)) return;
+    if (!window.confirm(`Fechar a fatura ${v.isNr ? `do voucher ${v.nr}` : `de ${v.nr.toLowerCase()}`} (${v.client.client_name})?\n\n${pax.join(", ")}\n${v.trips.length} corrida(s) · ${brl(v.total)}${leftOut ? `\n\n${leftOut} corrida(s) desmarcada(s) ficam em "A fechar" para outro fechamento.` : ""}${warn}`)) return;
     const due = new Date(Date.now() + (v.client.payment_term_days ?? 30) * 86400000).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
     setBusy(v.key);
     setMsg(null);
@@ -468,7 +472,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
               {col.id === "fechar"
                 ? shownVouchers.map((v) =>
                     v.nr ? (
-                      <VoucherCard key={v.key} v={v} card={card} busy={busy === v.key} onClose={() => void closeVoucher(v)} onDrag={() => setDrag({ col: "fechar", key: v.key })} onSaved={() => void load()} />
+                      <VoucherCard key={v.key} v={v} card={card} busy={busy === v.key} onClose={(ids) => void closeVoucher(v, ids)} onDrag={() => setDrag({ col: "fechar", key: v.key })} onSaved={() => void load()} />
                     ) : (
                       <NoRefCard key={v.key} v={v} onSaved={() => void load()} />
                     )
@@ -649,8 +653,14 @@ const shortName = (n: string) => {
 };
 
 /** Um voucher (NR) pronto para virar fatura. */
-function VoucherCard({ v, card, busy, onClose, onSaved }: { v: VCard; card: string; busy: boolean; onClose: () => void; onDrag: () => void; onSaved: () => void }) {
+function VoucherCard({ v, card, busy, onClose, onSaved }: { v: VCard; card: string; busy: boolean; onClose: (ids?: string[]) => void; onDrag: () => void; onSaved: () => void }) {
   const [open, setOpen] = useState(v.trips.length <= 4);
+  // Corridas marcadas para este fechamento (todas, por padrão). Desmarcou = fica para outro fechamento.
+  const [sel, setSel] = useState<Set<string>>(() => new Set(v.trips.map((t) => t.id)));
+  const idsKey = v.trips.map((t) => t.id).join(",");
+  useEffect(() => setSel(new Set(idsKey.split(",").filter(Boolean))), [idsKey]);
+  const allSel = v.trips.every((t) => sel.has(t.id));
+  const selTotal = v.trips.filter((t) => sel.has(t.id)).reduce((s2, t) => s2 + Number(t.client_amount ?? 0), 0);
   const [peek, setPeek] = useState<AccTrip | null>(null);
   const withFile = v.trips.find((t) => t.has_voucher);
   const pax = paxOf(v.trips);
@@ -696,8 +706,22 @@ function VoucherCard({ v, card, busy, onClose, onSaved }: { v: VCard; card: stri
       {open ? (
         <ul className="mt-1 grid grid-cols-[minmax(0,1fr)] gap-1">
           {v.trips.map((t) => (
-            <li key={t.id}>
-              <button type="button" onClick={() => setPeek(t)} className="flex w-full min-w-0 items-start justify-between gap-2 rounded-md bg-prime-bg px-2 py-1.5 text-left text-xs hover:ring-1 hover:ring-prime-gold">
+            <li key={t.id} className="flex min-w-0 items-stretch gap-1">
+              {v.trips.length > 1 ? (
+                <label className="flex shrink-0 items-center px-1" title="Incluir neste fechamento">
+                  <input
+                    type="checkbox"
+                    checked={sel.has(t.id)}
+                    onChange={(e) => {
+                      const n = new Set(sel);
+                      if (e.target.checked) n.add(t.id);
+                      else n.delete(t.id);
+                      setSel(n);
+                    }}
+                  />
+                </label>
+              ) : null}
+              <button type="button" onClick={() => setPeek(t)} className={`flex w-full min-w-0 items-start justify-between gap-2 rounded-md bg-prime-bg px-2 py-1.5 text-left text-xs hover:ring-1 hover:ring-prime-gold ${sel.has(t.id) ? "" : "opacity-50"}`}>
                 <span className="min-w-0 flex-1">
                   {t.ref?.includes("-") ? <b className="mr-1 text-[#7A5C16]">{t.ref.slice(t.ref.indexOf("-") + 1)}</b> : null}
                   {whenBR(t.scheduled_at)}
@@ -709,8 +733,21 @@ function VoucherCard({ v, card, busy, onClose, onSaved }: { v: VCard; card: stri
           ))}
         </ul>
       ) : null}
-      <button type="button" disabled={busy} onClick={onClose} className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50">
-        {busy ? "Fechando…" : v.isNr ? "Fechar fatura deste voucher →" : "Fechar fatura deste dia →"}
+      {v.trips.length > 1 && !allSel ? (
+        <p className="mt-2 text-[11px] text-prime-muted">
+          Marcadas: {sel.size} de {v.trips.length} · {moneyBR(selTotal)}. As desmarcadas ficam para outro fechamento.
+        </p>
+      ) : null}
+      <button
+        type="button"
+        disabled={busy || sel.size === 0}
+        onClick={() => {
+          if (!open && !allSel) setOpen(true);
+          onClose(allSel ? undefined : [...sel]);
+        }}
+        className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold disabled:opacity-50"
+      >
+        {busy ? "Fechando…" : !allSel ? `Fechar só as ${sel.size} marcada(s) →` : v.isNr ? "Fechar fatura deste voucher →" : "Fechar fatura deste dia →"}
       </button>
       {peek ? <TripPeek trip={peek} siblings={v.trips} billed={v.billed} onClose={() => setPeek(null)} onSaved={onSaved} /> : null}
     </div>
