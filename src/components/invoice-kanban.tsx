@@ -646,11 +646,11 @@ function VoucherCard({ v, card, busy, onClose, onSaved }: { v: VCard; card: stri
         ) : null}
       </div>
       {open ? (
-        <ul className="mt-1 grid gap-1">
+        <ul className="mt-1 grid grid-cols-[minmax(0,1fr)] gap-1">
           {v.trips.map((t) => (
             <li key={t.id}>
               <button type="button" onClick={() => setPeek(t)} className="flex w-full min-w-0 items-start justify-between gap-2 rounded-md bg-prime-bg px-2 py-1.5 text-left text-xs hover:ring-1 hover:ring-prime-gold">
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   {t.ref?.includes("-") ? <b className="mr-1 text-[#7A5C16]">{t.ref.slice(t.ref.indexOf("-") + 1)}</b> : null}
                   {whenBR(t.scheduled_at)}
                   <span className="block truncate text-prime-muted">{t.route}</span>
@@ -692,7 +692,7 @@ function NoRefCard({ v, onSaved }: { v: VCard; onSaved: () => void }) {
         <span className="shrink-0 font-bold tabular-nums">{moneyBR(v.total)}</span>
       </p>
       <p className="text-[11px] text-amber-900/80">Diga de qual voucher (NR) é cada corrida. Ela passa para o card do voucher.</p>
-      <ul className="mt-2 grid gap-1.5">
+      <ul className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-1.5">
         {v.trips.map((t) => (
           <li key={t.id} className="min-w-0 rounded-lg bg-white px-2 py-1.5 text-xs">
             <button type="button" onClick={() => setPeek(t)} className="flex w-full min-w-0 items-start justify-between gap-2 text-left">
@@ -949,7 +949,7 @@ function TripPeek({ trip, siblings, billed = [], onClose, onSaved }: { trip: Acc
             {others.length ? (
               <section className="rounded-xl bg-white p-3">
                 <p className="mb-1 text-sm font-semibold">Outras corridas neste card</p>
-                <ul className="grid gap-1 text-xs">
+                <ul className="grid grid-cols-[minmax(0,1fr)] gap-1 text-xs">
                   {others.map((o) => (
                     <li key={o.id} className="flex justify-between gap-2 rounded-md bg-prime-bg px-2 py-1.5">
                       <span className="min-w-0">
