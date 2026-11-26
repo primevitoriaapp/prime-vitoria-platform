@@ -331,6 +331,27 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     onChanged?.();
   }
 
+  /** Desfaz o fechamento: a fatura é cancelada e as corridas voltam para "A fechar" para editar e fechar de novo. */
+  async function reopen(v: Inv) {
+    const sent = v.status === "enviada";
+    const ok = window.confirm(
+      `Reabrir a fatura nº ${v.number}${v.client_ref ? ` (${v.client_ref})` : ""} · ${v.client_name ?? ""} · ${brl(Number(v.total_amount))}?\n\n` +
+        `As ${v.trip_count} corrida(s) voltam para "A fechar": você corrige o que precisar e fecha de novo (sai com número novo).` +
+        (sent ? `\n\n⚠ Esta fatura JÁ FOI ENVIADA ao cliente. Avise o cliente que ela será substituída.` : "") +
+        (v.nf_number || v.nf_path ? `\n\n⚠ Já tem nota fiscal anexada: se a nota foi emitida, cancele ou substitua na prefeitura.` : "")
+    );
+    if (!ok) return;
+    setBusy(v.id);
+    setMsg(null);
+    const r = await fetchWithSupabaseSession(`/api/client-invoices/${v.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "cancelada" }) }, "admin").catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } }) : {};
+    setBusy(null);
+    if (!r?.ok || !j.success) return setMsg({ ok: false, text: j.error?.message ?? "Não foi possível reabrir." });
+    setMsg({ ok: true, text: `Fatura nº ${v.number} reaberta: as corridas voltaram para "A fechar".` });
+    await load();
+    onChanged?.();
+  }
+
   function openInvoice(v: Inv) {
     window.location.href = `/finance/faturas/${v.id}`;
   }
@@ -354,6 +375,11 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     if (d.col === "faturado" && to === "enviado") {
       const v = cols.faturado.find((x) => x.id === d.key);
       if (v && window.confirm(`Abrir a fatura nº ${v.number} para conferir os anexos e enviar ao cliente?`)) openInvoice(v);
+      return;
+    }
+    if ((d.col === "faturado" || d.col === "enviado") && to === "fechar") {
+      const v = invs.find((x) => x.id === d.key);
+      if (v) void reopen(v);
       return;
     }
     if (d.col === "execucao" && to === "fechar") {
@@ -573,6 +599,9 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
                         <button type="button" onClick={() => openInvoice(v)} className="mt-2 w-full rounded-lg bg-[#111] py-2 text-xs font-bold text-prime-gold">
                           {nf && boleto ? "Enviar ao cliente →" : "Anexar e enviar →"}
                         </button>
+                        <button type="button" disabled={busy === v.id} onClick={() => void reopen(v)} className="mt-1 w-full py-1 text-[11px] font-semibold text-prime-muted underline disabled:opacity-50">
+                          ↩ Reabrir para editar
+                        </button>
                       </div>
                     );
                   })
@@ -580,7 +609,7 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
 
               {col.id === "enviado"
                 ? cols.enviado.filter((v) => hit(v.client_name, v.client_ref, v.number)).map((v) => (
-                    <div key={v.id} className={card}>
+                    <div key={v.id} draggable onDragStart={() => setDrag({ col: "enviado", key: v.id })} className={card}>
                       <p className="flex justify-between gap-2 font-semibold">
                         <span className="truncate">{v.client_name ?? "Cliente"}</span>
                         <span className="text-xs text-prime-muted">nº {v.number}</span>

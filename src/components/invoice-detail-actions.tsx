@@ -346,10 +346,17 @@ export function InvoiceDetailActions({ inv }: { inv: Inv }) {
                     className="rounded-lg px-3 py-2 text-left text-red-700 hover:bg-red-50"
                     onClick={() => {
                       setMore(false);
-                      if (window.confirm("Cancelar esta fatura? As corridas voltam a ficar sem fatura.")) void patch({ status: "cancelada" }, "Fatura cancelada.");
+                      if (
+                        window.confirm(
+                          `Reabrir esta fatura para editar?\n\nEla é cancelada e as corridas voltam para "A fechar" em Faturas e recebimentos. Você corrige e fecha de novo (sai com número novo).${inv.status === "enviada" ? "\n\n⚠ Ela já foi enviada ao cliente: avise que será substituída." : ""}`
+                        )
+                      )
+                        void patch({ status: "cancelada" }, "Fatura reaberta: as corridas voltaram para “A fechar”.").then(() => {
+                          window.location.href = "/finance";
+                        });
                     }}
                   >
-                    Cancelar fatura
+                    ↩ Reabrir para editar (cancela esta fatura)
                   </button>
                 ) : null}
               </div>
