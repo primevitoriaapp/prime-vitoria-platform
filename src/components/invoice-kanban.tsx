@@ -749,6 +749,7 @@ function NoRefCard({ v, onSaved }: { v: VCard; onSaved: () => void }) {
 
 type TripFull = {
   id: string;
+  client_id?: string | null;
   scheduled_at: string;
   operational_status: string;
   passenger_name: string | null;
@@ -852,7 +853,7 @@ function TripPeek({ trip, siblings, billed = [], onClose, onSaved }: { trip: Acc
   return (
     <BodyPortal>
       <div className="fixed inset-0 z-[120] flex justify-end bg-black/40" onClick={onClose}>
-        <div className="flex h-dvh w-full max-w-lg flex-col bg-prime-bg pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex h-dvh w-full max-w-lg flex-col bg-prime-bg pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl md:max-w-3xl" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between gap-3 border-b border-prime-border bg-white px-4 py-3">
             <div className="min-w-0">
               <p className="text-xs text-prime-muted">Conferir serviço</p>
@@ -863,6 +864,19 @@ function TripPeek({ trip, siblings, billed = [], onClose, onSaved }: { trip: Acc
             <button type="button" onClick={onClose} className="rounded-full px-3 py-1.5 text-sm ring-1 ring-prime-border">
               Fechar
             </button>
+          </div>
+          <div className="flex flex-wrap gap-2 border-b border-prime-border bg-white px-4 py-2">
+            {trip.ref && t?.client_id ? (
+              <a
+                href={`/agenda?nova=1&cliente=${encodeURIComponent(String(t.client_id))}&ref=${encodeURIComponent(trip.ref.split("-")[0])}`}
+                className="rounded-xl bg-[#111] px-3 py-2 text-sm font-semibold text-prime-gold"
+              >
+                + Incluir outra corrida nesta NR
+              </a>
+            ) : null}
+            <a href={`/agenda?trip=${trip.id}`} className="rounded-xl px-3 py-2 text-sm font-semibold ring-1 ring-prime-border">
+              Abrir corrida completa (editar)
+            </a>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
             {!t ? <div className="h-40 animate-pulse rounded-xl bg-white" /> : null}
