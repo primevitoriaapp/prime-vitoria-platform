@@ -20,7 +20,7 @@ const money = z.union([z.number(), z.string()]).transform((v) => {
 async function load(tenantId: string, id: string) {
   const { data: trip } = await db
     .from("trips")
-    .select("id, client_id, vehicle_category_id, client_amount, driver_amount, driver_id, operational_status, client_invoice_id, client_ref, wait_minutes, calculation_metadata, charge_after_cancel, charge_reason")
+    .select("id, client_id, vehicle_category_id, client_amount, driver_amount, driver_id, operational_status, client_invoice_id, client_ref, wait_minutes, calculation_metadata, charge_after_cancel, charge_reason, scheduled_at")
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -57,6 +57,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       client_id: trip.client_id,
       client_ref: trip.client_ref ?? null,
       status: trip.operational_status,
+      scheduled_at: trip.scheduled_at,
       charge_after_cancel: trip.charge_after_cancel === true,
       charge_reason: trip.charge_reason ?? null,
       client_amount: trip.client_amount == null ? null : Number(trip.client_amount),

@@ -8,6 +8,7 @@ import { TRIP_EXTRA_LABEL, type TripExtraKind } from "@/lib/trips/trip-extras";
 type Extra = { id: string; kind: TripExtraKind; line: string; client_amount: number; driver_amount: number };
 type Data = {
   status: string;
+  scheduled_at: string;
   charge_after_cancel: boolean;
   charge_reason: "no_show" | "cancelamento_tardio" | "outro" | null;
   client_id: string | null;
@@ -179,6 +180,13 @@ export function TripClosingCard({ tripId, compact = false, hideRef = false, onCh
           </div>
         )}
       </div>
+
+      {OPEN_STATUS.includes(d.status) && new Date(d.scheduled_at).getTime() < Date.now() + 30 * 60000 ? (
+        <CompleteByCentral tripId={tripId} hasDriver={d.has_driver} onDone={() => {
+          void load();
+          onChanged?.();
+        }} />
+      ) : null}
 
       {d.status === "cancelled" || d.status === "no_show" ? (
         <CancelCharge tripId={tripId} d={d} locked={locked} onDone={() => {
@@ -401,6 +409,69 @@ function CancelCharge({ tripId, d, locked, onDone }: { tripId: string; d: Data; 
       <div className="flex gap-2">
         <button type="button" disabled={busy} onClick={() => void send(true)} className="rounded-xl bg-[#111] px-4 py-2 font-semibold text-prime-gold disabled:opacity-40">
           {busy ? "Salvando…" : "Cobrar"}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="rounded-xl px-3 py-2 ring-1 ring-prime-border">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const OPEN_STATUS = ["approved", "dispatched", "accepted", "on_the_way", "arrived", "in_progress", "reassigned"];
+
+/** Motorista não registrou no app (sem sinal, esqueceu): a central confirma que a corrida foi feita. */
+function CompleteByCentral({ tripId, hasDriver, onDone }: { tripId: string; hasDriver: boolean; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [km, setKm] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function go() {
+    setBusy(true);
+    setErr(null);
+    const r = await fetchWithSupabaseSession(
+      `/api/trips/${tripId}/complete-by-central`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actual_km: km.trim() ? Number(km.replace(",", ".")) : null, reason: reason.trim() || null }) },
+      "admin"
+    ).catch(() => null);
+    const j = r ? await r.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (r?.ok && j?.success) {
+      setOpen(false);
+      onDone();
+      window.location.reload();
+    } else setErr(j?.error?.message ?? "Não foi possível concluir.");
+  }
+  const input = "rounded-xl border border-prime-border px-3 py-2 text-base md:text-sm";
+  if (!open)
+    return (
+      <div className="grid gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm">
+        <p>O horário desta corrida já passou e ela não foi finalizada no app do motorista.</p>
+        <button type="button" onClick={() => setOpen(true)} className="justify-self-start rounded-xl bg-[#111] px-4 py-2 font-semibold text-prime-gold">
+          ✅ A corrida foi feita — concluir pela central
+        </button>
+      </div>
+    );
+  return (
+    <div className="grid gap-2 rounded-xl border border-prime-gold bg-[#FFFDF7] p-3 text-sm">
+      <span className="font-semibold">Concluir pela central</span>
+      {!hasDriver ? <p className="text-xs text-red-700">Antes, escolha na corrida o motorista que fez o serviço.</p> : null}
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="grid gap-1">
+          <span className="text-xs">KM rodado (opcional)</span>
+          <input inputMode="decimal" value={km} onChange={(e) => setKm(e.target.value.replace(/[^0-9.,]/g, ""))} className={input} placeholder="Ex.: 140" />
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs">O que aconteceu (opcional)</span>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} className={input} placeholder="Ex.: motorista sem sinal, não iniciou no app" />
+        </label>
+      </div>
+      <p className="text-xs text-prime-muted">A corrida fica concluída, entra no financeiro (cliente e motorista) e vai para “Aprovar corridas” para você conferir. O passageiro não recebe aviso.</p>
+      {err ? <p className="text-xs text-red-700">{err}</p> : null}
+      <div className="flex gap-2">
+        <button type="button" disabled={busy || !hasDriver} onClick={() => void go()} className="rounded-xl bg-[#111] px-4 py-2 font-semibold text-prime-gold disabled:opacity-40">
+          {busy ? "Concluindo…" : "Concluir"}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="rounded-xl px-3 py-2 ring-1 ring-prime-border">
           Cancelar
