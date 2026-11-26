@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TripClosingCard } from "@/components/trip-closing-card";
+import { splitBaseRef } from "@/lib/finance/merge-split-services";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { BodyPortal } from "@/components/ui/body-portal";
 
@@ -169,6 +170,24 @@ export function InvoiceKanban({ onChanged }: { onChanged?: () => void }) {
     const due = new Date(Date.now() + (v.client.payment_term_days ?? 30) * 86400000).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
     setBusy(v.key);
     setMsg(null);
+    // Disponível dividido em trechos (NR-B1 + NR-B2): pergunta se sai como um item só na fatura.
+    const groups = new Map<string, AccTrip[]>();
+    for (const t of v.trips) {
+      const b = splitBaseRef(t.ref);
+      if (b) groups.set(b, [...(groups.get(b) ?? []), t]);
+    }
+    for (const [base, parts] of groups) {
+      if (parts.length < 2) continue;
+      const soma = parts.reduce((s2, p) => s2 + Number(p.client_amount ?? 0), 0);
+      const juntar = window.confirm(
+        `${parts.map((p) => `${p.ref} (${whenBR(p.scheduled_at)}) ${brl(Number(p.client_amount ?? 0))}`).join("\n")}\n\nEsses trechos são um DISPONÍVEL (diária) que foi dividido?\n\nOK = juntar na fatura como um item só: ${base} · ${brl(soma)}\nCancelar = deixar cada trecho separado`
+      );
+      await fetchWithSupabaseSession(
+        "/api/client-invoices/merge",
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_ids: parts.map((p) => p.id), key: juntar ? null : "-" }) },
+        "admin"
+      ).catch(() => null);
+    }
     const r = await fetchWithSupabaseSession(
       "/api/client-invoices/vouchers",
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_ids: v.trips.map((t) => t.id), due_date: due, ref: v.nr }) },

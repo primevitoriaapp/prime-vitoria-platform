@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
+import { groupSplitItems, isSplitGroup, splitBaseRef } from "@/lib/finance/merge-split-services";
 
-type Row = { id: string; scheduled_at: string; passenger: string | null; ref: string | null; origin: string; destination: string; client_amount: number | null; driver_amount: number | null };
+type Row = { id: string; scheduled_at: string; passenger: string | null; ref: string | null; origin: string; destination: string; client_amount: number | null; driver_amount: number | null; merge_key?: string | null };
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const money = (n: number | null) => (n == null ? "" : n.toFixed(2).replace(".", ","));
@@ -20,6 +21,7 @@ export function InvoiceServicesEditor({ invoiceId, status }: { invoiceId: string
   const [driver, setDriver] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pick, setPick] = useState<Set<string>>(new Set());
   const locked = status === "paga" || status === "cancelada";
 
   const load = useCallback(async () => {
@@ -57,10 +59,93 @@ export function InvoiceServicesEditor({ invoiceId, status }: { invoiceId: string
     router.refresh();
   }
 
+  async function merge(ids: string[], key: string | null, okText: string) {
+    setBusy(true);
+    const res = await fetchWithSupabaseSession("/api/client-invoices/merge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_ids: ids, key }) }, "admin").catch(() => null);
+    const j = res ? await res.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (!res?.ok || !j?.success) return setMsg({ ok: false, text: j?.error?.message ?? "Não foi possível." });
+    setPick(new Set());
+    setMsg({ ok: true, text: okText });
+    await load();
+    router.refresh();
+  }
+
   if (!rows.length) return null;
   const total = rows.reduce((s, r) => s + Number(r.client_amount ?? 0), 0);
+  const items = groupSplitItems(rows, (r) => r.ref, (r) => r.merge_key);
+  const when = (iso: string) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
   return (
+    <>
+    {rows.length >= 2 ? (
+      <section className="grid gap-3 rounded-2xl border border-prime-gold bg-white p-4 shadow-prime-card">
+        <div>
+          <h3 className="font-semibold">🔗 Como os serviços aparecem para o cliente</h3>
+          <p className="text-xs text-prime-muted">
+            Disponível (diária) que vocês dividiram em ida e volta: marque os trechos e junte. Na fatura sai <b>um item só</b>, com o valor somado. As corridas e o pagamento dos motoristas continuam separados.
+          </p>
+        </div>
+        <ul className="grid gap-1.5 text-sm">
+          {items.map((x) =>
+            isSplitGroup(x) ? (
+              <li key={x.base} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-50 px-3 py-2">
+                <span className="min-w-0">
+                  ✓ <b>{x.base}</b> · um item só: {x.parts.map((p) => `${p.ref ?? ""} (${when(p.scheduled_at)})`).join(" + ")} ·{" "}
+                  <b>{brl(x.parts.reduce((s2, p) => s2 + Number(p.client_amount ?? 0), 0))}</b>
+                </span>
+                {!locked ? (
+                  <button type="button" disabled={busy} onClick={() => void merge(x.parts.map((p) => p.id), "-", "Pronto: os trechos voltaram a sair separados na fatura.")} className="text-xs font-semibold text-red-700 underline">
+                    Separar
+                  </button>
+                ) : null}
+              </li>
+            ) : (
+              <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-1.5 ring-1 ring-prime-border">
+                <label className="flex min-w-0 items-center gap-2">
+                  {!locked ? (
+                    <input
+                      type="checkbox"
+                      checked={pick.has(x.id)}
+                      onChange={(e) => {
+                        const n = new Set(pick);
+                        if (e.target.checked) n.add(x.id);
+                        else n.delete(x.id);
+                        setPick(n);
+                      }}
+                    />
+                  ) : null}
+                  <span className="min-w-0">
+                    {when(x.scheduled_at)} · {x.ref ?? "sem NR"}
+                    {x.passenger ? ` · ${x.passenger}` : ""} · {x.client_amount == null ? "sem valor" : brl(x.client_amount)}
+                  </span>
+                </label>
+                {x.merge_key === "-" && !locked ? (
+                  <button type="button" disabled={busy} onClick={() => void merge([x.id], null, "Voltou ao automático.")} className="text-xs text-prime-muted underline">
+                    voltar ao automático
+                  </button>
+                ) : null}
+              </li>
+            )
+          )}
+        </ul>
+        {pick.size >= 2 && !locked ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              const chosen = rows.filter((r) => pick.has(r.id));
+              const suggestion = splitBaseRef(chosen[0].ref) ?? chosen[0].ref ?? "Disponível";
+              const name = window.prompt("Nome do item na fatura (como o cliente vai ver, ex.: NR264874-B ou Disponível 10h):", suggestion);
+              if (name && name.trim()) void merge(chosen.map((r) => r.id), name.trim(), `Pronto: ${chosen.length} serviços saem como um item só (${name.trim()}).`);
+            }}
+            className="justify-self-start rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-prime-gold disabled:opacity-50"
+          >
+            Juntar {pick.size} serviços em um item
+          </button>
+        ) : null}
+      </section>
+    ) : null}
     <section className="grid gap-3 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-semibold">✏️ Corrigir valores desta fatura</h3>
@@ -118,5 +203,6 @@ export function InvoiceServicesEditor({ invoiceId, status }: { invoiceId: string
         ))}
       </ul>
     </section>
+    </>
   );
 }

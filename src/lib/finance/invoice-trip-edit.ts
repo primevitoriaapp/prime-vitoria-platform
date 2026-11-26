@@ -8,7 +8,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 export async function listInvoiceTripAmounts(tenantId: string, invoiceId: string) {
   const { data } = await db
     .from("trips")
-    .select("id, scheduled_at, passenger_name, origin_text, destination_text, notes, client_amount, driver_amount")
+    .select("id, scheduled_at, passenger_name, origin_text, destination_text, notes, client_amount, driver_amount, invoice_merge_key")
     .eq("tenant_id", tenantId)
     .eq("client_invoice_id", invoiceId)
     .order("scheduled_at");
@@ -20,7 +20,8 @@ export async function listInvoiceTripAmounts(tenantId: string, invoiceId: string
     origin: (t.origin_text as string | null) ?? "",
     destination: (t.destination_text as string | null) ?? "",
     client_amount: t.client_amount == null ? null : Number(t.client_amount),
-    driver_amount: t.driver_amount == null ? null : Number(t.driver_amount)
+    driver_amount: t.driver_amount == null ? null : Number(t.driver_amount),
+    merge_key: ((t as { invoice_merge_key?: string | null }).invoice_merge_key ?? null) || null
   }));
 }
 
