@@ -27,7 +27,7 @@ export function DriverFinishSheet({
   onConfirm
 }: {
   trip: Trip;
-  mode: "start" | "finish";
+  mode: "arrive" | "start" | "finish";
   devFallbackRole: "motorista" | "admin";
   busy: boolean;
   externalError?: string | null;
@@ -62,7 +62,9 @@ export function DriverFinishSheet({
 
   const value = parseOdometer(km);
   const dist = mode === "finish" && trip.odometer_start != null ? odometerDistance(Number(trip.odometer_start), value) : null;
-  const kmOk = mode === "start" ? value != null : dist?.ok === true;
+  // KM inicial já informado na chegada: ao iniciar não pede de novo.
+  const startKmKnown = mode === "start" && trip.odometer_start != null;
+  const kmOk = mode === "arrive" ? value != null : mode === "start" ? startKmKnown || value != null : dist?.ok === true;
   const sigOk = !sig ? false : !sig.required || sig.done;
 
   async function saveSignature() {
@@ -88,7 +90,8 @@ export function DriverFinishSheet({
   return (
     <BodyPortal><div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 sm:items-center" role="dialog" aria-modal="true">
       <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl bg-[#1F1F22] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] text-[#F5F5F5] shadow-2xl sm:rounded-3xl">
-        <h2 className="text-lg font-semibold">{mode === "start" ? "Iniciar corrida" : "Finalizar corrida"}</h2>
+        <h2 className="text-lg font-semibold">{mode === "arrive" ? "Cheguei ao local" : mode === "start" ? "Iniciar corrida" : "Finalizar corrida"}</h2>
+        {mode === "arrive" ? <p className="mt-1 text-sm text-[#AAAAAA]">Anote o KM do painel agora, antes do passageiro entrar. Assim, na hora de sair, é só tocar em Iniciar.</p> : null}
         <p className="mt-1 text-sm text-[#AAAAAA]">{trip.passenger_name ?? "Passageiro"}</p>
 
         {mode === "start" && paxDone === null ? (
@@ -103,9 +106,12 @@ export function DriverFinishSheet({
           </p>
         ) : null}
 
-        {paxDone !== null ? (
+        {startKmKnown ? (
+          <p className="mt-3 rounded-xl bg-[#111] px-3 py-2 text-sm text-[#AAAAAA]">KM inicial já anotado na chegada: {Number(trip.odometer_start).toLocaleString("pt-BR")}</p>
+        ) : null}
+        {paxDone !== null && !startKmKnown ? (
         <label className="mt-4 block text-sm font-semibold">
-          {mode === "start" ? "KM do painel agora (inicial)" : "KM do painel agora (final)"}
+          {mode === "finish" ? "KM do painel agora (final)" : "KM do painel agora (inicial)"}
           <input
             inputMode="decimal"
             autoFocus
@@ -191,12 +197,17 @@ export function DriverFinishSheet({
           <button
             type="button"
             disabled={!kmOk || !sigOk || busy || paxDone === null}
-            onClick={() => onConfirm(mode === "start" ? { odometer_start: km } : { odometer_end: km })}
+            onClick={() => onConfirm(mode === "finish" ? { odometer_end: km } : startKmKnown ? {} : { odometer_start: km })}
             className="btn-primary flex-[2] rounded-xl px-4 py-3 text-base font-semibold disabled:opacity-40"
           >
-            {busy ? "Processando…" : mode === "start" ? "Iniciar viagem" : "Finalizar corrida"}
+            {busy ? "Processando…" : mode === "arrive" ? "Confirmar chegada" : mode === "start" ? "Iniciar viagem" : "Finalizar corrida"}
           </button>
         </div>
+        {mode === "arrive" ? (
+          <button type="button" disabled={busy} onClick={() => onConfirm({})} className="mt-3 w-full text-center text-xs font-semibold text-[#C9A84C]">
+            Anoto o KM depois (na hora de iniciar)
+          </button>
+        ) : null}
         {mode === "finish" && !sig ? <p className="mt-2 text-center text-xs text-[#AAAAAA]">Carregando…</p> : null}
         {mode === "finish" && sig && !busy && (!kmOk || !sigOk) ? (
           <p className="mt-2 text-center text-sm font-semibold text-amber-300">

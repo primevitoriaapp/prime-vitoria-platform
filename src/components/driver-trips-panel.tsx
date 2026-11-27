@@ -95,7 +95,7 @@ export function DriverTripsPanel({
   const [waitBusy, setWaitBusy] = useState(false);
   const [waitTick, setWaitTick] = useState(0);
   const [completeKmByTrip, setCompleteKmByTrip] = useState<Record<string, string>>({});
-  const [sheet, setSheet] = useState<{ tripId: string; mode: "start" | "finish" } | null>(null);
+  const [sheet, setSheet] = useState<{ tripId: string; mode: "arrive" | "start" | "finish" } | null>(null);
   const [geoBlock, setGeoBlock] = useState<{ tripId: string; to_status: TripOperationalStatus; extra?: StatusExtra; message: string } | null>(null);
   const [geoReason, setGeoReason] = useState("");
   const [floatDismissed, setFloatDismissed] = useState(false);
@@ -271,7 +271,12 @@ export function DriverTripsPanel({
         if (!window.confirm(`O embarque é às ${hora} (faltam ${falta}).\n\n"A caminho" avisa o passageiro que você já saiu. Você está mesmo saindo agora?`)) return;
       }
     }
-    // KM do painel: pede o inicial ao iniciar e o final (com assinatura) ao finalizar.
+    // KM do painel: o inicial já na chegada (passageiro ainda fora do carro), o final (com assinatura) ao finalizar.
+    if (to_status === "arrived" && !extra && trip?.odometer_start == null) {
+      setMessage(null);
+      setSheet({ tripId, mode: "arrive" });
+      return;
+    }
     if (to_status === "in_progress" && !extra) {
       setMessage(null);
       setSheet({ tripId, mode: "start" });
@@ -799,7 +804,7 @@ export function DriverTripsPanel({
             setSheet(null);
             setMessage(null);
           }}
-          onConfirm={(extra) => void setStatus(sheet.tripId, sheet.mode === "start" ? "in_progress" : "completed", extra)}
+          onConfirm={(extra) => void setStatus(sheet.tripId, sheet.mode === "arrive" ? "arrived" : sheet.mode === "start" ? "in_progress" : "completed", extra)}
         />
       ) : null}
 

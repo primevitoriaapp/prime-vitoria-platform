@@ -174,7 +174,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // KM do painel: inicial ao iniciar a viagem, final ao finalizar. A distância cobrada vem da diferença.
     const odoStart = parseOdometer(body.odometer_start ?? null);
     const odoEnd = parseOdometer(body.odometer_end ?? null);
-    if (body.to_status === "in_progress" && session.role === "motorista" && odoStart == null) {
+    // KM inicial pode vir na chegada ("Cheguei") ou no início da viagem.
+    if (body.to_status === "in_progress" && session.role === "motorista" && odoStart == null && trip.odometer_start == null) {
       if (!forced) return fail("ODOMETER_START_REQUIRED", "Informe o KM do painel antes de iniciar a viagem", 400);
       forcedNotes.push("iniciada sem KM do painel");
     }
@@ -261,7 +262,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         }
       }
     }
-    if (body.to_status === "in_progress" && odoStart != null) statusUpdate.odometer_start = odoStart;
+    if ((body.to_status === "in_progress" || body.to_status === "arrived") && odoStart != null) statusUpdate.odometer_start = odoStart;
     if (body.to_status === "completed") {
       // Revisão só vale depois do fim: se alguém revisou com a corrida em andamento, volta para a fila de aprovação.
       statusUpdate.reviewed_at = null;
