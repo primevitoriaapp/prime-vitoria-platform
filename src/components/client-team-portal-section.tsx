@@ -181,6 +181,11 @@ export function ClientTeamPortalSection({
       can_request: row.can_request !== false,
       allowed: row.allowed_category_ids?.length ? row.allowed_category_ids : null
     });
+    // O formulário fica no topo da lista: leva a pessoa até ele (antes parecia que "Editar" não fazia nada).
+    window.setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      formRef.current?.querySelector("input")?.focus({ preventScroll: true });
+    }, 50);
   }
 
   async function savePassenger(e?: FormEvent): Promise<boolean> {
@@ -258,6 +263,8 @@ export function ClientTeamPortalSection({
   // Quando clicam no "Salvar alterações" principal do cadastro, salva também
   // o funcionário que ficou preenchido (antes ele era ignorado sem aviso).
   const inviteErrRef = useRef<string>("");
+  /** Formulário do funcionário: ao clicar em Editar, a tela rola até ele. */
+  const formRef = useRef<HTMLDivElement | null>(null);
   const pendingRef = useRef<() => Promise<boolean>>(async () => true);
   pendingRef.current = async () => (pForm.name.trim() ? savePassenger() : true);
   useEffect(() => {
@@ -399,7 +406,13 @@ export function ClientTeamPortalSection({
             />
           ) : null}
           {canManage ? (
-            <div className={`${PRIME_SURFACE_CARD} grid gap-3 sm:grid-cols-2`}>
+            <div
+              ref={formRef}
+              className={`${PRIME_SURFACE_CARD} grid scroll-mt-24 gap-3 sm:grid-cols-2 ${editingId ? "ring-2 ring-prime-gold" : ""}`}
+            >
+              <p className="text-sm font-semibold sm:col-span-2">
+                {editingId ? `✏️ Editando: ${pForm.name || "funcionário"} — altere e clique em “Atualizar” no fim do quadro` : "Cadastrar funcionário"}
+              </p>
               <label className="grid gap-1 text-sm sm:col-span-2">
                 <span>Nome completo *</span>
                 <input
