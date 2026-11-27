@@ -176,6 +176,24 @@ export default async function OrcamentoPage({
             ))}
           </table>
           </div>
+          {d.routine ? (
+            <div style={{ marginTop: 14, border: "1px solid #E3D3A8", background: "#FBF7EC", borderRadius: 10, padding: "12px 14px", fontSize: 13 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Resumo da rotina</div>
+              <div>
+                Valor por dia: <b>{brl(d.routine.perDay)}</b> ({d.routine.tripsPerDay} corrida{d.routine.tripsPerDay === 1 ? "" : "s"} por dia)
+              </div>
+              {d.routine.months.map((m) => (
+                <div key={m.label}>
+                  {m.label.charAt(0).toUpperCase() + m.label.slice(1)}: {m.days} dia{m.days === 1 ? "" : "s"} · <b>{brl(m.total)}</b>
+                </div>
+              ))}
+              {d.routine.months.length > 1 ? (
+                <div>
+                  Período todo: {d.routine.days} dias · <b>{brl(d.routine.total)}</b>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
             <table style={{ fontSize: 13 }}>
               <tbody>

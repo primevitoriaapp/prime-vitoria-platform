@@ -184,3 +184,51 @@ export function tripAmountsFromQuote(items: QuoteItemLike[], discount = 0): numb
   if (out.length) out[out.length - 1] = r2(out[out.length - 1] + diff);
   return out;
 }
+
+export type RoutineSummary = {
+  /** Valor de um dia normal da rotina (todas as corridas do dia). */
+  perDay: number;
+  /** Corridas num dia normal. */
+  tripsPerDay: number;
+  days: number;
+  total: number;
+  /** Total por mês do período (quando passa de um mês, cada mês aparece separado). */
+  months: { label: string; days: number; total: number }[];
+};
+
+const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+/**
+ * Resumo da rotina para o cliente: quanto custa um dia (todas as corridas do dia) e o total de cada mês.
+ * Só conta os serviços com rotina; nulo quando não há rotina.
+ */
+export function routineSummary(items: QuoteItemLike[]): RoutineSummary | null {
+  const rec = items.filter((i) => hasRepeat(i));
+  if (!rec.length) return null;
+  const byDay = new Map<string, { total: number; trips: number }>();
+  for (const i of rec) {
+    const each = (Number(i.quantity) || 0) * (Number(i.unit_price) || 0);
+    for (const d of itemDates(i)) {
+      const cur = byDay.get(d) ?? { total: 0, trips: 0 };
+      cur.total = r2(cur.total + each);
+      cur.trips += Number(i.quantity) || 0;
+      byDay.set(d, cur);
+    }
+  }
+  if (!byDay.size) return null;
+  // Dia "normal" = o valor que mais se repete (dias com menos serviços não puxam a média).
+  const freq = new Map<string, number>();
+  for (const v of byDay.values()) freq.set(`${v.total}|${v.trips}`, (freq.get(`${v.total}|${v.trips}`) ?? 0) + 1);
+  const [typical] = [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0].split("|");
+  const tripsTypical = Number([...freq.entries()].sort((a, b) => b[1] - a[1])[0][0].split("|")[1]);
+  const months = new Map<string, { label: string; days: number; total: number }>();
+  for (const [d, v] of [...byDay.entries()].sort()) {
+    const key = d.slice(0, 7);
+    const m = months.get(key) ?? { label: `${MONTHS[Number(d.slice(5, 7)) - 1]}/${d.slice(0, 4)}`, days: 0, total: 0 };
+    m.days += 1;
+    m.total = r2(m.total + v.total);
+    months.set(key, m);
+  }
+  const total = r2([...byDay.values()].reduce((s, v) => s + v.total, 0));
+  return { perDay: Number(typical), tripsPerDay: tripsTypical, days: byDay.size, total, months: [...months.values()] };
+}

@@ -12,7 +12,7 @@ import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { BackButton } from "@/components/back-button";
 import { BRIDAL_INCLUDED, BRIDAL_PACKAGES, bridalDescription, type BridalPackage } from "@/lib/quotes/bridal-packages";
 import { QuoteRouteEditor, emptyPoint, type RoutePoint } from "@/components/quote-route-editor";
-import { QUOTE_STATUS, effectiveQuoteStatus, formatQuoteNumber, isDiaria, itemHours, itemOccurrences, itemsMissingForTrips, kmAmount, priceKeyFor, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
+import { QUOTE_STATUS, effectiveQuoteStatus, formatQuoteNumber, isDiaria, itemHours, itemOccurrences, itemsMissingForTrips, kmAmount, priceKeyFor, quoteTotals, routineSummary, serviceLabelForClient } from "@/lib/quotes/quote-calc";
 import { QuoteKmFields, QuoteRepeatFields } from "@/components/quote-km-repeat";
 import { COMPANY_SCOPES, inCompany, useCompany } from "@/lib/company/company-context";
 import { formatBrDateTime, saoPauloDateAndTimeToUtcIso } from "@/lib/dates/br-date";
@@ -399,6 +399,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   const repeatOf = (i: Item) => ({ service_date: i.date || null, repeat_weekdays: i.repeat_days.length ? i.repeat_days : null, repeat_until: i.repeat_until || null });
   const parsedItems = items.map((i) => ({ quantity: i.quantity, unit_price: toNum(i.unit_price), driver_amount: i.driver_amount ? toNum(i.driver_amount) : null, ...repeatOf(i) }));
   const totals = quoteTotals(parsedItems, toNum(discount));
+  const routine = routineSummary(parsedItems);
 
   const vanCat = cats.find((c) => /van|micro|ônibus|onibus/i.test(c.name))?.id ?? "";
 
@@ -1088,7 +1089,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
         </div>
         <div className="space-y-2 rounded-2xl border border-[#111] bg-[#111] p-4 text-sm text-[#fff]">
           <div className="flex justify-between">
-            <span>Subtotal ({totals.trips} veículo(s))</span>
+            <span>Subtotal ({totals.trips} corrida(s))</span>
             <span>{brl(totals.subtotal)}</span>
           </div>
           <label className="flex items-center justify-between gap-2">
@@ -1099,6 +1100,22 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
             <span className="text-prime-gold">Total</span>
             <span>{brl(totals.total)}</span>
           </div>
+          {routine ? (
+            <div className="grid gap-1 rounded-lg bg-[#1d1d1d] p-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-prime-gold">Valor por dia ({routine.tripsPerDay} corridas)</span>
+                <b>{brl(routine.perDay)}</b>
+              </div>
+              {routine.months.map((m) => (
+                <div key={m.label} className="flex justify-between text-[#ddd]">
+                  <span>
+                    {m.label} · {m.days} dias
+                  </span>
+                  <span>{brl(m.total)}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <div className="flex justify-between text-xs text-[#bbb]">
             <span>Custo motoristas (interno)</span>
             <span>{brl(totals.cost)}</span>

@@ -137,6 +137,26 @@ export function buildQuotePdf(q: QuoteDoc, logo: Uint8Array | null, photos: Map<
     }
   }
 
+  // ---------- Resumo da rotina (corporativo) ----------
+  if (q.routine) {
+    const r = q.routine;
+    const lines = [
+      `Valor por dia: ${brl(r.perDay)} (${r.tripsPerDay} corrida${r.tripsPerDay === 1 ? "" : "s"} por dia)`,
+      ...r.months.map((m) => `${m.label.charAt(0).toUpperCase() + m.label.slice(1)}: ${m.days} dia${m.days === 1 ? "" : "s"} · ${brl(m.total)}`),
+      ...(r.months.length > 1 ? [`Período todo: ${r.days} dias · ${brl(r.total)}`] : [])
+    ];
+    const h = 26 + lines.length * 13;
+    if (y + 14 + h > pdf.H - footerSpace) {
+      pdf.addPage();
+      y = 40;
+    }
+    y += 14;
+    pdf.roundRect(M, y, CW, h, 8, SOFT);
+    pdf.text("RESUMO DA ROTINA", M + 12, y + 16, { font: "B", size: 7, color: GOLD_DARK, spacing: 1.2 });
+    lines.forEach((l, k) => pdf.text(l, M + 12, y + 32 + k * 13, { size: 9, font: k === 0 ? "B" : "R" }));
+    y += h;
+  }
+
   // ---------- Totais ----------
   const totRows = 2 + (q.totals.discount > 0 ? 1 : 0);
   if (y + 30 + totRows * 16 + 30 > pdf.H - footerSpace) {

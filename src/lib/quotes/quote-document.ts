@@ -1,7 +1,7 @@
 import { db } from "@/lib/server/db";
 import { billingIssuerById } from "@/lib/clients/billing-terms-calc";
 import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
-import { formatQuoteNumber, hasRepeat, isDiaria, itemHours, itemOccurrences, quoteTotals, repeatLabel, serviceLabelForClient } from "@/lib/quotes/quote-calc";
+import { formatQuoteNumber, hasRepeat, isDiaria, itemHours, itemOccurrences, quoteTotals, repeatLabel, routineSummary, serviceLabelForClient, type RoutineSummary } from "@/lib/quotes/quote-calc";
 import { shortAddress } from "@/lib/client/short-address";
 import { bridalPackageById } from "@/lib/quotes/bridal-packages";
 
@@ -27,6 +27,8 @@ export type QuoteDoc = {
     rows: { time: string; vehicle: string; service: string; via: string[]; passengers: string | null; detail: string | null; note: string | null; from: string; to: string | null; diaria: boolean; qty: number; unit: number; total: number }[];
   }[];
   totals: { subtotal: number; discount: number; total: number; trips: number };
+  /** Rotina (corporativo): valor por dia e total de cada mês. */
+  routine: RoutineSummary | null;
   notes: string | null;
   conditions: string | null;
   logoPath: string | null;
@@ -154,6 +156,15 @@ export async function loadQuoteDoc(quote: Record<string, unknown>): Promise<Quot
     },
     groups,
     totals,
+    routine: routineSummary(
+      (items ?? []).map((i) => ({
+        quantity: Number(i.quantity),
+        unit_price: Number(i.unit_price),
+        service_date: (i.service_date as string | null) ?? null,
+        repeat_weekdays: (i.repeat_weekdays as number[] | null) ?? null,
+        repeat_until: (i.repeat_until as string | null) ?? null
+      }))
+    ),
     notes: (quote.notes as string | null) || null,
     conditions: (quote.conditions as string | null) || null,
     logoPath: company.logo_storage_path,
