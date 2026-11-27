@@ -1,0 +1,14 @@
+{
+  "appId": "com.primevitoria.motorista",
+  "appName": "Prime Motorista",
+  "webDir": "www",
+  "server": {
+    "url": "https://motorista.primevitoria.com/driver",
+    "androidScheme": "https",
+    "allowNavigation": ["motorista.primevitoria.com", "central.primevitoria.com", "primevitoria.com", "*.primevitoria.com"]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#111111"
+  }
+}

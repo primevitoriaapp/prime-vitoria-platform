@@ -1,0 +1,50 @@
+name: App motorista (Android)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["mobile/driver/**", ".github/workflows/android-driver.yml"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile/driver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Instalar Capacitor
+        run: |
+          npm install --no-audit --no-fund || npm install --no-audit --no-fund --legacy-peer-deps
+          npx cap --version
+          npm ls --depth=0 || true
+      - name: Criar projeto Android
+        run: npx cap add android
+      - name: Ícone do app
+        run: |
+          mkdir -p assets
+          curl -sfL https://central.primevitoria.com/app-icon/512 -o assets/icon-only.png
+          cp assets/icon-only.png assets/icon-foreground.png
+          npx --yes @capacitor/assets@3 generate --android --iconBackgroundColor '#111111' --iconBackgroundColorDark '#111111' --splashBackgroundColor '#111111' --splashBackgroundColorDark '#111111' || echo "ícone padrão"
+      - name: Permissões (GPS e notificação)
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-feature android:name="android.hardware.location.gps" android:required="false" />\n\n    <application#' $M
+          cat $M
+      - name: Sincronizar
+        run: npx cap sync android
+      - name: Gerar APK de teste
+        working-directory: mobile/driver/android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prime-motorista-teste
+          path: mobile/driver/android/app/build/outputs/apk/debug/app-debug.apk

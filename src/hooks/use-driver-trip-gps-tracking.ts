@@ -11,6 +11,7 @@ import {
 } from "@/lib/trips/driver-gps-trail-storage";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import type { DriverTripGpsState } from "@/lib/trips/driver-complete-km";
+import { isNativeApp, startNativeWatch } from "@/lib/native/native-geo";
 
 /** Envia a posição a cada 10 s: o passageiro vê o carro andando e o KM fica mais preciso. */
 const SAMPLE_INTERVAL_MS = 10_000;
@@ -75,11 +76,14 @@ export function useDriverTripGpsTracking({ trips, devFallbackRole = "motorista" 
 
   const [stateByTrip, setStateByTrip] = useState<Record<string, DriverTripGpsState>>({});
   const watchIdRef = useRef<number | null>(null);
+  const nativeStopRef = useRef<(() => void) | null>(null);
   const lastSampleAtRef = useRef(0);
   const pointsRef = useRef<DriverGpsTrailPoint[]>([]);
   const tripIdRef = useRef<string | null>(null);
 
   const stopWatch = useCallback(() => {
+    nativeStopRef.current?.();
+    nativeStopRef.current = null;
     if (watchIdRef.current != null && typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchIdRef.current);
     }
@@ -115,6 +119,49 @@ export function useDriverTripGpsTracking({ trips, devFallbackRole = "motorista" 
     const stored = loadGpsTrail(tripId);
     pointsRef.current = stored;
     lastSampleAtRef.current = stored.length > 0 ? Date.now() : 0;
+
+    // App instalado: GPS continua com a tela apagada (serviço nativo).
+    if (isNativeApp()) {
+      setStateByTrip((prev) => ({ ...prev, [tripId]: gpsStateFromPoints(stored, true, false, null) }));
+      let cancelled = false;
+      void startNativeWatch(
+        (lat, lng) => {
+          if (tripIdRef.current !== tripId) return;
+          const now = Date.now();
+          if (pointsRef.current.length > 0 && now - lastSampleAtRef.current < SAMPLE_INTERVAL_MS) return;
+          recordPoint(tripId, lat, lng);
+        },
+        (message, denied) => {
+          if (!denied || tripIdRef.current !== tripId) return;
+          setStateByTrip((prev) => ({ ...prev, [tripId]: gpsStateFromPoints(pointsRef.current, false, true, message) }));
+        }
+      ).then((stop) => {
+        if (cancelled) {
+          stop?.();
+          return;
+        }
+        if (stop) {
+          nativeStopRef.current = stop;
+          return;
+        }
+        // Versão do app sem o GPS nativo: usa o GPS comum (só com o app aberto).
+        if (typeof navigator !== "undefined" && navigator.geolocation) {
+          watchIdRef.current = navigator.geolocation.watchPosition(
+            (pos) => {
+              if (tripIdRef.current !== tripId) return;
+              if (pointsRef.current.length > 0 && Date.now() - lastSampleAtRef.current < SAMPLE_INTERVAL_MS) return;
+              recordPoint(tripId, pos.coords.latitude, pos.coords.longitude);
+            },
+            () => undefined,
+            { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 }
+          );
+        }
+      });
+      return () => {
+        cancelled = true;
+        stopWatch();
+      };
+    }
 
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setStateByTrip((prev) => ({
