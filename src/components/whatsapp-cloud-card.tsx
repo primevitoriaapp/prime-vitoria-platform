@@ -11,7 +11,7 @@ type State = {
   phone_number_id: string | null;
   waba_id: string | null;
   token_tail: string | null;
-  templates: { kind: string; audience: "passageiro" | "motorista"; name: string; label: string; when: string; preview: string }[];
+  templates: { kind: string; audience: "passageiro" | "motorista" | "central"; name: string; label: string; when: string; preview: string }[];
   template_status: { name: string; status: string; category: string | null }[];
   log: { id: string; kind: string; phone: string; person_name: string | null; status: string; detail: string | null; preview: string | null; created_at: string }[];
 };
@@ -114,7 +114,7 @@ export function WhatsappCloudCard() {
             <button type="button" onClick={() => setOpen(open === t.name ? null : t.name)} className="grid w-full min-w-0 gap-1 px-3 py-2 text-left text-sm">
               <span className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <span className="min-w-0 font-semibold">
-                  {t.audience === "motorista" ? "🚘 " : "👤 "}
+                  {t.audience === "motorista" ? "🚘 " : t.audience === "central" ? "🛡 " : "👤 "}
                   {t.label}
                 </span>
                 <span

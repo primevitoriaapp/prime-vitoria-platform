@@ -5,11 +5,13 @@
  */
 export type PassengerNotifyKind = "confirmado" | "a_caminho" | "avaliacao";
 export type DriverNotifyKind = "motorista_nova" | "motorista_alterada" | "motorista_cancelada";
+/** Alerta interno para o dono/central (checagem diária do sistema). */
+export type CentralNotifyKind = "central_alerta";
 
 export type PassengerTemplate = {
-  kind: PassengerNotifyKind | DriverNotifyKind;
+  kind: PassengerNotifyKind | DriverNotifyKind | CentralNotifyKind;
   /** Para quem vai. */
-  audience?: "passageiro" | "motorista";
+  audience?: "passageiro" | "motorista" | "central";
   /** Nome do modelo na Meta (minúsculas e _). */
   name: string;
   label: string;
@@ -105,15 +107,29 @@ export const DRIVER_TEMPLATES: PassengerTemplate[] = [
   }
 ];
 
-/** Todos os modelos que vão para a Meta (passageiro e motorista). */
-export const ALL_TEMPLATES: PassengerTemplate[] = [...PASSENGER_TEMPLATES, ...DRIVER_TEMPLATES];
+/** Alerta da checagem diária para o dono (sem valores de clientes; só o resumo do que precisa de atenção). */
+export const CENTRAL_TEMPLATES: PassengerTemplate[] = [
+  {
+    kind: "central_alerta",
+    audience: "central",
+    name: "prime_central_alerta",
+    label: "Central · Alerta da checagem diária",
+    when: "Checagem automática (7h e 18h), só quando há algo precisando de atenção",
+    body: "Alerta da Central Prime Vitória ({{1}}).\n\nPrecisa de atenção: {{2}}.\n\nAbra o painel para ver os detalhes.",
+    button: { text: "Abrir checagem", urlPrefix: "https://central.primevitoria.com/" },
+    example: ["27/11 às 07:00", "2 corridas de amanhã sem motorista · 1 aviso de WhatsApp com falha"]
+  }
+];
 
-export function passengerTemplate(kind: PassengerNotifyKind | DriverNotifyKind): PassengerTemplate {
+/** Todos os modelos que vão para a Meta (passageiro, motorista e central). */
+export const ALL_TEMPLATES: PassengerTemplate[] = [...PASSENGER_TEMPLATES, ...DRIVER_TEMPLATES, ...CENTRAL_TEMPLATES];
+
+export function passengerTemplate(kind: PassengerNotifyKind | DriverNotifyKind | CentralNotifyKind): PassengerTemplate {
   return ALL_TEMPLATES.find((t) => t.kind === kind) as PassengerTemplate;
 }
 
 /** Texto final, como o passageiro vai ver (para a prévia e o registro). */
-export function renderPassengerTemplate(kind: PassengerNotifyKind | DriverNotifyKind, params: string[], buttonSuffix?: string | null): string {
+export function renderPassengerTemplate(kind: PassengerNotifyKind | DriverNotifyKind | CentralNotifyKind, params: string[], buttonSuffix?: string | null): string {
   const t = passengerTemplate(kind);
   const text = t.body.replace(/\{\{(\d+)\}\}/g, (_, n) => params[Number(n) - 1] ?? "");
   return t.button ? `${text}\n\n[ ${t.button.text} → ${t.button.urlPrefix}${buttonSuffix ?? "…"} ]` : text;

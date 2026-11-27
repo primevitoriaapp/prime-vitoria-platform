@@ -90,6 +90,7 @@ const ADMIN_EXTRA = [
   { href: "/integracoes", label: "Integrações" },
   { href: "/importar", label: "Importar planilha" },
   { href: "/users", label: "Usuários" },
+  { href: "/saude", label: "Checagem do sistema" },
   { href: "/audit", label: "Auditoria" },
   { href: "/driver", label: "App motorista" },
   { href: "/client", label: "Portal cliente" }

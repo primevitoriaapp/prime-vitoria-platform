@@ -28,6 +28,7 @@ export const BACKOFFICE_PATH_PREFIXES = [
   "/orcamentos",
   "/painel-financeiro",
   "/parceiros",
+  "/saude",
   "/prime-club",
   "/repasses",
   "/users",
