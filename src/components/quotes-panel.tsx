@@ -388,6 +388,18 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
     return base;
   }
 
+  /** Serviço que nunca foi preenchido (ex.: pacote clicado a mais): sem data, sem endereço, sem veículo e sem valor. */
+  const isUntouched = (it: Item) =>
+    !it.date && !it.time && !it.vehicle_category_id && !toNum(it.unit_price) && !it.origin.text && !it.dest.text && !it.stops.some((x) => x.text);
+  /** Tira os serviços vazios antes de salvar/aprovar (avisa quantos). Devolve a lista limpa. */
+  function pruneUntouched(): Item[] {
+    const keep = items.filter((it) => !isUntouched(it));
+    if (keep.length && keep.length < items.length) {
+      setItems(keep);
+      return keep;
+    }
+    return items;
+  }
   const isBlank = (it: Item) => !it.vehicle_category_id && !it.unit_price && !it.origin.text && !it.dest.text && !it.package_id && !it.stops.length;
 
   function chooseKind(k: QuoteKind) {
@@ -482,7 +494,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       };
   }
 
-  function payload() {
+  function payload(list: Item[] = items) {
     return {
       client_id: clientId || null,
       contact_type: who === "cadastrado" ? (clients.find((c) => c.id === clientId)?.type === "PF" ? "PF" : "PJ") : who,
@@ -501,11 +513,12 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       notes: notes || null,
       conditions: conditions || null,
       // Salva em ordem cronológica (orçamentos de vários dias ficam organizados no PDF).
-      items: sortedItems(items).map(itemPayload)
+      items: sortedItems(list).map(itemPayload)
     };
   }
 
-  async function save(): Promise<string | null> {
+  async function save(listOverride?: Item[]): Promise<string | null> {
+    const list = listOverride ?? pruneUntouched();
     if (!clientId && contact.name.trim().length < 2) {
       setMsg({ ok: false, text: "Escolha o cliente ou preencha o nome do contato." });
       return null;
@@ -513,8 +526,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
     setBusy(true);
     setMsg(null);
     const r = id
-      ? await api<{ id: string }>(`/api/quotes/${id}`, { method: "PUT", body: JSON.stringify(payload()) })
-      : await api<{ id: string }>("/api/quotes", { method: "POST", body: JSON.stringify(payload()) });
+      ? await api<{ id: string }>(`/api/quotes/${id}`, { method: "PUT", body: JSON.stringify(payload(list)) })
+      : await api<{ id: string }>("/api/quotes", { method: "POST", body: JSON.stringify(payload(list)) });
     setBusy(false);
     if (!r.ok || !r.data) {
       setMsg({ ok: false, text: r.error ?? "Não foi possível salvar." });
@@ -582,8 +595,11 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   }
 
   async function approve() {
+    const before = items.length;
+    const clean = pruneUntouched();
+    const removed = before - clean.length;
     const missing = itemsMissingForTrips(
-      items.map((i) => ({
+      clean.map((i) => ({
         quantity: i.quantity,
         unit_price: toNum(i.unit_price),
         service_mode: i.service_mode,
@@ -597,9 +613,9 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       setMsg({ ok: false, text: `Antes de aprovar, complete: ${missing.map((m) => `serviço ${m.index + 1} (falta ${m.missing.join(", ")})`).join("; ")}.` });
       return;
     }
-    const saved = await save();
+    const saved = await save(clean);
     if (!saved) return;
-    if (!window.confirm(`O cliente aprovou? Vão entrar ${totals.trips} corrida(s) na agenda, confirmadas, para você definir os motoristas.`)) return;
+    if (!window.confirm(`${removed ? `${removed} serviço(s) vazio(s) foram retirados do orçamento.\n\n` : ""}O cliente aprovou? Vão entrar ${clean.reduce((n, i) => n + (Number(i.quantity) || 1), 0)} corrida(s) na agenda, confirmadas, para você definir os motoristas.`)) return;
     setBusy(true);
     const r = await api<{ trips: number }>(`/api/quotes/${saved}/approve`, { method: "POST" });
     setBusy(false);
@@ -1158,7 +1174,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           defaultTo={contact.email || clients.find((c) => c.id === clientId)?.email || ""}
           clientName={contact.name || clients.find((c) => c.id === clientId)?.trade_name || clients.find((c) => c.id === clientId)?.name || ""}
           onClose={() => setMailOpen(false)}
-          beforeSend={save}
+          beforeSend={() => save()}
           onSent={(to) => {
             setMailOpen(false);
             setStatus("enviado");
