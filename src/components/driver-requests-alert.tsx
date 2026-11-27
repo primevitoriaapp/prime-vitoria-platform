@@ -83,7 +83,7 @@ export function DriverRequestsAlert() {
       }
     };
     void check();
-    const t = window.setInterval(() => void check(), 30_000);
+    const t = window.setInterval(() => { if (typeof document !== "undefined" && document.hidden) return; void check(); }, 30_000);
     return () => {
       stop = true;
       window.clearInterval(t);

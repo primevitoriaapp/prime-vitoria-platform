@@ -28,7 +28,7 @@ export function PendingRequestsPill({ tenantId }: { tenantId: string | null }) {
 
   useEffect(() => {
     load();
-    const timer = window.setInterval(load, 60_000);
+    const timer = window.setInterval(() => { if (typeof document !== "undefined" && document.hidden) return; load(); }, 60_000);
     return () => window.clearInterval(timer);
   }, [load]);
 

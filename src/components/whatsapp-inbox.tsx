@@ -61,9 +61,11 @@ export function WhatsappInbox() {
   }, [loadList, q]);
   useEffect(() => {
     const t = setInterval(() => {
+      // Aba escondida não consulta (economia de servidor); volta ao normal quando a aba aparece.
+      if (typeof document !== "undefined" && document.hidden) return;
       void loadList();
       if (sel) void loadThread(sel);
-    }, 10_000);
+    }, 15_000);
     return () => clearInterval(t);
   }, [loadList, loadThread, sel]);
   useEffect(() => {

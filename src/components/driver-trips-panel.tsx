@@ -221,7 +221,8 @@ export function DriverTripsPanel({
 
   useEffect(() => {
     if (!docVisible) return;
-    const timer = setInterval(() => void load({ silent: true }), 15_000);
+    // Atualização em tempo real já chega pelo banco; a consulta periódica é só reserva.
+    const timer = setInterval(() => void load({ silent: true }), 30_000);
     return () => clearInterval(timer);
   }, [load, docVisible]);
 

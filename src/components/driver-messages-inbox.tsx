@@ -42,7 +42,7 @@ export function DriverMessagePopup() {
   }, []);
   useEffect(() => {
     void load();
-    const t = window.setInterval(() => void load(), 60_000);
+    const t = window.setInterval(() => { if (typeof document !== "undefined" && document.hidden) return; void load(); }, 60_000);
     const onVis = () => document.visibilityState === "visible" && void load();
     document.addEventListener("visibilitychange", onVis);
     return () => {

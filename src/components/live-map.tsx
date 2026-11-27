@@ -113,7 +113,7 @@ export function LiveMap({ tenantId, variant = "compact" }: Props) {
 
   useEffect(() => {
     void load();
-    const t = window.setInterval(() => void load(), 30_000);
+    const t = window.setInterval(() => { if (typeof document !== "undefined" && document.hidden) return; void load(); }, 30_000);
     return () => window.clearInterval(t);
   }, [load]);
   useTenantTableRefresh(tenantId, ["driver_locations", "drivers", "trips"], load, 1500);

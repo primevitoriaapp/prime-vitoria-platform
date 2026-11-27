@@ -27,7 +27,7 @@ export function ReceivablesAlertPill() {
         })
         .catch(() => undefined);
     void load();
-    const timer = window.setInterval(load, 10 * 60_000);
+    const timer = window.setInterval(() => { if (typeof document !== "undefined" && document.hidden) return; void load(); }, 10 * 60_000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);

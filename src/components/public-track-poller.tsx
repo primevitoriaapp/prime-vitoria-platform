@@ -7,6 +7,8 @@ import type { TripOperationalStatus } from "@/lib/domain/types";
 import { isPublicTrackTerminalStatus } from "@/lib/public/track-revision";
 import { shortAddress } from "@/lib/client/short-address";
 
+const STREAM_ENABLED: boolean = false;
+
 export type TrackPayload = {
   operational_status: TripOperationalStatus;
   origin_text: string;
@@ -93,7 +95,9 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
   }, [token, apply]);
 
   useEffect(() => {
-    if (terminal || typeof window === "undefined" || !("EventSource" in window)) return;
+    // Transmissão contínua desligada: cada página aberta prendia o servidor consultando o banco a cada 2 s.
+    // A consulta a cada 10 s abaixo é suficiente para o passageiro acompanhar o carro.
+    if (STREAM_ENABLED === false || terminal || typeof window === "undefined" || !("EventSource" in window)) return;
     let active = true;
     let retry: ReturnType<typeof setTimeout> | null = null;
     let source: EventSource | null = null;
@@ -124,8 +128,19 @@ export function PublicTrackPoller({ token, initial }: { token: string; initial: 
 
   useEffect(() => {
     if (terminal) return;
-    const id = window.setInterval(() => void refresh(), 12_000);
-    return () => window.clearInterval(id);
+    const id = window.setInterval(() => {
+      // Tela apagada ou outra aba: não consulta (volta sozinho ao abrir).
+      if (document.hidden) return;
+      void refresh();
+    }, 10_000);
+    const onShow = () => {
+      if (!document.hidden) void refresh();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onShow);
+    };
   }, [refresh, terminal]);
 
   const status: TripOperationalStatus = ended && !isPublicTrackTerminalStatus(data.operational_status) ? "completed" : data.operational_status;

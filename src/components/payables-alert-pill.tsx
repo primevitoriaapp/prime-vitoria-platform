@@ -23,7 +23,7 @@ export function PayablesAlertPill() {
         })
         .catch(() => undefined);
     void load();
-    const t = window.setInterval(load, 10 * 60_000);
+    const t = window.setInterval(() => { if (typeof document !== "undefined" && document.hidden) return; void load(); }, 10 * 60_000);
     return () => {
       off = true;
       window.clearInterval(t);

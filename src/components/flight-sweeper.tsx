@@ -11,7 +11,7 @@ export function FlightSweeper() {
       void fetchWithSupabaseSession("/api/flights/sweep", { method: "POST" }, "admin").catch(() => undefined);
     };
     const first = window.setTimeout(run, 8_000);
-    const id = window.setInterval(run, 5 * 60_000);
+    const id = window.setInterval(() => { if (typeof document !== "undefined" && document.hidden) return; run(); }, 5 * 60_000);
     return () => {
       window.clearTimeout(first);
       window.clearInterval(id);

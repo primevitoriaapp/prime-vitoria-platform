@@ -60,7 +60,7 @@ export function DriverMessagesPanel() {
       .then((r) => r.json())
       .then((j) => j?.success && setCats(((j.data ?? []) as Cat[]).map((c) => ({ id: c.id, name: c.name }))))
       .catch(() => undefined);
-    const t = window.setInterval(() => void load(), 30_000);
+    const t = window.setInterval(() => { if (typeof document !== "undefined" && document.hidden) return; void load(); }, 30_000);
     return () => window.clearInterval(t);
   }, [load]);
 
