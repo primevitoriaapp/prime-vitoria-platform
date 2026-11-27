@@ -20,6 +20,8 @@ type Lead = {
   created_at: string;
   complete_sent_at?: string | null;
   completed_at?: string | null;
+  driver_id?: string | null;
+  decision_reason?: string | null;
 };
 
 type DocFile = { kind: string; label: string; image?: boolean; url: string | null };
@@ -163,6 +165,228 @@ function CompleteView({ id }: { id: string }) {
             </button>
           </div>
           <p className="text-sm font-semibold text-white">{SHORT[zoom.kind] ?? zoom.label}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type Prep = {
+  categories: { id: string; name: string }[];
+  templates: { token: string; name: string }[];
+  suggested_template: string | null;
+  prime_signers: { name: string; email: string; role: string }[];
+  witness: { name: string; email: string; phone: string; role: string } | null;
+  duplicate: string | null;
+};
+type ActResult = { driverId: string; pin: string; vehicle: string | null; docs: number; contract: { status: string; message?: string }; warnings: string[] };
+
+const waLink = (phone: string, text: string) => {
+  const d = phone.replace(/\D/g, "");
+  return `https://wa.me/${d.startsWith("55") ? d : `55${d}`}?text=${encodeURIComponent(text)}`;
+};
+
+const REFUSE_PRESETS = [
+  ["Veículo fora do padrão", "No momento não estamos aceitando este modelo/ano de veículo, pois ele não atende ao padrão executivo que oferecemos aos nossos clientes."],
+  ["Documentação", "A documentação enviada não atende aos requisitos do nosso cadastro (CNH com EAR, antecedentes e documentos do veículo em dia)."],
+  ["Região sem demanda", "No momento não temos demanda suficiente na sua região para incluir novos parceiros."],
+  ["Vagas preenchidas", "No momento nosso quadro de parceiros para este perfil está completo."]
+] as const;
+
+/** Ativar (cria motorista + acesso ao app + contrato) ou recusar com motivo. */
+function DecisionPanel({ l, onDone }: { l: Lead; onDone: (patch: Partial<Lead>) => void }) {
+  const [mode, setMode] = useState<"none" | "ativar" | "recusar">("none");
+  const [prep, setPrep] = useState<Prep | null>(null);
+  const [cats, setCats] = useState<string[]>([]);
+  const [tpl, setTpl] = useState<string>("");
+  const [signers, setSigners] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [res, setRes] = useState<ActResult | null>(null);
+  const [reason, setReason] = useState("");
+  const first = titleCase(l.name.split(" ")[0] ?? "");
+
+  useEffect(() => {
+    if (mode !== "ativar" || prep) return;
+    void fetch(`/api/leads/${l.id}/activate`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((j: { success?: boolean; data?: Prep; error?: { message?: string } }) => {
+        if (!j.success || !j.data) return setErr(j.error?.message ?? "Não consegui carregar.");
+        setPrep(j.data);
+        setTpl(j.data.suggested_template ?? "");
+        const sel: Record<string, boolean> = {};
+        j.data.prime_signers.forEach((x) => (sel[x.email] = true));
+        if (j.data.witness) sel[`w:${j.data.witness.name}`] = true;
+        setSigners(sel);
+      })
+      .catch(() => setErr("Sem conexão."));
+  }, [mode, prep, l.id]);
+
+  async function activate() {
+    if (!prep) return;
+    if (!cats.length && !confirm("Nenhuma categoria marcada. Ativar mesmo assim?")) return;
+    setBusy(true);
+    setErr(null);
+    const list = [
+      ...prep.prime_signers.filter((x) => signers[x.email]).map((x) => ({ name: x.name, email: x.email, role: x.role || "Prime" })),
+      ...(prep.witness && signers[`w:${prep.witness.name}`] ? [{ name: prep.witness.name, email: prep.witness.email || null, phone: prep.witness.phone, role: "Testemunha" }] : [])
+    ];
+    const r = await fetch(`/api/leads/${l.id}/activate`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category_ids: cats, template_id: tpl || null, signers: list })
+    }).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; data?: ActResult; error?: { message?: string } }) : {};
+    setBusy(false);
+    if (!j.success || !j.data) return setErr(j.error?.message ?? "Não consegui ativar.");
+    setRes(j.data);
+    onDone({ status: "aprovado", driver_id: j.data.driverId });
+  }
+
+  async function refuse() {
+    if (reason.trim().length < 3) return setErr("Escreva o motivo.");
+    setBusy(true);
+    const r = await fetch(`/api/leads/${l.id}/refuse`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) }).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } }) : {};
+    setBusy(false);
+    if (!j.success) return setErr(j.error?.message ?? "Não consegui recusar.");
+    window.open(
+      waLink(
+        l.phone,
+        `Olá ${first}, tudo bem? Aqui é da Prime Vitória. Agradecemos muito o seu interesse e o tempo dedicado ao cadastro.\n\nLamentamos, mas no momento não vamos seguir com a sua parceria. ${reason.trim()}\n\nSe a situação mudar, ficaremos felizes em analisar um novo cadastro. Desejamos muito sucesso!`
+      ),
+      "_blank"
+    );
+    onDone({ status: "descartado", decision_reason: reason });
+    setMode("none");
+  }
+
+  if (res) {
+    const msg = `Olá ${first}! 🎉 Seu cadastro na Prime Vitória foi APROVADO. Seja bem-vindo à equipe!\n\n1) Baixe o app Prime Motorista: https://central.primevitoria.com/baixar-app\n2) Entre com seu CPF e o PIN: *${res.pin}*\n3) Na tela inicial, toque em “Assinar contrato”. Depois de assinar, você já pode aceitar corridas.\n\nQualquer dúvida, fale com a gente por aqui.`;
+    return (
+      <div className="grid gap-2 rounded-xl border border-[#BFE3CC] bg-[#F1FAF4] p-3 text-sm">
+        <p className="font-semibold text-[#1F7A4C]">✓ Motorista ativado!</p>
+        <p>
+          PIN de acesso: <b className="text-lg tracking-widest">{res.pin}</b> · {res.vehicle ? `veículo ${res.vehicle}` : "sem veículo"} · {res.docs} documento(s) na ficha · contrato{" "}
+          {res.contract.status === "criado" ? "enviado para assinatura" : res.contract.status === "erro" ? "NÃO criado" : "não escolhido"}
+        </p>
+        {res.warnings.map((w) => (
+          <p key={w} className="text-xs text-[#8A5A00]">⚠ {w}</p>
+        ))}
+        <div className="grid gap-2 sm:flex">
+          <a href={waLink(l.phone, msg)} target="_blank" rel="noreferrer" className="rounded-xl bg-[#1F7A4C] px-4 py-2.5 text-center font-semibold text-[#fff]">
+            Mandar boas-vindas no WhatsApp
+          </a>
+          <a href={`/drivers?ficha=${res.driverId}`} className="rounded-xl bg-white px-4 py-2.5 text-center font-semibold ring-1 ring-prime-border">
+            Abrir ficha do motorista
+          </a>
+        </div>
+        <p className="text-xs text-prime-muted">Anote o PIN agora: por segurança ele não aparece de novo (dá para trocar na ficha).</p>
+      </div>
+    );
+  }
+  if (l.driver_id)
+    return (
+      <p className="rounded-xl bg-[#111] px-3 py-2.5 text-sm text-[#D9BC6A]">
+        ✓ Já ativado como motorista · <a href={`/drivers?ficha=${l.driver_id}`} className="underline">abrir ficha</a>
+      </p>
+    );
+  if (l.status === "descartado")
+    return <p className="rounded-xl bg-[#F1EFEA] px-3 py-2.5 text-sm text-[#6F6A60]">Recusado{l.decision_reason ? `: ${l.decision_reason}` : "."}</p>;
+
+  return (
+    <div className="grid gap-3">
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={!l.completed_at}
+          title={l.completed_at ? "" : "Ele ainda não terminou o cadastro completo"}
+          onClick={() => setMode(mode === "ativar" ? "none" : "ativar")}
+          className={`rounded-xl px-4 py-3 font-semibold disabled:opacity-40 ${mode === "ativar" ? "bg-[#1F7A4C] text-[#fff]" : "bg-[#111] text-[#D9BC6A]"}`}
+        >
+          ✓ Ativar motorista
+        </button>
+        <button type="button" onClick={() => setMode(mode === "recusar" ? "none" : "recusar")} className={`rounded-xl px-4 py-3 font-semibold ${mode === "recusar" ? "bg-[#A33A2B] text-[#fff]" : "bg-white text-[#A33A2B] ring-1 ring-[#E9C4BD]"}`}>
+          ✕ Recusar
+        </button>
+      </div>
+      {!l.completed_at ? <p className="text-xs text-prime-muted">“Ativar” libera quando ele terminar o cadastro completo (documentos e dados).</p> : null}
+      {err ? <p className="text-sm text-[#A33A2B]">{err}</p> : null}
+
+      {mode === "ativar" ? (
+        !prep ? (
+          <p className="text-sm text-prime-muted">Preparando…</p>
+        ) : (
+          <div className="grid gap-3 rounded-xl bg-white p-3 ring-1 ring-prime-border">
+            {prep.duplicate ? <p className="rounded-lg bg-[#FBEDEA] px-3 py-2 text-sm text-[#A33A2B]">Já existe um motorista com este CPF: {prep.duplicate}. Não dá para ativar de novo.</p> : null}
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-prime-muted">Categorias que ele pode atender</p>
+              <div className="flex flex-wrap gap-2">
+                {prep.categories.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setCats((cur) => (cur.includes(c.id) ? cur.filter((x) => x !== c.id) : [...cur, c.id]))}
+                    className={`rounded-full px-3 py-1.5 text-sm ${cats.includes(c.id) ? "bg-[#111] font-semibold text-[#D9BC6A]" : "bg-prime-bg ring-1 ring-prime-border"}`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="grid gap-1 text-xs font-semibold text-prime-muted">
+              Modelo de contrato (ZapSign)
+              <select value={tpl} onChange={(e) => setTpl(e.target.value)} className="prime-input text-sm font-normal text-prime-text">
+                <option value="">Sem contrato agora (crio depois)</option>
+                {prep.templates.map((t) => (
+                  <option key={t.token} value={t.token}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {tpl ? (
+              <div className="grid gap-1">
+                <p className="text-xs font-semibold text-prime-muted">Também assinam (além dele)</p>
+                {prep.prime_signers.map((x) => (
+                  <label key={x.email} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={Boolean(signers[x.email])} onChange={(e) => setSigners((s2) => ({ ...s2, [x.email]: e.target.checked }))} />
+                    {x.name} <span className="text-xs text-prime-muted">{x.email}</span>
+                  </label>
+                ))}
+                {prep.witness ? (
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={Boolean(signers[`w:${prep.witness.name}`])} onChange={(e) => setSigners((s2) => ({ ...s2, [`w:${prep.witness!.name}`]: e.target.checked }))} />
+                    {prep.witness.name} <span className="text-xs text-prime-muted">testemunha indicada por ele</span>
+                  </label>
+                ) : null}
+              </div>
+            ) : null}
+            <p className="text-xs text-prime-muted">
+              Cria a ficha com os dados e documentos que ele mandou, cadastra o veículo, gera o PIN do app e envia o contrato. Ele entra no app, mas <b>só aceita corridas depois de assinar</b>.
+            </p>
+            <button type="button" disabled={busy || Boolean(prep.duplicate)} onClick={() => void activate()} className="rounded-xl bg-[#1F7A4C] px-4 py-3 font-semibold text-[#fff] disabled:opacity-50">
+              {busy ? "Ativando…" : "Confirmar e ativar"}
+            </button>
+          </div>
+        )
+      ) : null}
+
+      {mode === "recusar" ? (
+        <div className="grid gap-2 rounded-xl bg-white p-3 ring-1 ring-prime-border">
+          <p className="text-xs font-semibold text-prime-muted">Motivo (vai na mensagem para ele)</p>
+          <div className="flex flex-wrap gap-2">
+            {REFUSE_PRESETS.map(([t, txt]) => (
+              <button key={t} type="button" onClick={() => setReason(txt)} className={`rounded-full px-3 py-1.5 text-sm ${reason === txt ? "bg-[#A33A2B] text-[#fff]" : "bg-prime-bg ring-1 ring-prime-border"}`}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} className="prime-input text-sm" placeholder="Ou escreva o motivo com suas palavras" />
+          <button type="button" disabled={busy} onClick={() => void refuse()} className="rounded-xl bg-[#A33A2B] px-4 py-3 font-semibold text-[#fff] disabled:opacity-50">
+            {busy ? "Salvando…" : "Recusar e avisar no WhatsApp"}
+          </button>
         </div>
       ) : null}
     </div>
@@ -431,7 +655,10 @@ export function SiteLeadsBoard() {
 
                   <div>
                     <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#8A6A1F]">Sua decisão</p>
-                    <div className="grid grid-cols-2 gap-2 sm:flex">
+                    {l.kind === "motorista" ? (
+                      <DecisionPanel l={l} onDone={(patch) => setList((cur) => (cur ?? []).map((x) => (x.id === l.id ? { ...x, ...patch } : x)))} />
+                    ) : null}
+                    <div className={`grid grid-cols-2 gap-2 sm:flex ${l.kind === "motorista" ? "hidden" : ""}`}>
                       {(["em_contato", "aprovado", "descartado", "novo"] as Lead["status"][]).map((s2) => (
                         <button
                           key={s2}

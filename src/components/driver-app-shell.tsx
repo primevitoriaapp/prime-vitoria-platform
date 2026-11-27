@@ -14,6 +14,7 @@ import type { Trip } from "@/lib/domain/types";
 import { DriverHomeStatsStrip, DriverIdleHome, readPaused, useDriverSummary } from "@/components/driver-app-home";
 import { DriverProfileMenu } from "@/components/driver-profile-menu";
 import { DriverPrimeClub } from "@/components/driver-prime-club";
+import { DriverContractBanner } from "@/components/driver-contract-banner";
 
 type DriverOption = { id: string; cpf: string; profile_name?: string | null };
 type Me = {
@@ -175,6 +176,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
               </span>
             </div>
             {nextTrip ? <DriverHomeStatsStrip summary={summary} nextLabel={nextTripLabel(nextTrip)} /> : null}
+            {mode === "motorista" ? <DriverContractBanner /> : null}
             {mode === "admin" ? (
               <select
                 className="pointer-events-auto mx-auto mt-2 block w-full max-w-lg rounded-xl border border-[#DDD5C2] bg-white px-3 py-2 text-sm shadow"

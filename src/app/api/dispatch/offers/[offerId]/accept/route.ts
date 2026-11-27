@@ -1,3 +1,4 @@
+import { driverContractGate, CONTRACT_BLOCK_MESSAGE } from "@/lib/drivers/contract-gate";
 import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, mapApiError, ok } from "@/lib/server/http";
@@ -26,6 +27,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ off
     }
 
     if (!driverId) return fail("FORBIDDEN", "Motorista precisa de cadastro vinculado a sessao", 403);
+    if (session.role === "motorista") {
+      const gate = await driverContractGate(driverId);
+      if (!gate.signed) return fail("CONTRACT_REQUIRED", CONTRACT_BLOCK_MESSAGE, 403);
+    }
     const { offerId } = await params;
     const tenantId = assertTenantScope(session);
 
