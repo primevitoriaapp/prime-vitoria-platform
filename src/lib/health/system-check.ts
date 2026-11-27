@@ -14,10 +14,25 @@ export type HealthItem = {
 
 const SP = "America/Sao_Paulo";
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const when = (iso: string) =>
-  new Date(iso).toLocaleString("pt-BR", { timeZone: SP, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+/** "hoje 13:30", "amanhã 14:50" ou "25/11 15:55". */
+const when = (iso: string) => {
+  const d = new Date(iso);
+  const ymd = (x: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: SP }).format(x);
+  const hm = d.toLocaleTimeString("pt-BR", { timeZone: SP, hour: "2-digit", minute: "2-digit" });
+  const today = ymd(new Date());
+  const tomorrow = ymd(new Date(Date.now() + 864e5));
+  if (ymd(d) === today) return `hoje ${hm}`;
+  if (ymd(d) === tomorrow) return `amanhã ${hm}`;
+  return `${d.toLocaleDateString("pt-BR", { timeZone: SP, day: "2-digit", month: "2-digit" })} ${hm}`;
+};
 const todayYmd = () => new Intl.DateTimeFormat("en-CA", { timeZone: SP }).format(new Date());
 const tripHref = (id: string) => `/agenda?trip=${id}#trip-detail`;
+type TripRow = { id: string; scheduled_at: string; passenger_name: string | null; clients?: { name?: string | null; trade_name?: string | null } | null };
+/** "Hoje 13:30 · Companhia de Ópera · Marília, Cintia" */
+function tripLabel(t: TripRow): string {
+  const c = t.clients?.trade_name || t.clients?.name || null;
+  return [when(t.scheduled_at), c, t.passenger_name].filter(Boolean).join(" · ");
+}
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 function item(key: string, level: HealthItem["level"], title: string, count: number, detail: string, href?: string, samples?: HealthItem["samples"]): HealthItem {
@@ -40,7 +55,7 @@ export async function runSystemCheck(tenantId: string): Promise<HealthItem[]> {
     // 1. Corridas das próximas 30 h sem motorista.
     db
       .from("trips")
-      .select("id, scheduled_at, passenger_name, origin_text")
+      .select("id, scheduled_at, passenger_name, origin_text, clients(name, trade_name)")
       .eq("tenant_id", tenantId)
       .is("driver_id", null)
       .in("operational_status", ["requested", "approved", "reassigned"])
@@ -61,7 +76,7 @@ export async function runSystemCheck(tenantId: string): Promise<HealthItem[]> {
     // 3. Corridas que já passaram há mais de 3 h e não foram finalizadas.
     db
       .from("trips")
-      .select("id, scheduled_at, passenger_name")
+      .select("id, scheduled_at, passenger_name, clients(name, trade_name)")
       .eq("tenant_id", tenantId)
       .in("operational_status", OPEN)
       .lt("scheduled_at", iso(now - 3 * h))
@@ -96,7 +111,7 @@ export async function runSystemCheck(tenantId: string): Promise<HealthItem[]> {
 
   const out: HealthItem[] = [];
 
-  const nd = (noDriver.data ?? []) as { id: string; scheduled_at: string; passenger_name: string | null }[];
+  const nd = (noDriver.data ?? []) as unknown as TripRow[];
   out.push(
     item(
       "sem_motorista",
@@ -105,7 +120,7 @@ export async function runSystemCheck(tenantId: string): Promise<HealthItem[]> {
       nd.length,
       `${plural(nd.length, "corrida", "corridas")} sem motorista escalado. A primeira é ${nd[0] ? when(nd[0].scheduled_at) : ""}.`,
       "/dispatch",
-      nd.slice(0, 8).map((t) => ({ label: `${when(t.scheduled_at)} · ${t.passenger_name ?? "sem passageiro"}`, href: tripHref(t.id) }))
+      nd.slice(0, 8).map((t) => ({ label: tripLabel(t), href: tripHref(t.id) }))
     )
   );
 
@@ -122,7 +137,7 @@ export async function runSystemCheck(tenantId: string): Promise<HealthItem[]> {
     )
   );
 
-  const st = (stale.data ?? []) as { id: string; scheduled_at: string; passenger_name: string | null }[];
+  const st = (stale.data ?? []) as unknown as TripRow[];
   out.push(
     item(
       "nao_finalizadas",
@@ -131,7 +146,7 @@ export async function runSystemCheck(tenantId: string): Promise<HealthItem[]> {
       st.length,
       `${plural(st.length, "corrida", "corridas")} com horário passado há mais de 3 h e ainda abertas. Sem finalizar, não entram na fatura nem no repasse.`,
       "/agenda",
-      st.slice(0, 8).map((t) => ({ label: `${when(t.scheduled_at)} · ${t.passenger_name ?? ""}`, href: tripHref(t.id) }))
+      st.slice(0, 8).map((t) => ({ label: tripLabel(t), href: tripHref(t.id) }))
     )
   );
 

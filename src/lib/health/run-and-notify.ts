@@ -53,6 +53,7 @@ export async function runHealthCheck(tenantId: string, slot: "manha" | "tarde" |
     }
 
     if (cfg.send_email && /@/.test(cfg.email)) {
+      const html = healthEmailHtml(toAlert, stamp);
       const text = [
         `Checagem do sistema Prime Vitória — ${stamp}`,
         "",
@@ -60,7 +61,7 @@ export async function runHealthCheck(tenantId: string, slot: "manha" | "tarde" |
         "",
         "Detalhes: https://central.primevitoria.com/saude"
       ].join("\n");
-      const r = await sendOperationalEmail({ to: cfg.email, subject: `⚠️ Checagem Prime: ${toAlert.length} ponto(s) de atenção`, text }).catch(() => null);
+      const r = await sendOperationalEmail({ to: cfg.email, subject: `⚠️ Checagem Prime: ${line.slice(0, 120)}`, text, html }).catch(() => null);
       notified.email = r && "ok" in r && r.ok ? "enviado" : "falhou";
     }
   }
@@ -73,4 +74,35 @@ export async function runHealthCheck(tenantId: string, slot: "manha" | "tarde" |
   // Guarda só os últimos 90 dias.
   await db.from("system_health_checks").delete().eq("tenant_id", tenantId).lt("ran_at", new Date(Date.now() - 90 * 864e5).toISOString());
   return { id: (data?.id as number) ?? null, items, problems: bad.length, critical, notified };
+}
+
+const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const BASE = "https://central.primevitoria.com";
+
+/** E-mail organizado: um cartão por assunto, com a lista e o botão para resolver. */
+function healthEmailHtml(items: HealthItem[], stamp: string): string {
+  const cards = items
+    .map((i) => {
+      const red = i.level === "critico";
+      const list = (i.samples ?? [])
+        .map((s) => `<li style="margin:4px 0">${s.href ? `<a href="${BASE}${s.href}" style="color:#111">${esc(s.label)}</a>` : esc(s.label)}</li>`)
+        .join("");
+      return `<div style="border:1px solid ${red ? "#F3C2C2" : "#EADFC4"};background:${red ? "#FFF5F5" : "#FFFBF2"};border-radius:12px;padding:14px 16px;margin:0 0 12px">
+  <div style="font-size:12px;font-weight:700;color:${red ? "#B42318" : "#8A6A12"};letter-spacing:.5px">${red ? "RESOLVER HOJE" : "ATENÇÃO"}</div>
+  <div style="font-size:16px;font-weight:700;margin:4px 0 6px;color:#111">${esc(i.title)}</div>
+  <div style="font-size:14px;color:#333">${esc(i.detail)}</div>
+  ${list ? `<ul style="padding-left:18px;margin:8px 0 0;font-size:14px">${list}</ul>` : ""}
+  ${i.href ? `<a href="${BASE}${i.href}" style="display:inline-block;margin-top:10px;font-size:14px;font-weight:700;color:#8A6A12">Resolver →</a>` : ""}
+</div>`;
+    })
+    .join("");
+  return `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#111">
+  <div style="background:#111;border-radius:12px;padding:16px 18px;margin-bottom:14px">
+    <div style="color:#C9A84C;font-size:12px;font-weight:700;letter-spacing:1px">PRIME VITÓRIA · CHECAGEM DO SISTEMA</div>
+    <div style="color:#fff;font-size:18px;font-weight:700;margin-top:4px">${items.length} ponto(s) precisam de atenção</div>
+    <div style="color:#bbb;font-size:13px;margin-top:2px">${esc(stamp)}</div>
+  </div>
+  ${cards}
+  <a href="${BASE}/saude" style="display:block;text-align:center;background:#C9A84C;color:#111;font-weight:700;text-decoration:none;border-radius:10px;padding:12px;margin-top:6px">Abrir a checagem completa</a>
+</div>`;
 }
