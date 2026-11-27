@@ -1,4 +1,5 @@
 import { db } from "@/lib/server/db";
+import { fetchFr24, fr24AlertsToSend, fr24CheckDue, fr24Snapshot, type Fr24Alert, type Fr24Snapshot } from "@/lib/integrations/fr24";
 import { normalizeFlightNumber } from "@/lib/trips/flight";
 import {
   flightChangeWorthAlert,
@@ -25,8 +26,19 @@ function flightProvider(): { url: (path: string) => string; headers: Record<stri
   return null;
 }
 
+/** Chave do Flightradar24 colada em Integrações (fica no banco). */
+export async function fr24Token(): Promise<string | null> {
+  const { data } = await db.from("app_secrets").select("value").eq("key", "flightradar24").maybeSingle();
+  const t = String((data?.value as { token?: string } | null)?.token ?? "").trim();
+  return t.length >= 20 ? t : null;
+}
+
 export function flightApiConfigured(): boolean {
   return flightProvider() != null;
+}
+
+export async function anyFlightProvider(): Promise<boolean> {
+  return flightApiConfigured() || (await fr24Token()) != null;
 }
 
 async function fetchFlights(number: string, date: string): Promise<AdbFlight[]> {
@@ -56,10 +68,13 @@ type WatchTrip = {
   flight_eta: string | null;
   flight_checked_at: string | null;
   flight_check_count: number | null;
+  flight_departed_at?: string | null;
+  flight_landed_at?: string | null;
+  flight_alerts?: Record<string, unknown> | null;
 };
 
 const COLS =
-  "id, tenant_id, scheduled_at, flight_number, origin_text, destination_text, driver_id, operational_status, passenger_name, flight_status, flight_eta, flight_checked_at, flight_check_count";
+  "id, tenant_id, scheduled_at, flight_number, origin_text, destination_text, driver_id, operational_status, passenger_name, flight_status, flight_eta, flight_checked_at, flight_check_count, flight_departed_at, flight_landed_at, flight_alerts";
 
 function hhmm(iso: string) {
   return new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
@@ -103,6 +118,8 @@ export async function checkTripFlight(tripId: string, opts: { manual?: boolean }
   if (!number) return { ok: false, reason: "Número de voo inválido" };
   const leg = flightLegForTrip(t.origin_text, t.destination_text);
   const now = new Date().toISOString();
+  const fr24 = await fr24Token();
+  if (fr24) return checkTripFlightFr24(t, number, leg, now, fr24, opts);
   try {
     const flights = await fetchFlights(number, spDate(t.scheduled_at));
     const snap = pickFlight(flights, leg, t.scheduled_at);
@@ -140,14 +157,15 @@ const SWEEP_KEY = "flight_sweep_at";
  * Roda no máximo a cada 5 minutos para o sistema todo (trava em app_secrets).
  */
 export async function sweepDueFlights(): Promise<{ checked: number; skipped?: string }> {
-  if (!flightApiConfigured()) return { checked: 0, skipped: "sem chave" };
+  const fr24 = await fr24Token();
+  if (!fr24 && !flightApiConfigured()) return { checked: 0, skipped: "sem chave" };
   const nowMs = Date.now();
   const { data: lock } = await db.from("app_secrets").select("value").eq("key", SWEEP_KEY).maybeSingle();
   const last = Number((lock?.value as { at?: number } | null)?.at ?? 0);
-  if (nowMs - last < 5 * 60_000) return { checked: 0, skipped: "recente" };
+  if (nowMs - last < 4 * 60_000) return { checked: 0, skipped: "recente" };
   await db.from("app_secrets").upsert({ key: SWEEP_KEY, value: { at: nowMs } });
 
-  const from = new Date(nowMs - 2 * 3600_000).toISOString();
+  const from = new Date(nowMs - 3 * 3600_000).toISOString();
   const to = new Date(nowMs + 6 * 3600_000).toISOString();
   const { data } = await db
     .from("trips")
@@ -156,14 +174,73 @@ export async function sweepDueFlights(): Promise<{ checked: number; skipped?: st
     .gte("scheduled_at", from)
     .lte("scheduled_at", to)
     .not("operational_status", "in", `(${FINAL.join(",")})`)
-    .limit(30);
+    .limit(40);
   const due = ((data ?? []) as WatchTrip[]).filter((t) =>
-    flightCheckDue({ scheduledAt: t.scheduled_at, checkedAt: t.flight_checked_at, checkCount: t.flight_check_count ?? 0, status: t.flight_status })
+    fr24
+      ? fr24CheckDue({ scheduledAt: t.scheduled_at, checkedAt: t.flight_checked_at, status: t.flight_status })
+      : flightCheckDue({ scheduledAt: t.scheduled_at, checkedAt: t.flight_checked_at, checkCount: t.flight_check_count ?? 0, status: t.flight_status })
   );
   let checked = 0;
-  for (const t of due.slice(0, 8)) {
+  for (const t of due.slice(0, fr24 ? 15 : 8)) {
     await checkTripFlight(t.id);
     checked++;
   }
   return { checked };
 }
+
+
+// ---------------------------------------------------------------------------
+// Flightradar24: avisos por etapa (decolou, atrasou, não decolou, pousou, desviou)
+// ---------------------------------------------------------------------------
+
+async function sendFr24Alerts(t: WatchTrip, alerts: Fr24Alert[]) {
+  const { pushToStaff, pushToDriver } = await import("@/lib/push/web-push");
+  for (const a of alerts) {
+    await pushToStaff(t.tenant_id, { title: a.title, body: a.staffBody, url: `/agenda?trip=${t.id}`, tag: `flight-${t.id}-${a.key}` }).catch(() => 0);
+    await import("@/lib/notifications/enqueue-for-profiles")
+      .then(({ enqueueInAppForTenantRoles }) => enqueueInAppForTenantRoles(t.tenant_id, ["admin", "operador"], { eventType: "trips.flight_change", title: a.title, body: a.staffBody }))
+      .catch(() => 0);
+    if (t.driver_id) await pushToDriver(t.tenant_id, t.driver_id, { title: a.title, body: a.driverBody, url: `/driver`, tag: `flight-${t.id}` }).catch(() => 0);
+  }
+}
+
+async function checkTripFlightFr24(t: WatchTrip, number: string, leg: "arrival" | "departure", now: string, token: string, opts: { manual?: boolean }): Promise<FlightCheckResult> {
+  try {
+    const { summaries, live } = await fetchFr24(token, number, t.scheduled_at);
+    const snap = fr24Snapshot(summaries, live, leg, t.scheduled_at);
+    // Sem nada no radar perto do horário também é sinal: o voo não decolou (atraso ou cancelamento).
+    const forAlerts: Fr24Snapshot = snap ?? { leg, status: "Expected", airport: null, departedAt: null, landedAt: null, etaAt: null, delayMinutes: null };
+    const alerts = fr24AlertsToSend(t, forAlerts);
+    const doneNext: Record<string, unknown> = { ...((t.flight_alerts ?? {}) as Record<string, unknown>) };
+    for (const a of alerts) doneNext[a.key] = a.key === "delay" ? snap?.delayMinutes : true;
+    await db
+      .from("trips")
+      .update({
+        flight_leg: leg,
+        flight_status: snap?.status ?? "NotFound",
+        flight_eta: snap?.etaAt ?? null,
+        flight_delay_minutes: snap?.delayMinutes ?? null,
+        flight_airport: snap?.airport ?? null,
+        flight_departed_at: snap?.departedAt ?? null,
+        flight_landed_at: snap?.landedAt ?? null,
+        flight_alerts: doneNext,
+        flight_checked_at: now,
+        flight_check_count: (t.flight_check_count ?? 0) + (opts.manual ? 0 : 1),
+        flight_error: snap ? null : "Voo ainda não aparece no Flightradar24 (confira o número)"
+      })
+      .eq("id", t.id);
+    if (alerts.length) await sendFr24Alerts(t, alerts);
+    return {
+      ok: true,
+      snapshot: snap
+        ? { leg, status: snap.status, airport: snap.airport, scheduledAt: null, etaAt: snap.etaAt, delayMinutes: snap.delayMinutes }
+        : null,
+      alerted: alerts.length > 0
+    };
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : "Erro ao consultar o voo";
+    await db.from("trips").update({ flight_checked_at: now, flight_error: reason.slice(0, 200) }).eq("id", t.id);
+    return { ok: false, reason };
+  }
+}
+

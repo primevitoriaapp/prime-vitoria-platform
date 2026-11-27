@@ -1,6 +1,6 @@
 import { fail, mapApiError, ok } from "@/lib/server/http";
 import { getSessionContext } from "@/lib/server/session";
-import { checkTripFlight, flightApiConfigured } from "@/lib/integrations/flight-watch";
+import { checkTripFlight, anyFlightProvider } from "@/lib/integrations/flight-watch";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 
 /** Botão "Atualizar voo" na corrida. */
@@ -8,7 +8,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   try {
     const s = await getSessionContext();
     if (s.role !== "admin" && s.role !== "operador") return fail("FORBIDDEN", "Sem permissão.", 403);
-    if (!flightApiConfigured()) return fail("NOT_CONFIGURED", "Acompanhamento de voo ainda não ligado (falta a chave do AeroDataBox).", 422);
+    if (!(await anyFlightProvider())) return fail("NOT_CONFIGURED", "Acompanhamento de voo ainda não ligado (falta a chave do Flightradar24 em Integrações).", 422);
     const { id } = await params;
     enforceRateLimit(`flight-check:${id}`, 3, 10 * 60_000);
     const r = await checkTripFlight(id, { manual: true });

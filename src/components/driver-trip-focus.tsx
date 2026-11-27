@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import type { Trip, TripOperationalStatus } from "@/lib/domain/types";
+import { DriverFlightBanner } from "@/components/driver-flight-banner";
 import { driverNextStatuses } from "@/lib/trips/driver-next-status";
 import { driverPrimaryActionLabel } from "@/lib/trips/driver-step-copy";
 import { confirmDriverStatusTransition } from "@/lib/trips/driver-status-confirm";
@@ -285,6 +286,11 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
                 </li>
               ))}
             </ol>
+            {trip.flight_number && s !== "in_progress" ? (
+              <div className="mt-3">
+                <DriverFlightBanner trip={trip} />
+              </div>
+            ) : null}
             <div className={`mt-1 flex justify-between gap-2 text-[11px] font-semibold ${c.sub}`}>
               {strip.map((st) => (
                 <span key={st.key} className={st.state === "now" ? c.text : ""}>

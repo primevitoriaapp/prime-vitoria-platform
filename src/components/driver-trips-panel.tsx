@@ -28,6 +28,7 @@ import { fmtRating, tripTags, type DriverSummary } from "@/components/driver-app
 import type { ReactNode } from "react";
 import { BodyPortal } from "@/components/ui/body-portal";
 import { useBackToClose } from "@/hooks/use-back-to-close";
+import { DriverFlightBanner } from "@/components/driver-flight-banner";
 
 const ACTIVE: TripOperationalStatus[] = [
   "dispatched",
@@ -689,6 +690,11 @@ export function DriverTripsPanel({
                       <span className="mt-1.5 h-2.5 w-2.5 rounded-sm bg-prime-gold" aria-hidden />
                       <span className="truncate text-[#5C6067]">{short(primaryTrip.destination_text)}</span>
                     </div>
+                    {primaryTrip.flight_number ? (
+                      <div className="mt-2">
+                        <DriverFlightBanner trip={primaryTrip} compact />
+                      </div>
+                    ) : null}
                     <DriverPayLine trip={primaryTrip} />
                   </button>
                   {primaryTrip.operational_status === "dispatched" ? (

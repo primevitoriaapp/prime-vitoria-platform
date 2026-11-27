@@ -3,15 +3,16 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 
-type Kind = "calendar" | "zapsign" | "infinitepay" | "whatsapp";
+type Kind = "calendar" | "zapsign" | "infinitepay" | "whatsapp" | "flights";
 
 /** Lê se a integração já está pronta e o resumo de uma linha (ex.: "Chave final eoN0"). */
 async function statusOf(kind: Kind): Promise<{ done: boolean; summary: string }> {
-  const url = { calendar: "/api/integrations/calendar-feed", zapsign: "/api/integrations/zapsign", infinitepay: "/api/integrations/infinitepay", whatsapp: "/api/integrations/whatsapp-cloud" }[kind];
+  const url = { calendar: "/api/integrations/calendar-feed", zapsign: "/api/integrations/zapsign", infinitepay: "/api/integrations/infinitepay", whatsapp: "/api/integrations/whatsapp-cloud", flights: "/api/integrations/flightradar24" }[kind];
   const r = await fetchWithSupabaseSession(url, {}, "admin").catch(() => null);
   const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; data?: Record<string, unknown> }) : {};
   const d = j.success ? (j.data ?? {}) : {};
   if (kind === "calendar") return { done: Boolean(d.url), summary: "Link de assinatura criado" };
+  if (kind === "flights") return { done: Boolean(d.configured), summary: d.tail ? `Chave final ${String(d.tail)} · avisos de voo ligados` : "" };
   if (kind === "zapsign") return { done: Boolean(d.configured), summary: d.tail ? `Chave final ${String(d.tail)}` : "" };
   if (kind === "infinitepay") return { done: Boolean(d.configured), summary: d.handle ? `InfiniteTag ${String(d.handle)}` : "" };
   const mode = String(d.mode ?? "desligado");

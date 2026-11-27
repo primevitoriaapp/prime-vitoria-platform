@@ -4,6 +4,7 @@ import { CalendarFeedCard } from "@/components/calendar-feed-card";
 import { ZapsignTokenCard } from "@/components/zapsign-token-card";
 import { InfinitepayCard } from "@/components/infinitepay-card";
 import { WhatsappCloudCard } from "@/components/whatsapp-cloud-card";
+import { Flightradar24Card } from "@/components/flightradar24-card";
 import { resolveEmailFrom } from "@/lib/notifications/send-email";
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { IntegrationFold } from "@/components/integration-fold";
@@ -172,6 +173,9 @@ export default async function IntegracoesPage() {
           </IntegrationFold>
           <IntegrationFold kind="whatsapp" title="WhatsApp oficial da central">
             <WhatsappCloudCard />
+          </IntegrationFold>
+          <IntegrationFold kind="flights" title="Voos (Flightradar24)">
+            <Flightradar24Card />
           </IntegrationFold>
         </section>
         {groups.map((g) => (
