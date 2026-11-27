@@ -1,4 +1,4 @@
-import { formatBrDateTime } from "@/lib/dates/br-date";
+import { formatBrDateTime } from "../dates/br-date.ts";
 
 type TripReportRow = {
   id: string;

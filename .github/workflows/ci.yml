@@ -21,7 +21,8 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm test
-        continue-on-error: true
+        env:
+          SKIP_NETWORK_TESTS: "1"
       - name: Validate pricing migration SQL present
         run: test -f supabase/migrations/0041_pricing_rules.sql
       - run: npm run build

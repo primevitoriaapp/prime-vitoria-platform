@@ -32,7 +32,7 @@ export function SystemHealthPanel() {
   const [saved, setSaved] = useState("");
 
   const load = useCallback(async () => {
-    const r = await api<{ runs: Run[]; config: Cfg }>("/api/health");
+    const r = await api<{ runs: Run[]; config: Cfg }>("/api/system-health");
     if (r.ok && r.data) {
       setRuns(r.data.runs);
       setCfg(r.data.config);
@@ -45,7 +45,7 @@ export function SystemHealthPanel() {
   async function runNow() {
     setBusy(true);
     setMsg("");
-    const r = await api("/api/health", { method: "POST" });
+    const r = await api("/api/system-health", { method: "POST" });
     setBusy(false);
     if (!r.ok) setMsg(r.error ?? "Não consegui checar agora.");
     await load();
@@ -54,7 +54,7 @@ export function SystemHealthPanel() {
   async function saveCfg() {
     if (!cfg) return;
     setSaved("Salvando…");
-    const r = await api<Cfg>("/api/health", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cfg) });
+    const r = await api<Cfg>("/api/system-health", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cfg) });
     setSaved(r.ok ? "✅ Salvo! Os alertas vão para esse número e e-mail." : `Não salvou: ${r.error ?? "tente de novo"}`);
   }
 

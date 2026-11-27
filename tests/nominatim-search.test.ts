@@ -15,7 +15,7 @@ test("searchNominatimBrazil rejects short query", async () => {
 
 test("searchNominatimBrazil finds Aeroporto de Vitória ES", async (t) => {
   if (process.env.SKIP_NETWORK_TESTS === "1") {
-    t.skip("network disabled");
+    return t.skip("network disabled");
   }
   const out = await searchNominatimBrazil("Aeroporto de Vitória ES");
   assert.equal(out.ok, true);
@@ -29,7 +29,7 @@ test("searchNominatimBrazil finds Aeroporto de Vitória ES", async (t) => {
 
 test("searchNominatimBrazil finds Shopping Vitória ES", async (t) => {
   if (process.env.SKIP_NETWORK_TESTS === "1") {
-    t.skip("network disabled");
+    return t.skip("network disabled");
   }
   const out = await searchNominatimBrazil("Shopping Vitória ES");
   assert.equal(out.ok, true);

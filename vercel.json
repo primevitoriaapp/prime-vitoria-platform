@@ -1,5 +1,13 @@
 {
   "framework": "nextjs",
-  "regions": ["gru1"],
-  "crons": [{ "path": "/api/cron/client-invoices", "schedule": "0 9 * * *" }]
+  "buildCommand": "node scripts/predeploy-tests.mjs && next build",
+  "regions": [
+    "gru1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/client-invoices",
+      "schedule": "0 9 * * *"
+    }
+  ]
 }
