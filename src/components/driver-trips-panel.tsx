@@ -65,6 +65,8 @@ type Props = {
   onSeeAll?: () => void;
   /** Mantém a lógica (avisos, GPS) rodando mesmo com outra aba aberta. */
   hidden?: boolean;
+  /** Volta para a aba Início (quando o motorista foi ver perfil/carteira no meio da corrida). */
+  onBackToTrip?: () => void;
   /** Abre a aba Início (card flutuante de corrida agendada). */
   onGoHome?: () => void;
   /** Avisa qual é a próxima corrida (para o mapa do início). */
@@ -82,6 +84,7 @@ export function DriverTripsPanel({
   view = "inicio",
   onSeeAll,
   hidden = false,
+  onBackToTrip,
   onGoHome,
   onPrimaryTrip,
   summary = null,
@@ -103,6 +106,8 @@ export function DriverTripsPanel({
   const [detailOpen, setDetailOpen] = useState(false);
   /** Outra corrida (não a próxima) aberta pela agenda ou pelo aviso "para confirmar". */
   const [otherTripId, setOtherTripId] = useState<string | null>(null);
+  /** Tela da corrida em andamento minimizada (motorista foi ver agenda/perfil). */
+  const [focusMin, setFocusMin] = useState(false);
   /** Cartão da próxima corrida minimizado (para ver o mapa). */
   const [cardMin, setCardMin] = useState(false);
   const swipeY = useRef<number | null>(null);
@@ -179,6 +184,8 @@ export function DriverTripsPanel({
   );
   const primaryId = useMemo(() => pickDriverFocusTripId(active), [active]);
   const primaryTrip = active.find((t) => t.id === primaryId) ?? null;
+  const focusTripId = primaryTrip?.id ?? null;
+  useEffect(() => setFocusMin(false), [focusTripId]);
   const otherActive = active.filter((t) => t.id !== primaryId);
   const pendingOthers = otherActive.filter((t) => t.operational_status === "dispatched");
   const otherTrip = otherTripId ? (trips.find((t) => t.id === otherTripId) ?? null) : null;
@@ -569,8 +576,29 @@ export function DriverTripsPanel({
       </p>
       {message && !sheet && view !== "inicio" ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{message}</p> : null}
 
-      {primaryTrip && ["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) && !hidden ? (
+      {primaryTrip && ["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) && (focusMin || hidden) ? (
+        <BodyPortal>
+          <button
+            type="button"
+            onClick={() => {
+              setFocusMin(false);
+              onBackToTrip?.();
+            }}
+            className="fixed inset-x-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[55] mx-auto flex max-w-lg items-center justify-between gap-3 rounded-2xl bg-[#111] px-4 py-3 text-left shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+          >
+            <span className="min-w-0">
+              <span className="block text-xs font-bold uppercase tracking-[0.1em] text-prime-gold">
+                {primaryTrip.operational_status === "on_the_way" ? "A caminho" : primaryTrip.operational_status === "arrived" ? "No local" : "Em viagem"}
+              </span>
+              <span className="block truncate text-sm font-semibold text-[#fff]">{tripPeopleLabel(primaryTrip) || "Corrida em andamento"}</span>
+            </span>
+            <span className="shrink-0 rounded-full bg-prime-gold px-4 py-2 text-sm font-bold text-[#111]">Voltar à corrida</span>
+          </button>
+        </BodyPortal>
+      ) : null}
+      {primaryTrip && ["on_the_way", "arrived", "in_progress"].includes(primaryTrip.operational_status) && !hidden && !focusMin ? (
         <DriverTripFocus
+          onMinimize={() => setFocusMin(true)}
           trip={primaryTrip}
           isBusy={busyTrip === primaryTrip.id}
           waitElapsedLabel={primaryTrip.wait_started_at ? waitElapsedLabel : null}

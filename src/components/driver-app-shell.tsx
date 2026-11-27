@@ -242,6 +242,7 @@ export function DriverAppShell({ tenantId, mode, sessionDriverId, initialDrivers
           view={tab === "agenda" ? "agenda" : tab === "corridas" ? "historico" : "inicio"}
           onSeeAll={() => go("agenda")}
           onGoHome={() => setTab("inicio")}
+          onBackToTrip={() => setTab("inicio")}
           onPrimaryTrip={setNextTrip}
           summary={summary}
           idleHome={<DriverIdleHome summary={summary} nextLabel={null} preview={mode === "admin"} onAgenda={() => go("agenda")} />}

@@ -67,6 +67,8 @@ type Props = {
   onCompletePickupStop: (tripId: string, idx: number) => void;
   onTripChanged?: () => void;
   message?: string | null;
+  /** Sai da tela da corrida para ver agenda/perfil (a corrida continua). */
+  onMinimize?: () => void;
 };
 
 type Sheet = { title: string; items: { key: string; label: string; sub?: string; href: string; external?: boolean }[] } | null;
@@ -76,7 +78,7 @@ type Sheet = { title: string; items: { key: string; label: string; sub?: string;
  * três botões (Navegar, Ligar, Mensagem) e a barra de deslizar no rodapé.
  * A ordem das paradas é sempre a do cliente.
  */
-export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, onCompletePickupStop, onTripChanged, message }: Props) {
+export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, onCompletePickupStop, onTripChanged, message, onMinimize }: Props) {
   const s = trip.operational_status;
   const next = driverNextStatuses(s)[0];
   const others = driverNextStatuses(s).slice(1);
@@ -246,7 +248,19 @@ export function DriverTripFocus({ trip, isBusy, gps, devFallbackRole, onStatus, 
           <p className={`text-sm font-extrabold tracking-[0.12em] ${night ? "text-[#fff]" : "text-[#111]"}`}>
             PRIME <span className="text-prime-gold">VITÓRIA</span>
           </p>
-          <span className="rounded-full bg-prime-gold px-3 py-1.5 text-xs font-bold text-[#111]">{s === "on_the_way" ? "A caminho" : s === "arrived" ? "No local" : "Em viagem"}</span>
+          <span className="flex items-center gap-2">
+            <span className="rounded-full bg-prime-gold px-3 py-1.5 text-xs font-bold text-[#111]">{s === "on_the_way" ? "A caminho" : s === "arrived" ? "No local" : "Em viagem"}</span>
+            {onMinimize ? (
+              <button
+                type="button"
+                onClick={onMinimize}
+                aria-label="Ver agenda e perfil (a corrida continua)"
+                className={`rounded-full px-3 py-1.5 text-xs font-bold ring-1 ${night ? "text-[#fff] ring-white/30" : "text-[#111] ring-[#DDD8CC]"}`}
+              >
+                ☰ Menu
+              </button>
+            ) : null}
+          </span>
         </div>
         {message ? <p className="mx-auto mt-2 max-w-lg rounded-2xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 shadow">{message}</p> : null}
       </div>

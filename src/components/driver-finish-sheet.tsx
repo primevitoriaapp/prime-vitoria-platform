@@ -110,17 +110,34 @@ export function DriverFinishSheet({
           <p className="mt-3 rounded-xl bg-[#111] px-3 py-2 text-sm text-[#AAAAAA]">KM inicial já anotado na chegada: {Number(trip.odometer_start).toLocaleString("pt-BR")}</p>
         ) : null}
         {paxDone !== null && !startKmKnown ? (
-        <label className="mt-4 block text-sm font-semibold">
-          {mode === "finish" ? "KM do painel agora (final)" : "KM do painel agora (inicial)"}
-          <input
-            inputMode="decimal"
-            autoFocus
-            value={km}
-            onChange={(e) => setKm(e.target.value)}
-            placeholder="Ex.: 45.230"
-            className="mt-1 w-full rounded-xl border border-[#3A3A3E] bg-[#111] px-4 py-3 text-2xl font-bold tracking-wide text-[#fff] outline-none focus:border-[#C9A84C]"
-          />
-        </label>
+        <div className="mt-4">
+          <p className="text-sm font-semibold">{mode === "finish" ? "KM do painel agora (final)" : "KM do painel agora (inicial)"}</p>
+          {/* Teclado próprio: o teclado do celular cobria a janela e o botão. */}
+          <div className="mt-1 flex h-14 items-center justify-between rounded-xl border border-[#C9A84C] bg-[#111] px-4">
+            <span className={`text-3xl font-bold tabular-nums tracking-wide ${km ? "text-[#fff]" : "text-[#666]"}`}>{km ? Number(km).toLocaleString("pt-BR") : "0"}</span>
+            <span className="text-sm text-[#888]">km</span>
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "limpar", "0", "⌫"].map((k) => (
+              <button
+                key={k}
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  setKm((cur) => {
+                    if (k === "⌫") return cur.slice(0, -1);
+                    if (k === "limpar") return "";
+                    if (cur.length >= 7) return cur;
+                    return cur === "0" ? k : cur + k;
+                  })
+                }
+                className={`h-12 rounded-xl text-xl font-bold active:scale-95 ${k === "limpar" || k === "⌫" ? "bg-[#2A2A2E] text-base text-[#C9A84C]" : "bg-[#2E2E33] text-[#fff]"}`}
+              >
+                {k === "limpar" ? "Limpar" : k}
+              </button>
+            ))}
+          </div>
+        </div>
         ) : null}
         {mode === "finish" && trip.odometer_start != null ? (
           <p className={`mt-2 text-sm ${dist?.ok ? "text-emerald-300" : "text-[#AAAAAA]"}`}>
