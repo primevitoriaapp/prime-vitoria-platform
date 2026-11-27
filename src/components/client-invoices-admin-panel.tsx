@@ -51,7 +51,7 @@ function prevMonth() {
 /** Financeiro → fechamento mensal: gera faturas, envia, anexa boleto e dá baixa. */
 export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
-  const [view, setView] = useState<"lista" | "quadro">("lista");
+  const [view, setView] = useState<"lista" | "quadro">("quadro");
   useEffect(() => {
     try {
       const v = localStorage.getItem("prime.faturas.view");
@@ -228,8 +228,8 @@ export function ClientInvoicesAdminPanel({ devFallbackRole = "admin" }: Props) {
       <div className="flex flex-wrap gap-2">
         {(
           [
-            ["lista", "📋 A faturar (marcar e fechar)"],
-            ["quadro", "🗂 Quadro (faturas e envios)"]
+            ["quadro", "🗂 Quadro (faturas e envios)"],
+            ["lista", "📋 A faturar (marcar e fechar)"]
           ] as const
         ).map(([k, label]) => (
           <button
