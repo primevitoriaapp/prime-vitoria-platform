@@ -29,6 +29,7 @@ export function SystemHealthPanel() {
   const [cfg, setCfg] = useState<Cfg | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [saved, setSaved] = useState("");
 
   const load = useCallback(async () => {
     const r = await api<{ runs: Run[]; config: Cfg }>("/api/health");
@@ -52,8 +53,9 @@ export function SystemHealthPanel() {
 
   async function saveCfg() {
     if (!cfg) return;
+    setSaved("Salvando…");
     const r = await api<Cfg>("/api/health", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cfg) });
-    setMsg(r.ok ? "Alertas salvos." : (r.error ?? "Não salvou."));
+    setSaved(r.ok ? "✅ Salvo! Os alertas vão para esse número e e-mail." : `Não salvou: ${r.error ?? "tente de novo"}`);
   }
 
   const last = runs[0];
@@ -129,7 +131,10 @@ export function SystemHealthPanel() {
               <span className="flex items-center gap-2">
                 <input type="checkbox" checked={cfg.whatsapp} onChange={(e) => setCfg({ ...cfg, whatsapp: e.target.checked })} /> WhatsApp
               </span>
-              <input className={PRIME_INPUT_CLASS} inputMode="tel" placeholder="(27) 99999-9999" value={cfg.phone} onChange={(e) => setCfg({ ...cfg, phone: e.target.value })} />
+              <input className={PRIME_INPUT_CLASS} inputMode="tel" placeholder="(27) 99999-9999" value={cfg.phone} onChange={(e) => {
+                  setSaved("");
+                  setCfg({ ...cfg, phone: e.target.value });
+                }} />
               <span className="text-[12px] text-prime-muted">Seu celular. Funciona depois que a Meta aprovar o modelo “prime_central_alerta” (Integrações → WhatsApp).</span>
             </label>
             <label className="grid gap-1 text-sm">
@@ -142,9 +147,12 @@ export function SystemHealthPanel() {
               <input type="checkbox" checked={cfg.push} onChange={(e) => setCfg({ ...cfg, push: e.target.checked })} /> Notificação no painel (sino)
             </label>
           </div>
-          <button type="button" className="btn-primary justify-self-start" onClick={() => void saveCfg()}>
-            Salvar alertas
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" className="btn-primary" onClick={() => void saveCfg()}>
+              Salvar alertas
+            </button>
+            {saved ? <span className="text-sm font-semibold text-emerald-700">{saved}</span> : null}
+          </div>
         </section>
       ) : null}
 
