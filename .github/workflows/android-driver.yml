@@ -2,6 +2,10 @@ name: App motorista (Android)
 
 on:
   workflow_dispatch:
+    inputs:
+      upload_token:
+        description: "Senha de uso único para publicar o APK de teste na central (opcional)"
+        required: false
   push:
     branches: [main]
     paths: ["mobile/driver/**", ".github/workflows/android-driver.yml"]
@@ -61,3 +65,15 @@ jobs:
         with:
           name: prime-motorista-teste
           path: mobile/driver/android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publicar APK de teste na central
+        if: ${{ github.event.inputs.upload_token != '' }}
+        working-directory: mobile/driver
+        env:
+          TOKEN: ${{ github.event.inputs.upload_token }}
+        run: |
+          echo "::add-mask::$TOKEN"
+          NAME="motorista-$(date -u +%Y%m%d-%H%M)"
+          RESP=$(curl -sf -X POST https://central.primevitoria.com/api/app-builds/upload-url -H 'content-type: application/json' -d "{\"token\":\"$TOKEN\",\"name\":\"$NAME\"}")
+          URL=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['signedUrl'])")
+          curl -sf -X PUT "$URL" -H 'content-type: application/vnd.android.package-archive' --data-binary @android/app/build/outputs/apk/debug/app-debug.apk
+          echo "APK publicado: $NAME"
