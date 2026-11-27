@@ -1,6 +1,7 @@
 import { db } from "@/lib/server/db";
 import { bookPaidLinksForQuote } from "@/lib/finance/payment-links";
-import { formatQuoteNumber, isDiaria, itemHours, itemsMissingForTrips, serviceLabelForClient, tripAmountsFromQuote, tripServiceModeFor } from "@/lib/quotes/quote-calc";
+import { formatQuoteNumber, hasRepeat, isDiaria, itemDates, itemHours, itemsMissingForTrips, serviceLabelForClient, tripAmountsFromQuote, tripServiceModeFor } from "@/lib/quotes/quote-calc";
+import { saoPauloDateAndTimeToUtcIso } from "@/lib/dates/br-date";
 import { legacyServiceType, type CategoryKind, type ServiceMode } from "@/lib/pricing/category-catalog";
 
 /** Roteiro do orçamento (paradas com nome) vira a lista de paradas da corrida no app do motorista. */
@@ -98,6 +99,16 @@ export async function quoteTripRows(args: {
       const hours = itemHours(it.service_mode as string, it.hours == null ? null : Number(it.hours));
       const mode = tripServiceModeFor(it.service_mode as string, hours) as ServiceMode;
       const diaria = isDiaria(it.service_mode as string);
+      // Rotina semanal: uma corrida por dia marcado, no mesmo horário.
+      const hm = it.scheduled_at
+        ? new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(it.scheduled_at as string))
+        : null;
+      const repeat = hasRepeat(it as never);
+      const whens: (string | null)[] = repeat && hm
+        ? itemDates(it as never).map((d) => saoPauloDateAndTimeToUtcIso(d, hm))
+        : [(it.scheduled_at as string | null) ?? null];
+      const km = it.km_estimate == null ? null : Number(it.km_estimate);
+      for (const when of whens)
       for (let k = 0; k < Number(it.quantity); k++) {
         const client = amounts[n++] ?? Number(it.unit_price);
         const driver = it.driver_amount == null ? null : Number(it.driver_amount);
@@ -108,7 +119,8 @@ export async function quoteTripRows(args: {
           service_type: legacyServiceType(kind, mode),
           vehicle_category_id: it.vehicle_category_id ?? null,
           service_mode: it.vehicle_category_id ? mode : null,
-          scheduled_at: it.scheduled_at,
+          scheduled_at: when,
+          ...(km && km > 0 ? { planned_km: km } : {}),
           origin_text: it.origin_text,
           origin_lat: it.origin_lat ?? null,
           origin_lng: it.origin_lng ?? null,

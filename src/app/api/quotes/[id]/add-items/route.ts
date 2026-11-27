@@ -5,7 +5,7 @@ import { getSessionContext } from "@/lib/server/session";
 import { assertTenantScope } from "@/lib/server/tenant-scope";
 import { insertAuditEvent } from "@/lib/server/audit-log";
 import { quoteItemSchema } from "@/lib/quotes/quote-schema";
-import { itemsMissingForTrips, quoteTotals } from "@/lib/quotes/quote-calc";
+import { itemOccurrences, itemsMissingForTrips, quoteTotals } from "@/lib/quotes/quote-calc";
 import { quoteTripRows } from "@/lib/quotes/approve-quote";
 
 const schema = z.object({ items: z.array(quoteItemSchema).min(1).max(20) });
@@ -35,7 +35,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (iErr) return fail("ITEMS_FAILED", iErr.message, 500);
 
     // Corridas só dos itens novos, com o valor cheio digitado (o desconto antigo não se espalha neles).
-    const amounts = items.flatMap((it) => Array.from({ length: Number(it.quantity) || 1 }, () => Number(it.unit_price) || 0));
+    const amounts = items.flatMap((it) => Array.from({ length: (Number(it.quantity) || 1) * itemOccurrences(it as never) }, () => Number(it.unit_price) || 0));
     const rows = await quoteTripRows({ tenantId, quote: q as Record<string, unknown>, items: items as unknown as Record<string, unknown>[], clientId: q.client_id as string, actorUserId: session.userId, amounts, nowIso: new Date().toISOString() });
     const { data: trips, error: tErr } = await db.from("trips").insert(rows).select("id");
     if (tErr) {
@@ -44,12 +44,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     // Reordena todos os itens por data e hora (o novo entra no lugar certo) e refaz o total.
-    const { data: all } = await db.from("quote_items").select("id, scheduled_at, service_date, quantity, unit_price, driver_amount").eq("quote_id", id);
+    const { data: all } = await db.from("quote_items").select("id, scheduled_at, service_date, quantity, unit_price, driver_amount, repeat_weekdays, repeat_until").eq("quote_id", id);
     const key = (r: Record<string, unknown>) => String(r.scheduled_at ?? r.service_date ?? "9999");
     const sorted = [...(all ?? [])].sort((a, b) => key(a).localeCompare(key(b)));
     await Promise.all(sorted.map((r, i) => db.from("quote_items").update({ position: i }).eq("id", r.id as string)));
     const totals = quoteTotals(
-      sorted.map((r) => ({ quantity: Number(r.quantity) || 1, unit_price: Number(r.unit_price) || 0, driver_amount: r.driver_amount == null ? null : Number(r.driver_amount) })),
+      sorted.map((r) => ({ quantity: Number(r.quantity) || 1, unit_price: Number(r.unit_price) || 0, driver_amount: r.driver_amount == null ? null : Number(r.driver_amount), service_date: (r.service_date as string | null) ?? null, repeat_weekdays: (r.repeat_weekdays as number[] | null) ?? null, repeat_until: (r.repeat_until as string | null) ?? null })),
       Number(q.discount) || 0
     );
     await db.from("quotes").update({ total: totals.total, updated_at: new Date().toISOString() }).eq("id", id);

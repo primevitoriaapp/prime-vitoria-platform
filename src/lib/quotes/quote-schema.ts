@@ -35,7 +35,22 @@ export const quoteItemSchema = z.object({
   passenger_name: z.string().trim().max(200).nullable().optional(),
   quantity: z.coerce.number().int().min(1).max(50).default(1),
   unit_price: money.transform((v) => v ?? 0),
-  driver_amount: money
+  driver_amount: money,
+  km_estimate: money.optional(),
+  price_per_km: money.optional(),
+  driver_price_per_km: money.optional(),
+  repeat_weekdays: z.array(z.coerce.number().int().min(0).max(6)).max(7).nullable().optional(),
+  repeat_until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional()
+}).transform((it) => {
+  // Rotina só vale com data inicial, data final depois dela (até 1 ano) e algum dia marcado.
+  const days = [...new Set(it.repeat_weekdays ?? [])].sort();
+  const ok = Boolean(it.service_date && it.repeat_until && days.length && it.repeat_until > it.service_date);
+  const maxUntil = it.service_date ? new Date(new Date(`${it.service_date}T12:00:00Z`).getTime() + 366 * 864e5).toISOString().slice(0, 10) : null;
+  return {
+    ...it,
+    repeat_weekdays: ok ? days : null,
+    repeat_until: ok ? (maxUntil && (it.repeat_until as string) > maxUntil ? maxUntil : it.repeat_until) : null
+  };
 });
 
 export const quoteSchema = z.object({

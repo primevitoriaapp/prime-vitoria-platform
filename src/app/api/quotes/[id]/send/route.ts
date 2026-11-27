@@ -38,7 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const catIds = [...new Set((items ?? []).map((i) => i.vehicle_category_id as string).filter(Boolean))];
     const { data: cats } = catIds.length ? await db.from("vehicle_categories").select("id, name").in("id", catIds) : { data: [] };
     const catName = new Map((cats ?? []).map((c) => [c.id as string, c.name as string]));
-    const totals = quoteTotals((items ?? []).map((i) => ({ quantity: Number(i.quantity), unit_price: Number(i.unit_price) })), Number(q.discount) || 0);
+    const totals = quoteTotals((items ?? []).map((i) => ({ quantity: Number(i.quantity), unit_price: Number(i.unit_price), service_date: (i.service_date as string | null) ?? null, repeat_weekdays: (i.repeat_weekdays as number[] | null) ?? null, repeat_until: (i.repeat_until as string | null) ?? null })), Number(q.discount) || 0);
     const link = await quoteShareLink(id, q.share_token as string | null);
     const number = formatQuoteNumber(q.number as number);
     const subject = `Orçamento ${number} · Prime Vitória Transporte Executivo`;

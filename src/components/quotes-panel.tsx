@@ -12,7 +12,8 @@ import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 import { BackButton } from "@/components/back-button";
 import { BRIDAL_INCLUDED, BRIDAL_PACKAGES, bridalDescription, type BridalPackage } from "@/lib/quotes/bridal-packages";
 import { QuoteRouteEditor, emptyPoint, type RoutePoint } from "@/components/quote-route-editor";
-import { QUOTE_STATUS, effectiveQuoteStatus, formatQuoteNumber, isDiaria, itemHours, itemsMissingForTrips, priceKeyFor, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
+import { QUOTE_STATUS, effectiveQuoteStatus, formatQuoteNumber, isDiaria, itemHours, itemOccurrences, itemsMissingForTrips, kmAmount, priceKeyFor, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
+import { QuoteKmFields, QuoteRepeatFields } from "@/components/quote-km-repeat";
 import { COMPANY_SCOPES, inCompany, useCompany } from "@/lib/company/company-context";
 import { formatBrDateTime, saoPauloDateAndTimeToUtcIso } from "@/lib/dates/br-date";
 import { BodyPortal } from "@/components/ui/body-portal";
@@ -47,6 +48,12 @@ type Item = {
   quantity: number;
   unit_price: string;
   driver_amount: string;
+  km: string;
+  km_auto: boolean;
+  price_per_km: string;
+  driver_price_per_km: string;
+  repeat_days: number[];
+  repeat_until: string;
 };
 
 const input = PRIME_INPUT_CLASS;
@@ -102,7 +109,13 @@ const EMPTY_ITEM = (): Item => ({
   passenger_name: "",
   quantity: 1,
   unit_price: "",
-  driver_amount: ""
+  driver_amount: "",
+  km: "",
+  km_auto: true,
+  price_per_km: "",
+  driver_price_per_km: "",
+  repeat_days: [],
+  repeat_until: ""
 });
 
 function sortedItems(list: Item[]): Item[] {
@@ -353,7 +366,13 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
             passenger_name: (it.passenger_name as string) ?? "",
             quantity: Number(it.quantity) || 1,
             unit_price: money2(Number(it.unit_price)),
-            driver_amount: it.driver_amount == null ? "" : money2(Number(it.driver_amount))
+            driver_amount: it.driver_amount == null ? "" : money2(Number(it.driver_amount)),
+            km: it.km_estimate == null ? "" : String(Number(it.km_estimate)).replace(".", ","),
+            km_auto: it.km_estimate == null,
+            price_per_km: it.price_per_km == null ? "" : money2(Number(it.price_per_km)),
+            driver_price_per_km: it.driver_price_per_km == null ? "" : money2(Number(it.driver_price_per_km)),
+            repeat_days: Array.isArray(it.repeat_weekdays) ? (it.repeat_weekdays as number[]).map(Number) : [],
+            repeat_until: (it.repeat_until as string) ?? ""
           };
         })
       );
@@ -374,7 +393,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
   }, [clientId, clients, id]);
 
   const locked = status === "aprovado";
-  const parsedItems = items.map((i) => ({ quantity: i.quantity, unit_price: toNum(i.unit_price), driver_amount: i.driver_amount ? toNum(i.driver_amount) : null }));
+  const repeatOf = (i: Item) => ({ service_date: i.date || null, repeat_weekdays: i.repeat_days.length ? i.repeat_days : null, repeat_until: i.repeat_until || null });
+  const parsedItems = items.map((i) => ({ quantity: i.quantity, unit_price: toNum(i.unit_price), driver_amount: i.driver_amount ? toNum(i.driver_amount) : null, ...repeatOf(i) }));
   const totals = quoteTotals(parsedItems, toNum(discount));
 
   const vanCat = cats.find((c) => /van|micro|ônibus|onibus/i.test(c.name))?.id ?? "";
@@ -454,6 +474,13 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
       list.map((it, i) => {
         if (i !== idx) return it;
         const next = { ...it, ...patch };
+        // Por km: valor da viagem = km × R$/km (cliente e motorista).
+        if (next.service_mode === "km" && (patch.km !== undefined || patch.price_per_km !== undefined || patch.driver_price_per_km !== undefined || patch.service_mode !== undefined)) {
+          const v = kmAmount(toNum(next.km), toNum(next.price_per_km));
+          const d = kmAmount(toNum(next.km), toNum(next.driver_price_per_km));
+          if (v != null) next.unit_price = money2(v);
+          if (d != null) next.driver_amount = money2(d);
+        }
         // Puxa o preço da tabela do cliente quando muda categoria ou serviço e o valor está vazio.
         if ((patch.vehicle_category_id !== undefined || patch.service_mode !== undefined || patch.hours !== undefined) && next.vehicle_category_id) {
           const key = priceKeyFor(next.service_mode, next.hours ? toNum(next.hours) : null);
@@ -490,7 +517,12 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
         passenger_name: i.passenger_name || null,
         quantity: i.quantity,
         unit_price: toNum(i.unit_price),
-        driver_amount: i.driver_amount ? toNum(i.driver_amount) : null
+        driver_amount: i.driver_amount ? toNum(i.driver_amount) : null,
+        km_estimate: i.km ? toNum(i.km) : null,
+        price_per_km: i.service_mode === "km" && i.price_per_km ? toNum(i.price_per_km) : null,
+        driver_price_per_km: i.service_mode === "km" && i.driver_price_per_km ? toNum(i.driver_price_per_km) : null,
+        repeat_weekdays: i.repeat_days.length && i.repeat_until ? i.repeat_days : null,
+        repeat_until: i.repeat_days.length && i.repeat_until ? i.repeat_until : null
       };
   }
 
@@ -641,7 +673,6 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
 
   if (!loaded) return <div className="h-40 animate-pulse rounded-2xl border border-prime-border bg-white" />;
 
-  const catAllowsKm = (cid: string) => cats.find((c) => c.id === cid)?.allows_km;
 
   return (
     <div className="space-y-5">
@@ -878,7 +909,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                   {[
                     { id: "transfer", label: "Transfer" },
                     { id: "diaria", label: "Diária / à disposição" },
-                    ...(catAllowsKm(it.vehicle_category_id) ? [{ id: "km", label: "Por km" }] : []),
+                    { id: "km", label: "Por km" },
                     { id: "outro", label: "Outro" }
                   ].map((m) => (
                     <button
@@ -940,6 +971,29 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                   onChange={(n) => setItem(idx, n)}
                 />
               </div>
+              {it.service_mode === "km" ? (
+                <QuoteKmFields
+                  origin={it.origin}
+                  stops={it.stops}
+                  dest={it.dest}
+                  km={it.km}
+                  kmAuto={it.km_auto}
+                  pricePerKm={it.price_per_km}
+                  driverPricePerKm={it.driver_price_per_km}
+                  locked={rowLocked}
+                  onChange={(p) => setItem(idx, p)}
+                />
+              ) : null}
+              {!it.package_id ? (
+                <QuoteRepeatFields
+                  date={it.date}
+                  days={it.repeat_days}
+                  until={it.repeat_until}
+                  quantity={it.quantity}
+                  locked={rowLocked}
+                  onChange={(p) => setItem(idx, p)}
+                />
+              ) : null}
 
               <label className="grid gap-1 text-sm sm:col-span-2">
                 <span>Passageiros (aparece no orçamento)</span>
@@ -954,7 +1008,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                 <input type="number" min={1} max={50} className={input} disabled={rowLocked} value={it.quantity} onChange={(e) => setItem(idx, { quantity: Math.max(1, Number(e.target.value) || 1) })} />
               </label>
               <label className="grid gap-1 text-sm">
-                <span>Valor por veículo (R$)</span>
+                <span>{it.service_mode === "km" ? "Valor por viagem (R$)" : "Valor por veículo (R$)"}</span>
                 <input className={input} inputMode="decimal" disabled={rowLocked} placeholder="0,00" value={it.unit_price} onChange={(e) => setItem(idx, { unit_price: e.target.value.replace(/[^0-9.,]/g, "") })} onBlur={(e) => setItem(idx, { unit_price: e.target.value ? money2(toNum(e.target.value)) : "" })} />
               </label>
               <label className="grid gap-1 text-sm">
@@ -968,7 +1022,8 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
               </label>
               <p className="text-xs text-prime-muted sm:col-span-6">
                 {it.date ? (it.time ? formatBrDateTime(saoPauloDateAndTimeToUtcIso(it.date, it.time) ?? "") : `${it.date.split("-").reverse().join("/")} · falta a hora`) : "Falta a data"} · subtotal{" "}
-                <strong className="text-prime-text">{brl(it.quantity * toNum(it.unit_price))}</strong>
+                <strong className="text-prime-text">{brl(it.quantity * itemOccurrences(repeatOf(it) as never) * toNum(it.unit_price))}</strong>
+                {it.repeat_days.length && it.repeat_until ? ` (${it.quantity} veíc. × ${itemOccurrences(repeatOf(it) as never)} dias × ${brl(toNum(it.unit_price))})` : ""}
               </p>
             </div>
           );

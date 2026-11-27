@@ -1,7 +1,7 @@
 import { db } from "@/lib/server/db";
 import { billingIssuerById } from "@/lib/clients/billing-terms-calc";
 import { getTenantCompanyProfile } from "@/lib/company/tenant-company-profile";
-import { formatQuoteNumber, isDiaria, itemHours, quoteTotals, serviceLabelForClient } from "@/lib/quotes/quote-calc";
+import { formatQuoteNumber, hasRepeat, isDiaria, itemHours, itemOccurrences, quoteTotals, repeatLabel, serviceLabelForClient } from "@/lib/quotes/quote-calc";
 import { shortAddress } from "@/lib/client/short-address";
 import { bridalPackageById } from "@/lib/quotes/bridal-packages";
 
@@ -50,15 +50,24 @@ export async function loadQuoteDoc(quote: Record<string, unknown>): Promise<Quot
   const { data: cats } = catIds.length ? await db.from("vehicle_categories").select("id, name, description, passengers, photo_path").in("id", catIds) : { data: [] };
   const catName = new Map((cats ?? []).map((c) => [c.id as string, c.name as string]));
 
-  const dayKey = (i: Record<string, unknown>) => (i.scheduled_at ? ymdSP(i.scheduled_at as string) : ((i.service_date as string | null) ?? ""));
+  const baseDay = (i: Record<string, unknown>) => (i.scheduled_at ? ymdSP(i.scheduled_at as string) : ((i.service_date as string | null) ?? ""));
+  // Rotina semanal: um grupo próprio por período e dias ("Rotina · seg a sex · 01/12 a 31/12").
+  const dayKey = (i: Record<string, unknown>) =>
+    hasRepeat(i as never) ? `${baseDay(i)}~${i.repeat_until}~${((i.repeat_weekdays as number[]) ?? []).join("")}` : baseDay(i);
   const timeOf = (i: Record<string, unknown>) =>
     i.scheduled_at ? new Date(i.scheduled_at as string).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }) : "A combinar";
   const dayTitle = (ymd: string) => {
     if (!ymd) return "Data a combinar";
+    if (ymd.includes("~")) {
+      const it = sortedItems.find((x) => dayKey(x) === ymd);
+      const lbl = it ? repeatLabel(it as never) : null;
+      return lbl ? `Rotina · ${lbl}` : "Rotina";
+    }
     const s = new Date(`${ymd}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" });
     return s.charAt(0).toUpperCase() + s.slice(1);
   };
   const groups: QuoteDoc["groups"] = [];
+  const sortedItems = items ?? [];
   const sorted = [...(items ?? [])].sort((a, b) => `${dayKey(a)}${timeOf(a)}`.localeCompare(`${dayKey(b)}${timeOf(b)}`));
   for (const i of sorted) {
     const k = dayKey(i);
@@ -68,8 +77,13 @@ export async function loadQuoteDoc(quote: Record<string, unknown>): Promise<Quot
       groups.push(g);
     }
     const diaria = isDiaria(i.service_mode as string);
-    const qty = Number(i.quantity) || 1;
+    const occ = itemOccurrences(i as never);
+    const qty = (Number(i.quantity) || 1) * occ;
     const unit = Number(i.unit_price) || 0;
+    const km = Number(i.km_estimate) || 0;
+    const perKm = Number(i.price_per_km) || 0;
+    const kmTxt = i.service_mode === "km" && km > 0 ? `${String(km).replace(".", ",")} km${perKm > 0 ? ` × ${perKm.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/km` : ""}` : null;
+    const repTxt = occ > 1 || hasRepeat(i as never) ? `${Number(i.quantity) || 1} veículo(s) × ${occ} dia(s)` : null;
     g.rows.push({
       time: timeOf(i),
       vehicle: catName.get(i.vehicle_category_id as string) ?? "Veículo",
@@ -78,7 +92,7 @@ export async function loadQuoteDoc(quote: Record<string, unknown>): Promise<Quot
         .map((x) => [x.label ? String(x.label) : null, x.address_text ? shortAddress(String(x.address_text)) : null].filter(Boolean).join(": "))
         .filter(Boolean),
       passengers: i.passenger_count ? `${i.passenger_count} pessoa(s)` : null,
-      detail: (i.description as string | null) || null,
+      detail: [kmTxt, repTxt, (i.description as string | null) || null].filter(Boolean).join(" · ") || null,
       note: (i.passenger_name as string | null) || null,
       from: withLabel(i.origin_label, i.origin_text ? (diaria && !i.package_id ? `À disposição a partir de ${shortAddress(i.origin_text as string)}` : shortAddress(i.origin_text as string)) : diaria ? "À disposição" : "A definir"),
       to: diaria && !i.package_id ? ((i.destination_text as string | null) ?? null) : withLabel(i.destination_label, i.destination_text ? shortAddress(i.destination_text as string) : i.destination_label ? "" : "A definir"),
@@ -98,7 +112,16 @@ export async function loadQuoteDoc(quote: Record<string, unknown>): Promise<Quot
     : null;
   const tradeName = c?.trade_name || null;
   const legal = c?.name || null;
-  const totals = quoteTotals((items ?? []).map((i) => ({ quantity: Number(i.quantity), unit_price: Number(i.unit_price) })), Number(quote.discount) || 0);
+  const totals = quoteTotals(
+    (items ?? []).map((i) => ({
+      quantity: Number(i.quantity),
+      unit_price: Number(i.unit_price),
+      service_date: (i.service_date as string | null) ?? null,
+      repeat_weekdays: (i.repeat_weekdays as number[] | null) ?? null,
+      repeat_until: (i.repeat_until as string | null) ?? null
+    })),
+    Number(quote.discount) || 0
+  );
 
   return {
     id,
