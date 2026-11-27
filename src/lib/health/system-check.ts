@@ -51,7 +51,7 @@ export async function runSystemCheck(tenantId: string): Promise<HealthItem[]> {
   const h = 3600_000;
   const today = todayYmd();
 
-  const [noDriver, toApprove, stale, noValue, waDriver, waPax, emailFail, priceFail, invoices, payables, drivers, sched] = await Promise.all([
+  const [noDriver, toApprove, stale, noValue, waDriver, waPax, emailFail, priceFail, invoices, payables, drivers, sched, errs] = await Promise.all([
     // 1. Corridas das próximas 30 h sem motorista.
     db
       .from("trips")
@@ -106,7 +106,9 @@ export async function runSystemCheck(tenantId: string): Promise<HealthItem[]> {
     // 9. CNH vencendo nos próximos 30 dias (motoristas ativos).
     db.from("drivers").select("id, full_name, cnh_expires_at, cnh_expiry, active").eq("tenant_id", tenantId).eq("active", true).limit(500),
     // 10. Tarefas automáticas (agendador) com falha.
-    db.rpc("health_scheduler_failures", { p_hours: 24 })
+    db.rpc("health_scheduler_failures", { p_hours: 24 }),
+    // 11. Erros nas telas e no servidor (24 h).
+    db.from("app_errors").select("source, path, message, created_at").gte("created_at", iso(now - 24 * h)).order("created_at", { ascending: false }).limit(300)
   ]);
 
   const out: HealthItem[] = [];
@@ -241,6 +243,28 @@ export async function runSystemCheck(tenantId: string): Promise<HealthItem[]> {
     )
   );
 
+  // Erros agrupados pela mensagem: o mesmo erro repetido é um problema só.
+  const groups = new Map<string, { n: number; source: string; path: string | null; message: string }>();
+  for (const e of (errs.data ?? []) as { source: string; path: string | null; message: string }[]) {
+    const k = e.message.slice(0, 160);
+    const g = groups.get(k) ?? { n: 0, source: e.source, path: e.path, message: e.message };
+    g.n += 1;
+    groups.set(k, g);
+  }
+  const eg = [...groups.values()].sort((a, b) => b.n - a.n);
+  const errTotal = eg.reduce((s, g) => s + g.n, 0);
+  out.push(
+    item(
+      "erros",
+      "atencao",
+      "Erros nas telas e no servidor (24 h)",
+      eg.length,
+      `${plural(eg.length, "erro diferente", "erros diferentes")} (${errTotal} ocorrência${errTotal === 1 ? "" : "s"}). Se algo travou para você, um motorista ou cliente, aparece aqui. Mande para o suporte técnico corrigir.`,
+      undefined,
+      eg.slice(0, 8).map((g) => ({ label: `${g.n}× ${g.source === "tela" ? "tela" : "servidor"}${g.path ? ` ${g.path}` : ""}: ${g.message.slice(0, 140)}` }))
+    )
+  );
+
   return out;
 }
 
@@ -258,7 +282,8 @@ export function healthSummaryLine(items: HealthItem[]): string {
     faturas_vencidas: (n) => `${plural(n, "fatura vencida", "faturas vencidas")}`,
     repasses_vencidos: (n) => `${plural(n, "repasse vencido", "repasses vencidos")}`,
     cnh: (n) => `${plural(n, "CNH", "CNHs")} vencendo`,
-    agendador: () => "falha nas tarefas automáticas"
+    agendador: () => "falha nas tarefas automáticas",
+    erros: (n) => `${plural(n, "erro", "erros")} no sistema`
   };
   return bad.map((i) => (short[i.key] ? short[i.key](i.count) : i.title)).join(" · ");
 }

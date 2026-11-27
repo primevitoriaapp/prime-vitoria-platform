@@ -2,6 +2,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
+import { reportClientError } from "@/components/error-reporter";
 
 /** Erros típicos de página aberta antes de uma atualização do sistema (versão antiga em memória). */
 function isStaleVersion(error: Error) {
@@ -12,6 +13,7 @@ function isStaleVersion(error: Error) {
 export default function GlobalError({ error }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     Sentry.captureException(error);
+    if (!isStaleVersion(error)) reportClientError(`${error?.name ?? "Error"}: ${error?.message ?? ""}`, error?.digest);
     // Versão antiga aberta no celular: recarrega sozinho uma vez para pegar a versão nova.
     if (isStaleVersion(error)) {
       try {

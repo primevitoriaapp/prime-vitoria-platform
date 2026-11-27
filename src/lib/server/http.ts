@@ -1,11 +1,23 @@
 import { ZodError } from "zod";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+
+/** Guarda o erro depois de responder (a Vercel espera terminar). */
+function keepError(message: string, code: string) {
+  const task = () => import("@/lib/errors/record-app-error").then((m) => m.recordAppError({ source: "servidor", message, code })).catch(() => undefined);
+  try {
+    after(task);
+  } catch {
+    void task();
+  }
+}
 
 export function ok<T>(data: T, status = 200) {
   return NextResponse.json({ success: true, data, meta: { timestamp: new Date().toISOString() } }, { status });
 }
 
 export function fail(code: string, message: string, status = 400, hint?: string) {
+  // Erro do servidor (500+): guarda para a checagem diária.
+  if (status >= 500) keepError(message, code);
   return NextResponse.json(
     { success: false, error: { code, message, ...(hint ? { hint } : {}) } },
     { status }
@@ -42,6 +54,10 @@ export function mapApiError(error: unknown) {
   if (error instanceof ZodError) {
     const detail = error.errors.map((e) => `${e.path.join(".") || "campo"}: ${e.message}`).join(" · ");
     return fail("VALIDATION_ERROR", `Dados inválidos — ${detail}`, 422);
+  }
+  // Falha inesperada (bug, banco, rede) que caiu aqui como 400: também guarda.
+  if (/TypeError|ReferenceError|Cannot read|is not a function|is not defined|column|relation|violates|syntax error|fetch failed|timeout|ECONN|undefined|null value/i.test(message)) {
+    keepError(message, "INVALID_REQUEST");
   }
   return fail("INVALID_REQUEST", message, 400);
 }
