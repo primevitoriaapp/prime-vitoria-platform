@@ -22,7 +22,8 @@ type Lead = {
   completed_at?: string | null;
 };
 
-type Complete = { data: Record<string, unknown> | null; completed_at: string | null; files: { kind: string; label: string; url: string | null }[] };
+type DocFile = { kind: string; label: string; image?: boolean; url: string | null };
+type Complete = { data: Record<string, unknown> | null; completed_at: string | null; partial?: boolean; files: DocFile[]; missing?: { kind: string; label: string }[] };
 
 const C_LABEL: [string, string][] = [
   ["full_name", "Nome"], ["cpf", "CPF"], ["rg", "RG"], ["birth_date", "Nascimento"], ["phone", "Celular"], ["email", "E-mail"],
@@ -38,37 +39,114 @@ const C_LABEL: [string, string][] = [
 ];
 const fmtVal = (x: unknown) => (Array.isArray(x) ? x.join(", ") : x === "sim" ? "Sim" : x === "nao" ? "Não" : x === "autonomo" ? "Autônomo" : x === "mei" ? "MEI" : x === "pj" ? "Pessoa jurídica" : String(x));
 
+const SHORT: Record<string, string> = {
+  cnh: "CNH",
+  comprovante_residencia: "Comprovante de residência",
+  antecedentes: "Antecedentes criminais",
+  crlv: "CRLV",
+  foto_dianteira: "Frente do carro",
+  foto_traseira: "Traseira do carro",
+  foto_lateral_esquerda: "Lateral esquerda",
+  foto_lateral_direita: "Lateral direita",
+  apolice_seguro: "Apólice do seguro"
+};
+
+/** Documentos e fotos que o motorista mandou: fotos em miniatura (toque para ampliar) e PDFs em cartão. */
+function DocsGallery({ files, missing, onZoom }: { files: DocFile[]; missing: { kind: string; label: string }[]; onZoom: (f: DocFile) => void }) {
+  const photos = files.filter((f) => f.image && f.url);
+  const docs = files.filter((f) => !f.image && f.url);
+  return (
+    <div className="grid gap-3">
+      {photos.length ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {photos.map((f) => (
+            <button key={f.kind} type="button" onClick={() => onZoom(f)} className="group overflow-hidden rounded-xl bg-white text-left ring-1 ring-prime-border">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={f.url!} alt={SHORT[f.kind] ?? f.label} loading="lazy" className="aspect-[4/3] w-full object-cover transition group-hover:opacity-90" />
+              <span className="block truncate px-2 py-1.5 text-xs font-semibold">{SHORT[f.kind] ?? f.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {docs.length ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {docs.map((f) => (
+            <a key={f.kind} href={f.url!} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 ring-1 ring-prime-border">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#FBEDEA] text-[11px] font-bold text-[#A33A2B]">PDF</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">{SHORT[f.kind] ?? f.label}</span>
+                <span className="block text-xs text-prime-muted">Toque para abrir</span>
+              </span>
+            </a>
+          ))}
+        </div>
+      ) : null}
+      {missing.length ? (
+        <p className="rounded-xl bg-[#FBF3E0] px-3 py-2 text-xs text-[#8A5A00]">
+          <b>Falta enviar:</b> {missing.map((m) => SHORT[m.kind] ?? m.label).join(", ")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function CompleteView({ id }: { id: string }) {
   const [c, setC] = useState<Complete | null>(null);
+  const [zoom, setZoom] = useState<DocFile | null>(null);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     void fetch(`/api/leads/${id}/complete`, { credentials: "include" })
       .then((r) => r.json())
       .then((j: { data?: Complete }) => setC(j.data ?? null))
       .catch(() => undefined);
-  }, [id]);
-  if (!c) return <p className="text-sm text-prime-muted">Carregando cadastro completo…</p>;
-  if (!c.data) return null;
-  return (
-    <div className="rounded-xl border border-[#BFE3CC] bg-[#F1FAF4] p-3">
-      <p className="text-sm font-semibold text-[#1F7A4C]">✓ Cadastro completo enviado em {c.completed_at ? when(c.completed_at) : "—"}</p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {c.files.map((f) =>
-          f.url ? (
-            <a key={f.kind} href={f.url} target="_blank" rel="noreferrer" className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#111] ring-1 ring-[#BFE3CC]">
-              📎 {f.label}
-            </a>
-          ) : null
-        )}
+  }, [id, tick]);
+  if (!c) return <p className="text-sm text-prime-muted">Carregando documentos…</p>;
+  const missing = c.missing ?? [];
+  if (!c.data && !c.files.length)
+    return (
+      <div className="rounded-xl border border-dashed border-prime-border bg-white p-3 text-sm text-prime-muted">
+        Ele ainda não mandou nenhum documento. Use “Lembrar de terminar o cadastro” para cobrar.
       </div>
-      <dl className="mt-3 grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
-        {C_LABEL.filter(([k]) => c.data![k] !== undefined && c.data![k] !== "" && !(Array.isArray(c.data![k]) && !(c.data![k] as unknown[]).length)).map(([k, l]) => (
-          <div key={k}>
-            <dt className="text-xs text-prime-muted">{l}</dt>
-            <dd>{fmtVal(c.data![k])}</dd>
+    );
+  return (
+    <div className={`grid gap-3 rounded-xl border p-3 ${c.data ? "border-[#BFE3CC] bg-[#F1FAF4]" : "border-[#D6E0EC] bg-[#F4F7FB]"}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className={`text-sm font-semibold ${c.data ? "text-[#1F7A4C]" : "text-[#1B4E7A]"}`}>
+          {c.data
+            ? `✓ Cadastro completo enviado em ${c.completed_at ? when(c.completed_at) : "—"}`
+            : `Ainda preenchendo · já mandou ${c.files.length} de ${c.files.length + missing.length} documentos`}
+        </p>
+        <button type="button" onClick={() => setTick((t) => t + 1)} className="text-xs font-semibold text-prime-gold-ink">
+          ↻ Atualizar
+        </button>
+      </div>
+      <DocsGallery files={c.files} missing={missing} onZoom={setZoom} />
+      {c.data ? (
+        <dl className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
+          {C_LABEL.filter(([k]) => c.data![k] !== undefined && c.data![k] !== "" && !(Array.isArray(c.data![k]) && !(c.data![k] as unknown[]).length)).map(([k, l]) => (
+            <div key={k}>
+              <dt className="text-xs text-prime-muted">{l}</dt>
+              <dd>{fmtVal(c.data![k])}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      <p className="text-xs text-prime-muted">Por segurança, os links dos documentos valem 1 hora. Se expirar, toque em “Atualizar”.</p>
+      {zoom ? (
+        <div role="dialog" aria-modal="true" onClick={() => setZoom(null)} className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-3 bg-black/85 p-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={zoom.url!} alt={SHORT[zoom.kind] ?? zoom.label} className="max-h-[80vh] max-w-full rounded-xl object-contain" />
+          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+            <a href={zoom.url!} target="_blank" rel="noreferrer" className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#111]">
+              Abrir original
+            </a>
+            <button type="button" onClick={() => setZoom(null)} className="rounded-xl bg-[#111] px-4 py-2 text-sm font-semibold text-[#D9BC6A] ring-1 ring-white/30">
+              Fechar
+            </button>
           </div>
-        ))}
-      </dl>
-      <p className="mt-2 text-xs text-prime-muted">Os links dos documentos valem 15 minutos. Feche e abra de novo para gerar outros.</p>
+          <p className="text-sm font-semibold text-white">{SHORT[zoom.kind] ?? zoom.label}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -151,6 +229,15 @@ export function SiteLeadsBoard() {
   const [list, setList] = useState<Lead[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ativos" | Stage>("ativos");
+  useEffect(() => {
+    // Vindo do aviso do início: /cadastros-site?filtro=completo abre já no filtro certo.
+    try {
+      const f = new URLSearchParams(window.location.search).get("filtro");
+      if (f && ["completo", "etapa2", "etapa1", "aprovado", "descartado"].includes(f)) setFilter(f as Stage);
+    } catch {
+      /* sem filtro */
+    }
+  }, []);
   const [q, setQ] = useState("");
 
   useEffect(() => {
@@ -305,7 +392,7 @@ export function SiteLeadsBoard() {
                     {st === "etapa2" && l.complete_sent_at ? ` (link aberto desde ${when(l.complete_sent_at)})` : ""}. Telefone {l.phone}.
                   </p>
 
-                  {l.completed_at ? <CompleteView id={l.id} /> : null}
+                  {l.kind === "motorista" && (l.completed_at || l.complete_sent_at) ? <CompleteView id={l.id} /> : null}
 
                   {facts.length || l.use_cases?.length || l.company_size ? (
                     <div>

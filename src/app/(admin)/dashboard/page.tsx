@@ -6,6 +6,7 @@ import { DashboardOverview } from "@/components/dashboard-overview";
 import { DashboardCashAhead } from "@/components/dashboard-cash-ahead";
 import { TripsToReviewAlert } from "@/components/trip-review-banner";
 import { DriversAlertsCard } from "@/components/drivers-alerts-card";
+import { SiteLeadsReminder } from "@/components/site-leads-reminder";
 import { can } from "@/lib/security/rbac";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant/default-tenant";
 import { getSessionContext } from "@/lib/server/session";
@@ -52,6 +53,7 @@ export default async function DashboardPage() {
       </header>
       <div className="mb-5 empty:hidden">
         <TripsToReviewAlert />
+        {session.role === "admin" || session.role === "operador" ? <SiteLeadsReminder /> : null}
         <DriversAlertsCard />
       </div>
       <DashboardOverview tenantId={realtimeTenantId} showMoney={showMoney} />
