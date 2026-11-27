@@ -18,7 +18,7 @@ export default function PrivacidadePage() {
       <div className="h-1 bg-[#C9A84C]" />
       <main className="mx-auto max-w-3xl px-5 py-8 text-[15px] leading-relaxed text-[#333]">
         <h1 className="text-2xl font-semibold text-[#111]">Privacidade e termos de uso</h1>
-        <p className="mt-1 text-sm text-[#777]">Última atualização: outubro de 2026</p>
+        <p className="mt-1 text-sm text-[#777]">Última atualização: novembro de 2026</p>
 
         <H>1. Quem somos</H>
         <p>
@@ -68,6 +68,12 @@ export default function PrivacidadePage() {
           A localização do motorista é coletada só enquanto há corrida em andamento, para o passageiro acompanhar o carro e para medir a distância percorrida. O
           link de acompanhamento enviado ao passageiro deixa de funcionar quando a corrida termina.
         </p>
+        <p className="mt-3" id="app-motorista">
+          <b>App Prime Motorista (Android e iPhone)</b>, publicado pela <b>Prime Locadora &amp; Serviços LTDA</b> (CNPJ 65.710.916/0001-80): enquanto uma
+          corrida está em andamento, o app continua registrando a localização mesmo com a tela apagada ou com outro app aberto. Nesse período aparece uma
+          notificação fixa avisando que o trajeto está sendo registrado. Quando a corrida termina, a coleta para. A localização não é usada para publicidade,
+          não é vendida e só é compartilhada com o passageiro e a empresa contratante daquela corrida.
+        </p>
 
         <H>6. Por quanto tempo guardamos</H>
         <p>
@@ -79,6 +85,15 @@ export default function PrivacidadePage() {
         <p>
           Você pode pedir a qualquer momento: confirmação de que tratamos seus dados, acesso, correção, anonimização ou exclusão (quando a lei permitir),
           portabilidade e informações sobre compartilhamento. Basta escrever para <b>contato@primevitoria.com</b>.
+        </p>
+
+        <H>
+          <span id="excluir-conta">7.1 Como excluir sua conta</span>
+        </H>
+        <p>
+          Motoristas, parceiros e clientes podem pedir a exclusão da conta e dos dados pelo e-mail <b>contato@primevitoria.com</b>, com o assunto
+          “Excluir minha conta” e o nome e CPF/CNPJ cadastrados. Confirmamos o pedido em até 15 dias. O acesso é desativado e os dados pessoais são apagados ou
+          tornados anônimos; ficam guardados apenas os registros que a lei obriga (documentos fiscais e financeiros, pelo prazo legal).
         </p>
 
         <H>8. Segurança</H>
