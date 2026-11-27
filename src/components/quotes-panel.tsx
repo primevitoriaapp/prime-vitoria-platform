@@ -397,12 +397,44 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
     setItems((l) => (l.length === 1 && isBlank(l[0]) ? (k === "casamento" ? l : [newItem(l[0].date, k)]) : l));
   }
 
+  /**
+   * Escolher o pacote: aplica no serviço que ainda não tem pacote (mantendo veículo, data, hora e valores já digitados);
+   * se todos já têm pacote, cria um serviço novo. Depois rola a tela até ele.
+   */
   function addPackage(p: BridalPackage) {
     setIssuer("rj_prime");
+    let target = -1;
     setItems((l) => {
-      const novo = itemFromPackage(p, l[l.length - 1]?.date ?? "");
-      return l.length === 1 && isBlank(l[0]) ? [novo] : [...l, novo];
+      const idx = l.findIndex((it) => !it.package_id);
+      if (idx === -1) {
+        target = l.length;
+        return [...l, itemFromPackage(p, l[l.length - 1]?.date ?? "")];
+      }
+      target = idx;
+      const cur = l[idx];
+      const base = itemFromPackage(p, cur.date);
+      const merged: Item = {
+        ...base,
+        vehicle_category_id: cur.vehicle_category_id,
+        time: cur.time,
+        quantity: cur.quantity,
+        unit_price: cur.unit_price,
+        driver_amount: cur.driver_amount,
+        // Endereços já digitados continuam; o pacote só preenche o que estiver vazio.
+        origin: cur.origin.text ? cur.origin : base.origin,
+        dest: cur.dest.text ? cur.dest : base.dest,
+        stops: cur.stops.length ? cur.stops : base.stops
+      };
+      if (merged.vehicle_category_id && !merged.unit_price) {
+        const key = priceKeyFor(merged.service_mode, merged.hours ? toNum(merged.hours) : null);
+        const cell = prices.find((c) => c.category_id === merged.vehicle_category_id && c.service === key && c.enabled);
+        if (cell?.client_price != null) merged.unit_price = money2(cell.client_price);
+        if (cell?.partner_price != null && !merged.driver_amount) merged.driver_amount = money2(cell.partner_price);
+      }
+      return l.map((it, i) => (i === idx ? merged : it));
     });
+    setMsg({ ok: true, text: `${p.name} aplicado ao serviço. Confira os endereços, o veículo e o valor.` });
+    setTimeout(() => document.getElementById(`quote-item-${target}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   }
 
   function setItem(idx: number, patch: Partial<Item>) {
@@ -756,7 +788,13 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
             <p className="text-xs text-prime-muted">O pacote entra com a descrição e o roteiro (salão, igreja, cerimonial…). Depois é só colocar os endereços, a data, o veículo e o valor.</p>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {BRIDAL_PACKAGES.map((p) => (
-                <button key={p.id} type="button" onClick={() => addPackage(p)} className="rounded-xl border border-[#E3D3A8] bg-white p-3 text-left hover:border-prime-gold">
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => addPackage(p)}
+                  className={`rounded-xl border p-3 text-left hover:border-prime-gold ${items.some((i) => i.package_id === p.id) ? "border-2 border-[#111] bg-[#FBF6E9]" : "border-[#E3D3A8] bg-white"}`}
+                >
+                  {items.some((i) => i.package_id === p.id) ? <span className="mb-1 inline-block rounded-full bg-[#111] px-2 py-0.5 text-[10px] font-bold text-[#D9BC6A]">✓ ESCOLHIDO</span> : null}
                   <span className="block text-sm font-bold">{p.name}</span>
                   <span className="block text-xs text-prime-muted">
                     {p.duration} · {p.destinations}
@@ -775,7 +813,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
           const label = serviceLabelForClient(it.service_mode, it.hours ? toNum(it.hours) : null);
           const catName = cats.find((c) => c.id === it.vehicle_category_id)?.name;
           return (
-            <div key={idx} className="grid gap-3 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card sm:grid-cols-6">
+            <div key={idx} id={`quote-item-${idx}`} className="grid scroll-mt-24 gap-3 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card sm:grid-cols-6">
               <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-6">
                 <span className="text-sm font-semibold">
                   <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#111] text-xs text-prime-gold">{idx + 1}</span>
