@@ -33,9 +33,18 @@ jobs:
           mkdir -p assets
           curl -sfL https://central.primevitoria.com/app-icon/512 -o assets/icon-only.png
           cp assets/icon-only.png assets/icon-foreground.png
-          convert -size 1024x1024 xc:'#111111' assets/icon-background.png
-          convert assets/icon-only.png -resize 1024x1024 assets/icon-only.png
-          convert -size 2732x2732 xc:'#111111' \( assets/icon-only.png -resize 600x600 \) -gravity center -composite assets/splash.png
+          pip install --quiet pillow
+          python3 - <<'PY'
+          from PIL import Image
+          icon = Image.open("assets/icon-only.png").convert("RGBA").resize((1024, 1024))
+          icon.save("assets/icon-only.png")
+          icon.save("assets/icon-foreground.png")
+          Image.new("RGBA", (1024, 1024), "#111111").save("assets/icon-background.png")
+          splash = Image.new("RGBA", (2732, 2732), "#111111")
+          small = icon.resize((600, 600))
+          splash.paste(small, ((2732 - 600) // 2, (2732 - 600) // 2), small)
+          splash.save("assets/splash.png")
+          PY
           cp assets/splash.png assets/splash-dark.png
           npx --yes @capacitor/assets@3 generate --android --iconBackgroundColor '#111111' --iconBackgroundColorDark '#111111' --splashBackgroundColor '#111111' --splashBackgroundColorDark '#111111' || echo "ícone padrão"
       - name: Permissões (GPS e notificação)
