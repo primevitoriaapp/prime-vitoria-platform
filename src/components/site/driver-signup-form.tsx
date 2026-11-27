@@ -94,6 +94,20 @@ export function DriverSignupForm({ token, prefill }: { token: string; prefill: P
     }
   }, [KEY, v, multi, files, step]);
 
+  // Também manda o progresso para a central (a cada pausa de 4 s), para ela ver onde o motorista parou.
+  useEffect(() => {
+    if (done) return;
+    const id = window.setTimeout(() => {
+      void fetch(`/api/public/driver-signup/${token}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step, data: { ...v, ...multi } }),
+        keepalive: true
+      }).catch(() => undefined);
+    }, 4000);
+    return () => window.clearTimeout(id);
+  }, [token, v, multi, step, done]);
+
   const set = (k: string, m?: (x: string) => string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const x = m ? m(e.target.value) : e.target.value;
     setV((cur) => ({ ...cur, [k]: x }));

@@ -23,7 +23,12 @@ type Lead = {
 };
 
 type DocFile = { kind: string; label: string; image?: boolean; url: string | null };
-type Complete = { data: Record<string, unknown> | null; completed_at: string | null; partial?: boolean; files: DocFile[]; missing?: { kind: string; label: string }[] };
+type Complete = { data: Record<string, unknown> | null; completed_at: string | null; partial?: boolean; files: DocFile[]; missing?: { kind: string; label: string }[]; draft?: Record<string, unknown> | null; draft_step?: number | null; draft_at?: string | null };
+const SIGNUP_STEPS = ["Seus dados", "Habilitação", "Perfil profissional", "Veículo", "Documentos", "Pagamento", "Emergência", "Declarações"];
+const ago = (iso: string) => {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  return m < 1 ? "agora" : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `em ${when(iso)}`;
+};
 
 const C_LABEL: [string, string][] = [
   ["full_name", "Nome"], ["cpf", "CPF"], ["rg", "RG"], ["birth_date", "Nascimento"], ["phone", "Celular"], ["email", "E-mail"],
@@ -102,10 +107,11 @@ function CompleteView({ id }: { id: string }) {
   }, [id, tick]);
   if (!c) return <p className="text-sm text-prime-muted">Carregando documentos…</p>;
   const missing = c.missing ?? [];
-  if (!c.data && !c.files.length)
+  const info = c.data ?? c.draft ?? null;
+  if (!info && !c.files.length)
     return (
       <div className="rounded-xl border border-dashed border-prime-border bg-white p-3 text-sm text-prime-muted">
-        Ele ainda não mandou nenhum documento. Use “Lembrar de terminar o cadastro” para cobrar.
+        Ele ainda não começou a preencher o cadastro completo (nenhum dado nem documento chegou). Se demorar, use “Lembrar de terminar o cadastro”.
       </div>
     );
   return (
@@ -114,19 +120,31 @@ function CompleteView({ id }: { id: string }) {
         <p className={`text-sm font-semibold ${c.data ? "text-[#1F7A4C]" : "text-[#1B4E7A]"}`}>
           {c.data
             ? `✓ Cadastro completo enviado em ${c.completed_at ? when(c.completed_at) : "—"}`
-            : `Ainda preenchendo · já mandou ${c.files.length} de ${c.files.length + missing.length} documentos`}
+            : `Ainda preenchendo · ${c.files.length} de ${c.files.length + missing.length} documentos enviados`}
         </p>
         <button type="button" onClick={() => setTick((t) => t + 1)} className="text-xs font-semibold text-prime-gold-ink">
           ↻ Atualizar
         </button>
       </div>
+      {!c.data && c.draft_at ? (
+        <div className="grid gap-1.5">
+          <p className="text-sm">
+            Está na etapa <b>{(c.draft_step ?? 0) + 1} de {SIGNUP_STEPS.length}</b> ({SIGNUP_STEPS[c.draft_step ?? 0] ?? "—"}) · última atividade <b>{ago(c.draft_at)}</b>
+          </p>
+          <div className="flex gap-1">
+            {SIGNUP_STEPS.map((t, i) => (
+              <span key={t} title={t} className={`h-1.5 flex-1 rounded-full ${i <= (c.draft_step ?? 0) ? "bg-[#1B4E7A]" : "bg-[#D6E0EC]"}`} />
+            ))}
+          </div>
+        </div>
+      ) : null}
       <DocsGallery files={c.files} missing={missing} onZoom={setZoom} />
-      {c.data ? (
+      {info ? (
         <dl className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
-          {C_LABEL.filter(([k]) => c.data![k] !== undefined && c.data![k] !== "" && !(Array.isArray(c.data![k]) && !(c.data![k] as unknown[]).length)).map(([k, l]) => (
+          {C_LABEL.filter(([k]) => info[k] !== undefined && info[k] !== "" && !(Array.isArray(info[k]) && !(info[k] as unknown[]).length)).map(([k, l]) => (
             <div key={k}>
               <dt className="text-xs text-prime-muted">{l}</dt>
-              <dd>{fmtVal(c.data![k])}</dd>
+              <dd>{fmtVal(info[k])}</dd>
             </div>
           ))}
         </dl>
@@ -396,7 +414,7 @@ export function SiteLeadsBoard() {
 
                   {facts.length || l.use_cases?.length || l.company_size ? (
                     <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#8A6A1F]">{l.completed_at ? "Cadastro básico" : "O que ele informou"}</p>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#8A6A1F]">{l.kind === "motorista" ? "Pré-cadastro (1ª tela do site)" : "O que ele informou"}</p>
                       <div className="flex flex-wrap gap-2">
                         {l.kind === "empresa" && l.company_size ? <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-prime-border">Colaboradores: {l.company_size}</span> : null}
                         {l.use_cases?.length ? <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-prime-border">Interesse: {l.use_cases.join(", ")}</span> : null}

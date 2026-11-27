@@ -100,7 +100,7 @@ export default function SejaMotoristaPage() {
             <Kicker light>Cadastro</Kicker>
             <H2 light>Faça parte da equipe Prime Vitória</H2>
             <p className="mt-5 max-w-md text-base leading-relaxed text-white/75">
-              Primeiro, um pré-cadastro rápido. Depois a central chama você no WhatsApp e envia o link do cadastro completo, com documentos e fotos do veículo.
+              Comece com seus dados básicos e, em seguida, já continue no cadastro completo: documentos, fotos do veículo e dados de pagamento. Leva cerca de 10 minutos e seu progresso fica salvo.
             </p>
           </div>
           <LeadFormReveal kind="motorista" label="Gostaria de fazer parte?" />

@@ -19,7 +19,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const { id } = await params;
     const { data: lead } = await db
       .from("site_leads")
-      .select("id, tenant_id, complete_data, complete_files, completed_at")
+      .select("id, tenant_id, complete_data, complete_files, completed_at, draft_data, draft_step, draft_at")
       .eq("id", id)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -49,7 +49,16 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       }))
     );
     const missing = SIGNUP_FILES.filter((f) => f.required && !files[f.kind]).map((f) => ({ kind: f.kind, label: f.label }));
-    return ok({ data: lead.complete_data, completed_at: lead.completed_at, partial, files: links, missing });
+    return ok({
+      data: lead.complete_data,
+      completed_at: lead.completed_at,
+      partial,
+      files: links,
+      missing,
+      draft: lead.completed_at ? null : lead.draft_data,
+      draft_step: lead.draft_step,
+      draft_at: lead.draft_at
+    });
   } catch (e) {
     return mapApiError(e);
   }
