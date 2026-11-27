@@ -1034,7 +1034,28 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
             </div>
           );
         })}
-        <button type="button" className="w-full rounded-2xl border-2 border-dashed border-prime-border p-3 text-sm font-semibold text-prime-gold hover:border-prime-gold" onClick={() => setItems((l) => [...l, newItem(l[l.length - 1]?.date ?? "")])}>
+        <button type="button" className="w-full rounded-2xl border-2 border-dashed border-prime-border p-3 text-sm font-semibold text-prime-gold hover:border-prime-gold" onClick={() =>
+            setItems((l) => {
+              const prev = l[l.length - 1];
+              const base = newItem(prev?.date ?? "");
+              // Orçamento por km: o serviço novo já vem "Por km", com o mesmo veículo, R$/km, km mínimo e rotina.
+              if (prev?.service_mode === "km")
+                return [
+                  ...l,
+                  {
+                    ...base,
+                    vehicle_category_id: prev.vehicle_category_id,
+                    service_mode: "km",
+                    price_per_km: prev.price_per_km,
+                    driver_price_per_km: prev.driver_price_per_km,
+                    km_min: prev.km_min,
+                    repeat_days: prev.repeat_days,
+                    repeat_until: prev.repeat_until
+                  }
+                ];
+              return [...l, base];
+            })
+          }>
           {locked ? "+ Incluir serviço neste orçamento (transfer a mais, etc.)" : "+ Adicionar serviço"}
         </button>
         {locked && items.length > baseCount ? (
