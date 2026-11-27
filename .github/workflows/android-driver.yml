@@ -33,6 +33,10 @@ jobs:
           mkdir -p assets
           curl -sfL https://central.primevitoria.com/app-icon/512 -o assets/icon-only.png
           cp assets/icon-only.png assets/icon-foreground.png
+          convert -size 1024x1024 xc:'#111111' assets/icon-background.png
+          convert assets/icon-only.png -resize 1024x1024 assets/icon-only.png
+          convert -size 2732x2732 xc:'#111111' \( assets/icon-only.png -resize 600x600 \) -gravity center -composite assets/splash.png
+          cp assets/splash.png assets/splash-dark.png
           npx --yes @capacitor/assets@3 generate --android --iconBackgroundColor '#111111' --iconBackgroundColorDark '#111111' --splashBackgroundColor '#111111' --splashBackgroundColorDark '#111111' || echo "ícone padrão"
       - name: Permissões (GPS e notificação)
         run: |
