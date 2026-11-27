@@ -32,7 +32,10 @@ export async function runHealthCheck(tenantId: string, slot: "manha" | "tarde" |
   const items = await runSystemCheck(tenantId);
   const bad = items.filter((i) => i.level !== "ok");
   const critical = bad.filter((i) => i.level === "critico").length;
-  const toAlert = slot === "manual" ? [] : slot === "tarde" ? bad.filter((i) => URGENT.has(i.key)) : bad;
+  // Repasses têm datas variadas: lembra só às segundas de manhã (na página aparecem sempre).
+  const monday = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", weekday: "short" }).format(new Date()) === "Mon";
+  const morning = bad.filter((i) => i.key !== "repasses_vencidos" || monday);
+  const toAlert = slot === "manual" ? [] : slot === "tarde" ? bad.filter((i) => URGENT.has(i.key)) : morning;
   const notified: Record<string, unknown> = {};
 
   if (toAlert.length) {
