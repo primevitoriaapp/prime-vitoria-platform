@@ -71,6 +71,26 @@ jobs:
           NAME="${{ github.event.inputs.version_name || '1.0.0' }}"
           sed -i -E "s/versionCode [0-9]+/versionCode $CODE/; s/versionName \"[^\"]*\"/versionName \"$NAME\"/" $G
           cat $V; grep -nE "versionCode|versionName" $G
+      - name: Texto no tamanho do desenho (ignora a fonte gigante do celular)
+        run: |
+          F=$(find android/app/src/main/java -name MainActivity.java)
+          cat > "$F" <<'JAVA'
+          package com.primevitoria.motorista;
+
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onResume() {
+                  super.onResume();
+                  // O app já tem letras grandes; a fonte aumentada do celular quebrava as telas.
+                  if (getBridge() != null && getBridge().getWebView() != null) {
+                      getBridge().getWebView().getSettings().setTextZoom(100);
+                  }
+              }
+          }
+          JAVA
+          cat "$F"
       - name: Sincronizar
         run: npx cap sync android
       - name: Chave de assinatura (Prime Locadora)

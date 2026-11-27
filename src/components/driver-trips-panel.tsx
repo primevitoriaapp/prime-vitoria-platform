@@ -27,6 +27,7 @@ import { DriverTripExpenses } from "@/components/trip-expenses";
 import { fmtRating, tripTags, type DriverSummary } from "@/components/driver-app-home";
 import type { ReactNode } from "react";
 import { BodyPortal } from "@/components/ui/body-portal";
+import { useBackToClose } from "@/hooks/use-back-to-close";
 
 const ACTIVE: TripOperationalStatus[] = [
   "dispatched",
@@ -102,6 +103,13 @@ export function DriverTripsPanel({
   const [detailOpen, setDetailOpen] = useState(false);
   /** Outra corrida (não a próxima) aberta pela agenda ou pelo aviso "para confirmar". */
   const [otherTripId, setOtherTripId] = useState<string | null>(null);
+  /** Cartão da próxima corrida minimizado (para ver o mapa). */
+  const [cardMin, setCardMin] = useState(false);
+  const swipeY = useRef<number | null>(null);
+  // Botão "voltar" do celular fecha a janela aberta em vez de sair do app.
+  useBackToClose(detailOpen, () => setDetailOpen(false));
+  useBackToClose(otherTripId != null, () => setOtherTripId(null));
+  useBackToClose(sheet != null, () => setSheet(null));
   const [agendaFilter, setAgendaFilter] = useState<"hoje" | "amanha" | "semana">("semana");
   const [histMonth, setHistMonth] = useState<string>(() => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()).slice(0, 7));
   const [payByTrip, setPayByTrip] = useState<Record<string, { stage: string; amount: number; paid_at: string | null }>>({});
@@ -608,8 +616,34 @@ export function DriverTripsPanel({
                 idleHome ?? null
               ) : (
                 <div className={`rounded-[28px] bg-white px-5 pb-4 pt-2.5 ${["dispatched", "accepted", "approved", "reassigned"].includes(primaryTrip.operational_status) ? "pv-glow" : "shadow-[0_18px_40px_rgba(0,0,0,0.18)]"}`}>
-                  <div className="mx-auto h-1.5 w-10 rounded-full bg-[#DDD8CC]" />
-                  <button type="button" onClick={() => setDetailOpen(true)} className="mt-3 block w-full text-left">
+                  <button
+                    type="button"
+                    aria-label={cardMin ? "Abrir o cartão da corrida" : "Minimizar o cartão"}
+                    onClick={() => setCardMin((v) => !v)}
+                    onTouchStart={(e) => (swipeY.current = e.touches[0]?.clientY ?? null)}
+                    onTouchEnd={(e) => {
+                      const y0 = swipeY.current;
+                      const y1 = e.changedTouches[0]?.clientY ?? null;
+                      swipeY.current = null;
+                      if (y0 == null || y1 == null) return;
+                      if (y1 - y0 > 30) setCardMin(true);
+                      else if (y0 - y1 > 30) setCardMin(false);
+                    }}
+                    className="-mx-5 -mt-2.5 block w-[calc(100%+2.5rem)] touch-none px-5 pb-1 pt-2.5"
+                  >
+                    <span className="mx-auto block h-1.5 w-10 rounded-full bg-[#DDD8CC]" />
+                  </button>
+                  {cardMin ? (
+                    <button type="button" onClick={() => setCardMin(false)} className="mt-1 flex w-full items-center justify-between gap-3 text-left">
+                      <span className="min-w-0">
+                        <span className="block text-xl font-extrabold tabular-nums text-[#111]">{hm(primaryTrip.scheduled_at)}</span>
+                        <span className="block truncate text-sm text-[#5C6067]">{tripPeopleLabel(primaryTrip) || "Passageiro"}</span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-[#111] px-4 py-2 text-sm font-semibold text-prime-gold">Abrir ▲</span>
+                    </button>
+                  ) : (
+                  <>
+                  <button type="button" onClick={() => setDetailOpen(true)} className="mt-1 block w-full text-left">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-xs font-bold uppercase tracking-[0.1em] text-[#8A6A1F]">
@@ -660,6 +694,8 @@ export function DriverTripsPanel({
                       + {otherActive.length} corrida{otherActive.length === 1 ? "" : "s"} agendada{otherActive.length === 1 ? "" : "s"} · ver agenda
                     </button>
                   ) : null}
+                  </>
+                  )}
                 </div>
               )}
             </div>
