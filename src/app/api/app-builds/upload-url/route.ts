@@ -1,12 +1,12 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { fail, ok } from "@/lib/server/http";
+import { checkBuildToken } from "@/lib/app-builds/build-token";
 
 export const runtime = "nodejs";
 
 const BUCKET = "app-builds";
-const schema = z.object({ token: z.string().min(20).max(200), name: z.string().regex(/^[a-z0-9-]{3,60}$/) });
+const schema = z.object({ token: z.string().min(20).max(200), name: z.string().regex(/^[a-z0-9-]{3,60}$/), kinds: z.array(z.enum(["apk", "aab"])).min(1).max(2).default(["apk"]) });
 
 /**
  * O build automático (GitHub) pede aqui um link para subir o APK direto no armazenamento.
@@ -14,18 +14,16 @@ const schema = z.object({ token: z.string().min(20).max(200), name: z.string().r
  */
 export async function POST(request: Request) {
   try {
-    const { token, name } = schema.parse(await request.json());
-    const { data } = await db.from("app_secrets").select("value").eq("key", "app_upload").maybeSingle();
-    const v = (data?.value ?? {}) as { token_sha256?: string; expires_at?: string; used?: boolean };
-    const got = createHash("sha256").update(token).digest("hex");
-    const want = String(v.token_sha256 ?? "");
-    const valid = want.length === got.length && timingSafeEqual(Buffer.from(want), Buffer.from(got)) && !v.used && Date.parse(v.expires_at ?? "") > Date.now();
-    if (!valid) return fail("UNAUTHORIZED", "Senha de envio inválida ou vencida", 401);
-    await db.from("app_secrets").update({ value: { ...v, used: true } }).eq("key", "app_upload");
-    const path = `driver/${name}.apk`;
-    const { data: up, error } = await db.storage.from(BUCKET).createSignedUploadUrl(path, { upsert: true });
-    if (error || !up) return fail("UPLOAD_URL_FAILED", error?.message ?? "Falhou", 500);
-    return ok({ path, signedUrl: up.signedUrl });
+    const { token, name, kinds } = schema.parse(await request.json());
+    if (!(await checkBuildToken(token, true))) return fail("UNAUTHORIZED", "Senha de envio inválida ou vencida", 401);
+    const urls: Record<string, string> = {};
+    for (const kind of kinds) {
+      const { data: up, error } = await db.storage.from(BUCKET).createSignedUploadUrl(`driver/${name}.${kind}`, { upsert: true });
+      if (error || !up) return fail("UPLOAD_URL_FAILED", error?.message ?? "Falhou", 500);
+      urls[kind] = up.signedUrl;
+    }
+    // signedUrl continua no topo (compatível com o build antigo, que só manda APK).
+    return ok({ signedUrl: urls.apk ?? urls.aab, urls });
   } catch {
     return fail("INVALID_BODY", "Dados inválidos", 400);
   }

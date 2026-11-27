@@ -4,8 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       upload_token:
-        description: "Senha de uso único para publicar o APK de teste na central (opcional)"
+        description: "Senha de uso único da central (gera a versão assinada e publica na central)"
         required: false
+      version_name:
+        description: "Versão que aparece na loja (ex.: 1.0.0)"
+        required: false
+        default: "1.0.0"
   push:
     branches: [main]
     paths: ["mobile/driver/**", ".github/workflows/android-driver.yml"]
@@ -16,7 +20,14 @@ jobs:
     defaults:
       run:
         working-directory: mobile/driver
+    env:
+      TOKEN: ${{ github.event.inputs.upload_token }}
+      CENTRAL: https://central.primevitoria.com
     steps:
+      - name: Esconder a senha nos registros
+        working-directory: .
+        run: |
+          [ -n "$TOKEN" ] && echo "::add-mask::$TOKEN" || true
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -28,15 +39,13 @@ jobs:
       - name: Instalar Capacitor
         run: |
           npm install --no-audit --no-fund || npm install --no-audit --no-fund --legacy-peer-deps
-          npx cap --version
           npm ls --depth=0 || true
       - name: Criar projeto Android
         run: npx cap add android
       - name: Ícone do app
         run: |
           mkdir -p assets
-          curl -sfL https://central.primevitoria.com/app-icon/512 -o assets/icon-only.png
-          cp assets/icon-only.png assets/icon-foreground.png
+          curl -sfL "$CENTRAL/app-icon/512" -o assets/icon-only.png
           pip install --quiet pillow
           python3 - <<'PY'
           from PIL import Image
@@ -48,32 +57,79 @@ jobs:
           small = icon.resize((600, 600))
           splash.paste(small, ((2732 - 600) // 2, (2732 - 600) // 2), small)
           splash.save("assets/splash.png")
+          splash.save("assets/splash-dark.png")
           PY
-          cp assets/splash.png assets/splash-dark.png
-          npx --yes @capacitor/assets@3 generate --android --iconBackgroundColor '#111111' --iconBackgroundColorDark '#111111' --splashBackgroundColor '#111111' --splashBackgroundColorDark '#111111' || echo "ícone padrão"
-      - name: Permissões (GPS e notificação)
+          npx --yes @capacitor/assets@3 generate --android --iconBackgroundColor '#111111' --iconBackgroundColorDark '#111111' --splashBackgroundColor '#111111' --splashBackgroundColorDark '#111111'
+      - name: Permissões, versão e Android 16
         run: |
           M=android/app/src/main/AndroidManifest.xml
           sed -i 's#<application#<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-feature android:name="android.hardware.location.gps" android:required="false" />\n\n    <application#' $M
-          cat $M
+          V=android/variables.gradle
+          sed -i -E 's/(compileSdkVersion *= *)[0-9]+/\136/; s/(targetSdkVersion *= *)[0-9]+/\136/' $V
+          G=android/app/build.gradle
+          CODE=$((100 + ${{ github.run_number }}))
+          NAME="${{ github.event.inputs.version_name || '1.0.0' }}"
+          sed -i -E "s/versionCode [0-9]+/versionCode $CODE/; s/versionName \"[^\"]*\"/versionName \"$NAME\"/" $G
+          cat $V; grep -nE "versionCode|versionName" $G
       - name: Sincronizar
         run: npx cap sync android
-      - name: Gerar APK de teste
+      - name: Chave de assinatura (Prime Locadora)
+        if: env.TOKEN != ''
+        run: |
+          set -e
+          RESP=$(curl -sf -X POST "$CENTRAL/api/app-builds/signing" -H 'content-type: application/json' -d "{\"token\":\"$TOKEN\"}")
+          HAS=$(echo "$RESP" | python3 -c "import sys,json;print('1' if json.load(sys.stdin)['data'] else '0')")
+          if [ "$HAS" = "0" ]; then
+            P=$(python3 -c "import secrets;print(secrets.token_urlsafe(24))")
+            keytool -genkeypair -keystore new.jks -alias primemotorista -keyalg RSA -keysize 4096 -validity 10000 -storepass "$P" -keypass "$P" -dname "CN=Prime Locadora e Servicos LTDA, O=Prime Locadora e Servicos LTDA, L=Vitoria, ST=ES, C=BR" >/dev/null 2>&1
+            B=$(base64 -w0 new.jks)
+            python3 -c "import json,sys;print(json.dumps({'token':sys.argv[1],'create':{'keystore_b64':sys.argv[2],'password':sys.argv[3],'alias':'primemotorista'}}))" "$TOKEN" "$B" "$P" > body.json
+            RESP=$(curl -sf -X POST "$CENTRAL/api/app-builds/signing" -H 'content-type: application/json' --data-binary @body.json)
+            rm -f new.jks body.json
+          fi
+          echo "$RESP" | python3 -c "
+          import sys,json,base64
+          d=json.load(sys.stdin)['data']
+          open('upload.jks','wb').write(base64.b64decode(d['keystore_b64']))
+          open('ks.env','w').write('KS_PASS='+d['password']+'\nKS_ALIAS='+d['alias']+'\n')
+          print('::add-mask::'+d['password'])
+          "
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file(System.getenv("KS_PATH"))
+                      storePassword System.getenv("KS_PASS")
+                      keyAlias System.getenv("KS_ALIAS")
+                      keyPassword System.getenv("KS_PASS")
+                  }
+              }
+              buildTypes { release { signingConfig signingConfigs.release } }
+          }
+          GRADLE
+          cat ks.env >> $GITHUB_ENV
+          echo "KS_PATH=$PWD/upload.jks" >> $GITHUB_ENV
+          rm -f ks.env
+      - name: Gerar versão de teste (sem assinatura oficial)
+        if: env.TOKEN == ''
         working-directory: mobile/driver/android
         run: ./gradlew assembleDebug --no-daemon
-      - uses: actions/upload-artifact@v4
-        with:
-          name: prime-motorista-teste
-          path: mobile/driver/android/app/build/outputs/apk/debug/app-debug.apk
-      - name: Publicar APK de teste na central
-        if: ${{ github.event.inputs.upload_token != '' }}
-        working-directory: mobile/driver
-        env:
-          TOKEN: ${{ github.event.inputs.upload_token }}
+      - name: Gerar versão oficial (loja .aab + APK de teste assinado)
+        if: env.TOKEN != ''
+        working-directory: mobile/driver/android
+        run: ./gradlew bundleRelease assembleRelease --no-daemon
+      - name: Publicar na central
+        if: env.TOKEN != ''
         run: |
-          echo "::add-mask::$TOKEN"
-          NAME="motorista-$(date -u +%Y%m%d-%H%M)"
-          RESP=$(curl -sf -X POST https://central.primevitoria.com/api/app-builds/upload-url -H 'content-type: application/json' -d "{\"token\":\"$TOKEN\",\"name\":\"$NAME\"}")
-          URL=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['signedUrl'])")
-          curl -sf -X PUT "$URL" -H 'content-type: application/vnd.android.package-archive' --data-binary @android/app/build/outputs/apk/debug/app-debug.apk
-          echo "APK publicado: $NAME"
+          set -e
+          NAME="motorista-$(date -u +%Y%m%d-%H%M)-v${{ github.run_number }}"
+          RESP=$(curl -sf -X POST "$CENTRAL/api/app-builds/upload-url" -H 'content-type: application/json' -d "{\"token\":\"$TOKEN\",\"name\":\"$NAME\",\"kinds\":[\"apk\",\"aab\"]}")
+          APK_URL=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['urls']['apk'])")
+          AAB_URL=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['urls']['aab'])")
+          curl -sf -X PUT "$APK_URL" -H 'content-type: application/vnd.android.package-archive' --data-binary @android/app/build/outputs/apk/release/app-release.apk >/dev/null
+          curl -sf -X PUT "$AAB_URL" -H 'content-type: application/octet-stream' --data-binary @android/app/build/outputs/bundle/release/app-release.aab >/dev/null
+          echo "Publicado: $NAME"
+      - name: Apagar a chave do computador do build
+        if: always()
+        run: rm -f upload.jks
