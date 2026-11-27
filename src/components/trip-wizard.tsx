@@ -25,6 +25,8 @@ type Category = { id: string; name: string; description: string | null; passenge
 type PriceRow = { category_id: string; service: string; enabled: boolean; client_price: number | null; partner_price: number | null };
 
 const STEPS = ["Cliente", "Data e hora", "Veículo", "Detalhes", "Resumo"] as const;
+/** Diária sem destino definido: o carro fica à disposição e o roteiro é combinado com o passageiro. */
+const DIARIA_SEM_DESTINO = "À disposição (roteiro combinado com o passageiro)";
 const ALL_MODES: ServiceMode[] = ["transfer", "diaria_5h", "diaria_10h", "diaria_12h", "km"];
 const input = PRIME_INPUT_CLASS;
 
@@ -330,7 +332,8 @@ export function TripWizard({ onDone, initialClientId, initialRef }: { onDone?: (
       if (!team.length && routeKind === "deixar" && validStops.length < 2) m.push("pelo menos 2 paradas com endereço");
       if (!team.length && routeKind === "buscar" && validStops.length < 2) m.push("pelo menos 2 embarques com endereço");
       if (origin.text.trim().length < 3) m.push(routeKind === "buscar" && !team.length ? "endereço do 1º embarque" : "local de embarque");
-      if (dest.text.trim().length < 3) m.push(routeKind === "deixar" && !team.length ? "endereço da última parada" : "destino");
+      // Diária (carro à disposição): o roteiro é com o passageiro, destino é opcional.
+      if (dest.text.trim().length < 3 && !mode.startsWith("diaria")) m.push(routeKind === "deixar" && !team.length ? "endereço da última parada" : "destino");
       if (category && passengers > category.passengers) m.push(`no máximo ${category.passengers} passageiros`);
     }
     return m;
@@ -433,7 +436,7 @@ export function TripWizard({ onDone, initialClientId, initialRef }: { onDone?: (
       origin_text: origin.text.trim(),
       origin_lat: origin.lat ?? undefined,
       origin_lng: origin.lng ?? undefined,
-      destination_text: dest.text.trim(),
+      destination_text: dest.text.trim().length >= 3 ? dest.text.trim() : DIARIA_SEM_DESTINO,
       destination_lat: dest.lat ?? undefined,
       destination_lng: dest.lng ?? undefined,
       passenger_name:
@@ -1149,8 +1152,8 @@ export function TripWizard({ onDone, initialClientId, initialRef }: { onDone?: (
                 </button>
               </div>
               <AddressAutocompleteInput
-                label={manualStops.length ? "Destino final" : "Destino"}
-                required
+                label={manualStops.length ? "Destino final" : mode.startsWith("diaria") ? "Destino (opcional na diária)" : "Destino"}
+                required={!mode.startsWith("diaria")}
                 placeholder="Ex.: Hotel, empresa ou endereço"
                 value={dest.text}
                 hasCoords={dest.lat != null}
@@ -1323,7 +1326,7 @@ export function TripWizard({ onDone, initialClientId, initialRef }: { onDone?: (
               <div>
                 <dt className="text-xs text-prime-muted">Trajeto</dt>
                 <dd>{origin.text}</dd>
-                <dd>→ {dest.text}</dd>
+                <dd>→ {dest.text.trim() || DIARIA_SEM_DESTINO}</dd>
               </div>
               <div>
                 <dt className="text-xs text-prime-muted">Passageiro</dt>
