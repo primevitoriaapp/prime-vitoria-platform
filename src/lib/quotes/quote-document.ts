@@ -82,7 +82,12 @@ export async function loadQuoteDoc(quote: Record<string, unknown>): Promise<Quot
     const unit = Number(i.unit_price) || 0;
     const km = Number(i.km_estimate) || 0;
     const perKm = Number(i.price_per_km) || 0;
-    const kmTxt = i.service_mode === "km" && km > 0 ? `${String(km).replace(".", ",")} km${perKm > 0 ? ` × ${perKm.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/km` : ""}` : null;
+    const kmMin = Number(i.km_minimum) || 0;
+    const kmBill = Math.max(km, kmMin);
+    const kmTxt =
+      i.service_mode === "km" && kmBill > 0
+        ? `${String(kmBill).replace(".", ",")} km${kmMin > km ? ` (km mínimo; rota ${String(km).replace(".", ",")} km)` : ""}${perKm > 0 ? ` × ${perKm.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/km` : ""}`
+        : null;
     const repTxt = occ > 1 || hasRepeat(i as never) ? `${Number(i.quantity) || 1} veículo(s) × ${occ} dia(s)` : null;
     g.rows.push({
       time: timeOf(i),

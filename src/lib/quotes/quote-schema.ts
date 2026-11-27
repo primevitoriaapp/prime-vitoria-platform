@@ -37,6 +37,7 @@ export const quoteItemSchema = z.object({
   unit_price: money.transform((v) => v ?? 0),
   driver_amount: money,
   km_estimate: money.optional(),
+  km_minimum: money.optional(),
   price_per_km: money.optional(),
   driver_price_per_km: money.optional(),
   repeat_weekdays: z.array(z.coerce.number().int().min(0).max(6)).max(7).nullable().optional(),

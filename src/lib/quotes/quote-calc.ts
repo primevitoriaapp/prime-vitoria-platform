@@ -74,9 +74,14 @@ export function repeatLabel(i: QuoteItemLike): string | null {
   return `${weekdaysLabel(i.repeat_weekdays)} · ${first} a ${br(i.repeat_until as string)} · ${n} dia${n === 1 ? "" : "s"}`;
 }
 
-/** Valor de um trecho por km (km × R$/km). */
-export function kmAmount(km: number | null | undefined, perKm: number | null | undefined): number | null {
-  const k = Number(km);
+/** Km cobrado: o maior entre o km da rota e o km mínimo. */
+export function billableKm(km: number | null | undefined, minimum?: number | null): number {
+  return Math.max(Number(km) || 0, Number(minimum) || 0);
+}
+
+/** Valor de um trecho por km (km cobrado × R$/km). */
+export function kmAmount(km: number | null | undefined, perKm: number | null | undefined, minimum?: number | null): number | null {
+  const k = billableKm(km, minimum);
   const p = Number(perKm);
   if (!Number.isFinite(k) || !Number.isFinite(p) || k <= 0 || p <= 0) return null;
   return Math.round(k * p * 100) / 100;

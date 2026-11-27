@@ -50,6 +50,7 @@ type Item = {
   driver_amount: string;
   km: string;
   km_auto: boolean;
+  km_min: string;
   price_per_km: string;
   driver_price_per_km: string;
   repeat_days: number[];
@@ -112,6 +113,7 @@ const EMPTY_ITEM = (): Item => ({
   driver_amount: "",
   km: "",
   km_auto: true,
+  km_min: "",
   price_per_km: "",
   driver_price_per_km: "",
   repeat_days: [],
@@ -369,6 +371,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
             driver_amount: it.driver_amount == null ? "" : money2(Number(it.driver_amount)),
             km: it.km_estimate == null ? "" : String(Number(it.km_estimate)).replace(".", ","),
             km_auto: it.km_estimate == null,
+            km_min: it.km_minimum == null ? "" : String(Number(it.km_minimum)).replace(".", ","),
             price_per_km: it.price_per_km == null ? "" : money2(Number(it.price_per_km)),
             driver_price_per_km: it.driver_price_per_km == null ? "" : money2(Number(it.driver_price_per_km)),
             repeat_days: Array.isArray(it.repeat_weekdays) ? (it.repeat_weekdays as number[]).map(Number) : [],
@@ -475,9 +478,9 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
         if (i !== idx) return it;
         const next = { ...it, ...patch };
         // Por km: valor da viagem = km × R$/km (cliente e motorista).
-        if (next.service_mode === "km" && (patch.km !== undefined || patch.price_per_km !== undefined || patch.driver_price_per_km !== undefined || patch.service_mode !== undefined)) {
-          const v = kmAmount(toNum(next.km), toNum(next.price_per_km));
-          const d = kmAmount(toNum(next.km), toNum(next.driver_price_per_km));
+        if (next.service_mode === "km" && (patch.km !== undefined || patch.km_min !== undefined || patch.price_per_km !== undefined || patch.driver_price_per_km !== undefined || patch.service_mode !== undefined)) {
+          const v = kmAmount(toNum(next.km), toNum(next.price_per_km), toNum(next.km_min));
+          const d = kmAmount(toNum(next.km), toNum(next.driver_price_per_km), toNum(next.km_min));
           if (v != null) next.unit_price = money2(v);
           if (d != null) next.driver_amount = money2(d);
         }
@@ -519,6 +522,7 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
         unit_price: toNum(i.unit_price),
         driver_amount: i.driver_amount ? toNum(i.driver_amount) : null,
         km_estimate: i.km ? toNum(i.km) : null,
+        km_minimum: i.service_mode === "km" && i.km_min ? toNum(i.km_min) : null,
         price_per_km: i.service_mode === "km" && i.price_per_km ? toNum(i.price_per_km) : null,
         driver_price_per_km: i.service_mode === "km" && i.driver_price_per_km ? toNum(i.driver_price_per_km) : null,
         repeat_weekdays: i.repeat_days.length && i.repeat_until ? i.repeat_days : null,
@@ -978,10 +982,12 @@ function QuoteEditor({ id, onClose, onSaved }: { id: string | null; onClose: () 
                   dest={it.dest}
                   km={it.km}
                   kmAuto={it.km_auto}
+                  kmMin={it.km_min}
                   pricePerKm={it.price_per_km}
                   driverPricePerKm={it.driver_price_per_km}
                   locked={rowLocked}
                   onChange={(p) => setItem(idx, p)}
+                  onPoints={(p) => setItem(idx, p)}
                 />
               ) : null}
               {!it.package_id ? (

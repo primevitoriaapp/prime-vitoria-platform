@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
-import { routeKm } from "@/lib/maps/route-km";
+import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { itemDates, weekdaysLabel } from "@/lib/quotes/quote-calc";
 import type { RoutePoint } from "@/components/quote-route-editor";
 
@@ -10,8 +10,8 @@ const input = PRIME_INPUT_CLASS;
 const onlyNum = (v: string) => v.replace(/[^0-9.,]/g, "");
 
 /**
- * Serviço por km: o km sai da rota pelo GPS (pode corrigir na mão) e o valor é km × R$/km.
- * Recalcula sozinho quando a rota muda, enquanto o km não foi digitado na mão.
+ * Serviço por km: o km sai da rota (o servidor localiza os endereços e calcula o trajeto de carro);
+ * dá para corrigir na mão. Valor = maior entre km da rota e km mínimo × R$/km.
  */
 export function QuoteKmFields({
   origin,
@@ -19,76 +19,123 @@ export function QuoteKmFields({
   dest,
   km,
   kmAuto,
+  kmMin,
   pricePerKm,
   driverPricePerKm,
   locked,
-  onChange
+  onChange,
+  onPoints
 }: {
   origin: RoutePoint;
   stops: RoutePoint[];
   dest: RoutePoint;
   km: string;
   kmAuto: boolean;
+  kmMin: string;
   pricePerKm: string;
   driverPricePerKm: string;
   locked: boolean;
-  onChange: (p: { km?: string; km_auto?: boolean; price_per_km?: string; driver_price_per_km?: string }) => void;
+  onChange: (p: { km?: string; km_auto?: boolean; km_min?: string; price_per_km?: string; driver_price_per_km?: string }) => void;
+  onPoints?: (p: { origin: RoutePoint; stops: RoutePoint[]; dest: RoutePoint }) => void;
 }) {
   const [status, setStatus] = useState<string>("");
-  const pts = [origin, ...stops, dest].filter((p) => p.lat != null && p.lng != null) as Array<RoutePoint & { lat: number; lng: number }>;
-  const routeKey = pts.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join("|");
-  const allSet = origin.lat != null && dest.lat != null && stops.every((s) => !s.text.trim() || s.lat != null);
+  const [busy, setBusy] = useState(false);
+  const filledStops = stops.filter((s) => s.text.trim().length >= 3 || s.lat != null);
+  const all = [origin, ...filledStops, dest];
+  const ready = origin.text.trim().length >= 3 && dest.text.trim().length >= 3;
+  const routeKey = all.map((p) => (p.lat != null ? `${p.lat.toFixed(5)},${p.lng?.toFixed(5)}` : p.text.trim().toLowerCase())).join("|");
+  const allCoords = all.every((p) => p.lat != null && p.lng != null);
   const last = useRef<string>("");
 
   async function calc(force = false) {
-    if (!allSet || pts.length < 2) {
-      setStatus("Escolha os endereços na lista (saída e destino) para o GPS calcular.");
+    if (!ready) {
+      setStatus("Preencha a saída e o destino.");
       return;
     }
     if (!force && last.current === routeKey) return;
     last.current = routeKey;
+    setBusy(true);
     setStatus("Calculando a rota…");
-    const r = await routeKm(pts.map((p) => ({ lat: p.lat, lng: p.lng })));
-    if (!r) {
+    try {
+      const res = await fetchWithSupabaseSession(
+        "/api/maps/route-km",
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ points: all.map((p) => ({ text: p.text, lat: p.lat, lng: p.lng })) }) },
+        "admin"
+      );
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        data?: { km: number; source: string; points: { lat: number; lng: number; found: boolean }[] };
+        error?: { message?: string };
+      };
+      if (!res.ok || !j.success || !j.data) {
+        setStatus(j.error?.message ?? "Não consegui calcular. Digite o km.");
+        return;
+      }
+      const d = j.data;
+      // Guarda as coordenadas achadas (assim a corrida também nasce com o mapa certo).
+      if (onPoints && d.points.some((p) => p.found) && d.points.length === all.length) {
+        const fix = (p: RoutePoint, k: number): RoutePoint => (p.lat != null ? p : { ...p, lat: d.points[k].lat, lng: d.points[k].lng });
+        const o = fix(origin, 0);
+        const ds = fix(dest, all.length - 1);
+        let k = 1;
+        const st = stops.map((s) => (s.text.trim().length >= 3 || s.lat != null ? fix(s, k++) : s));
+        last.current = [o, ...st.filter((s) => s.text.trim().length >= 3 || s.lat != null), ds]
+          .map((p) => `${p.lat?.toFixed(5)},${p.lng?.toFixed(5)}`)
+          .join("|");
+        onPoints({ origin: o, stops: st, dest: ds });
+      }
+      onChange({ km: String(d.km).replace(".", ","), km_auto: true });
+      setStatus(d.source === "linha_reta" ? "Estimativa (linha reta + 30%). Confira e corrija se precisar." : "Km calculado pela rota de carro.");
+    } catch {
       setStatus("Não consegui calcular. Digite o km.");
-      return;
+    } finally {
+      setBusy(false);
     }
-    onChange({ km: String(r.km).replace(".", ","), km_auto: true });
-    setStatus(r.source === "google" ? "Km calculado pela rota do GPS." : "Estimativa (linha reta + 30%). Confira e corrija se precisar.");
   }
 
+  // Automático: com os endereços escolhidos na lista, recalcula sempre que a rota muda.
   useEffect(() => {
-    if (locked || !kmAuto) return;
+    if (locked || !kmAuto || !ready || !allCoords) return;
     void calc();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeKey, allSet, kmAuto, locked]);
+  }, [routeKey, allCoords, ready, kmAuto, locked]);
+
+  const kmN = Number(String(km).replace(",", ".")) || 0;
+  const minN = Number(String(kmMin).replace(",", ".")) || 0;
 
   return (
-    <div className="grid gap-3 rounded-xl border border-[#EADFC4] bg-[#FBF7EC] p-3 sm:col-span-6 sm:grid-cols-3">
-      <label className="grid gap-1 text-sm">
+    <div className="grid gap-3 rounded-xl border border-[#EADFC4] bg-[#FBF7EC] p-3 sm:col-span-6 sm:grid-cols-4">
+      <label className="grid gap-1 text-sm sm:col-span-2">
         <span>Km do trajeto</span>
         <div className="flex gap-2">
-          <input
-            className={input}
-            inputMode="decimal"
-            disabled={locked}
-            placeholder="0"
-            value={km}
-            onChange={(e) => onChange({ km: onlyNum(e.target.value), km_auto: false })}
-          />
+          <input className={input} inputMode="decimal" disabled={locked} placeholder="0" value={km} onChange={(e) => onChange({ km: onlyNum(e.target.value), km_auto: false })} />
           {!locked ? (
-            <button type="button" className="shrink-0 rounded-lg px-3 text-xs font-semibold ring-1 ring-prime-border hover:ring-prime-gold" onClick={() => void calc(true)}>
-              📍 GPS
+            <button
+              type="button"
+              disabled={busy}
+              className="shrink-0 rounded-lg bg-[#111] px-3 text-xs font-semibold text-[#fff] disabled:opacity-60"
+              onClick={() => void calc(true)}
+            >
+              {busy ? "…" : "📍 Calcular km"}
             </button>
           ) : null}
         </div>
-        <span className="text-[12px] text-prime-muted">{status || (kmAuto ? "Sai sozinho da rota." : "Digitado na mão.")}</span>
+        <span className="text-[12px] text-prime-muted">
+          {status || (ready ? (allCoords ? "Sai sozinho da rota." : "Clique em Calcular km.") : "Preencha a saída e o destino.")}
+        </span>
       </label>
-      <label className="grid gap-1 text-sm">
+      <label className="grid gap-1 text-sm sm:col-span-2">
+        <span>Km mínimo (opcional)</span>
+        <input className={input} inputMode="decimal" disabled={locked} placeholder="Ex.: 50" value={kmMin} onChange={(e) => onChange({ km_min: onlyNum(e.target.value) })} />
+        <span className="text-[12px] text-prime-muted">
+          {minN > kmN && kmN > 0 ? `Rota tem ${String(kmN).replace(".", ",")} km: cobra o mínimo de ${String(minN).replace(".", ",")} km.` : "Se a rota der menos, cobra o mínimo."}
+        </span>
+      </label>
+      <label className="grid gap-1 text-sm sm:col-span-2">
         <span>Cliente paga por km (R$)</span>
         <input className={input} inputMode="decimal" disabled={locked} placeholder="0,00" value={pricePerKm} onChange={(e) => onChange({ price_per_km: onlyNum(e.target.value) })} />
       </label>
-      <label className="grid gap-1 text-sm">
+      <label className="grid gap-1 text-sm sm:col-span-2">
         <span>Motorista recebe por km (R$)</span>
         <input className={`${input} bg-prime-bg`} inputMode="decimal" disabled={locked} placeholder="0,00" value={driverPricePerKm} onChange={(e) => onChange({ driver_price_per_km: onlyNum(e.target.value) })} />
         <span className="text-[12px] text-prime-muted">Interno: não aparece para o cliente</span>
