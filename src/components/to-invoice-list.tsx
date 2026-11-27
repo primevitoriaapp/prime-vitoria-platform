@@ -18,9 +18,12 @@ type Trip = {
   merge_key: string | null;
   cancel_charge: string | null;
   invoice: { id: string; number: number; status: string } | null;
+  status?: string;
+  driver_amount?: number | null;
+  has_driver?: boolean;
 };
 type Client = { id: string; name: string; payment_term_days: number; per_service: boolean; waiting: number };
-type Data = { clients: Client[]; trips: Trip[]; billed: Trip[] };
+type Data = { clients: Client[]; trips: Trip[]; billed: Trip[]; cancelled: Trip[] };
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const when = (iso: string) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -74,6 +77,28 @@ export function ToInvoiceList({ onClosed }: { onClosed?: () => void }) {
       else n.delete(id);
     }
     setSel(n);
+  }
+
+  /** No-show / cancelamento em cima da hora: cobra 100% (ou o valor que você digitar). */
+  async function chargeCancelled(t: Trip, reason: "no_show" | "cancelamento_tardio") {
+    const cli = window.prompt(`${reason === "no_show" ? "NO-SHOW" : "CANCELAMENTO EM CIMA DA HORA"} — ${when(t.scheduled_at)} · ${t.passenger ?? ""}\n\nQuanto cobrar do cliente? (valor cheio da corrida já preenchido)`, t.amount ? String(t.amount).replace(".", ",") : "");
+    if (cli === null) return;
+    let drv = "0";
+    if (t.has_driver) {
+      const v = window.prompt("Quanto o motorista recebe? (0 se ele não chegou a ir)", t.driver_amount ? String(t.driver_amount).replace(".", ",") : "0");
+      if (v === null) return;
+      drv = v;
+    }
+    const num = (x: string) => Number(x.trim().includes(",") ? x.trim().replace(/\./g, "").replace(",", ".") : x.trim());
+    const r = await fetchWithSupabaseSession(
+      `/api/trips/${t.id}/cancel-charge`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ charge: true, reason, client_amount: num(cli), driver_amount: num(drv) || 0 }) },
+      "admin"
+    ).catch(() => null);
+    const j = r ? await r.json().catch(() => ({})) : {};
+    if (!r?.ok || !j?.success) return setMsg({ ok: false, text: j?.error?.message ?? "Não foi possível." });
+    setMsg({ ok: true, text: "Pronto: a corrida entrou na lista para cobrar, com o motivo na fatura." });
+    await load(q);
   }
 
   async function close() {
@@ -211,6 +236,38 @@ export function ToInvoiceList({ onClosed }: { onClosed?: () => void }) {
       })}
 
       {!trips.length ? <p className="rounded-2xl bg-white p-6 text-center text-sm text-prime-muted">Nada a faturar{q ? " com essa busca" : ""}.</p> : null}
+
+      {(d.cancelled ?? []).filter((t) => !client || t.client_id === client).length ? (
+        <details className="rounded-2xl border border-amber-200 bg-amber-50/50 p-3 text-sm">
+          <summary className="cursor-pointer font-semibold">
+            Canceladas / no-show que não estão sendo cobradas ({(d.cancelled ?? []).filter((t) => !client || t.client_id === client).length})
+          </summary>
+          <p className="mt-1 text-xs text-prime-muted">Teve no-show ou cancelamento em cima da hora? Toque em cobrar: a corrida entra na lista acima com o motivo escrito na fatura.</p>
+          <ul className="mt-2 grid gap-1.5">
+            {(d.cancelled ?? [])
+              .filter((t) => !client || t.client_id === client)
+              .map((t) => (
+                <li key={t.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-white px-2 py-1.5">
+                  <a href={`/agenda?trip=${t.id}#trip-detail`} className="min-w-0 hover:underline">
+                    <b>{when(t.scheduled_at)}</b> · {d.clients.find((c) => c.id === t.client_id)?.name ?? ""} · {t.status === "no_show" ? "no-show" : "cancelada"}
+                    {t.ref ? ` · ${t.ref}` : ""}
+                    <span className="block truncate text-xs text-prime-muted">
+                      {t.passenger ?? ""} · {t.route} · {t.amount ? brl(t.amount) : "sem valor"}
+                    </span>
+                  </a>
+                  <span className="flex flex-wrap justify-end gap-1">
+                    <button type="button" onClick={() => void chargeCancelled(t, "no_show")} className="rounded-lg bg-[#111] px-2 py-1 text-xs font-semibold text-prime-gold">
+                      Cobrar no-show
+                    </button>
+                    <button type="button" onClick={() => void chargeCancelled(t, "cancelamento_tardio")} className="rounded-lg px-2 py-1 text-xs font-semibold ring-1 ring-prime-border">
+                      Cobrar cancelamento
+                    </button>
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </details>
+      ) : null}
 
       {d.billed.length ? (
         <div className="rounded-2xl border border-prime-border bg-white p-3 text-sm">

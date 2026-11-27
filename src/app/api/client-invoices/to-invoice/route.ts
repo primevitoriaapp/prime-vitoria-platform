@@ -38,6 +38,20 @@ export async function GET(request: Request) {
     ]);
     if (error) return fail("LIST_FAILED", error.message, 500);
 
+    // Canceladas / no-show dos últimos 60 dias que ainda não foram cobradas (para decidir no fechamento).
+    const { data: cancelledRaw } = await db
+      .from("trips")
+      .select(cols + ", driver_amount")
+      .eq("tenant_id", tenantId)
+      .is("client_invoice_id", null)
+      .in("operational_status", ["cancelled", "no_show"])
+      .eq("charge_after_cancel", false)
+      .gte("scheduled_at", new Date(Date.now() - 60 * 86400000).toISOString())
+      .lte("scheduled_at", new Date().toISOString())
+      .order("scheduled_at", { ascending: false })
+      .limit(80);
+    const cancelled = (cancelledRaw ?? []) as unknown as Record<string, unknown>[];
+
     // Busca também nas já faturadas (para nada parecer "sumido").
     let billed: Record<string, unknown>[] = [];
     if (q.length >= 3) {
@@ -54,7 +68,7 @@ export async function GET(request: Request) {
       billed = data ?? [];
     }
 
-    const all = [...(ready ?? []), ...billed];
+    const all = [...(ready ?? []), ...billed, ...cancelled];
     const cIds = [...new Set([...all.map((t) => t.client_id as string), ...(waiting ?? []).map((w) => w.client_id as string)].filter(Boolean))];
     const dIds = [...new Set(all.map((t) => t.driver_id as string).filter(Boolean))];
     const invIds = [...new Set(billed.map((t) => t.client_invoice_id as string).filter(Boolean))];
@@ -84,7 +98,10 @@ export async function GET(request: Request) {
         has_voucher: Boolean(t.client_voucher_path),
         merge_key: (t.invoice_merge_key as string | null) ?? null,
         cancel_charge: t.charge_after_cancel ? String(t.charge_reason ?? "outro") : null,
-        invoice: inv ? { id: inv.id as string, number: inv.number as number, status: inv.status as string } : null
+        invoice: inv ? { id: inv.id as string, number: inv.number as number, status: inv.status as string } : null,
+        status: t.operational_status as string,
+        driver_amount: t.driver_amount == null ? null : Number(t.driver_amount),
+        has_driver: Boolean(t.driver_id)
       };
     };
     const clients = cIds
@@ -99,7 +116,7 @@ export async function GET(request: Request) {
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-    return ok({ clients, trips: (ready ?? []).map(row), billed: billed.map(row) });
+    return ok({ clients, trips: (ready ?? []).map(row), billed: billed.map(row), cancelled: cancelled.map(row) });
   } catch (e) {
     return mapApiError(e);
   }

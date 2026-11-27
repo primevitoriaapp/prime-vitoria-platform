@@ -151,15 +151,70 @@ export function TripEditPanel({ tripId, defaultOpen = false }: { tripId: string;
       setMsg({ ok: false, text: json.error?.message ?? "Não foi possível salvar." });
       return;
     }
+    let extra = "";
+    if (!locked && !json.data?._unchanged) extra = await applyToSiblings(scheduled as string);
     setMsg({
       ok: true,
-      text: json.data?._unchanged
-        ? "Nada mudou."
-        : trip.driver_id
-          ? "Salvo. A O.S. atualizada foi enviada ao motorista."
-          : "Salvo."
+      text:
+        (json.data?._unchanged
+          ? "Nada mudou."
+          : trip.driver_id
+            ? "Salvo. A O.S. atualizada foi enviada ao motorista."
+            : "Salvo.") + extra
     });
     router.refresh();
+  }
+
+  /** Serviço de vários dias: pergunta se a mudança vale também para os outros dias. */
+  async function applyToSiblings(scheduled: string): Promise<string> {
+    if (!trip) return "";
+    const r = await fetchWithSupabaseSession(`/api/trips/${trip.id}/siblings`, {}, "admin").catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { success?: boolean; data?: { siblings: { id: string; scheduled_at: string }[] } }) : {};
+    const sibs = j.success ? (j.data?.siblings ?? []) : [];
+    if (!sibs.length) return "";
+    const before = spParts(trip.scheduled_at);
+    const changed: Record<string, unknown> = {};
+    const labels: string[] = [];
+    if (time !== before.time) labels.push(`horário (${time})`);
+    if (origin.text !== (trip.origin_text ?? "")) {
+      Object.assign(changed, { origin_text: origin.text, origin_lat: origin.lat, origin_lng: origin.lng });
+      labels.push("embarque");
+    }
+    if (dest.text !== (trip.destination_text ?? "")) {
+      Object.assign(changed, { destination_text: dest.text, destination_lat: dest.lat, destination_lng: dest.lng });
+      labels.push("destino");
+    }
+    if (paxName !== (trip.passenger_name ?? "")) {
+      changed.passenger_name = paxName;
+      labels.push("passageiro");
+    }
+    if (paxPhone !== (trip.passenger_phone ?? "")) {
+      changed.passenger_phone = paxPhone;
+      labels.push("telefone");
+    }
+    if (paxCount !== (trip.passenger_count ?? 1)) {
+      changed.passenger_count = paxCount;
+      labels.push("nº de passageiros");
+    }
+    if (presentation !== (trip.presentation_minutes ?? 0)) {
+      changed.presentation_minutes = presentation;
+      labels.push("antecedência");
+    }
+    if (JSON.stringify(extras) !== JSON.stringify(trip.service_extras ?? [])) {
+      changed.service_extras = extras;
+      labels.push("extras");
+    }
+    if (!labels.length) return "";
+    const days = sibs.map((x) => new Date(x.scheduled_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" }));
+    if (!window.confirm(`Esta corrida faz parte de um serviço com outros dias (${days.join(", ")}).\n\nAplicar também nesses dias a mudança de: ${labels.join(", ")}?`)) return "";
+    let okN = 0;
+    for (const sb of sibs) {
+      const body: Record<string, unknown> = { ...changed, reason: "Mesma mudança aplicada a todos os dias do serviço" };
+      if (time !== before.time) body.scheduled_at = saoPauloDateAndTimeToUtcIso(spParts(sb.scheduled_at).date, time) ?? scheduled;
+      const rr = await fetchWithSupabaseSession(`/api/trips/${sb.id}`, { method: "PATCH", body: JSON.stringify(body) }, "admin").catch(() => null);
+      if (rr?.ok) okN += 1;
+    }
+    return okN === sibs.length ? ` Também aplicado em ${okN} outro(s) dia(s).` : ` Aplicado em ${okN} de ${sibs.length} outros dias — confira os demais.`;
   }
 
   return (
