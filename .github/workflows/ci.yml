@@ -5,6 +5,7 @@ on:
     branches: [main, staging, "cursor/**"]
   pull_request:
     branches: [main, staging, "cursor/**"]
+  workflow_dispatch:
 
 jobs:
   test-and-build:
@@ -39,7 +40,9 @@ jobs:
           echo "Server did not become ready in time"
           exit 1
 
+  # Testes de navegador: só quando disparados à mão (a instalação do navegador falha no runner padrão).
   playwright:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs: test-and-build
     env:
