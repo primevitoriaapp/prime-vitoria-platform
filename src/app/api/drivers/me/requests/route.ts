@@ -111,7 +111,8 @@ export async function POST(request: Request) {
         enqueueInAppForTenantRoles(s.tenantId, ["admin", "operador"], {
           eventType: "drivers.change_request",
           title: `🪪 ${KIND_LABEL[kind]} para aprovar`,
-          body: `${(d?.full_name as string | null) ?? "Motorista"} enviou pelo app. Abra Motoristas para aprovar.`
+          body: `${(d?.full_name as string | null) ?? "Motorista"} enviou pelo app. Toque para aprovar.`,
+          url: "/drivers#pedidos"
         })
       )
       .catch(() => 0);

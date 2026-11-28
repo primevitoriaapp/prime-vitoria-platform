@@ -38,6 +38,7 @@ function linkFor(payload: Record<string, unknown>, tripId: string | null, eventT
   if (typeof quoteId === "string" && quoteId) return `/orcamentos?abrir=${quoteId}`;
   const url = payload.url;
   if (typeof url === "string" && url.startsWith("/")) return url;
+  if (eventType === "drivers.change_request") return "/drivers#pedidos";
   if (eventType.startsWith("finance.")) return "/painel-financeiro";
   if (eventType.includes("quote")) return "/orcamentos";
   return "/agenda";

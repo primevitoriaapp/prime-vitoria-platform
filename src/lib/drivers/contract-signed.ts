@@ -17,7 +17,7 @@ export async function onDriverSignedContract(tenantId: string, driverId: string,
   const { pushToStaff, pushToDriver } = await import("@/lib/push/web-push");
   await pushToStaff(tenantId, { title: staffTitle, body: staffBody, url: `/drivers?ficha=${driverId}&contrato=1`, tag: `contract-${driverId}` }).catch(() => 0);
   await import("@/lib/notifications/enqueue-for-profiles")
-    .then(({ enqueueInAppForTenantRoles }) => enqueueInAppForTenantRoles(tenantId, ["admin", "operador"], { eventType: "drivers.contract_signed", title: staffTitle, body: staffBody }))
+    .then(({ enqueueInAppForTenantRoles }) => enqueueInAppForTenantRoles(tenantId, ["admin", "operador"], { eventType: "drivers.contract_signed", title: staffTitle, body: staffBody, url: `/drivers?ficha=${driverId}&contrato=1` }))
     .catch(() => 0);
   if (wasBlocked)
     await pushToDriver(tenantId, driverId, { title: "Contrato assinado ✅", body: "Tudo certo! Você já pode aceitar corridas da Prime Vitória.", url: "/driver", tag: `contract-${driverId}` }).catch(() => 0);

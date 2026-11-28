@@ -204,8 +204,11 @@ export async function activateLead(inp: ActivateInput): Promise<ActivateResult> 
       const fields = fillTemplate(tpl.variables, src).filter((f) => f.value.trim());
       const first: NewSigner = { name: s(c.full_name) || s(lead.name), email: s(c.email) || null, phone, role: "Motorista" };
       const doc = await zapsignCreateFromTemplate({ templateId: inp.templateId, signer: first, data: fields.map((f) => ({ de: f.variable, para: f.value })), externalId: driverId });
-      const signers: { name: string; email: string | null; status?: string; sign_url: string | null; signed_at: null; role?: string }[] = (doc.signers ?? []).map((x) => ({ name: x.name, email: x.email ?? null, status: x.status, sign_url: x.sign_url ?? null, signed_at: null, role: "Motorista" }));
+      const signers: { name: string; email: string | null; status?: string; sign_url: string | null; signed_at: null; role?: string }[] = (doc.signers ?? []).map((x, i) => ({ name: x.name, email: x.email ?? null, status: x.status, sign_url: x.sign_url ?? null, signed_at: null, role: i === 0 ? "Motorista" : "Modelo" }));
+      const norm = (v: string | null | undefined) => String(v ?? "").trim().toLowerCase();
       for (const o of inp.signers) {
+        // O modelo da ZapSign pode já trazer a Prime/testemunhas: não duplica.
+        if (signers.some((x) => norm(x.name) === norm(o.name))) continue;
         try {
           const added = await zapsignAddSigner(doc.token, { ...o, email: o.email || null });
           signers.push({ name: added.name ?? o.name, email: added.email ?? o.email ?? null, status: added.status ?? "new", sign_url: added.sign_url ?? null, signed_at: null, role: o.role });

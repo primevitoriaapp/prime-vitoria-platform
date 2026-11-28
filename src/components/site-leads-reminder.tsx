@@ -9,6 +9,7 @@ type L = { kind: string; status: string; complete_sent_at?: string | null; compl
 /** Início do painel: motoristas do site esperando análise ou que travaram no meio do cadastro. */
 export function SiteLeadsReminder() {
   const [n, setN] = useState<{ ready: number; filling: number; fresh: number } | null>(null);
+  const [reqs, setReqs] = useState(0);
   useEffect(() => {
     void fetch("/api/leads?kind=motorista", { credentials: "include" })
       .then((r) => r.json())
@@ -22,8 +23,13 @@ export function SiteLeadsReminder() {
         });
       })
       .catch(() => undefined);
+    void fetch("/api/driver-requests", { credentials: "include" })
+      .then((r) => r.json())
+      .then((j: { success?: boolean; data?: { items?: unknown[] } }) => setReqs(j.success ? (j.data?.items?.length ?? 0) : 0))
+      .catch(() => undefined);
   }, []);
-  if (!n || !(n.ready + n.filling + n.fresh)) return null;
+  const total = (n?.ready ?? 0) + (n?.filling ?? 0) + (n?.fresh ?? 0) + reqs;
+  if (!total) return null;
   const row = (href: string, icon: string, text: string, strong: boolean) => (
     <Link
       href={href as Route}
@@ -37,10 +43,11 @@ export function SiteLeadsReminder() {
   );
   return (
     <section className="mb-3 grid gap-2 rounded-2xl border border-prime-border bg-white p-4 shadow-prime-card">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">Novos motoristas do site</p>
-      {n.ready ? row("/cadastros-site?filtro=completo", "🟢", `${n.ready} motorista(s) mandaram tudo e esperam sua análise`, true) : null}
-      {n.filling ? row("/cadastros-site?filtro=etapa2", "⏳", `${n.filling} começaram o cadastro completo e não terminaram`, false) : null}
-      {n.fresh ? row("/cadastros-site?filtro=etapa1", "🆕", `${n.fresh} fizeram só o cadastro básico (mandar o link do completo)`, false) : null}
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-prime-gold-ink">Motoristas: falta você</p>
+      {reqs ? row("/drivers#pedidos", "🪪", `${reqs} alteração(ões) enviadas pelo app esperando sua aprovação`, true) : null}
+      {n?.ready ? row("/cadastros-site?filtro=completo", "🟢", `${n?.ready} motorista(s) mandaram tudo e esperam sua análise`, true) : null}
+      {n?.filling ? row("/cadastros-site?filtro=etapa2", "⏳", `${n?.filling} começaram o cadastro completo e não terminaram`, false) : null}
+      {n?.fresh ? row("/cadastros-site?filtro=etapa1", "🆕", `${n?.fresh} fizeram só o cadastro básico (mandar o link do completo)`, false) : null}
     </section>
   );
 }

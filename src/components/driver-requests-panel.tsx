@@ -26,6 +26,12 @@ export function DriverRequestsPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+  // Vindo do sininho (/drivers#pedidos): rola até os pedidos assim que carregarem.
+  useEffect(() => {
+    if (items?.length && typeof window !== "undefined" && window.location.hash === "#pedidos") {
+      document.getElementById("pedidos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [items]);
 
   async function decide(id: string, action: "approve" | "reject") {
     let note: string | undefined;
