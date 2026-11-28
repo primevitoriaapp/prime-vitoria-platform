@@ -216,6 +216,10 @@ export async function POST(request: Request) {
         400
       );
     }
+    // Pedido do portal sem nome do passageiro: o motorista fica sem saber quem buscar.
+    if (session.role === "cliente" && !pickupStops?.length && !body.passenger_name?.trim()) {
+      return fail("PASSENGER_REQUIRED", "Informe o nome do passageiro (quem o motorista vai buscar).", 400);
+    }
     const legTotals = legs?.length ? sumLegAmounts(legs) : null;
     const legScheduleIso = legs?.length ? firstLegScheduledAtIso(legs) : null;
     const scheduledAtRaw = legScheduleIso ?? body.scheduled_at;

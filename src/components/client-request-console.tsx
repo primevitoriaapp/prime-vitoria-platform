@@ -376,6 +376,10 @@ export function ClientRequestConsole({
       setError("Informe a data e o horário da corrida.");
       return;
     }
+    if (!passengerName.trim() && !teamShape?.pickupStops?.length) {
+      setError("Informe o nome do passageiro: é quem o motorista vai buscar.");
+      return;
+    }
     if (new Date(scheduledIso).getTime() < Date.now() + 5 * 60_000) {
       setError("O horário precisa ser no futuro. Para uma corrida imediata, ligue para a central Prime.");
       return;
@@ -837,7 +841,8 @@ export function ClientRequestConsole({
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_140px]">
           <PassengerAutocompleteInput
             clientId={clientId}
-            label="Nome do passageiro"
+            label="Nome do passageiro *"
+            required
             value={passengerName}
             onChange={setPassengerName}
             onSelect={(p) => {

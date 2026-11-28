@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     if (!(await checkBuildToken(token, true))) return fail("UNAUTHORIZED", "Senha de envio inválida ou vencida", 401);
     const urls: Record<string, string> = {};
     for (const kind of kinds) {
-      const { data: up, error } = await db.storage.from(BUCKET).createSignedUploadUrl(`driver/${name}.${kind}`, { upsert: true });
+      const { data: up, error } = await db.storage.from(BUCKET).createSignedUploadUrl(`${name.startsWith("empresa-") ? "empresa" : "driver"}/${name}.${kind}`, { upsert: true });
       if (error || !up) return fail("UPLOAD_URL_FAILED", error?.message ?? "Falhou", 500);
       urls[kind] = up.signedUrl;
     }

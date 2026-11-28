@@ -1,0 +1,14 @@
+{
+  "appId": "com.primevitoria.empresa",
+  "appName": "Prime Empresas",
+  "webDir": "www",
+  "server": {
+    "url": "https://empresa.primevitoria.com/client",
+    "androidScheme": "https",
+    "allowNavigation": ["empresa.primevitoria.com", "central.primevitoria.com", "primevitoria.com", "*.primevitoria.com"]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#111111"
+  }
+}

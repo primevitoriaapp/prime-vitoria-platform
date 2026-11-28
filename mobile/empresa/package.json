@@ -1,0 +1,13 @@
+{
+  "name": "prime-empresas-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "App Android/iPhone das empresas clientes Prime Vitória (abre empresa.primevitoria.com: pedir carro, acompanhar, funcionários, faturas).",
+  "dependencies": {
+    "@capacitor/android": "8.6.3",
+    "@capacitor/core": "8.6.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.3"
+  }
+}
