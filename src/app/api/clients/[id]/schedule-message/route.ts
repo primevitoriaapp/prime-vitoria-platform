@@ -20,6 +20,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const url = new URL(request.url);
     const from = url.searchParams.get("from") ?? "";
     const to = url.searchParams.get("to") ?? from;
+    // Opcional: só as corridas de um passageiro deste cliente (ex.: músico da orquestra).
+    const passenger = (url.searchParams.get("passenger") ?? "").trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return fail("INVALID_DATE", "Datas inválidas", 400);
 
     const { data: client } = await db
@@ -34,13 +36,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const toIso = new Date(new Date(`${to}T00:00:00-03:00`).getTime() + 86400000).toISOString();
     const { data: rows, error } = await db
       .from("trips")
-      .select("id, scheduled_at, passenger_name, passenger_count, origin_text, destination_text, flight_number, driver_id, vehicle_id, operational_status, trip_pickup_stops")
+      .select("id, scheduled_at, passenger_name, passenger_phone, passenger_count, origin_text, destination_text, flight_number, driver_id, vehicle_id, operational_status, trip_pickup_stops")
       .eq("tenant_id", tenantId)
       .eq("client_id", id)
       .gte("scheduled_at", fromIso)
       .lt("scheduled_at", toIso)
       .order("scheduled_at")
       .limit(100);
+    if (passenger && rows) {
+      const p = passenger.toLowerCase();
+      rows.splice(0, rows.length, ...rows.filter((t) => String(t.passenger_name ?? "").trim().toLowerCase() === p));
+    }
     if (error) return fail("TRIPS_FAILED", error.message, 500);
     const trips = (rows ?? []).filter((t) => !SKIP.includes(t.operational_status as string));
 
@@ -86,9 +92,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       };
     });
 
-    const clientName = ((client.trade_name as string | null) || (client.name as string)).trim();
+    const clientName = passenger || ((client.trade_name as string | null) || (client.name as string)).trim();
     const text = list.length ? buildClientScheduleMessage({ clientName, trips: list }) : "";
-    const phone = (client.whatsapp as string | null) || (client.phone as string | null);
+    const paxPhone = passenger ? ((trips.find((t) => t.passenger_phone)?.passenger_phone as string | null) ?? null) : null;
+    const phone = passenger ? paxPhone : (client.whatsapp as string | null) || (client.phone as string | null);
     return ok({
       client_name: clientName,
       count: list.length,

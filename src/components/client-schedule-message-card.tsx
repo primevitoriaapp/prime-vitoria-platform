@@ -5,6 +5,7 @@ import { fetchWithSupabaseSession } from "@/lib/supabase/auth-fetch";
 import { PRIME_INPUT_CLASS } from "@/lib/ui/prime-input-class";
 
 type ClientOpt = { id: string; name: string; trade_name?: string | null; active?: boolean };
+type PaxOpt = { passenger: string; client_id: string; client_name: string; count: number; next: string | null };
 type Result = { client_name: string; count: number; without_driver: number; text: string; phone: string | null; whatsapp_url: string | null };
 
 function spDate(offsetDays = 0): string {
@@ -17,6 +18,8 @@ export function ClientScheduleMessageCard() {
   const [clients, setClients] = useState<ClientOpt[]>([]);
   const [query, setQuery] = useState("");
   const [clientId, setClientId] = useState("");
+  const [pax, setPax] = useState<PaxOpt | null>(null);
+  const [paxOpts, setPaxOpts] = useState<PaxOpt[]>([]);
   const [preset, setPreset] = useState<"ontem" | "hoje" | "amanha" | "7d" | "dia">("hoje");
   const [day, setDay] = useState(spDate(0));
   const [busy, setBusy] = useState(false);
@@ -46,12 +49,28 @@ export function ClientScheduleMessageCard() {
     return list.slice(0, 8);
   }, [clients, query]);
 
+  // Também procura pelo nome do passageiro (quem não é cliente direto, ex.: músico da orquestra).
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2 || clientId) {
+      setPaxOpts([]);
+      return;
+    }
+    const id = window.setTimeout(() => {
+      void fetchWithSupabaseSession(`/api/trips/passenger-search?q=${encodeURIComponent(q)}`, {}, "admin")
+        .then((r) => r.json())
+        .then((j: { success?: boolean; data?: { items?: PaxOpt[] } }) => setPaxOpts(j.data?.items ?? []))
+        .catch(() => setPaxOpts([]));
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [query, clientId]);
+
   useEffect(() => {
     if (!clientId) return;
     let cancelled = false;
     setBusy(true);
     setError(null);
-    void fetchWithSupabaseSession(`/api/clients/${clientId}/schedule-message?from=${range.from}&to=${range.to}`, {}, "admin")
+    void fetchWithSupabaseSession(`/api/clients/${clientId}/schedule-message?from=${range.from}&to=${range.to}${pax ? `&passenger=${encodeURIComponent(pax.passenger)}` : ""}`, {}, "admin")
       .then((r) => r.json())
       .then((j: { success?: boolean; data?: Result; error?: { message?: string } }) => {
         if (cancelled) return;
@@ -69,7 +88,7 @@ export function ClientScheduleMessageCard() {
     return () => {
       cancelled = true;
     };
-  }, [clientId, range]);
+  }, [clientId, range, pax]);
 
   async function copy() {
     try {
@@ -96,18 +115,21 @@ export function ClientScheduleMessageCard() {
       <div className="grid gap-3 border-t border-prime-border p-4">
         <div className="grid gap-3 md:grid-cols-[1fr_auto]">
           <label className="relative grid gap-1 text-sm">
-            <span>Cliente</span>
+            <span>Cliente ou passageiro</span>
             <input
               className={PRIME_INPUT_CLASS}
-              placeholder="Digite o nome do cliente"
-              value={selected && !query ? selected.trade_name || selected.name : query}
+              placeholder="Nome do cliente ou do passageiro"
+              autoComplete="off"
+              name="prime-schedule-search"
+              value={pax && !query ? `${pax.passenger} · ${pax.client_name}` : selected && !query ? selected.trade_name || selected.name : query}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setClientId("");
+                setPax(null);
                 setRes(null);
               }}
             />
-            {!clientId && query.trim() && filtered.length ? (
+            {!clientId && query.trim() && (filtered.length || paxOpts.length) ? (
               <ul className="absolute top-full z-20 mt-1 w-full overflow-hidden rounded-lg border border-prime-border bg-white shadow-lg">
                 {filtered.map((c) => (
                   <li key={c.id}>
@@ -121,6 +143,29 @@ export function ClientScheduleMessageCard() {
                     >
                       {c.trade_name || c.name}
                       {c.trade_name && c.trade_name !== c.name ? <span className="text-xs text-prime-muted"> · {c.name}</span> : null}
+                    </button>
+                  </li>
+                ))}
+                {paxOpts.length ? <li className="bg-prime-bg px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-prime-muted">Passageiros</li> : null}
+                {paxOpts.map((p) => (
+                  <li key={`${p.passenger}|${p.client_id}`}>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-prime-bg"
+                      onClick={() => {
+                        setPax(p);
+                        setClientId(p.client_id);
+                        setQuery("");
+                        if (p.next) {
+                          const d = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(p.next));
+                          if (d !== spDate(0)) {
+                            setPreset(d === spDate(1) ? "amanha" : "dia");
+                            setDay(d);
+                          }
+                        }
+                      }}
+                    >
+                      👤 {p.passenger} <span className="text-xs text-prime-muted">· {p.client_name} · {p.count} corrida{p.count > 1 ? "s" : ""}{p.next ? ` · próxima ${new Date(p.next).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" })}` : ""}</span>
                     </button>
                   </li>
                 ))}
@@ -177,10 +222,10 @@ export function ClientScheduleMessageCard() {
                 </button>
                 {waUrl ? (
                   <a href={waUrl} target="_blank" rel="noreferrer" className="rounded-lg bg-[#25D366] px-4 py-2 text-sm font-semibold text-[#fff]">
-                    Abrir no WhatsApp do cliente
+                    {pax ? "Abrir no WhatsApp do passageiro" : "Abrir no WhatsApp do cliente"}
                   </a>
                 ) : (
-                  <span className="text-xs text-prime-muted">Cliente sem WhatsApp no cadastro: copie e cole na conversa.</span>
+                  <span className="text-xs text-prime-muted">{pax ? "Passageiro sem celular na corrida" : "Cliente sem WhatsApp no cadastro"}: copie e cole na conversa.</span>
                 )}
               </div>
             </>
