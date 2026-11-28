@@ -1,5 +1,5 @@
 import { db } from "@/lib/server/db";
-import { syncPending, type ContractRow } from "@/lib/contracts/contracts";
+import { driverSigned, syncPending, type ContractRow } from "@/lib/contracts/contracts";
 
 export type ContractGate = { required: boolean; signed: boolean; sign_url: string | null; title: string | null };
 
@@ -12,7 +12,7 @@ export async function driverContractGate(driverId: string): Promise<ContractGate
   if (!d?.contract_required) return { required: false, signed: true, sign_url: null, title: null };
   const { data } = await db.from("contracts").select("*").eq("driver_id", driverId).neq("status", "cancelado").order("created_at", { ascending: false });
   const rows = await syncPending((data ?? []) as ContractRow[]).catch(() => (data ?? []) as ContractRow[]);
-  if (rows.some((r) => r.status === "assinado")) {
+  if (rows.some((r) => r.status === "assinado" || (r.status === "pendente" && driverSigned(r.signers)))) {
     await db.from("drivers").update({ contract_required: false }).eq("id", driverId);
     return { required: true, signed: true, sign_url: null, title: null };
   }

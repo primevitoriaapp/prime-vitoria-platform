@@ -19,6 +19,13 @@ export type ContractRow = {
   synced_at: string | null;
 };
 
+/** O signatário "motorista" do contrato (marcado como Motorista, ou o primeiro da lista) já assinou? */
+export function driverSigned(signers: (ZapSigner & { role?: string })[] | null | undefined): boolean {
+  const list = signers ?? [];
+  const d = list.find((x) => /motorista/i.test(String(x.role ?? ""))) ?? list[0];
+  return Boolean(d && (d.status === "signed" || d.signed_at));
+}
+
 /** Atualiza a situação dos pendentes na ZapSign (no máximo a cada 2 min por contrato). */
 export async function syncPending(rows: ContractRow[]): Promise<ContractRow[]> {
   const out: ContractRow[] = [];
@@ -31,7 +38,15 @@ export async function syncPending(rows: ContractRow[]): Promise<ContractRow[]> {
     try {
       const doc = await zapsignGetDoc(r.zapsign_token);
       const status = mapZapStatus(doc.status);
-      const signers = (doc.signers ?? []).map((s) => ({ name: s.name, email: s.email ?? null, status: s.status, sign_url: s.sign_url ?? null, signed_at: s.signed_at ?? null }));
+      const before = (r.signers ?? []) as (ZapSigner & { role?: string })[];
+      const roleOf = (name: string, i: number) => before.find((b) => b.name === name)?.role ?? before[i]?.role;
+      const signers = (doc.signers ?? []).map((s, i) => ({ name: s.name, email: s.email ?? null, status: s.status, sign_url: s.sign_url ?? null, signed_at: s.signed_at ?? null, role: roleOf(s.name, i) }));
+      // O motorista assinou a parte dele agora? Libera as corridas e avisa a central.
+      if (r.driver_id && !driverSigned(before) && driverSigned(signers)) {
+        await import("@/lib/drivers/contract-signed")
+          .then(({ onDriverSignedContract }) => onDriverSignedContract(r.tenant_id, r.driver_id!, r.title))
+          .catch(() => undefined);
+      }
       const patch = {
         status,
         signers,
