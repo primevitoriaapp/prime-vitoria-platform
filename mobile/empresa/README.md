@@ -7,3 +7,4 @@ dentro de um app próprio, em nome da Prime Locadora & Serviços LTDA.
   gera o APK assinado + o .aab da loja e publica na central.
 - Download público: `https://central.primevitoria.com/baixar-app/empresa`.
 - Mesma chave de envio da Play Store do app do motorista (mesma empresa dona).
+
